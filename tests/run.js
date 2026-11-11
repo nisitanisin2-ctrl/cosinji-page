@@ -2244,7 +2244,7 @@ async function runSpeech(browser) {
           await page.evaluate(() => document.getElementById('dtMain').textContent), '360');
     await sayDt('みかん3個');
     check(`  電卓(${style}) 式でないときは知らせる`,
-          await page.evaluate(() => /計算の形で言って/.test(document.getElementById('appToast').textContent)), true);
+          await page.evaluate(() => /計算の形に(なりません|ならない)|もしかして|こう言うと/.test(document.getElementById('dtVoice').textContent)), true);   // v666：声の 行に 出す（黒い お知らせは 重ねない）
   }
   // 続けて入れる（電卓ではセルが無いので、聞き直すだけ）
   await page.evaluate(() => { dtTape = []; dtRender();
@@ -20732,14 +20732,14 @@ async function runUi2640(browser) {
   check('  行番号は 細い 列（36px）・いまの 行に 印', await page.evaluate(() => { sel(3, 1); const e = document.getElementById('rh3'); return Math.round(e.getBoundingClientRect().width) + '/' + e.classList.contains('rcur') + '/' + document.getElementById('rh2').classList.contains('rcur'); }), '36/true/false');
   check('  合計は セルの バーにも テンキーの 上にも 出さない（1つの セルの ときは 出ない）', await page.evaluate(() => document.getElementById('statsSection').parentNode.id + '/' + document.getElementById('rangeSum').hidden), 'rangeSum/true');
   check('  低い 段は Σ合計・＝数式・☑複数・±・📅日付（あ文字・🎤・ƒx関数 は 出さない。v654）', await page.evaluate(() => ['sum', 'fx', 'u_multi', 'sign', 'u_cal', 'u_text', 'u_voice'].map(k => { const b = document.querySelector('#numpadPage1 [data-key="' + k + '"]'); return b && b.offsetParent ? 1 : 0; }).join('')), '1111100');
-  check('  キーの 角は 丸い（14px）', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPage1 [data-key="n7"]')).borderTopLeftRadius), '14px');
+  check('  キーの 角は 丸い（11px・v667 見本に 寄せる）', await page.evaluate(() => getComputedStyle(document.querySelector('#numpadPage1 [data-key="n7"]')).borderTopLeftRadius), '11px');
   const keys = await page.evaluate(() => { const v = [...document.querySelectorAll('#numpadPage1 .btn[data-key]')].filter(b => b.offsetParent && b.getBoundingClientRect().height > 0); return { n: v.length, rows: new Set(v.map(b => Math.round(b.getBoundingClientRect().top))).size, k: v.map(b => b.dataset.key).sort().join(',') }; });
   check('  テンキーは 低い 段＋4段 23個（Σ合計・＝数式・🎤声・±・あ文字 ／ 数・計算の記号・⌫・C・Enter）', keys.n + '/' + keys.rows, '23/5');
   check('  道具・ひな形・戻す・進む・通常は テンキーから 外れる', /tools|mode|u_undo|u_redo|u_normal/.test(keys.k), false);
   const half = await page.evaluate(() => { const hgt = k => document.querySelector('#numpadPage1 [data-key="' + k + '"]').getBoundingClientRect(); const a = ['sum', 'fx', 'u_multi', 'sign', 'u_cal'].map(hgt), n = hgt('n7'); return [a.every(x => Math.abs(x.top - a[0].top) < 1), a.every(x => x.height >= 28 && x.height <= n.height * 0.65), a[0].bottom <= n.top, Math.round(hgt('n0').width) > Math.round(n.width) * 1.8].join('/'); });
   check('  低い 段は 1列に 並び、ふつうの キーの 半分くらいの 高さ・数字の 上・0 は 2つ分', half, 'true/true/true/true');
-  check('  下の タブは 少し 低く（48px）', await page.evaluate(() => Math.round(document.getElementById('appNav').getBoundingClientRect().height)), 48);
-  check('  色は 3つの 役（数は 灰・記号は 緑・Enter は 明るい 緑。C と ⌫ は 灰）', await page.evaluate(() => ['n7', 'plus', 'enter', 'ce', 'bs'].map(k => getComputedStyle(document.querySelector('#numpadPage1 [data-key="' + k + '"]')).backgroundColor).join('|')), 'rgb(74, 74, 74)|rgb(26, 92, 53)|rgb(31, 138, 85)|rgb(74, 84, 94)|rgb(74, 84, 94)');
+  check('  下の タブは 少し 低く（44px・v667）', await page.evaluate(() => Math.round(document.getElementById('appNav').getBoundingClientRect().height)), 44);
+  check('  色は 3つの 役（数は 灰・記号は 緑・Enter は 明るい 緑。C と ⌫ は 灰）', await page.evaluate(() => ['n7', 'plus', 'enter', 'ce', 'bs'].map(k => getComputedStyle(document.querySelector('#numpadPage1 [data-key="' + k + '"]')).backgroundColor).join('|')), 'rgb(59, 66, 73)|rgb(39, 70, 58)|rgb(31, 138, 85)|rgb(74, 84, 94)|rgb(74, 84, 94)');   // v667：見本の 青みの 灰・深い 緑
   // 上の バー
   check('  上の バーに 表の 名前と 保存の ようす・↶ は まだ 押せない', await page.evaluate(() => document.getElementById('atName').textContent + '/' + document.getElementById('atState').textContent + '/' + document.getElementById('atUndo').disabled), 'シート1/✓ 自動で保存/true');
   await page.evaluate(() => { sel(0, 0); num('5'); eq(); }); await w(300);
@@ -20928,7 +20928,7 @@ async function runUi2640(browser) {
     await page.evaluate(() => { NP_TOOLS.find(t => t.id === 'tansui').close(); }); await w(400);
     check('  　閉じると タブが 戻る', await page.evaluate(() => getComputedStyle(document.getElementById('appNav')).visibility), 'visible');
     await page.evaluate(() => { setToolFs(false); NP_TOOLS.find(t => t.id === 'tansui').run(); }); await w(700);
-    check('  　設定で「下のタブを残す」に できる', await tm(), (852 - 48) + '/visible/0');
+    check('  　設定で「下のタブを残す」に できる', await tm(), (852 - 44) + '/visible/0');   // v667：タブは 44px
     await page.evaluate(() => { NP_TOOLS.find(t => t.id === 'tansui').close(); setToolFs(true); }); await w(400);
   }
   // v650：入れた ときの 自動の 変換を 1つずつ オン／オフ
@@ -21075,6 +21075,19 @@ async function runUi2640(browser) {
     const lastC = await page.evaluate(() => { const w = document.querySelector('.sheet-wrap').getBoundingClientRect(); for (let c = 0; c < COLS; c++) { const e = document.getElementById('c5_' + c).getBoundingClientRect(); if (e.right > w.right - 24) return c; } return -1; });
     check('  右端の 列の セルは 左上', lastC >= 0 ? await where(5, lastC) : 'upLfalse', 'upLfalse');
     await page.evaluate(() => { try { hideCellMenu(); } catch (_) {} sel(0, 0); }); await w(300);
+  }
+  // v667：お知らせは 上の バーの 下に 短く・表の 一覧は カード・上の バーは 低く
+  {
+    const tt = await page.evaluate(() => { toast('ためし', 3000); const el = document.getElementById('appToast'), t = document.getElementById('appTop').getBoundingClientRect(), r = el.getBoundingClientRect();
+      return [el.classList.contains('t-top'), Math.abs(r.top - (t.bottom + 6)) < 12 || el.style.top === Math.round(t.bottom + 6) + 'px', Math.round(t.height) <= 44].join('/'); });
+    check('お知らせは 上の バーの すぐ 下・上の バーは 低く（v667）', tt, 'true/true/true');
+    await w(1700);
+    check('  お知らせの 時間は 短く（3秒 → 1.8秒）', await page.evaluate(() => document.getElementById('appToast').classList.contains('show')), true);
+    await w(400);
+    check('  　1.8秒で 消える', await page.evaluate(() => document.getElementById('appToast').classList.contains('show')), false);
+    await page.evaluate(() => showSaveList()); await w(600);
+    check('  表の 一覧は カード（名前・いつ・⋮）', await page.evaluate(() => { const c = document.querySelector('#saveListBody .ul-file'); return !!c && !!c.querySelector('.ul-thumb') && !!c.querySelector('.ul-txt small') && !!c.querySelector('.ul-more') && getComputedStyle(c).flexDirection; }), 'row');
+    await page.evaluate(() => closeSaveList()); await w(400);
   }
   // 範囲を 選んで ⌫・CE で まとめて 消す（v646）
   await page.evaluate(() => { for (let r = 10; r < 13; r++) for (let c = 0; c < 3; c++) setCellVal(r, c, String(r * 10 + c)); recalcAll(); sel(10, 0); extendRange(11, 1); }); await w(200);

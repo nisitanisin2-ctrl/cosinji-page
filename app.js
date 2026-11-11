@@ -3966,9 +3966,13 @@ function applySkin(){
     kh=skinMix(th.a,'#000000',.34); ka=skinMix(th.a,'#000000',.18);
   }else if(skinKeyTone==='light'){
     kb='#aab2bd'; kk='#6e7885'; kh='#828b98'; ka='#99a1ad';
+  }else if(ui2On){   // 新しい 画面（v667）：見本（ブラッシュアップ案）と 同じ 青みの 黒・計算の 記号は 深い 緑に 明るい 緑の 字
+    kb='#1f2428'; kk='#3b4249'; kh='#4a525b'; ka='#5c656f';
   }else{
     kb='#2c2c2c'; kk='#4a4a4a'; kh='#666666'; ka='#888888';
   }
+  if(ui2On && skinKeyTone!=='tint' && skinKeyTone!=='light'){ st.setProperty('--kp-op','#27463a'); st.setProperty('--kp-op-ink','#a6e8c6'); st.setProperty('--kp-op-h','#2f5546'); }
+  else { st.removeProperty('--kp-op'); st.removeProperty('--kp-op-ink'); st.removeProperty('--kp-op-h'); }
   st.setProperty('--kp-bg',kb);
   /* 明るいキーのときは、ページ表示の文字と薄い敷き色を黒系にして読めるようにする */
   if(skinKeyTone==='light'){
@@ -5821,7 +5825,11 @@ function toast(msg, ms, opt){
     b.addEventListener('click', ()=>{ el.classList.remove('show'); try{ undoLast(); }catch(_){} });
     el.appendChild(b); ms=ms||5000;
   }
-  el.style.bottom=toastBottom();   // テンキーの 上に 出す（v639。前は テンキーの 下の 段に 重なって いた）
+  // 新しい 画面（v667）：上の バーの すぐ 下に 小さく 出す（セルの バー・声の 行・テンキーに かぶらない）。出す 時間も 短く
+  const top=(ui2On && !(opt && opt.undo)) ? document.getElementById('appTop') : null, tr=top && top.offsetParent ? top.getBoundingClientRect() : null;
+  el.classList.toggle('t-top', !!tr);
+  if(tr){ el.style.top=Math.round(tr.bottom+6)+'px'; el.style.bottom='auto'; ms=Math.max(1100, Math.round((ms||1800)*0.6)); }
+  else { el.style.top=''; el.style.bottom=toastBottom(); }   // テンキーの 上に 出す（v639。前は テンキーの 下の 段に 重なって いた）
   el.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer=setTimeout(()=>el.classList.remove('show'), ms||1800);
@@ -18572,7 +18580,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v666';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v667';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -21163,6 +21171,24 @@ function saveFileIcon(s){
   const mi=s.mode?modeItemByKey(s.mode):null;
   return mi?mi.item.icon:'📄';
 }
+/* 新しい 画面の 表の 一覧（v667）：小さな 表の 絵・太い 名前・いつ 変えたか・⋮ */
+function saveWhen(ts){
+  const d=new Date(ts), n=new Date(), hm=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');
+  const day=x=>new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime(), diff=Math.round((day(n)-day(d))/864e5);
+  if(diff===0) return 'きょう '+hm;
+  if(diff===1) return 'きのう '+hm;
+  return (d.getFullYear()!==n.getFullYear() ? d.getFullYear()+'年' : '')+(d.getMonth()+1)+'月'+d.getDate()+'日';
+}
+function renderSaveCards(saves){
+  return '<div class="ul-files">'+saves.map(s=>{
+    const locked=!!s.locked, isCur=(s.id===currentSaveId), mi=s.mode?modeItemByKey(s.mode):null;
+    return `<button class="save-file ul-file${locked?' locked':''}${isCur?' current':''}" data-id="${s.id}" title="${escHtml(s.name)}">
+      <span class="ul-thumb" aria-hidden="true">${mi && mi.key!=='normal' && mi.item.icon!=='▦' ? '<i>'+mi.item.icon+'</i>' : ''}</span>
+      <span class="ul-txt"><b>${locked?'🔒 ':''}${escHtml(s.name)}</b><small>${saveWhen(s.timestamp)}${isCur?' ・ いま開いている表':''}</small></span>
+      <span class="sf-more ul-more" role="button" tabindex="0" aria-label="名前の変更・削除など" onclick="event.stopPropagation();showSaveFileMenu(${s.id},this)"><svg class="ui-ic" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg></span>
+    </button>`;
+  }).join('')+'</div>';
+}
 function renderSaveGrid(saves){
   return `<div class="save-grid">`+saves.map(s=>{
     const locked=!!s.locked;
@@ -21260,6 +21286,7 @@ function renderSaveList() {
   syncSaveViewBtns();
   const saves=sortSaves(getSaves().filter(s=>(s.tab||0)===saveActiveTab));
   if(saves.length===0){body.innerHTML='<div class="no-saves">このタブに保存データがありません</div>';return;}
+  if(ui2On){ body.innerHTML=renderSaveCards(saves); bindSaveFileHold(); return; }   // 新しい 画面（v667）：見本と 同じ カード
   if(saveView==='icon'){ body.innerHTML=renderSaveGrid(saves); bindSaveFileHold(); return; }
   body.innerHTML=saves.map(s=>{
     const locked=!!s.locked;
