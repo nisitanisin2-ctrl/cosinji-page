@@ -13402,8 +13402,11 @@ function msPickSet(v){
 }
 /* 行を 選ぶ・列を 選ぶ：いまの セルの 行（列）ぜんぶ（列名・行番号を 押したのと 同じ） */
 function ctrlPickLine(kind){
-  msClear();
-  if(kind==='row') hdrSelectOne('row', selR); else hdrSelectOne('col', selC);
+  // 行・列の セルを ぜんぶ 範囲で 選ぶ（v660。今いる セルは そのまま。範囲の 合計も 出る）
+  msClear(); try{ hdrMultiClear(); }catch(_){}
+  clearRowSel(); clearRangeSelection();
+  if(kind==='row'){ rangeR1=selR; rangeC1=0; extendRange(selR, COLS-1); }
+  else { rangeR1=0; rangeC1=selC; extendRange(ROWS-1, selC); }
   toast(kind==='row' ? (selR+1)+'行目を ぜんぶ 選びました' : ALPHA[selC]+'列を ぜんぶ 選びました');
 }
 (function ctrlSetup(){
@@ -18289,7 +18292,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v659';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v660';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
