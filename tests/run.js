@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,ggolf,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,ggolf,oto,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -3106,11 +3106,11 @@ async function runStartPage(browser) {
     startPage + '/' + document.getElementById('startPageSel').value), 'last/last');
   check('  表・電卓・道具から選べる', await page.evaluate(() =>
     startPageOptions().map(o => o[0]).join(',')),
-    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,ggolf,calctmpl,fintmpl');
+    'home,last,normal,dentaku,tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,ggolf,oto,calctmpl,fintmpl');
   check('  別のタブで開くメモは出さない', await page.evaluate(() =>
     startPageOptions().some(o => o[0] === 'memo')), false);
   check('  設定の欄にも同じ数だけ並ぶ', await page.evaluate(() =>
-    document.getElementById('startPageSel').options.length), 50);   // v616 で ⛳グラウンドゴルフ、v611 で 🧱供試体、v605 で 📸📝🧺 の3つ、v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
+    document.getElementById('startPageSel').options.length), 51);   // v668 で 🎵音の道具、v616 で ⛳グラウンドゴルフ、v611 で 🧱供試体、v605 で 📸📝🧺 の3つ、v587 で 🎱ビンゴ、v579 で 🔁📋🧳 の3つ、v575 で ⏱🎉📃 の3つ、v569 で 🗣📢 の2つ、v568 で 🗓⛩🧮 の3つ、v561 で 🚛💴🎲📷 の4つ、v542 で 📇連絡帳、v453 で 🔐サブスク、v459 で 🏠ホーム 、v484 で 💼名刺管理、v486 で ✂トリミング、v488 で 📜マナー帳、v490 で 📒会計の手引き、v491 で 🧭くらしの便利帳、v494 で 🔢便利計算、v496 で 📏定規、v499 で 🛍即売レジ を足した
 
   const opened = () => page.evaluate(() => {
     const ovs = ['tansuiOverlay', 'kantabOverlay', 'saienOverlay', 'volumeOverlay',
@@ -18440,11 +18440,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/52');   // v616 で ⛳グラウンドゴルフ、v611 で 🧱供試体、v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/53');   // v668 で 🎵音の道具、v616 で ⛳グラウンドゴルフ、v611 で 🧱供試体、v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi', 'ggolf', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi', 'ggolf', 'oto', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -18472,7 +18472,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,kyoshi:B,ggolf:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,kyoshi:B,ggolf:B,oto:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -22125,6 +22125,56 @@ async function runKyoshi613(browser) {
   await ctx.close();
 }
 // ⛳ グラウンドゴルフ（v616。ggolf.js）：合計と ホールインワンの 数だけで 順位と 賞
+// 🎵 音の道具（v668。oto.js）：メトロノーム・チューナー・音ゲー（落ちてくる／光る ボタン）
+async function runOto668(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8'), ix = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  check('  開くまでは 読まない・道具（くらし：グラウンドゴルフの 次）・マイキー・バックアップ・単独アプリの 入口',
+    await page.evaluate(() => [typeof window.OTO, !!NP_TOOLS.find(t => t.id === 'oto' && t.ov === 'otoOverlay'), !!KEY_FUNCS.a_oto, (l => l[l.indexOf('ggolf') + 1])(TOOL_CATS.find(c => c[0].includes('くらし'))[1])].join('/'))
+      + '/' + ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(ROOT, 'apps', 'oto', f))),
+    'undefined/true/true/oto/true');
+  check('  service-worker・README（表・配る）・説明書・?app= の 名前', [sw.includes("'./oto.js'"), rd.includes('| `oto.js` |'), rd.split('## 配る')[1].includes('`oto.js`'), hl.includes('🎵音の道具＝'), ix.includes("oto:'🎵 音の道具'")].join('/'), 'true/true/true/true/true');
+  await page.evaluate(() => openOto()); await w(600);
+  check('  タブは メトロノーム・チューナー・音ゲー', await page.evaluate(() => [...document.querySelectorAll('#otoOverlay .oo-tabs button')].map(b => b.textContent.replace(/^\S+\s/, '')).join(',')), 'メトロノーム,チューナー,音ゲー');
+  // メトロノーム
+  await page.evaluate(() => { OTO.setBpm(120); OTO.met(); }); await w(1200);
+  check('  ▶ で 鳴る（拍の 点が 動く）・テンポの 名前', await page.evaluate(() => OTO.met_on() + '/' + (document.querySelectorAll('#otoBody .om-dot.on').length === 1) + '/' + document.getElementById('omName').textContent), 'true/true/アレグロ（速く）');
+  await page.evaluate(() => { OTO.beats(3); OTO.sub(2); }); await w(200);
+  check('  拍子・刻みを 変える（覚える）', await page.evaluate(() => document.querySelectorAll('#otoBody .om-dot').length + '/' + JSON.parse(localStorage.getItem('excalc_oto')).met.sub), '3/2');
+  check('  テンポは 20〜260 に おさめる', await page.evaluate(() => { OTO.setBpm(999); const a = OTO.state().met.bpm; OTO.setBpm(1); return a + '/' + OTO.state().met.bpm; }), '260/20');
+  check('  タップで テンポ（0.5秒 おき → 120）', await page.evaluate(async () => { const t0 = performance.now; let k = 0; performance.now = () => 1000 + 500 * (k++); for (let i = 0; i < 4; i++) OTO.tap(); performance.now = t0; return OTO.state().met.bpm; }), 120);
+  // チューナー
+  await page.evaluate(() => { OTO.tab('tun'); }); await w(200);
+  check('  タブを 変えると メトロノームは とまる', await page.evaluate(() => OTO.met_on()), false);
+  check('  音の 高さを 見つける（82・196・440・659 Hz）', await page.evaluate(() => [82.41, 196, 440, 659.26].map(f => { const n = 4096, r = 48000, a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = 0.5 * Math.sin(2 * Math.PI * f * i / r) + 0.15 * Math.sin(4 * Math.PI * f * i / r); return Math.round(OTO.detect(a, r)); }).join(',')), '82,196,440,659');
+  check('  静かな ときは 出さない', await page.evaluate(() => OTO.detect(new Float32Array(4096), 48000)), null);
+  check('  442Hz は ラ・+8 セント・高い', await page.evaluate(() => { OTO.showPitch(442); return document.getElementById('otNote').firstChild.textContent + '/' + document.getElementById('otCent').textContent + '/' + /高い/.test(document.getElementById('otHint').textContent); }), 'ラ/+8 セント/true');
+  check('  ギターの ときは 近い 弦（5弦 A2）', await page.evaluate(() => { OTO.tset('guitar'); OTO.showPitch(110.5); return document.getElementById('otEn').textContent + '/' + document.querySelectorAll('#otoBody .ot-str').length; }), 'A2（5弦）/6');
+  check('  基準の ラは 430〜450', await page.evaluate(() => { for (let i = 0; i < 30; i++) OTO.a4(1); const a = OTO.state().tun.a4; for (let i = 0; i < 30; i++) OTO.a4(-1); return a + '/' + OTO.state().tun.a4; }), '450/430');
+  await page.evaluate(() => OTO.a4(10));
+  // 音ゲー
+  await page.evaluate(() => OTO.tab('game')); await w(200);
+  check('  曲は 11・どれも 7音まで・メロディーが 入っている', await page.evaluate(() => { const s = OTO.songs(); return s.length + '/' + s.every(x => x.lanes >= 3 && x.lanes <= 7 && x.n >= 20); }), '11/true');
+  check('  曲の 書き方（ド・レ…の 並び）', await page.evaluate(() => { const p = OTO.parseSong({ n: 'C4:1 R:1 E4:0.5 C5:2 F#4:1' }); return p.notes.map(n => n.beat + ':' + OTO.midiJa(n.midi)).join(',') + '/' + p.beats + '/' + OTO.lanesOf(p.notes).join('-'); }), '0:ド,2:ミ,2.5:ド,4.5:ファ♯/5.5/0-4-6');
+  check('  音色は 8つ・曲は 作者が 亡くなって 長い 曲（だれの 曲か 出す）', await page.evaluate(() => document.querySelectorAll('#otoBody .oo-seg[aria-label="音色"] button').length + '/' + [...document.querySelectorAll('#otoBody .og-songs small')].every(x => /古い 歌|没/.test(x.textContent))), '8/true');
+  await page.evaluate(() => { OTO.song('mary'); OTO.speed('fast'); OTO.mode('fall'); OTO.start(); }); await w(400);
+  check('  ⬇ 落ちてくる：音ゲーの 画面・ボタンは 曲の 音（ド・レ・ミ・ソ）', await page.evaluate(() => !!document.getElementById('ogCv') + '/' + [...document.querySelectorAll('#otoBody .og-key')].map(b => b.firstChild.textContent).join('')), 'true/ドレミソ');
+  // 1つめの 音（ミ）に ちょうど 合わせて 押す
+  const hit = await page.evaluate(async () => { const g0 = OTO.game(); const lane = g0.lanes.indexOf(4); while (OTO.time() < -0.01) await new Promise(r => setTimeout(r, 5)); OTO.hit(lane); return OTO.game().cnt.perfect + OTO.game().cnt.good; });
+  check('  音符に 合わせて 押すと 当たる（点が 入る）', hit + '/' + (await page.evaluate(() => OTO.game().score > 0)), '1/true');
+  await page.evaluate(() => OTO.autoplay()); await w(500);
+  check('  終わると 結果（ランク・点・自己ベストを 覚える）', await page.evaluate(() => [OTO.game().over, !!document.querySelector('#otoBody .og-rank'), OTO.state().best['mary:fall:fast'] > 0].join('/')), 'true/true/true');
+  await page.evaluate(() => { OTO.mode('glow'); OTO.song('elise'); OTO.speed('mid'); OTO.start(); }); await w(2400);
+  check('  🌈 光る ボタン：7つの ボタン・色が 付く', await page.evaluate(() => document.querySelectorAll('#otoBody .og-pad').length + '/' + (document.querySelectorAll('#otoBody .og-pad.lit').length > 0)), '7/true');
+  await page.evaluate(() => OTO.quit()); await w(200);
+  check('  やめると 曲を 選ぶ 画面', await page.evaluate(() => !!document.querySelector('#otoBody .og-songs') && !OTO.game()), true);
+  check('  こわれた 保存でも 開ける', await page.evaluate(() => { closeOto(); localStorage.setItem('excalc_oto', JSON.stringify({ inst: '<b>', speed: 'zz', song: 'x', met: { bpm: 'q', beats: 99, sub: -1, snd: 'zz' }, tun: { a4: 9999, set: 'q' }, best: { 'kira:fall:mid': 'x', 'bad': 5, 'kira:glow:slow': 300 } })); openOto('met'); const s = OTO.state(); return [s.inst, s.speed, s.song, s.met.bpm, s.met.beats, s.met.sub, s.met.snd, s.tun.a4, s.tun.set, Object.keys(s.best).join('+')].join('/'); }), 'piano/mid/kira/100/4/1/click/450/chrom/kira:glow:slow');
+  await page.evaluate(() => closeOto());
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
 async function runGgolf616(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ⛳ グラウンドゴルフ（v616。合計と ホールインワンの 数だけで 順位と 賞） ──');
@@ -22440,6 +22490,7 @@ const SUITES = [
   [['kyoshi', 'kyoshi612', 'v612'], b => runKyoshi612(b)],
   [['kyoshi', 'kyoshi613', 'v614'], b => runKyoshi613(b)],
   [['ggolf', 'v616'], b => runGgolf616(b)],
+  [['oto', 'v668'], b => runOto668(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
   [['ggolf', 'ggolfhole', 'v620'], b => runGgolfHole620(b)],
   [['ggolf', 'ggolfded', 'v638'], b => runGgolfDed638(b)],
