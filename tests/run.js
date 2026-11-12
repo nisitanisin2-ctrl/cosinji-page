@@ -16299,7 +16299,7 @@ async function runKoe(browser) {
   }
   // くらし・買い物・お金（phrase.js v7）：文例には 出さない 型。答えを 確かめる
   {
-    for (const [file, name] of [['./koe-phrases7.js', 'くらし・買い物・お金（v7）'], ['./koe-phrases8.js', '学校の算数・数学・理科（v8）']]) {
+    for (const [file, name] of [['./koe-phrases7.js', 'くらし・買い物・お金（v7）'], ['./koe-phrases8.js', '学校の算数・数学・理科（v8）'], ['./koe-phrases9.js', '仕事・現場・単位・日付（v9）']]) {
       const PX = require(file), bad = [];
       for (const [q, want] of PX) {
         const r = await page.evaluate(q => { state.entries = []; state.log = []; state.drill = null; state.ask = null; recomputeAll();
@@ -19059,7 +19059,7 @@ async function runDtPhrase(browser) {
   }
   // くらし・買い物・お金（phrase.js v7・表電卓 v664）：画面には 出さない 型。答えを 確かめる
   {
-    for (const [file, name] of [['./koe-phrases7.js', 'くらし・買い物・お金（v664）'], ['./koe-phrases8.js', '学校の算数・数学・理科（v665）']]) {
+    for (const [file, name] of [['./koe-phrases7.js', 'くらし・買い物・お金（v664）'], ['./koe-phrases8.js', '学校の算数・数学・理科（v665）'], ['./koe-phrases9.js', '仕事・現場・単位・日付（v669）']]) {
       const PX = require(file), bad = [];
       for (const [q, want] of PX) {
         const r = await page.evaluate(q => { disp_val = '0'; voiceAcceptDentaku(q); return { d: disp_val, t: (document.getElementById('dtVoice') || {}).textContent || '' }; }, q);
@@ -19069,7 +19069,7 @@ async function runDtPhrase(browser) {
       }
       check('  電卓の声：' + name + '（' + PX.length + '件）', bad.join(' / '), '');
     }
-    check('  型の数は 680 以上', await page.evaluate(() => KoePhrase.stats().types >= 680), true);
+    check('  型の数は 780 以上', await page.evaluate(() => KoePhrase.stats().types >= 780), true);
     // v666：うしろの よけいな 言葉・もしかして・割り勘・黒い お知らせを 重ねない
     const v6 = async q => page.evaluate(q => { disp_val = '0'; voiceAcceptDentaku(q); return disp_val + '|' + document.getElementById('dtVoice').textContent.replace(/\s+/g, ' '); }, q);
     check('  「時速50km で15分走ったら何 km 進む」は 計算する（v666）', (await v6('時速50km で15分走ったら何 km 進む')).split('|')[0], '12.5');
