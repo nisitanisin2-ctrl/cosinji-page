@@ -14763,7 +14763,7 @@ async function runHyoPlus563(browser) {
 
   // ── 🎨 条件で色 ──
   await page.evaluate(() => { sel(1, 2); hpRun('cf', 2); }); await w(400);
-  check('  色の窓：決まりは まだ無い・たたき台が6つ', await page.evaluate(() => [HP.view(), document.querySelectorAll('.hp-rule').length, document.querySelectorAll('.hp-tpl').length].join('/')), 'cf/0/6');
+  check('  色の窓：決まりは まだ無い・たたき台が8つ（v670：色の濃さ・棒）', await page.evaluate(() => [HP.view(), document.querySelectorAll('.hp-rule').length, document.querySelectorAll('.hp-tpl').length].join('/')), 'cf/0/8');
   await page.evaluate(() => HP.cfNew('neg')); await w(150);
   check('  マイナスは赤い字：いま何セル（見本つき）', await page.evaluate(() => document.getElementById('hpCcnt').textContent + '/' + document.getElementById('hpCsw').style.color), 'いま 1 セルに付きます/var(--hpf-red)');
   await page.evaluate(() => HP.cfSave()); await w(200);
@@ -19514,7 +19514,7 @@ async function runHyo624(browser) {
   await page.evaluate(() => { hideEditBar(); clearRangeSelection(); sel(1, 1); }); await w(500);
   let a = await ctr(1, 1), b = await ctr(3, 2);
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await w(80); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await w(600);
-  check('  範囲：合計・並べかえ・グラフ（＋⊞ 結合）', [await ctxBtns(), await page.evaluate(() => !!document.getElementById('cellMenuMerge').offsetParent)].join('|'), 'Σ 合計/↑ 小さい順/↓ 大きい順/📊 グラフ|true');
+  check('  範囲：合計・並べかえ・グラフ（＋⊞ 結合）', [await ctxBtns(), await page.evaluate(() => !!document.getElementById('cellMenuMerge').offsetParent)].join('|'), 'Σ 合計/↑ 小さい順/↓ 大きい順/📊 グラフ/🎨 色の決まり|true');   // v670：色の決まり（数で 埋まった 範囲には ☑ チェックに は 出ない）
   await page.evaluate(() => document.querySelector('#cellMenuCtx [data-act=autosum]').click()); await w(400);
   check('  Σ 合計：列ごとに 下へ =SUM（答えも）', await page.evaluate(() => [data[4][1], data[4][2], getCellDisplay(4, 2)].join('/')), '=SUM(B2:B4)/=SUM(C2:C4)/4100');
   await page.evaluate(() => undoLast()); await w(300);
@@ -20483,7 +20483,7 @@ async function runBandPc633(browser) {
   check('  帯の 上で ホイールを 回すと 横に 送る（テンキーの ページは 変わらない）・左にも ◀', await st() + ' ' + (await npNow() === openWhich0), '送った/◀/▶ true');
   await page.click('#cellMenu .cm-arr-r'); await w(700);
   check('  ▶ を 押すと 右へ 送る（端まで 来たら ▶ は 消える）', await st(), '送った/◀/-');
-  await page.click('#cellMenu .cm-arr-l'); await w(700);
+  for (let i = 0; i < 4 && (await st()).startsWith('送った'); i++) { await page.click('#cellMenu .cm-arr-l'); await w(700); }   // v670：帯の ボタンが ふえて 1回では 戻りきらない ことも
   check('  ◀ で 左へ 戻る', await st(), 'はじめ/-/▶');
   await page.mouse.move(bb.x, bb.y); await page.mouse.wheel(0, 120); await w(300);
   await page.click('#cellMenu [data-act="copy"]'); await w(300);
@@ -21243,14 +21243,14 @@ async function runTmpl637(browser) {
   check('  消費税は 一覧表と 計算が 同じ まとまりに 並ぶ（一覧表の 印つき）', await page.evaluate(() => { const g = document.querySelector('#modeMenuBody .tmpl-group:not(.tmpl-top)'); const z = g.querySelector('[data-tk="m:zei"]'), t = g.querySelector('[data-tk="c:tax"]'); return !!z && !!t && !!z.querySelector('.tmpl-badge') && !t.querySelector('.tmpl-badge'); }), true);
   check('  名前が 途中で 切れない（2行まで 折り返す）', await page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-name')].filter(e => e.scrollWidth > e.clientWidth + 1).length), 0);
   check('  カードに 短い 説明', await page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-chip')].every(e => (e.querySelector('.tmpl-desc') || {}).textContent)), true);
-  const q = async s => { await page.fill('#tmplSearch', s); await w(150); return page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-chip')].map(e => e.dataset.tk).join(',') || document.querySelector('#modeMenuBody .tmpl-none').textContent.slice(0, 12)); };
+  const q = async s => { await page.fill('#tmplSearch', s); await w(150); return page.evaluate(() => [...document.querySelectorAll('#modeMenuBody .tmpl-chip:not(.tmpl-gen)')].map(e => e.dataset.tk).join(',') || document.querySelector('#modeMenuBody .tmpl-none').textContent.slice(0, 12)); };   // ✨ ことばで表を作る（v670）は 数えない
   check('  さがす：ぜい → 消費税の 2つ', await q('ぜい'), 'm:zei,c:tax');
   check('  さがす：ローン（カタカナ）', await q('ローン'), 'c:loan');
   check('  さがす：セール（言いかえ）→ 割引', await q('セール'), 'c:discount');
   check('  さがす：つぼ → 面積・容積・長方形・面積の単位', await q('つぼ'), 'm:youseki,c:rect,c:uarea');
   check('  合う ものが ない ときの 知らせ', await q('ほげほげ'), '「ほげほげ」に合うひな形');
   await page.click('#tmplSearchClear'); await w(150);
-  check('  ✕ で 消すと ぜんぶ 戻る', await page.evaluate(() => document.getElementById('tmplSearch').value + '/' + document.querySelectorAll('#modeMenuBody .tmpl-chip').length), '/36');
+  check('  ✕ で 消すと ぜんぶ 戻る', await page.evaluate(() => document.getElementById('tmplSearch').value + '/' + document.querySelectorAll('#modeMenuBody .tmpl-chip:not(.tmpl-gen)').length), '/36');
   await w(400);
   await page.evaluate(() => document.querySelector('#modeMenuBody [data-tk="c:tax"]').click()); await w(700);
   check('  計算を 押すと 入る・一覧は 閉じる', await page.evaluate(() => (currentTemplate() || {}).id + '/' + isDlgOpen('modeMenuOverlay')), 'tax/false');
@@ -22126,6 +22126,90 @@ async function runKyoshi613(browser) {
 }
 // ⛳ グラウンドゴルフ（v616。ggolf.js）：合計と ホールインワンの 数だけで 順位と 賞
 // 🎵 音の道具（v668。oto.js）：メトロノーム・チューナー・音ゲー（落ちてくる／光る ボタン）
+/* ── ✨ ことばで表を作る・☑ 範囲をチェックボックスに・🎨 色の決まり（色の濃さ・棒・平均）（v670）── */
+async function runHyoGen670(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ✨ ことばで表を作る・☑ チェックに・🎨 色の決まり（v670） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  はじめは部品を読まない・入口（マイキー・ひな形の ✨）・service worker が控える', await page.evaluate(() => [!window.HG, !!KEY_FUNCS.a_mktable, typeof hgOpen].join('/')) + '/' + fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8').includes("'./hyogen.js'"), 'true/true/function/true');
+  await page.evaluate(() => openModeMenu()); await w(700);
+  await page.fill('#tmplSearch', '3人で割り勘'); await w(200);
+  check('  ひな形の さがす欄の ことばで ✨ カード', await page.evaluate(() => { const g = document.querySelector('#modeMenuBody .tmpl-gen'); return !!g && g.textContent.includes('「3人で割り勘」で 表を作る'); }), true);
+  await page.evaluate(() => { guardAfterOpen && 0; }); await w(500);
+  await page.click('.tmpl-gen'); await w(900);
+  check('  押すと 部品を読んで 窓と 見本', await page.evaluate(() => [!!window.HG, isDlgOpen('hgOverlay'), document.getElementById('hgQ').value, !!document.querySelector('#hgOut .mk-pv table'), isDlgOpen('modeMenuOverlay')].join('/')), 'true/true/3人で割り勘/true/false');
+
+  // ── ことば → 表の 形 ──
+  const ids = await page.evaluate(() => ['3人で割り勘', '田中、佐藤、鈴木で割り勘', '飲み会', '家計簿', '毎月の家計簿', '牛乳、卵、パンの買い物リスト', '12か月の売上', '4月から1年間の収支', 'やること',
+    '旅行の持ち物', '旅行の予算 4人', '国語、数学、英語の成績表 5人', '田中、佐藤の出欠表 4回', '時間割', '1か月の体重の記録', '血圧', '歩数の記録', '時給1100円のバイト', '在庫', '貯金 目標30万',
+    'サブスクの月額', '献立', '1週間の予定', 'AとBとCを比較', '名前・電話・住所の表', 'ほげほげ'].map(q => { const sp = HG.parse(q); return sp ? sp.id : '-'; }).join(','));
+  check('  いろいろな 言い方 → 表の 形', ids, 'warikan,warikan,warikan,kakei,kakei,shop,sales,sales,todo,motimono,yosan,score,attend,jikanwari,kenko,kenko,kenko,kintai,zaiko,chokin,kotei,kondate,sched,hikaku,generic,-');
+  check('  数の 読み取り（漢数字・万・並び）', await page.evaluate(() => { const a = HG.parse('三人で割り勘'), b = HG.parse('貯金 目標30万'), c = HG.parse('4月から半年の売上'), d = HG.parse('国語・算数・理科の点数'); return [a.cols.length, a.extras[0].v, b.extras.find(e => e.k === 'goal').v, c.n, c.init.m.join(''), d.cols.map(x => x.h).join('')].join('|'); }), '2|3|300000|6|4月5月6月7月8月9月|名前国語算数理科合計平均');
+  check('  並びの 取り出し（は・の・さん を 外す）', await page.evaluate(() => [HG.listOf('メンバーは田中さん、佐藤、鈴木で割り勘'), HG.listOf('牛乳、卵、パンの買い物'), HG.listOf('家計簿')].map(a => a.join('+')).join('|')), '田中+佐藤+鈴木|牛乳+卵+パン|');
+
+  // ── 作る：買い物リスト（☑・式・合計・買った分・予算） ──
+  await page.evaluate(() => { HG.apply('牛乳、卵、パンの買い物リスト 予算2000円', 'here'); });
+  await w(300);
+  check('  見出し・はじめの 品名・☑ の列・合計の 行', await page.evaluate(() => [ROWS, COLS, data[0].slice(0, 5).join(','), data[1][1] + data[2][1] + data[3][1], JSON.stringify(cellStyles._ct), data[9][1], data[9][0]].join('|')),
+    '15|5|買った,品名,単価（円）,個数,小計（円）|牛乳卵パン|{"0":{"k":"ck","r1":1,"r2":8,"rg":1}}|合計|="☑"&COUNTIF(A2:A9,1)');
+  const shop = await page.evaluate(() => {
+    setCellVal(1, 2, '198'); setCellVal(1, 3, '2'); setCellVal(2, 2, '258'); setCellVal(3, 2, '160');
+    hpCellTap(1, 0); recalcAll();
+    return [getCellDisplay(1, 4), getCellDisplay(2, 4), getCellDisplay(4, 4), getCellDisplay(9, 4), getCellDisplay(9, 0), getCellDisplay(11, 4), getCellDisplay(12, 4), getCellDisplay(13, 4), getCellDisplay(14, 4), data[1][0]].join('|');
+  });
+  check('  小計（個数が 空なら 1）・合計・☑ の数・買った分・まだの分・予算の残り', shop, '396|258||814|☑1|396|418|2000|1186|1');
+  check('  ☑ の行は 灰色・取り消し線（行ぜんぶ）', await page.evaluate(() => { const td = document.getElementById('c1_1'); return [getComputedStyle(td).textDecorationLine, hpCfMap.has('1,4'), hpCfMap.has('2,1')].join('/'); }), 'line-through/true/false');
+  check('  シートと 一覧の 名前が 表の 名前', await page.evaluate(() => sheets[curSheet].name), '買い物リスト');
+  check('  ↶戻る で 元の 表に', await page.evaluate(() => { undoLast(); undoLast(); undoLast(); undoLast(); undoLast(); undoLast(); return data[0][0] + '/' + (cellStyles._ct ? 'ct' : '-'); }), '/-');
+
+  // ── 割り勘の 精算・成績・やること ──
+  check('  割り勘の 精算（1人あたり 切り上げ・＋もらう／−払う）', await page.evaluate(() => { HG.apply('田中、佐藤、鈴木で割り勘', 'here'); setCellVal(1, 1, '5000'); setCellVal(2, 1, '1000'); recalcAll(); return [getCellDisplay(1, 2), getCellDisplay(2, 2), getCellDisplay(3, 2), getCellDisplay(4, 1), getCellDisplay(6, 2), getCellDisplay(7, 2)].join('|'); }), '3000|-1000|-2000|6000|3|2000');
+  check('  成績：合計・平均（行と 列）・60点より下は 赤', await page.evaluate(() => { HG.apply('国語、数学、英語の成績表 3人', 'here'); [[80, 50, 90], [70, 60, 100]].forEach((a, i) => a.forEach((v, j) => setCellVal(i + 1, j + 1, String(v)))); recalcAll(); return [getCellDisplay(1, 4), getCellDisplay(1, 5), getCellDisplay(4, 1), getCellDisplay(4, 4), hpCfMap.has('1,2'), hpCfMap.has('2,2')].join('|'); }), '220|73.3|75|225|true|false');
+  check('  やること：☑ の 数・のこり（空の 行は 数えない）', await page.evaluate(() => { HG.apply('やること', 'here'); setCellVal(1, 1, '買い物'); setCellVal(2, 1, '宿題'); setCellVal(3, 1, '電話'); hpCellTap(2, 0); recalcAll(); return [getCellDisplay(12, 2), getCellDisplay(13, 2), getCellDisplay(14, 2)].join('|'); }), '1|3|2');
+  check('  やること：期限が 過ぎた 行は 赤（☑ の 行は 外す）', await page.evaluate(() => { const t = formatDate(todaySerial() - 2, 'ymd'); setCellVal(1, 2, t); setCellVal(2, 2, t); recalcAll(); return [hpCfMap.get('1,1') && hpCfMap.get('1,1').bg, hpCfMap.get('2,1') && hpCfMap.get('2,1').fc].join('|'); }), 'red|gray');
+  check('  新しい シートに 作る（名前が 重ならない）', await page.evaluate(() => { const n = sheets.length; HG.apply('やること', 'new'); const a = sheets[curSheet].name; HG.apply('やること', 'new'); return [sheets.length - n, a, sheets[curSheet].name, data[0][1]].join('|'); }), '2|やること|やること2|やること');
+  check('  行を 足しても ☑・えらぶ欄・色の決まりが ついていく', await page.evaluate(() => { HG.apply('家計簿', 'here'); insertRowAt(5); const ct = cellStyles._ct[1], cf = cellStyles._cf[0]; return [ct.r1, ct.r2, cf.r2, data[22][0]].join('|'); }), '1|21|21|合計');
+
+  // ── 🎨 色の濃さ・棒・平均 ──
+  await page.evaluate(() => { resetAll(); setSheetSize(12, 4); ['点数', '80', '45', '92', '67', '30', '75'].forEach((v, i) => setCellVal(i, 0, v)); ['数', '5', '-3', '8', '2', '0', '4'].forEach((v, i) => setCellVal(i, 1, v)); recalcAll(); clearRangeSelection(); sel(1, 0); extendRange(6, 1); });
+  await w(200);
+  check('  範囲の 帯に 🎨 色の決まり・☑ チェックに', await page.evaluate(() => bandItems(bandCellKind()).map(x => x.id).filter(x => x === 'cf_q' || x === 'ck_mk').join(',')), 'cf_q,ck_mk');
+  await page.evaluate(() => hpRun('cfQuick')); await w(500);
+  check('  色の決まりの 窓：9つ・範囲の 名前', await page.evaluate(() => [document.querySelectorAll('#hpBody .hp-qb').length, document.querySelector('#hpBody .hp-lead b').textContent].join('|')), '9|A2:B7');
+  await page.evaluate(() => HP.cfQuickSet(1)); await w(300);
+  check('  棒：いちばん大きい数が いっぱい・0 は 短く・範囲の 色を 外す', await page.evaluate(() => [hpCfMap.get('3,0').w, hpCfMap.get('1,0').w, document.getElementById('c3_0').classList.contains('hp-dbar'), document.getElementById('c3_0').style.getPropertyValue('--hp-barw'), rangeR1].join('|')), '1|0.87|true|100%|-1');
+  check('  棒：マイナスが あれば いちばん小さいから（2列 まとめて 1つの 決まり）', await page.evaluate(() => [hpCfMap.get('2,1').w, hpCfMap.get('3,1').w].join('|')), '0|0.12');
+  check('  棒は 範囲を 選んでも 消えない（背景の 絵を 重ねる）', await page.evaluate(() => { sel(1, 0); extendRange(3, 0); const g = getComputedStyle(document.getElementById('c3_0')).backgroundImage; clearRangeSelection(); return (g.match(/linear-gradient/g) || []).length; }), 2);
+  await page.evaluate(() => { HP.cfQuickClear && 0; sel(1, 0); extendRange(6, 0); return hpRun('cfQuick'); }); await w(300);
+  await page.evaluate(() => HP.cfQuickClear()); await w(200);
+  check('  この範囲の 決まりを 消す', await page.evaluate(() => [cellStyles._cf ? cellStyles._cf.length : 0, document.getElementById('c3_0').classList.contains('hp-dbar')].join('|')), '0|false');
+  check('  色の濃さ：小さい ほど うすく・夜の 色にも 変わる 変数', await page.evaluate(() => { cellStyles._cf = [{ r1: 1, r2: 6, c1: 0, c2: 0, t: 'scale', st: { bg: 'green' } }]; hpCfRefresh(); const lo = hpCfMap.get('5,0'), hi = hpCfMap.get('3,0'); return [lo.a, hi.a, document.getElementById('c3_0').style.background.includes('--hps-green') || document.getElementById('c3_0').style.background.includes('rgba')].join('|'); }), '0|1|true');
+  check('  書き出し用は 白に 混ぜた 色（棒は うすい 色）', await page.evaluate(() => [hpCfStyle({ sc: 'green', a: 0 }, true).bg, hpCfStyle({ sc: 'green', a: 1 }, true).bg, /^#[0-9a-f]{6}$/.test(hpCfStyle({ bar: 'blue', w: 0.5 }, true).bg)].join('|')), '#ecf6f0|#72be8f|true');
+  check('  平均より 上／下', await page.evaluate(() => { cellStyles._cf = [{ r1: 1, r2: 6, c1: 0, c2: 0, t: 'above', st: { b: 1 } }, { r1: 1, r2: 6, c1: 1, c2: 1, t: 'below', st: { fc: 'red' } }]; hpCfRefresh(); return [[1, 2, 3, 4, 5, 6].filter(r => hpCfMap.has(r + ',0')).join(''), [1, 2, 3, 4, 5, 6].filter(r => hpCfMap.has(r + ',1')).join('')].join('|'); }), '1346|245');
+  await page.evaluate(() => { delete cellStyles._cf; hpCfRefresh(); hpRun('cf', 0); }); await w(400);
+  await page.evaluate(() => HP.cfNew('bar')); await w(200);
+  check('  決まりの 窓：棒は 色だけ えらぶ（行ぜんぶ・字の色 なし）', await page.evaluate(() => [document.getElementById('hpCt').value, !!document.getElementById('hpCrow'), document.querySelectorAll('#hpBody .hp-colors').length, document.getElementById('hpCcnt').textContent].join('|')), 'bar|false|1|いま 6 セルに付きます');
+  await page.evaluate(() => HP.cfSave()); await w(200);
+  check('  決める → 一覧に「大きさを セルの中の 横の棒で」', await page.evaluate(() => [cellStyles._cf[0].t, cellStyles._cf[0].st.bg, document.querySelector('#hpBody .hp-rule .t').textContent.includes('横の棒')].join('|')), 'bar|blue|true');
+  await page.evaluate(() => HP.close()); await w(300);
+
+  // ── ☑ 範囲を チェックボックスに ──
+  await page.evaluate(() => { delete cellStyles._cf; hpCfRefresh(); setCellVal(0, 2, '済'); setCellVal(3, 2, '○'); setCellVal(5, 2, 'メモ'); clearRangeSelection(); sel(0, 2); extendRange(6, 2); });
+  await w(200);
+  check('  見出しから 選んでも ☑ チェックに', await page.evaluate(() => bandItems(bandCellKind()).map(x => x.id + ':' + x.t).filter(x => x.startsWith('ck_mk')).join(',')), 'ck_mk:☑ チェックに');
+  await page.evaluate(() => hpRun('ckMake')); await w(400);
+  check('  見出しは 残して 下を ☑ に（○ は ☑・字は そのまま）', await page.evaluate(() => [JSON.stringify(cellStyles._ct), data[0][2], data[3][2], data[5][2], document.getElementById('c1_2').classList.contains('hp-ck'), document.getElementById('c5_2').classList.contains('hp-ck')].join('|')), '{"2":{"k":"ck","r1":1,"r2":6}}|済|1|メモ|true|false');
+  check('  押すと ☑⇄☐・COUNTIF で 数える', await page.evaluate(() => { hpCellTap(1, 2); hpCellTap(2, 2); hpCellTap(2, 2); setCellVal(8, 2, '=COUNTIF(C2:C7,1)'); recalcAll(); return [data[1][2], data[2][2], getCellDisplay(8, 2)].join('|'); }), '1||2');
+  await page.evaluate(() => { clearRangeSelection(); sel(1, 2); extendRange(6, 2); }); await w(150);
+  check('  ぜんぶ ☑ の 範囲なら「☐ チェックをやめる」', await page.evaluate(() => bandItems(bandCellKind()).filter(x => x.id === 'ck_mk').map(x => x.t).join(',')), '☐ チェックをやめる');
+  await page.evaluate(() => hpRun('ckUnmake')); await w(300);
+  check('  やめると ふつうの セル（中身は 残る）', await page.evaluate(() => [cellStyles._ct ? JSON.stringify(cellStyles._ct) : '-', data[1][2], document.getElementById('c1_2').classList.contains('hp-ck')].join('|')), '-|1|false');
+  check('  途中の 行を 消しても 範囲の ☑ は 残る', await page.evaluate(() => { cellStyles._ct = { 2: { k: 'ck', r1: 1, r2: 6 } }; deleteRowAt ? 0 : 0; const o = hpRemapKey('_ct', cellStyles._ct, (r, c) => (r === 6 ? null : r > 6 ? [r - 1, c] : [r, c])); return JSON.stringify(o); }), '{"2":{"k":"ck","r1":1,"r2":5}}');
+  check('  使い方に「✨ ことばで表を作る」・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('id=\\"g-hyogen\\"'), (fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').match(/v:'(v[0-9]+)'/) || [])[1]].join('/'), 'true/v670');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -22491,6 +22575,7 @@ const SUITES = [
   [['kyoshi', 'kyoshi613', 'v614'], b => runKyoshi613(b)],
   [['ggolf', 'v616'], b => runGgolf616(b)],
   [['oto', 'v668'], b => runOto668(b)],
+  [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
   [['ggolf', 'ggolfhole', 'v620'], b => runGgolfHole620(b)],
   [['ggolf', 'ggolfded', 'v638'], b => runGgolfDed638(b)],
