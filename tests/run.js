@@ -22454,7 +22454,7 @@ async function runOto675(browser) {
   check('  ⚡ オリジナル曲（1〜2分・まとまりごとに 形が かわる）', await page.evaluate(() => OTO.orig().slice(0, 4).map(s => s.id + ':' + (s.sec >= 60 && s.sec <= 120) + ':' + (s.shapes.split(',').length >= 3)).join(' ')), 'cdash:true:true cneon:true:true cwaltz:true:true cdragon:true:true');
   check('  一覧の いちばん上に 出す（Claude 作曲）', await page.evaluate(() => { const g = document.querySelector('#otoBody .og-gname'); return g.textContent + '|' + g.nextElementSibling.textContent.includes('Claude 作曲'); }), '⚡ ゲーム用 オリジナル曲（伴奏つき）|true');
   check('  伴奏：オリジナル曲は ドラム・ベース・和音、ほかの 曲は かるい ドラム', await page.evaluate(() => { const a = OTO.backOf('cdash').kinds.split(','), b = OTO.backOf('kira').kinds; return ['kick', 'snare', 'bass', 'pad', 'crash'].every(k => a.includes(k)) + '/' + b; }), 'true/bass,clap,crash,hat,kick,ohat,pad,snare,stick');   // v677：昔の 曲も 和音と ベース
-  check('  音色は 16（シンセ・エレピ・ラッパ・ストリングス・カリンバ・こと・スチールドラム・コーラス を 足す）', await page.evaluate(() => { const l = OTO.insts(); ['synth', 'epiano', 'brass', 'strings', 'kalimba', 'koto', 'steel', 'choir'].forEach(i => OTO.inst(i)); return l.length + '/' + OTO.state().inst; }), '16/choir');
+  check('  音色は 16（シンセ・エレピ・ラッパ・ストリングス・カリンバ・こと・スチールドラム・コーラス を 足す）', await page.evaluate(() => { const l = OTO.insts(); ['synth', 'epiano', 'brass', 'strings', 'kalimba', 'koto', 'steel', 'choir'].forEach(i => OTO.inst(i)); return l.length + '/' + OTO.state().inst; }), '17/choir');   // v678：「曲に 合わせる」も
   check('  演出の 強さ（はじめは ド派手）・🥁 伴奏の 入り切り を 覚える', await page.evaluate(() => { const a = document.querySelector('#otoBody .oo-seg[aria-label="演出"] button.on').textContent; OTO.fx('mega'); OTO.beat(); const s = JSON.parse(localStorage.getItem('excalc_oto')); OTO.fx('ultra'); OTO.beat(); return a + '|' + s.fx + '/' + s.beat; }), '🎆 ド派手|mega/false');
   await page.evaluate(() => { OTO.mode('fall'); OTO.diff(3); OTO.song('cdash'); OTO.start(); }); await w(400);
   check('  あそぶと 伴奏が 鳴り、演出の 重ねが 出る', await page.evaluate(() => [OTO.back().on, OTO.fxOn(), !!document.getElementById('ogFxL')].join('/')), 'true/true/true');
@@ -22531,6 +22531,39 @@ async function runOto677(browser) {
   await ctx.close();
 }
 
+async function runOto678(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎵 音ゲー（v678。曲に 合う 音色・なぞる 軌跡・光る ボタンの 変化・落ちてくる 形） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.setItem('excalc_oto', JSON.stringify({ inst: 'piano' })); openOto('game'); }); await w(600);
+  check('  音色は はじめ「曲に 合わせる」（前の ピアノも こちらに）・曲ごとに ちがう 音', await page.evaluate(() => [OTO.state().inst, OTO.autoInst('cpico'), OTO.autoInst('sakura'), OTO.autoInst('u1'), document.querySelector('#otoBody .oo-seg[aria-label="音色"] button.on').textContent].join('/')), 'auto/chip/koto/piano/🎵 曲に 合わせる（おすすめ）');
+  check('  えらんだ 音色は 覚える・説明に 曲の 音色', await page.evaluate(() => { const a = [...document.querySelectorAll('#otoBody .oo-note')].some(x => x.textContent.includes('オルゴール')); OTO.inst('steel'); const s = JSON.parse(localStorage.getItem('excalc_oto')); OTO.inst('auto'); return a + '/' + s.inst + '/' + s.instV; }), 'true/steel/2');
+  // なぞる
+  await page.evaluate(() => { OTO.mode('slide'); }); await w(200);
+  check('  なぞる：軌跡を えらべる（はじめは 長い＋キラキラ）', await page.evaluate(() => [...document.querySelectorAll('#otoBody .oo-seg[aria-label="軌跡"] button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',')), '〰 みじかい,🌠 長い,✨ 長い＋キラキラ*,🌈 虹色キラキラ');
+  await page.evaluate(() => { OTO.song('cstar'); OTO.start(); }); await w(2600);
+  check('  　指を 動かすと キラキラが 出る', await page.evaluate(async () => { for (let k = 0; k < 30; k++) { OTO.ptr(0.3 + k * 0.015, 0.5, true); await new Promise(r => setTimeout(r, 16)); } return OTO.sparks() > 10; }), true);
+  check('  　みじかい に すると キラキラなし', await page.evaluate(async () => { OTO.quit(); OTO.trail('n'); OTO.start(); await new Promise(r => setTimeout(r, 300)); for (let k = 0; k < 20; k++) { OTO.ptr(0.3 + k * 0.015, 0.5, true); await new Promise(r => setTimeout(r, 16)); } const n = OTO.sparks(); OTO.quit(); OTO.trail('kira'); return n; }), 0);
+  // 光る ボタン
+  await page.evaluate(() => { OTO.mode('glow'); }); await w(200);
+  check('  光る ボタン：とちゅうで 変わる 設定（はじめは 入）', await page.evaluate(() => !!document.querySelector('#otoBody input[onchange="OTO.glowMix()"]:checked')), true);
+  await page.evaluate(() => { OTO.song('cdash'); OTO.start(); }); await w(2800);
+  const gs = [];
+  for (const b of [16.5, 32.5, 48.5]) { await page.evaluate(x => OTO.seek(x), b); await w(400); gs.push(await page.evaluate(() => { const g = OTO.glowState(), p = document.querySelector('#ogPads'); return g.lay + ':' + g.cue + ':' + p.dataset.cue; })); }
+  check('  　まとまりごとに ならびと 合図が かわる（知らせも 出る）', gs.join(' ') + '|' + await page.evaluate(() => document.getElementById('ogCue').textContent.includes('🔀')), 'circle:frame:frame arc:fill:fill zig:clock:clock|true');
+  check('  　ボタンは 画面の 中に 重ならず 並ぶ（円）', await page.evaluate(async () => { OTO.seek(16.5); await new Promise(r => setTimeout(r, 700)); const box = document.getElementById('ogPads').getBoundingClientRect(), r = [...document.querySelectorAll('#ogPads .og-pad')].map(p => p.getBoundingClientRect()); const inside = r.every(q => q.left >= box.left - 2 && q.right <= box.right + 2 && q.top >= box.top - 2 && q.bottom <= box.bottom + 2); let ov = false; for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) { const a = r[i], b = r[j]; if (a.left < b.right - 4 && b.left < a.right - 4 && a.top < b.bottom - 4 && b.top < a.bottom - 4) ov = true; } return inside + '/' + !ov; }), 'true/true');
+  check('  　押すと 当たる（ならびが 変わっても）', await page.evaluate(() => { const g = OTO.game(); for (let i = 0; i < g.lanes.length; i++) { const r = OTO.hitTest(i); if (r) return r; } return 'none'; }), 'perfect');
+  await page.evaluate(() => { OTO.quit(); OTO.glowMix(); OTO.start(); }); await w(2800); await page.evaluate(() => OTO.seek(32.5)); await w(300);
+  check('  　切ると ます目と 輪の まま', await page.evaluate(() => { const g = OTO.glowState(); OTO.quit(); OTO.glowMix(); return g.lay + ':' + g.cue; }), 'grid:ring');
+  // 落ちてくる
+  await page.evaluate(() => { OTO.mode('fall'); OTO.song('cdash'); OTO.start(); }); await w(300);
+  check('  落ちてくる：音符の 形が まとまりごとに かわる（7種）', await page.evaluate(() => { const s = OTO.noteStyles(); OTO.quit(); return s; }), 'bar,gem,orb,star,comet,rainbow,heart');
+  await page.evaluate(() => closeOto());
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('外から 枠'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v678'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -22563,7 +22596,7 @@ async function runOto668(browser) {
   await page.evaluate(() => OTO.tab('game')); await w(200);
   check('  曲は 11・どれも 7音まで・メロディーが 入っている', await page.evaluate(() => { const s = OTO.songs(); return s.length + '/' + s.every(x => x.lanes >= 3 && x.lanes <= 7 && x.n >= 12); }), '36/true');   // v673：22曲・v675：26曲
   check('  曲の 書き方（ド・レ…の 並び）', await page.evaluate(() => { const p = OTO.parseSong({ n: 'C4:1 R:1 E4:0.5 C5:2 F#4:1' }); return p.notes.map(n => n.beat + ':' + OTO.midiJa(n.midi)).join(',') + '/' + p.beats + '/' + OTO.lanesOf(p.notes).join('-'); }), '0:ド,2:ミ,2.5:ド,4.5:ファ♯/5.5/0-4-6');
-  check('  音色は 8つ・曲は 作者が 亡くなって 長い 曲（だれの 曲か 出す）', await page.evaluate(() => document.querySelectorAll('#otoBody .oo-seg[aria-label="音色"] button').length + '/' + [...document.querySelectorAll('#otoBody .og-songs small')].every(x => /古い 歌|没|Claude 作曲/.test(x.textContent))), '16/true');   // v675：音色 16
+  check('  音色は 8つ・曲は 作者が 亡くなって 長い 曲（だれの 曲か 出す）', await page.evaluate(() => document.querySelectorAll('#otoBody .oo-seg[aria-label="音色"] button').length + '/' + [...document.querySelectorAll('#otoBody .og-songs small')].every(x => /古い 歌|没|Claude 作曲/.test(x.textContent))), '17/true');   // v675：音色 16
   await page.evaluate(() => { OTO.song('mary'); OTO.speed('fast'); OTO.mode('fall'); OTO.start(); }); await w(400);
   check('  ⬇ 落ちてくる：音ゲーの 画面・ボタンは 曲の 音（v677：変奏で ファ・シも）', await page.evaluate(() => !!document.getElementById('ogCv') + '/' + [...document.querySelectorAll('#otoBody .og-key')].map(b => b.firstChild.textContent).join('')), 'true/ドレミファソラシ');
   // 1つめの 音（ミ）に ちょうど 合わせて 押す
@@ -22575,7 +22608,7 @@ async function runOto668(browser) {
   check('  🌈 光る ボタン：7つの ボタン・色が 付く', await page.evaluate(() => document.querySelectorAll('#otoBody .og-pad').length + '/' + (document.querySelectorAll('#otoBody .og-pad.lit').length > 0)), '7/true');
   await page.evaluate(() => OTO.quit()); await w(200);
   check('  やめると 曲を 選ぶ 画面', await page.evaluate(() => !!document.querySelector('#otoBody .og-songs') && !OTO.game()), true);
-  check('  こわれた 保存でも 開ける', await page.evaluate(() => { closeOto(); localStorage.setItem('excalc_oto', JSON.stringify({ inst: '<b>', speed: 'zz', song: 'x', met: { bpm: 'q', beats: 99, sub: -1, snd: 'zz' }, tun: { a4: 9999, set: 'q' }, best: { 'kira:fall:mid': 'x', 'bad': 5, 'kira:glow:slow': 300 } })); openOto('met'); const s = OTO.state(); return [s.inst, s.speed, s.song, s.met.bpm, s.met.beats, s.met.sub, s.met.snd, s.tun.a4, s.tun.set, Object.keys(s.best).join('+')].join('/'); }), 'piano/mid/kira/100/4/1/click/450/chrom/kira:glow:slow');
+  check('  こわれた 保存でも 開ける', await page.evaluate(() => { closeOto(); localStorage.setItem('excalc_oto', JSON.stringify({ inst: '<b>', speed: 'zz', song: 'x', met: { bpm: 'q', beats: 99, sub: -1, snd: 'zz' }, tun: { a4: 9999, set: 'q' }, best: { 'kira:fall:mid': 'x', 'bad': 5, 'kira:glow:slow': 300 } })); openOto('met'); const s = OTO.state(); return [s.inst, s.speed, s.song, s.met.bpm, s.met.beats, s.met.sub, s.met.snd, s.tun.a4, s.tun.set, Object.keys(s.best).join('+')].join('/'); }), 'auto/mid/kira/100/4/1/click/450/chrom/kira:glow:slow');
   await page.evaluate(() => closeOto());
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
@@ -22901,6 +22934,7 @@ const SUITES = [
   [['oto675', 'v675'], b => runOto675(b)],
   [['oto676', 'v676'], b => runOto676(b)],
   [['oto677', 'v677'], b => runOto677(b)],
+  [['oto678', 'v678'], b => runOto678(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['rec671', 'v671'], b => runRec671(b)],
   [['input672', 'v672'], b => runInput672(b)],
