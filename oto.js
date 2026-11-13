@@ -29,51 +29,51 @@ const midiJa=n=>PC_JA[((n%12)+12)%12];
 /* ── 曲（メロディーだけ。作者が 亡くなって 70年 より 長く たった 曲・昔から 伝わる 曲）──
    書き方：「音:長さ」を 空白で 区切る。長さは 拍（1＝4分音符）。R は 休み。 */
 const SONGS=[
-  {id:'kira', t:'きらきら星', by:'フランスの 古い 歌', bpm:100, lv:1,
+  {id:'kira', k:'C', t:'きらきら星', by:'フランスの 古い 歌', bpm:100, lv:1,
    n:'C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 F4:1 F4:1 E4:1 E4:1 D4:1 D4:1 C4:2 G4:1 G4:1 F4:1 F4:1 E4:1 E4:1 D4:2 G4:1 G4:1 F4:1 F4:1 E4:1 E4:1 D4:2 C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 F4:1 F4:1 E4:1 E4:1 D4:1 D4:1 C4:2'},
-  {id:'mary', t:'メリーさんのひつじ', by:'アメリカの 古い 歌', bpm:110, lv:1,
+  {id:'mary', k:'C', t:'メリーさんのひつじ', by:'アメリカの 古い 歌', bpm:110, lv:1,
    n:'E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:2 D4:1 D4:1 D4:2 E4:1 G4:1 G4:2 E4:1 D4:1 C4:1 D4:1 E4:1 E4:1 E4:1 E4:1 D4:1 D4:1 E4:1 D4:1 C4:4'},
-  {id:'kaeru', t:'かえるの合唱', by:'ドイツの 古い 歌', bpm:110, lv:1,
+  {id:'kaeru', k:'C', t:'かえるの合唱', by:'ドイツの 古い 歌', bpm:110, lv:1,
    n:'C4:1 D4:1 E4:1 F4:1 E4:1 D4:1 C4:2 E4:1 F4:1 G4:1 A4:1 G4:1 F4:1 E4:2 C4:2 C4:2 C4:2 C4:2 C4:0.5 C4:0.5 D4:0.5 D4:0.5 E4:0.5 E4:0.5 F4:0.5 F4:0.5 E4:1 D4:1 C4:2'},
-  {id:'chou', t:'ちょうちょう', by:'ドイツの 古い 歌', bpm:120, lv:2,
+  {id:'chou', k:'C', t:'ちょうちょう', by:'ドイツの 古い 歌', bpm:120, lv:2,
    n:'G4:1 E4:1 E4:2 F4:1 D4:1 D4:2 C4:1 D4:1 E4:1 F4:1 G4:1 G4:1 G4:2 G4:1 E4:1 E4:2 F4:1 D4:1 D4:2 C4:1 E4:1 G4:1 G4:1 E4:1 E4:1 E4:2 D4:1 D4:1 D4:1 D4:1 D4:1 E4:1 F4:2 E4:1 E4:1 E4:1 E4:1 E4:1 F4:1 G4:2 G4:1 E4:1 E4:2 F4:1 D4:1 D4:2 C4:1 E4:1 G4:1 G4:1 C4:4'},
-  {id:'london', t:'ロンドン橋', by:'イギリスの 古い 歌', bpm:110, lv:2,
+  {id:'london', k:'C', t:'ロンドン橋', by:'イギリスの 古い 歌', bpm:110, lv:2,
    n:'G4:1.5 A4:0.5 G4:1 F4:1 E4:1 F4:1 G4:2 D4:1 E4:1 F4:2 E4:1 F4:1 G4:2 G4:1.5 A4:0.5 G4:1 F4:1 E4:1 F4:1 G4:2 D4:2 G4:2 E4:1 C4:3'},
-  {id:'joy', t:'よろこびの歌（第九）', by:'ベートーヴェン（1827年 没）', bpm:110, lv:2,
+  {id:'joy', k:'C', t:'よろこびの歌（第九）', by:'ベートーヴェン（1827年 没）', bpm:110, lv:2,
    n:'E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 E4:1.5 D4:0.5 D4:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:0.5 C4:2 D4:1 D4:1 E4:1 C4:1 D4:1 E4:0.5 F4:0.5 E4:1 C4:1 D4:1 E4:0.5 F4:0.5 E4:1 D4:1 C4:1 D4:1 G3:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:0.5 C4:2'},
-  {id:'jingle', t:'ジングルベル', by:'ピアポント（1893年 没）', bpm:130, lv:2,
-   n:'E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:0.5 E4:4 F4:1 F4:1 F4:1.5 F4:0.5 F4:1 E4:1 E4:1 E4:0.5 E4:0.5 E4:1 D4:1 D4:1 E4:1 D4:2 G4:2 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:0.5 E4:4 F4:1 F4:1 F4:1 F4:1 F4:1 E4:1 E4:1 E4:0.5 E4:0.5 G4:1 G4:1 F4:1 D4:1 C4:4'},
-  {id:'saints', t:'聖者の行進', by:'アメリカの 古い 歌', bpm:120, lv:2,
+  {id:'jingle', k:'C', t:'ジングルベル', by:'ピアポント（1893年 没）', bpm:130, lv:2,
+   n:'G3:1 E4:1 D4:1 C4:1 G3:3 G3:0.5 G3:0.5 G3:1 E4:1 D4:1 C4:1 A3:4 A3:1 F4:1 E4:1 D4:1 B3:4 G4:1 G4:1 F4:1 D4:1 E4:4 G3:1 E4:1 D4:1 C4:1 G3:4 G3:1 E4:1 D4:1 C4:1 A3:3 A3:1 A3:1 F4:1 E4:1 D4:1 G4:1 G4:1 G4:1 G4:1 A4:1 G4:1 F4:1 D4:1 C4:3 R:1 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:0.5 E4:4 F4:1 F4:1 F4:1.5 F4:0.5 F4:1 E4:1 E4:1 E4:0.5 E4:0.5 E4:1 D4:1 D4:1 E4:1 D4:2 G4:2 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:0.5 E4:4 F4:1 F4:1 F4:1 F4:1 F4:1 E4:1 E4:1 E4:0.5 E4:0.5 G4:1 G4:1 F4:1 D4:1 C4:4'},
+  {id:'saints', k:'C', p:3, t:'聖者の行進', by:'アメリカの 古い 歌', bpm:120, lv:2,
    n:'C4:1 E4:1 F4:1 G4:4 R:1 C4:1 E4:1 F4:1 G4:4 R:1 C4:1 E4:1 F4:1 G4:2 E4:2 C4:2 E4:2 D4:4 R:1 E4:1 E4:1 D4:1 C4:3 C4:1 E4:2 G4:2 G4:1 F4:3 R:1 E4:1 F4:1 G4:2 E4:2 C4:2 D4:2 C4:4'},
-  {id:'grace', t:'アメイジング・グレイス', by:'イギリスの 古い 歌', bpm:80, lv:2,
+  {id:'grace', k:'C', bar:3, p:1, t:'アメイジング・グレイス', by:'イギリスの 古い 歌', bpm:80, lv:2,
    n:'G3:1 C4:2 E4:0.5 C4:0.5 E4:2 D4:1 C4:2 A3:1 G3:2 G3:1 C4:2 E4:0.5 C4:0.5 E4:2 D4:1 G4:5 E4:1 G4:1.5 E4:0.5 G4:0.5 E4:0.5 C4:2 G3:1 A3:1.5 C4:0.5 C4:0.5 A3:0.5 G3:2 G3:1 C4:2 E4:0.5 C4:0.5 E4:2 D4:1 C4:3'},
-  {id:'elise', t:'エリーゼのために（はじめ）', by:'ベートーヴェン（1827年 没）', bpm:70, lv:3,
-   n:'E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:2'},
-  {id:'minuet', t:'メヌエット ト長調', by:'ペツォールト（1733年 没）', bpm:110, lv:3,
-   n:'D5:1 G4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 G4:1 G4:1 E5:1 C5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 G4:1 G4:1 C5:1 D5:0.5 C5:0.5 B4:0.5 A4:0.5 B4:1 C5:0.5 B4:0.5 A4:0.5 G4:0.5 F#4:1 G4:0.5 A4:0.5 B4:0.5 G4:0.5 A4:3'},
+  {id:'elise', k:'A', mi:true, bar:3, p:1, t:'エリーゼのために（はじめ）', by:'ベートーヴェン（1827年 没）', bpm:70, lv:3,
+   n:'E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:1.5 B4:0.5 C5:0.5 D5:0.5 E5:1.5 G4:0.5 F5:0.5 E5:0.5 D5:1.5 F4:0.5 E5:0.5 D5:0.5 C5:1.5 E4:0.5 D5:0.5 C5:0.5 B4:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:2'},
+  {id:'minuet', k:'G', bar:3, t:'メヌエット ト長調', by:'ペツォールト（1733年 没）', bpm:110, lv:3,
+   n:'D5:1 G4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 G4:1 G4:1 E5:1 C5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 G4:1 G4:1 C5:1 D5:0.5 C5:0.5 B4:0.5 A4:0.5 B4:1 C5:0.5 B4:0.5 A4:0.5 G4:0.5 F#4:1 G4:0.5 A4:0.5 B4:0.5 G4:0.5 A4:3 D5:1 G4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 G4:1 G4:1 E5:1 C5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 G4:1 G4:1 C5:1 D5:0.5 C5:0.5 B4:0.5 A4:0.5 B4:1 C5:0.5 B4:0.5 A4:0.5 G4:0.5 A4:1 B4:0.5 A4:0.5 G4:0.5 F#4:0.5 G4:3 B5:1 G5:0.5 A5:0.5 B5:0.5 G5:0.5 A5:1 D5:0.5 E5:0.5 F#5:0.5 D5:0.5 G5:1 E5:0.5 F#5:0.5 G5:0.5 D5:0.5 C#5:1 B4:0.5 C#5:0.5 A4:1 A4:0.5 B4:0.5 C#5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 F#5:1 E5:1 F#5:1 A4:1 C#5:1 D5:3 D5:1 G4:0.5 F#4:0.5 G4:1 E5:1 G4:0.5 F#4:0.5 G4:1 D5:1 C5:1 B4:1 A4:0.5 G4:0.5 F#4:0.5 G4:0.5 A4:1 D4:0.5 E4:0.5 F#4:0.5 G4:0.5 A4:0.5 B4:0.5 C5:1 B4:1 A4:1 B4:0.5 D5:0.5 G4:1 F#4:1 G4:3'},
   /* v673：ふやした 曲 */
-  {id:'row', t:'こげこげボート', by:'アメリカの 古い 歌', bpm:100, lv:1,
+  {id:'row', k:'C', bar:3, t:'こげこげボート', by:'アメリカの 古い 歌', bpm:100, lv:1,
    n:'C4:1.5 C4:1.5 C4:1 D4:0.5 E4:1.5 E4:1 D4:0.5 E4:1 F4:0.5 G4:3 C5:0.5 C5:0.5 C5:0.5 G4:0.5 G4:0.5 G4:0.5 E4:0.5 E4:0.5 E4:0.5 C4:0.5 C4:0.5 C4:0.5 G4:1 F4:0.5 E4:1 D4:0.5 C4:3'},
-  {id:'frere', t:'フレール・ジャック', by:'フランスの 古い 歌', bpm:110, lv:1,
+  {id:'frere', k:'C', t:'フレール・ジャック', by:'フランスの 古い 歌', bpm:110, lv:1,
    n:'C4:1 D4:1 E4:1 C4:1 C4:1 D4:1 E4:1 C4:1 E4:1 F4:1 G4:2 E4:1 F4:1 G4:2 G4:0.5 A4:0.5 G4:0.5 F4:0.5 E4:1 C4:1 G4:0.5 A4:0.5 G4:0.5 F4:0.5 E4:1 C4:1 C4:1 G3:1 C4:2 C4:1 G3:1 C4:2'},
-  {id:'oldmac', t:'マクドナルドじいさん', by:'アメリカの 古い 歌', bpm:120, lv:1,
-   n:'G4:1 G4:1 G4:1 D4:1 E4:1 E4:1 D4:2 B4:1 B4:1 A4:1 A4:1 G4:3 D4:1 G4:1 G4:1 G4:1 D4:1 E4:1 E4:1 D4:2 B4:1 B4:1 A4:1 A4:1 G4:3'},
-  {id:'bday', t:'ハッピーバースデー', by:'ヒル姉妹（1916年・1946年 没）', bpm:100, lv:1,
+  {id:'oldmac', k:'G', t:'マクドナルドじいさん', by:'アメリカの 古い 歌', bpm:120, lv:1,
+   n:'G4:1 G4:1 G4:1 D4:1 E4:1 E4:1 D4:2 B4:1 B4:1 A4:1 A4:1 G4:3 D4:1 G4:1 G4:1 G4:1 D4:1 E4:1 E4:1 D4:2 B4:1 B4:1 A4:1 A4:1 G4:3 D4:0.5 D4:0.5 G4:1 G4:1 G4:1 D4:0.5 D4:0.5 G4:1 G4:1 G4:2 G4:0.5 G4:0.5 G4:1 G4:0.5 G4:0.5 G4:1 G4:0.5 G4:0.5 G4:0.5 G4:0.5 G4:1 G4:1 G4:1 G4:1 G4:1 D4:1 E4:1 E4:1 D4:2 B4:1 B4:1 A4:1 A4:1 G4:4'},
+  {id:'bday', k:'C', bar:3, p:1, t:'ハッピーバースデー', by:'ヒル姉妹（1916年・1946年 没）', bpm:100, lv:1,
    n:'G4:0.75 G4:0.25 A4:1 G4:1 C5:1 B4:2 G4:0.75 G4:0.25 A4:1 G4:1 D5:1 C5:2 G4:0.75 G4:0.25 G5:1 E5:1 C5:1 B4:1 A4:2 F5:0.75 F5:0.25 E5:1 C5:1 D5:1 C5:3'},
-  {id:'sakura', t:'さくらさくら', by:'日本の 古い 歌', bpm:80, lv:2,
+  {id:'sakura', k:'A', mi:true, t:'さくらさくら', by:'日本の 古い 歌', bpm:80, lv:2,
    n:'A4:1 A4:1 B4:2 A4:1 A4:1 B4:2 A4:1 B4:1 C5:1 B4:1 A4:1 B4:0.5 A4:0.5 F4:2 E4:1 C4:1 E4:1 F4:1 E4:1 E4:0.5 C4:0.5 B3:2 A4:1 B4:1 C5:1 B4:1 A4:1 B4:0.5 A4:0.5 F4:2 E4:1 C4:1 E4:1 F4:1 E4:1 E4:0.5 C4:0.5 B3:2 A4:1 A4:1 B4:2 A4:1 A4:1 B4:2 E4:1 F4:1 B4:0.5 A4:0.5 F4:1 E4:4'},
-  {id:'hotaru', t:'蛍の光', by:'スコットランドの 古い 歌', bpm:90, lv:2,
+  {id:'hotaru', k:'F', p:1, t:'蛍の光', by:'スコットランドの 古い 歌', bpm:90, lv:2,
    n:'C4:1 F4:1.5 F4:0.5 F4:1 A4:1 G4:1.5 F4:0.5 G4:1 A4:0.5 G4:0.5 F4:1.5 F4:0.5 A4:1 C5:1 D5:3 D5:1 C5:1.5 A4:0.5 A4:1 F4:1 G4:1.5 F4:0.5 G4:1 A4:0.5 G4:0.5 F4:1.5 D4:0.5 D4:1 C4:1 F4:3'},
-  {id:'ieji', t:'家路（新世界より）', by:'ドヴォルザーク（1904年 没）', bpm:60, lv:2,
+  {id:'ieji', k:'C', t:'家路（新世界より）', by:'ドヴォルザーク（1904年 没）', bpm:60, lv:2,
    n:'E4:1.5 G4:0.5 G4:2 E4:1.5 D4:0.5 C4:2 D4:1 E4:1 G4:1 E4:1 D4:4 E4:1.5 G4:0.5 G4:2 E4:1.5 D4:0.5 C4:2 D4:1 E4:1 D4:1.5 C4:0.5 C4:4'},
-  {id:'brahms', t:'ブラームスの子守歌', by:'ブラームス（1897年 没）', bpm:80, lv:2,
-   n:'E4:0.5 E4:0.5 G4:2 E4:0.5 E4:0.5 G4:2 E4:0.5 G4:0.5 C5:1 B4:1.5 A4:0.5 A4:1 G4:1 D4:0.5 E4:0.5 F4:1 D4:1 D4:0.5 E4:0.5 F4:2 D4:0.5 F4:0.5 B4:0.5 A4:0.5 G4:1 B4:1 C5:3'},
-  {id:'joyworld', t:'もろびとこぞりて', by:'ヘンデル（1759年 没）', bpm:100, lv:2,
-   n:'C5:2 B4:1.5 A4:0.5 G4:3 F4:1 E4:2 D4:2 C4:3 G4:1 A4:3 A4:1 B4:3 B4:1 C5:4'},
-  {id:'canon', t:'カノン（はじめ）', by:'パッヘルベル（1706年 没）', bpm:80, lv:2,
-   n:'F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2 D5:2 C#5:2 B4:2 A4:2 G4:2 F#4:2 G4:2 E4:2'},
-  {id:'turkish', t:'トルコ行進曲（はじめ）', by:'モーツァルト（1791年 没）', bpm:90, lv:3,
-   n:'B4:0.25 A4:0.25 G#4:0.25 A4:0.25 C5:1 D5:0.25 C5:0.25 B4:0.25 C5:0.25 E5:1 F5:0.25 E5:0.25 D#5:0.25 E5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 C6:2'}
+  {id:'brahms', k:'C', bar:3, p:1, t:'ブラームスの子守歌', by:'ブラームス（1897年 没）', bpm:80, lv:2,
+   n:'E4:0.5 E4:0.5 G4:2 E4:0.5 E4:0.5 G4:2 E4:0.5 G4:0.5 C5:1 B4:1.5 A4:0.5 A4:1 G4:1 D4:0.5 E4:0.5 F4:1 D4:1 D4:0.5 E4:0.5 F4:2 D4:0.5 F4:0.5 B4:0.5 A4:0.5 G4:1 B4:1 C5:2 C4:0.5 C4:0.5 C5:2 A4:0.5 F4:0.5 G4:2 E4:0.5 C4:0.5 F4:1 G4:1 A4:1 G4:2 C4:0.5 C4:0.5 C5:2 A4:0.5 F4:0.5 G4:2 E4:0.5 C4:0.5 F4:1 E4:1 D4:1 C4:2'},
+  {id:'joyworld', k:'C', t:'もろびとこぞりて', by:'ヘンデル（1759年 没）', bpm:100, lv:2,
+   n:'C5:2 B4:1.5 A4:0.5 G4:3 F4:1 E4:2 D4:2 C4:3 G4:1 A4:3 A4:1 B4:3 B4:1 C5:3 C5:1 C5:1 B4:1 A4:1 G4:1 G4:1.5 F4:0.5 E4:1 C5:1 C5:1 B4:1 A4:1 G4:1 G4:1.5 F4:0.5 E4:1 E4:1 E4:1 E4:1 E4:1 E4:0.5 F4:0.5 G4:3 F4:0.5 E4:0.5 D4:1 D4:1 D4:1 D4:0.5 E4:0.5 F4:3 E4:0.5 D4:0.5 C4:1 C5:2 A4:1 G4:1.5 F4:0.5 E4:1 F4:1 E4:2 D4:2 C4:4'},
+  {id:'canon', k:'D', t:'カノン（はじめ）', by:'パッヘルベル（1706年 没）', bpm:80, lv:2,
+   n:'F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2 D5:2 C#5:2 B4:2 A4:2 G4:2 F#4:2 G4:2 E4:2 D4:1 F#4:1 A4:1 G4:1 F#4:1 D4:1 F#4:1 E4:1 D4:1 B3:1 D4:1 A4:1 G4:1 B4:1 A4:1 G4:1'},
+  {id:'turkish', k:'A', mi:true, p:1, t:'トルコ行進曲（はじめ）', by:'モーツァルト（1791年 没）', bpm:90, lv:3,
+   n:'B4:0.25 A4:0.25 G#4:0.25 A4:0.25 C5:0.5 R:0.5 D5:0.25 C5:0.25 B4:0.25 C5:0.25 E5:0.5 R:0.5 F5:0.25 E5:0.25 D#5:0.25 E5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 C6:1 A5:0.5 C6:0.5 B5:0.5 A5:0.5 G5:0.5 A5:0.5 B5:0.5 A5:0.5 G5:0.5 A5:0.5 B5:0.5 A5:0.5 G5:0.5 F#5:0.5 E5:1 B4:0.25 A4:0.25 G#4:0.25 A4:0.25 C5:0.5 R:0.5 D5:0.25 C5:0.25 B4:0.25 C5:0.25 E5:0.5 R:0.5 F5:0.25 E5:0.25 D#5:0.25 E5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 C6:1 A5:0.5 B5:0.5 C6:0.5 B5:0.5 A5:0.5 G#5:0.5 A5:0.5 E5:0.5 F5:0.5 D5:0.5 C5:1 B4:0.75 A4:0.25 A4:1'}
 ];
 /* ⚡ ゲーム用の オリジナル曲（v675。この アプリの ために Claude が 作った 曲）──
    曲は 16拍（4小節）の まとまり（P）を form の 順に つなぐ。まとまりごとに コード（ch：1小節に 1つ）・なぞる ときの 形（sh）・伴奏の リズム（dr）を 決める。
@@ -120,7 +120,115 @@ const ORIG=[
     c2:{n:'A5:1 F5:0.5 D5:0.5 A5:1 Bb5:1 C6:1 Bb5:0.5 A5:0.5 G5:1 E5:1 F5:0.5 G5:0.5 A5:0.5 Bb5:0.5 A5:0.5 G5:0.5 F5:0.5 E5:0.5 D5:2 D6:2', ch:'Dm C Gm Dm', sh:'star', dr:'drive'},
     d:{n:'D5:2 A4:2 C5:2 G4:2 Bb4:2 F4:2 A4:1 C#5:1 E5:1 G5:1', ch:'Dm C Bb A', sh:'circle', dr:'half'},
     o:{n:'D5:0.25 F5:0.25 A5:0.25 D6:0.25 A5:0.25 F5:0.25 D5:0.25 A4:0.25 D5:0.25 F5:0.25 A5:0.25 D6:0.25 A5:0.25 F5:0.25 D5:0.25 A4:0.25 Bb4:0.5 D5:0.5 F5:0.5 Bb5:0.5 A4:0.5 C#5:0.5 E5:0.5 A5:0.5 D6:4', ch:'Dm Bb Dm', sh:'heart', dr:'drive'}},
-   form:'i a a2 b c c2 d a a2 b c c2 o'}
+   form:'i a a2 b c c2 d a a2 b c c2 o'},
+  /* v677：ふやした 10曲 */
+  {id:'csakura', t:'桜ふぶきロード', bpm:138, lv:2, key:'ニ短調・和風',
+   P:{
+    i:{n:'D5:0.5 A4:0.5 D5:0.5 F5:0.5 G5:1 F5:0.5 D5:0.5 C5:0.5 A4:0.5 C5:0.5 D5:0.5 F5:1 D5:1 A4:0.5 G4:0.5 A4:0.5 C5:0.5 D5:1 C5:0.5 A4:0.5 G4:1 A4:1 D5:2', ch:'Dm C F Dm', sh:'circle', dr:'taiko'},
+    a:{n:'D4:1 F4:1 G4:1.5 A4:0.5 C5:1 A4:1 G4:2 F4:1 G4:1 A4:1 C5:1 A4:3 R:1', ch:'Dm C F Am', sh:'wave', dr:'taiko'},
+    a2:{n:'D4:1 F4:1 G4:1.5 A4:0.5 C5:1 D5:1 F5:2 D5:1 C5:1 A4:1 G4:0.5 F4:0.5 D4:3 R:1', ch:'Dm F C Dm', sh:'wave', dr:'taiko'},
+    b:{n:'A4:0.5 C5:0.5 D5:1 A4:0.5 C5:0.5 D5:1 F5:0.5 G5:0.5 F5:0.5 D5:0.5 C5:2 A4:0.5 C5:0.5 D5:1 A4:0.5 C5:0.5 D5:1 G5:0.5 A5:0.5 G5:0.5 F5:0.5 D5:1 C5:1', ch:'Bb C Dm C', sh:'zig', dr:'build'},
+    c:{n:'D5:1 F5:1 G5:1 A5:1 C6:1.5 A5:0.5 G5:2 F5:1 G5:0.5 A5:0.5 G5:1 F5:1 D5:1.5 C5:0.5 D5:2', ch:'Dm F C Dm', sh:'star', dr:'drive'},
+    c2:{n:'D5:1 F5:1 G5:1 A5:1 D6:1.5 C6:0.5 A5:2 G5:0.5 A5:0.5 G5:0.5 F5:0.5 D5:1 C5:1 D5:4', ch:'Dm Bb C Dm', sh:'heart', dr:'drive'},
+    d:{n:'A4:2 G4:1 F4:1 G4:2 A4:2 C5:2 D5:1 C5:1 A4:4', ch:'Dm C Bb Am', sh:'spiral', dr:'half'},
+    o:{n:'D5:0.5 F5:0.5 G5:0.5 A5:0.5 C6:0.5 A5:0.5 G5:0.5 F5:0.5 D5:0.5 C5:0.5 A4:0.5 G4:0.5 A4:1 C5:1 D5:4', ch:'Dm C Dm', sh:'circle', dr:'drive'}},
+   form:'i a a2 b c c2 d a2 b c c2 o'},
+  {id:'cpico', t:'ピコピコ・アドベンチャー', bpm:156, lv:2, key:'ハ長調・ゲーム風',
+   P:{
+    i:{n:'C5:0.5 E5:0.5 G5:0.5 C6:0.5 G5:0.5 E5:0.5 C5:1 D5:0.5 F5:0.5 A5:0.5 D6:0.5 A5:0.5 F5:0.5 D5:1 E5:0.5 G5:0.5 B5:0.5 E6:0.5 D6:0.5 B5:0.5 G5:1 C6:2 R:2', ch:'C Dm G C', sh:'zig', dr:'beat'},
+    a:{n:'G4:0.5 G4:0.5 C5:1 E5:0.5 D5:0.5 C5:1 A4:0.5 A4:0.5 D5:1 F5:0.5 E5:0.5 D5:1 B4:0.5 B4:0.5 E5:1 G5:0.5 F5:0.5 E5:0.5 D5:0.5 C5:1 G4:1 C5:2', ch:'C Dm G C', sh:'wave', dr:'pop'},
+    a2:{n:'G4:0.5 G4:0.5 C5:1 E5:0.5 D5:0.5 C5:1 A4:0.5 A4:0.5 F5:1 A5:0.5 G5:0.5 F5:1 E5:0.5 F5:0.5 G5:0.5 E5:0.5 D5:0.5 E5:0.5 D5:0.5 B4:0.5 C5:2 R:2', ch:'C F G C', sh:'wave', dr:'pop'},
+    b:{n:'A4:1 C5:0.5 E5:0.5 A5:1 G5:1 F5:1 A4:0.5 C5:0.5 F5:1 E5:1 D5:0.5 E5:0.5 F5:0.5 G5:0.5 A5:0.5 B5:0.5 C6:0.5 D6:0.5 B5:1 G5:1 D5:2', ch:'Am F G G', sh:'circle', dr:'build'},
+    c:{n:'E6:1 C6:0.5 G5:0.5 E6:1 D6:1 C6:1 A5:0.5 F5:0.5 C6:1 B5:1 A5:0.5 B5:0.5 C6:0.5 A5:0.5 G5:0.5 A5:0.5 G5:0.5 E5:0.5 D5:1 E5:0.5 F5:0.5 G5:2', ch:'C F Am G', sh:'star', dr:'drive'},
+    c2:{n:'E6:1 C6:0.5 G5:0.5 E6:1 D6:1 C6:1 A5:0.5 F5:0.5 C6:1 D6:1 E6:0.5 D6:0.5 C6:0.5 B5:0.5 A5:0.5 G5:0.5 F5:0.5 D5:0.5 C5:2 C6:2', ch:'C F G C', sh:'star', dr:'drive'},
+    d:{n:'C5:0.25 D5:0.25 E5:0.25 F5:0.25 G5:0.5 G5:0.5 E5:0.25 F5:0.25 G5:0.25 A5:0.25 B5:0.5 B5:0.5 C6:0.5 G5:0.5 E5:0.5 C5:0.5 D5:1 G4:1 A4:0.25 B4:0.25 C5:0.25 D5:0.25 E5:0.5 E5:0.5 F5:0.25 E5:0.25 D5:0.25 C5:0.25 B4:0.5 G4:0.5 C5:1 E5:1 G5:1 C6:1', ch:'C G Am C', sh:'eight', dr:'beat'},
+    o:{n:'G5:0.5 E5:0.5 C5:0.5 E5:0.5 G5:0.5 C6:0.5 E6:1 D6:0.5 B5:0.5 G5:0.5 B5:0.5 D6:1 G5:1 C6:4', ch:'C G C', sh:'spiral', dr:'drive'}},
+   form:'i a a2 b c c2 d a2 b c c2 o'},
+  {id:'cumi', t:'マリンブルー', bpm:116, lv:1, key:'ト長調',
+   P:{
+    a:{n:'B4:1 D5:1 G5:2 F#5:1 E5:1 D5:2 C5:1 E5:1 A5:2 G5:1 F#5:1 E5:1 D5:1', ch:'G D Am D', sh:'wave', dr:'latin'},
+    a2:{n:'B4:1 D5:1 G5:2 F#5:1 E5:1 D5:2 C5:1 B4:1 A4:1 F#4:1 G4:3 R:1', ch:'G D D G', sh:'wave', dr:'latin'},
+    b:{n:'E5:1.5 D5:0.5 C5:1 B4:1 A4:1.5 B4:0.5 C5:2 D5:1.5 C5:0.5 B4:1 A4:1 G4:1 A4:1 B4:2', ch:'C Am D G', sh:'circle', dr:'latin'},
+    b2:{n:'E5:1.5 D5:0.5 C5:1 B4:1 A4:1.5 B4:0.5 C5:2 D5:1 E5:1 F#5:1 A5:1 G5:4', ch:'C Am D G', sh:'circle', dr:'latin'},
+    c:{n:'G5:1.5 G5:0.5 A5:1 G5:1 E5:1.5 D5:0.5 D5:2 C5:1.5 C5:0.5 E5:1 D5:1 B4:1.5 A4:0.5 B4:2', ch:'C G Am Em', sh:'heart', dr:'pop'},
+    c2:{n:'G5:1.5 G5:0.5 A5:1 G5:1 E5:1.5 D5:0.5 D5:2 C5:1 E5:1 D5:1 F#5:1 G5:4', ch:'C G D G', sh:'heart', dr:'pop'},
+    o:{n:'D5:1 G5:1 B5:2 A5:1 F#5:1 D5:2 G5:4', ch:'G D G', sh:'spiral', dr:'half'}},
+   form:'a a2 b b2 c c2 a a2 b b2 c c2 o'},
+  {id:'crobot', t:'ロボット・ファンク', bpm:108, lv:3, key:'ホ短調',
+   P:{
+    i:{n:'E4:0.25 E4:0.25 R:0.5 E5:0.5 E4:0.25 E4:0.25 R:0.5 D5:0.5 B4:0.5 G4:0.5 E4:0.25 E4:0.25 R:0.5 E5:0.5 E4:0.25 E4:0.25 R:0.5 G5:0.5 F#5:0.5 D5:0.5 C5:0.25 C5:0.25 R:0.5 C5:0.5 D5:0.5 E5:0.5 G5:0.5 E5:0.5 D5:0.5 B4:0.5 D5:0.5 F#5:0.5 A5:0.5 B5:1 R:1', ch:'Em Em C B', sh:'zig', dr:'beat'},
+    a:{n:'G4:0.5 B4:0.5 R:0.5 E5:0.5 R:0.5 D5:0.5 B4:0.5 A4:0.5 G4:0.5 A4:0.5 B4:0.5 E4:1.5 R:1 G4:0.5 B4:0.5 R:0.5 E5:0.5 R:0.5 G5:0.5 F#5:0.5 E5:0.5 D5:0.75 B4:0.75 A4:0.5 B4:2', ch:'Em Em C Bm', sh:'eight', dr:'pop'},
+    a2:{n:'G4:0.5 B4:0.5 R:0.5 E5:0.5 R:0.5 D5:0.5 B4:0.5 A4:0.5 G4:0.5 A4:0.5 B4:0.5 D5:1.5 R:1 C5:0.5 E5:0.5 R:0.5 G5:0.5 F#5:0.5 E5:0.5 D5:0.5 B4:0.5 E5:3 R:1', ch:'Em G C Em', sh:'eight', dr:'pop'},
+    b:{n:'A4:0.25 C5:0.25 E5:0.5 A5:0.5 G5:0.5 E5:0.5 C5:0.5 A4:1 B4:0.25 D5:0.25 F#5:0.5 B5:0.5 A5:0.5 F#5:0.5 D5:0.5 B4:1 C5:0.25 E5:0.25 G5:0.5 C6:0.5 B5:0.5 G5:0.5 E5:0.5 C5:1 B4:0.5 D#5:0.5 F#5:0.5 A5:0.5 B5:2', ch:'Am Bm C B', sh:'spiral', dr:'build'},
+    c:{n:'E5:0.75 E5:0.75 G5:0.5 B5:1 A5:0.5 G5:0.5 F#5:0.75 F#5:0.75 A5:0.5 D6:1 C6:0.5 B5:0.5 C6:0.75 B5:0.75 A5:0.5 G5:0.5 F#5:0.5 E5:0.5 D5:0.5 E5:1 B4:1 E5:2', ch:'Em D Am Em', sh:'star', dr:'drive'},
+    c2:{n:'E5:0.75 E5:0.75 G5:0.5 B5:1 A5:0.5 G5:0.5 F#5:0.75 F#5:0.75 A5:0.5 D6:1 E6:0.5 D6:0.5 C6:0.5 B5:0.5 A5:0.5 G5:0.5 F#5:0.5 G5:0.5 A5:0.5 B5:0.5 E6:2 E5:2', ch:'Em D C Em', sh:'heart', dr:'drive'},
+    d:{n:'E4:0.5 R:0.5 E4:0.5 R:0.5 G4:0.5 R:0.5 A4:0.5 R:0.5 B4:0.25 B4:0.25 B4:0.25 B4:0.25 A4:0.5 G4:0.5 E4:2 E4:0.5 R:0.5 E4:0.5 R:0.5 G4:0.5 R:0.5 B4:0.5 R:0.5 D5:0.25 D5:0.25 D5:0.25 D5:0.25 C5:0.5 B4:0.5 A4:1 B4:1', ch:'Em Em Em D', sh:'zig', dr:'half'},
+    o:{n:'E5:0.25 G5:0.25 B5:0.25 E6:0.25 B5:0.25 G5:0.25 E5:0.25 B4:0.25 E5:0.25 G5:0.25 B5:0.25 E6:0.25 B5:0.5 R:0.5 D6:0.5 B5:0.5 A5:0.5 F#5:0.5 G5:0.5 E5:0.5 F#5:0.5 D#5:0.5 E5:4', ch:'Em B Em', sh:'circle', dr:'drive'}},
+   form:'i a a2 b c c2 d a a2 b c c2 o'},
+  {id:'cstar', t:'流れ星のセレナーデ', bpm:138, lv:2, bar:3, key:'ヘ長調・3拍子',
+   P:{
+    a:{n:'C5:2 F5:1 A5:2 G5:1 F5:1 E5:1 D5:1 C5:3 Bb4:2 D5:1 G5:2 F5:1 E5:1 D5:1 E5:1 F5:3', ch:'F F Dm F Bb Gm C F', sh:'circle', dr:'waltz'},
+    a2:{n:'C5:2 F5:1 A5:2 G5:1 F5:1 G5:1 A5:1 C6:3 D6:1 C6:1 Bb5:1 A5:1 G5:1 F5:1 G5:2 E5:1 F5:3', ch:'F F F F Bb F C F', sh:'circle', dr:'waltz'},
+    b:{n:'A5:1 G5:0.5 F5:0.5 E5:1 G5:1 F5:0.5 E5:0.5 D5:1 F5:1 E5:0.5 D5:0.5 C5:1 E5:2 C5:1 D5:0.5 E5:0.5 F5:1 D5:1 G5:0.5 A5:0.5 Bb5:1 G5:1 A5:1 C6:1 Bb5:0.5 G5:0.5 A5:3', ch:'F Gm Dm C Bb Gm C F', sh:'wave', dr:'waltz'},
+    b2:{n:'A5:1 G5:0.5 F5:0.5 E5:1 G5:1 F5:0.5 E5:0.5 D5:1 F5:1 E5:0.5 D5:0.5 C5:1 E5:2 C5:1 D5:0.5 E5:0.5 F5:1 D5:1 G5:0.5 A5:0.5 Bb5:1 G5:1 E5:1 G5:1 C6:1 F5:3', ch:'F Gm Dm C Bb Gm C F', sh:'wave', dr:'waltz'},
+    c:{n:'F5:0.5 G5:0.5 A5:0.5 C6:0.5 F6:1 E6:0.5 D6:0.5 C6:0.5 Bb5:0.5 A5:1 D6:0.5 C6:0.5 Bb5:0.5 A5:0.5 G5:1 C6:3 Bb5:0.5 A5:0.5 G5:0.5 F5:0.5 E5:1 A5:0.5 G5:0.5 F5:0.5 E5:0.5 D5:1 G5:1 E5:1 C5:1 F5:3', ch:'F C Bb C Gm Dm C F', sh:'star', dr:'waltz'},
+    o:{n:'C5:1 F5:1 A5:1 C6:3 A5:1 C6:1 F6:1 F6:3', ch:'F F F F', sh:'spiral', dr:'waltz'}},
+   form:'a a2 b b2 c a2 b2 c o'},
+  {id:'cfire', t:'ファイアーダンス', bpm:168, lv:3, key:'イ短調・スペイン風',
+   P:{
+    i:{n:'A4:0.5 B4:0.5 C5:0.5 D5:0.5 E5:0.5 F5:0.5 G#5:0.5 A5:0.5 G#5:0.5 F5:0.5 E5:0.5 D5:0.5 C5:0.5 B4:0.5 A4:1 E5:0.5 E5:0.5 F5:0.5 E5:0.5 D5:0.5 C5:0.5 B4:1 A4:0.5 C5:0.5 E5:0.5 A5:0.5 G#5:2', ch:'Am Dm E E', sh:'spiral', dr:'beat'},
+    a:{n:'A5:1 E5:0.5 E5:0.5 F5:0.5 E5:0.5 D5:1 C5:1 A4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 E5:0.5 F5:0.5 E5:0.5 D5:0.5 C5:0.5 B4:0.5 C5:0.5 D5:0.5 E5:3 R:1', ch:'Am Am E E', sh:'zig', dr:'pop'},
+    a2:{n:'A5:1 E5:0.5 E5:0.5 F5:0.5 E5:0.5 D5:1 C5:1 A4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 E5:0.5 D5:0.5 C5:0.5 B4:0.5 G#4:0.5 B4:0.5 E5:0.5 G#4:0.5 A4:3 R:1', ch:'Am Dm E Am', sh:'zig', dr:'pop'},
+    b:{n:'D5:0.5 F5:0.5 A5:0.5 F5:0.5 D5:1 A4:1 C5:0.5 E5:0.5 A5:0.5 E5:0.5 C5:1 A4:1 B4:0.5 D5:0.5 F5:0.5 G#5:0.5 B5:1 G#5:1 E5:0.25 F5:0.25 G#5:0.25 A5:0.25 B5:0.25 C6:0.25 D6:0.25 E6:0.25 E6:2', ch:'Dm Am E E', sh:'eight', dr:'build'},
+    c:{n:'A5:0.5 A5:0.5 C6:1 B5:0.5 A5:0.5 G#5:1 F5:0.5 F5:0.5 A5:1 G#5:0.5 F5:0.5 E5:1 D5:0.5 E5:0.5 F5:0.5 G#5:0.5 A5:0.5 B5:0.5 C6:0.5 D6:0.5 E6:1.5 D6:0.5 C6:1 B5:1', ch:'Am Dm E E', sh:'star', dr:'drive'},
+    c2:{n:'A5:0.5 A5:0.5 C6:1 B5:0.5 A5:0.5 G#5:1 F5:0.5 F5:0.5 A5:1 G#5:0.5 F5:0.5 E5:1 D5:0.5 C5:0.5 B4:0.5 C5:0.5 D5:0.5 E5:0.5 G#5:0.5 B5:0.5 A5:2 A4:2', ch:'Am Dm E Am', sh:'heart', dr:'drive'},
+    d:{n:'E5:1.5 F5:0.5 E5:1 D5:1 C5:1.5 D5:0.5 C5:1 B4:1 A4:0.5 B4:0.5 C5:0.5 D5:0.5 E5:1 F5:1 E5:4', ch:'Am G F E', sh:'circle', dr:'half'},
+    o:{n:'A5:0.25 G#5:0.25 F5:0.25 E5:0.25 D5:0.25 C5:0.25 B4:0.25 A4:0.25 E5:0.25 D5:0.25 C5:0.25 B4:0.25 A4:0.25 G#4:0.25 F4:0.25 E4:0.25 E4:0.5 G#4:0.5 B4:0.5 E5:0.5 G#5:0.5 B5:0.5 D6:1 A5:4', ch:'Am E Am', sh:'star', dr:'drive'}},
+   form:'i a a2 b c c2 d d a2 b c c2 o'},
+  {id:'cmatsuri', t:'おまつりビート', bpm:140, lv:1, key:'ハ長調・和風',
+   P:{
+    a:{n:'C5:1 C5:1 D5:1 E5:1 G5:2 E5:2 D5:1 C5:1 D5:1 E5:1 D5:4', ch:'C C G G', sh:'wave', dr:'taiko'},
+    a2:{n:'C5:1 C5:1 D5:1 E5:1 G5:2 A5:2 G5:1 E5:1 D5:1 E5:1 C5:4', ch:'C F G C', sh:'wave', dr:'taiko'},
+    b:{n:'A5:1 A5:1 G5:2 E5:1 G5:1 A5:2 C6:1 A5:1 G5:1 E5:1 D5:4', ch:'F C Am G', sh:'circle', dr:'taiko'},
+    b2:{n:'A5:1 A5:1 G5:2 E5:1 G5:1 A5:2 G5:1 E5:1 D5:1 E5:1 C5:4', ch:'F C G C', sh:'circle', dr:'taiko'},
+    c:{n:'C5:0.5 C5:0.5 E5:1 G5:0.5 G5:0.5 E5:1 A5:0.5 A5:0.5 G5:1 E5:1 D5:1 C5:0.5 C5:0.5 E5:1 G5:0.5 G5:0.5 C6:1 A5:1 G5:1 C6:2', ch:'C Am C F', sh:'star', dr:'drive'},
+    c2:{n:'C5:0.5 C5:0.5 E5:1 G5:0.5 G5:0.5 E5:1 A5:0.5 A5:0.5 G5:1 E5:1 D5:1 E5:1 G5:1 D5:1 E5:1 C5:4', ch:'C Am G C', sh:'star', dr:'drive'},
+    o:{n:'C6:1 A5:1 G5:1 E5:1 D5:1 E5:1 G5:1 D5:1 C5:4', ch:'Am G C', sh:'heart', dr:'taiko'}},
+   form:'a a2 b b2 c c2 a2 b b2 c c2 o'},
+  {id:'csky', t:'スカイハイ', bpm:150, lv:2, key:'ニ長調',
+   P:{
+    i:{n:'D5:0.5 A4:0.5 D5:0.5 F#5:0.5 A5:1 F#5:1 G5:0.5 D5:0.5 G5:0.5 B5:0.5 D6:1 B5:1 A5:0.5 E5:0.5 A5:0.5 C#6:0.5 E6:1 C#6:1 D6:2 A5:2', ch:'D G A D', sh:'circle', dr:'beat'},
+    a:{n:'F#4:1 A4:1 D5:1 F#5:1 E5:1.5 D5:0.5 B4:2 G4:1 B4:1 E5:1 G5:1 F#5:1.5 E5:0.5 C#5:2', ch:'D Bm G A', sh:'wave', dr:'pop'},
+    a2:{n:'F#4:1 A4:1 D5:1 F#5:1 E5:1.5 D5:0.5 B4:2 G4:1 B4:1 E5:1 C#5:1 D5:3 R:1', ch:'D Bm A D', sh:'wave', dr:'pop'},
+    b:{n:'B4:0.5 C#5:0.5 D5:1 F#5:1 E5:1 D5:0.5 E5:0.5 F#5:1 A5:1 G5:1 F#5:0.5 G5:0.5 A5:1 B5:1 C#6:1 D6:1 C#6:1 B5:1 A5:1', ch:'Bm D G A', sh:'zig', dr:'build'},
+    c:{n:'D6:1.5 A5:0.5 A5:1 B5:1 A5:1.5 F#5:0.5 F#5:2 G5:1 A5:1 B5:1 G5:1 A5:1.5 E5:0.5 E5:2', ch:'D F#m G A', sh:'star', dr:'drive'},
+    c2:{n:'D6:1.5 A5:0.5 A5:1 B5:1 A5:1.5 F#5:0.5 F#5:1 D5:1 G5:1 B5:1 A5:1 C#6:1 D6:4', ch:'D Bm A D', sh:'eight', dr:'drive'},
+    d:{n:'D5:0.25 E5:0.25 F#5:0.25 G5:0.25 A5:0.5 D5:0.5 B4:0.25 C#5:0.25 D5:0.25 E5:0.25 F#5:0.5 B4:0.5 G4:0.25 A4:0.25 B4:0.25 C#5:0.25 D5:0.5 G5:0.5 A4:0.25 B4:0.25 C#5:0.25 D5:0.25 E5:0.5 A5:0.5 F#5:0.5 D5:0.5 A4:0.5 D5:0.5 G5:0.5 E5:0.5 B4:0.5 E5:0.5 A5:1 C#6:1 E6:2', ch:'D G D A', sh:'spiral', dr:'beat'},
+    o:{n:'D6:0.5 A5:0.5 F#5:0.5 D5:0.5 A5:0.5 F#5:0.5 D5:0.5 A4:0.5 G5:0.5 B5:0.5 D6:0.5 G5:0.5 A5:0.5 C#6:0.5 E6:1 D6:4', ch:'D G D', sh:'heart', dr:'drive'}},
+   form:'i a a2 b c c2 d a2 b c c2 o'},
+  {id:'cninja', t:'にんじゃ ラッシュ', bpm:172, lv:3, key:'イ短調・和風',
+   P:{
+    i:{n:'E5:0.5 E5:0.5 R:0.5 E5:0.5 F5:0.5 E5:0.5 C5:1 B4:0.5 B4:0.5 R:0.5 B4:0.5 C5:0.5 B4:0.5 A4:1 E4:0.5 F4:0.5 A4:0.5 B4:0.5 C5:0.5 B4:0.5 A4:0.5 F4:0.5 E4:2 R:2', ch:'Am E F E', sh:'zig', dr:'taiko'},
+    a:{n:'E4:0.5 A4:0.5 B4:0.5 C5:0.5 B4:1 A4:1 E4:0.5 A4:0.5 B4:0.5 C5:0.5 E5:1 C5:1 D5:0.5 C5:0.5 B4:0.5 A4:0.5 F4:1 A4:1 B4:3 R:1', ch:'Am Am Dm E', sh:'zig', dr:'pop'},
+    a2:{n:'E4:0.5 A4:0.5 B4:0.5 C5:0.5 B4:1 A4:1 E4:0.5 A4:0.5 B4:0.5 C5:0.5 E5:1 F5:1 E5:0.5 C5:0.5 B4:0.5 A4:0.5 B4:0.5 F4:0.5 E4:1 A4:3 R:1', ch:'Am Am E Am', sh:'zig', dr:'pop'},
+    b:{n:'F5:0.25 E5:0.25 C5:0.25 B4:0.25 A4:0.5 C5:0.5 F5:0.25 E5:0.25 C5:0.25 B4:0.25 A4:0.5 E5:0.5 F5:0.25 E5:0.25 C5:0.25 B4:0.25 A4:0.5 C5:0.5 E5:1 B4:1 D5:0.25 C5:0.25 A4:0.25 F4:0.25 E4:0.5 A4:0.5 D5:0.25 C5:0.25 A4:0.25 F4:0.25 E4:0.5 B4:0.5 E5:0.5 F5:0.5 E5:0.5 C5:0.5 B4:2', ch:'F F Dm E', sh:'star', dr:'build'},
+    c:{n:'A5:1 E5:0.5 F5:0.5 E5:1 C5:1 B4:0.5 C5:0.5 E5:1 F5:1 E5:1 A5:1 B5:0.5 C6:0.5 B5:1 A5:1 F5:0.5 E5:0.5 C5:0.5 B4:0.5 E5:2', ch:'Am E F E', sh:'spiral', dr:'drive'},
+    c2:{n:'A5:1 E5:0.5 F5:0.5 E5:1 C5:1 B4:0.5 C5:0.5 E5:1 F5:1 A5:1 C6:0.5 B5:0.5 A5:0.5 F5:0.5 E5:0.5 C5:0.5 B4:0.5 C5:0.5 A4:2 A5:2', ch:'Am E F Am', sh:'star', dr:'drive'},
+    d:{n:'E5:1 R:1 E5:1 R:1 F5:0.5 E5:0.5 C5:1 B4:2 A4:1 R:1 A4:1 R:1 B4:0.5 C5:0.5 E5:1 F5:2', ch:'Am E F E', sh:'circle', dr:'taiko'},
+    o:{n:'E5:0.25 F5:0.25 A5:0.25 B5:0.25 C6:0.25 B5:0.25 A5:0.25 F5:0.25 E5:0.25 F5:0.25 A5:0.25 B5:0.25 C6:0.5 B5:0.5 A5:0.5 F5:0.5 E5:0.5 C5:0.5 B4:0.5 C5:0.5 E5:1 A5:4', ch:'Am E Am', sh:'eight', dr:'drive'}},
+   form:'i a a2 b c c2 d b c c2 a2 b c c2 o'},
+  {id:'cfinal', t:'ファイナル・ステージ', bpm:164, lv:3, key:'ハ短調',
+   P:{
+    i:{n:'C5:1 G4:0.5 C5:0.5 Eb5:1 D5:1 C5:1 G4:0.5 C5:0.5 F5:1 Eb5:1 D5:0.5 Eb5:0.5 F5:0.5 G5:0.5 Ab5:1 G5:1 B4:0.5 D5:0.5 F5:0.5 Ab5:0.5 G5:2', ch:'Cm Fm Bb G', sh:'star', dr:'beat'},
+    a:{n:'G4:1 C5:1 Eb5:1.5 D5:0.5 C5:1 Bb4:1 Ab4:2 F4:1 Ab4:1 C5:1.5 Bb4:0.5 G4:3 R:1', ch:'Cm Ab Fm G', sh:'wave', dr:'pop'},
+    a2:{n:'G4:1 C5:1 Eb5:1.5 F5:0.5 G5:1 F5:1 Eb5:2 D5:1 Eb5:1 F5:1.5 D5:0.5 C5:3 R:1', ch:'Cm Eb Bb Cm', sh:'wave', dr:'pop'},
+    b:{n:'Ab4:0.5 C5:0.5 Eb5:0.5 Ab5:0.5 G5:1 Eb5:1 Bb4:0.5 D5:0.5 F5:0.5 Bb5:0.5 Ab5:1 F5:1 G4:0.5 B4:0.5 D5:0.5 G5:0.5 F5:0.5 D5:0.5 B4:0.5 D5:0.5 G5:0.25 Ab5:0.25 B5:0.25 C6:0.25 D6:0.25 Eb6:0.25 F6:0.25 G6:0.25 G6:2', ch:'Ab Bb G G', sh:'zig', dr:'build'},
+    c:{n:'C6:1.5 G5:0.5 Eb5:1 G5:1 Ab5:1.5 G5:0.5 F5:1 Eb5:1 D5:0.5 Eb5:0.5 F5:0.5 G5:0.5 Ab5:1 Bb5:1 G5:3 B4:1', ch:'Cm Fm Bb G', sh:'star', dr:'drive'},
+    c2:{n:'C6:1.5 G5:0.5 Eb5:1 G5:1 Ab5:1.5 Bb5:0.5 C6:1 D6:1 Eb6:0.5 D6:0.5 C6:0.5 Bb5:0.5 Ab5:0.5 G5:0.5 F5:0.5 D5:0.5 C5:2 C6:2', ch:'Cm Bb G Cm', sh:'heart', dr:'drive'},
+    d:{n:'Eb5:2 D5:1 C5:1 D5:2 Bb4:2 C5:2 Ab4:1 F4:1 G4:4', ch:'Cm Bb Ab G', sh:'spiral', dr:'half'},
+    d2:{n:'C5:0.5 C5:0.5 C5:0.5 C5:0.5 Eb5:0.5 Eb5:0.5 Eb5:0.5 Eb5:0.5 D5:0.5 D5:0.5 D5:0.5 D5:0.5 F5:0.5 F5:0.5 F5:0.5 F5:0.5 Eb5:0.5 Eb5:0.5 G5:0.5 G5:0.5 Ab5:0.5 Ab5:0.5 Bb5:0.5 Bb5:0.5 B5:0.25 B5:0.25 B5:0.25 B5:0.25 B5:0.25 B5:0.25 B5:0.25 B5:0.25 D6:1 G6:1', ch:'Cm Bb Ab G', sh:'circle', dr:'build'},
+    o:{n:'C6:0.5 G5:0.5 Eb5:0.5 C5:0.5 G5:0.5 Eb5:0.5 C5:0.5 G4:0.5 Ab4:0.5 C5:0.5 F5:0.5 Ab5:0.5 G5:0.5 B5:0.5 D6:1 C6:4', ch:'Cm Fm Cm', sh:'star', dr:'drive'}},
+   form:'i a a2 b c c2 d d2 b c c2 o'}
 ];
 ORIG.forEach(s=>{   // まとまりを つないで 1曲に（n：ふつうの 曲と 同じ 書き方・secs：まとまりの 場所）
   const toks=[], secs=[]; let b=0;
@@ -134,6 +242,17 @@ const LANE4=[{name:'①',col:'#1e88e5'},{name:'②',col:'#43a047'},{name:'③',c
 function buildLanes(notes, how){
   const pcs=[...new Set(notes.map(x=>pcOf(x.midi)))].sort((a,b)=>a-b);
   if(how!=='four' && pcs.length<=7) return {lanes:pcs.map(pc=>({name:PC_JA[pc], col:PC_COL[pc], pc})), of:m=>pcs.indexOf(pcOf(m))};
+  if(how!=='four' && pcs.length<=9){   // v677：8〜9音は いちばん 少ない 音（♯ など）を となりの 音の ボタンに まとめる（ドレミの ボタンの まま）
+    const cnt={}; notes.forEach(x=>{ const c=pcOf(x.midi); cnt[c]=(cnt[c]||0)+x.len; });
+    const map={}; let keep=pcs.slice();
+    while(keep.length>7){
+      const x=keep.reduce((a,b)=>(cnt[b]<cnt[a] ? b : a)), i=keep.indexOf(x), L=keep[i-1], R=keep[i+1];
+      const to=L==null ? R : R==null ? L : (x-L<R-x ? L : R-x<x-L ? R : (cnt[L]>=cnt[R] ? L : R));
+      map[x]=to; Object.keys(map).forEach(k=>{ if(map[k]===x) map[k]=to; }); keep=keep.filter(y=>y!==x);
+    }
+    const f=pc=>map[pc]!=null ? map[pc] : pc;
+    return {lanes:keep.map(pc=>({name:PC_JA[pc], col:PC_COL[pc], pc})), of:m=>keep.indexOf(f(pcOf(m)))};
+  }
   const ms=[...new Set(notes.map(x=>x.midi))].sort((a,b)=>a-b);
   const K=Math.max(1, Math.min(how==='four' ? 4 : 7, ms.length));
   const li=i=>Math.min(K-1, Math.floor(i*K/ms.length));
@@ -155,6 +274,58 @@ function lanesOf(notes){
   const pcs=[...new Set(notes.map(x=>((x.midi%12)+12)%12))].sort((a,b)=>a-b);
   return pcs;
 }
+
+/* ── 昔の 曲を 長く（v677）──
+   テーマ（なるべく 曲の 全部の メロディー）を まず 弾き、そのあと Claude が 作った 変奏で 展開する（同じ くり返しに しない）：
+   pass＝あいだを 8分音符で つなぐ／dot＝はずむ リズム（付点）／arp＝のばす 音を 和音の 分散に／echo＝のばす 音の あとに 1オクターブ 上の こだま／oct＝1オクターブ 上で しめくくり。
+   伴奏の コードは 小節ごとに メロディーに 合う 和音を 自動で えらぶ（k＝調・mi＝短調・bar＝1小節の 拍・p＝アウフタクトの 拍） */
+const PNAME=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+const KEYPC={C:0, 'C#':1, D:2, Eb:3, E:4, F:5, 'F#':6, G:7, Ab:8, A:9, Bb:10, B:11};
+function scaleOf(k, mi){ const t=KEYPC[k]||0; return (mi ? [0,2,3,5,7,8,11] : [0,2,4,5,7,9,11]).map(x=>(x+t)%12); }
+function stepFrom(m, dir, sc){ let x=m; for(let i=0;i<3;i++){ x+=dir; if(sc.includes(pcOf(x))) return x; } return m+dir*2; }
+function chordsDia(k, mi){
+  const t=KEYPC[k]||0, L=mi ? [[0,1,.35],[3,0,.08],[5,1,.2],[7,0,.25],[8,0,.12],[10,0,.05]] : [[0,0,.35],[2,1,.08],[4,1,0],[5,0,.2],[7,0,.25],[9,1,.1]];
+  return L.map(([d,m,pr])=>{ const r=(t+d)%12; return {r, pr, pcs:[r, (r+(m ? 3 : 4))%12, (r+7)%12], name:PNAME[r]+(m ? 'm' : '')}; });
+}
+function harmonize(toks, s, total){
+  const bar=s.bar||4, p=s.p||0, C=chordsDia(s.k, s.mi), ev=[], out=[]; let b=0;
+  toks.forEach(x=>{ if(x.m!=null) ev.push({b, e:b+x.len, pc:pcOf(x.m)}); b+=x.len; });
+  for(let B=p; B<total-1e-6; B+=bar){
+    let best=C[0], bs=-1e9;
+    for(const c of C){ let sc=c.pr*bar; for(const n of ev){ const ov=Math.min(n.e, B+bar)-Math.max(n.b, B); if(ov<=0) continue; sc+=ov*(Math.abs(n.b-B)<1e-6 ? 1.5 : 1)*(c.pcs.includes(n.pc) ? 1 : -0.4); } if(sc>bs){ bs=sc; best=c; } }
+    out.push(best);
+  }
+  if(out.length){ out[0]=C[0]; out[out.length-1]=C[0]; }   // はじめと おわりは 主和音
+  return out;
+}
+const cp=t=>t.map(x=>({m:x.m, len:x.len}));
+function varPass(t, sc){ const out=[]; t.forEach((x,i)=>{ const nx=t[i+1]; if(x.m!=null && x.len>=1 && nx && nx.m!=null){ let pt=nx.m>x.m ? stepFrom(nx.m,-1,sc) : nx.m<x.m ? stepFrom(nx.m,1,sc) : stepFrom(x.m,1,sc); if(pt===x.m) pt=stepFrom(x.m, nx.m>x.m ? -1 : 1, sc); out.push({m:x.m, len:x.len-0.5}, {m:pt, len:0.5}); } else out.push({m:x.m, len:x.len}); }); return out; }
+function varDot(t, p){ const out=cp(t); let b=0; for(let i=0;i<out.length;i++){ const x=out[i], nx=out[i+1], pos=b-p; if(x.m!=null && nx && nx.m!=null && x.len===1 && nx.len===1 && Math.abs(pos/2-Math.round(pos/2))<1e-6){ x.len=1.5; nx.len=0.5; b+=2; i++; continue; } b+=x.len; } return out; }
+function varArp(t, chs, s){ const bar=s.bar||4, p=s.p||0, out=[]; let b=0;
+  t.forEach(x=>{ if(x.m!=null && x.len>=2 && Math.abs(x.len*2-Math.round(x.len*2))<1e-6){ const c=chs[clamp(Math.floor((b-p)/bar),0,chs.length-1)], ups=[x.m]; for(let j=1;j<3;j++){ let y=ups[j-1]+1; while(!c.pcs.includes(pcOf(y)) && y<ups[j-1]+12) y++; ups.push(Math.min(96,y)); } const k=Math.round(x.len*2), pat=[0,1,2,1]; for(let j=0;j<k;j++) out.push({m:ups[pat[j%4]], len:0.5}); } else out.push({m:x.m, len:x.len}); b+=x.len; });
+  return out; }
+function varEcho(t){ const out=[]; t.forEach(x=>{ if(x.m!=null && x.len>=1.5) out.push({m:x.m, len:x.len-0.5}, {m:Math.min(96, x.m+12), len:0.5}); else out.push({m:x.m, len:x.len}); }); return out; }
+function varOct(t, sc){ const hi=Math.max(...t.filter(x=>x.m!=null).map(x=>x.m)), sh=hi+12<=88 ? 12 : 0; return varPass(t.map(x=>({m:x.m==null ? null : x.m+sh, len:x.len})), sc); }
+function buildPD(s){
+  if(s.secs) return;
+  const theme=nToNotes(s.n), bar=s.bar||4, p=s.p||0, sc=scaleOf(s.k||'C', s.mi);
+  let L=theme.reduce((a,x)=>a+x.len, 0); const pad=(bar-(L%bar))%bar; if(pad>1e-6){ theme[theme.length-1].len+=pad; L+=pad; }   // 小節に そろえる
+  const T=L*60/s.bpm; let n=Math.min(6, Math.max(1, Math.ceil(60/T))); while(n>1 && n*T>125) n--;
+  const plan={1:['theme'], 2:['theme','pass'], 3:['theme','dot','oct'], 4:['theme','pass','dot','oct'], 5:['theme','pass','arp','dot','oct'], 6:['theme','pass','arp','dot','echo','oct']}[n];
+  const ch0=harmonize(theme, s, L), key0=notesToN(theme), make=v=>v==='pass' ? varPass(theme, sc) : v==='dot' ? varDot(theme, p) : v==='arp' ? varArp(theme, ch0, s) : v==='echo' ? varEcho(theme) : v==='oct' ? varOct(theme, sc) : cp(theme);
+  const SH=['wave','circle','zig','eight','star','heart'], DR={theme:'pop', pass:'beat', dot:'pop', arp:'half', echo:'pop', oct:'drive'};
+  const secs=[], toks=[], used=new Set(); let beat=0;
+  plan.forEach((v,i)=>{
+    let t=make(v);
+    if(v!=='theme' && notesToN(t)===key0){ const alt=['pass','arp','echo','dot','oct'].find(a=>!used.has(a) && !plan.includes(a) && notesToN(make(a))!==key0); if(alt){ v=alt; t=make(alt); } }   // 変わらない 変奏は 別の 変奏に
+    used.add(v);
+    secs.push({beat, len:L, ch:harmonize(t, s, L).map(c=>c.name), sh:SH[i%SH.length], dr:bar===3 ? 'waltz' : DR[v], off:p, v});
+    toks.push(...t); beat+=L;
+  });
+  s.theme=s.n; s.n=notesToN(toks); s.secs=secs; s.vars=secs.map(x=>x.v);
+  if(!/Claude/.test(s.by)) s.by+='・Claude 編曲（変奏・伴奏）';
+}
+SONGS.forEach(buildPD);
 
 /* ── 保存 ── */
 const DEF={ inst:'piano', vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[], diff:3, fx:'ultra', beat:true, lisCenter:true,
@@ -446,7 +617,7 @@ const DIFF=[null,
   {n:'★5', d:'達人：飾りの 音が ふえて もっと 速く・判定 きびしい', win:0.72, k:1.22, grid:0, orn:true}];
 /* 曲を 1〜2分に（v674）：組みこみの 曲は 1分を こえるまで くり返す（2分まで）。くり返しの 2回目ごとに 1オクターブ 上（入らなければ 下）で 変化を つける */
 function arrange(s, p){
-  if(s.my || s.orig || !p.notes.length) return Object.assign({reps:1}, p);
+  if(s.my || s.secs || !p.notes.length) return Object.assign({reps:1}, p);   // v677：組みこみの 曲は 変奏で のばすので くり返さない
   const sec=p.beats*60/s.bpm; if(sec>=60) return Object.assign({reps:1}, p);
   const reps=Math.max(1, Math.min(Math.ceil(60/sec), Math.max(1, Math.floor(120/(sec+60/s.bpm)))));
   const ms=p.notes.map(n=>n.midi), lo=Math.min(...ms), hi=Math.max(...ms);
@@ -613,18 +784,21 @@ function backEvents(s, beats){
     return ev;
   }
   s.secs.forEach((sc, si)=>{
-    const nb=Math.max(1, Math.round(sc.len/bar));
+    const nb=sc.off!=null ? sc.ch.length : Math.max(1, Math.round(sc.len/bar)), dr=bar===3 ? 'waltz' : sc.dr;
     for(let i=0;i<nb;i++){
-      const b0=sc.beat+i*bar, c=chordOf(sc.ch[i%sc.ch.length]), last=i===nb-1, R=c ? 36+c.root+(c.root>=7 ? -12 : 0)+12 : 48;   // ベースは C2〜F#3 くらい
+      const b0=sc.beat+(sc.off||0)+i*bar, c=chordOf(sc.ch[i%sc.ch.length]), last=i===nb-1, R=c ? 36+c.root+(c.root>=7 ? -12 : 0)+12 : 48;   // ベースは C2〜F#3 くらい
       const tri=c ? [48+c.root, 48+c.root+(c.minor ? 3 : 4), 48+c.root+7].map(m=>m>=60 ? m-12 : m) : [];
       const at=(k,b,o)=>P(k, b0+b, o);
-      if(i===0 && (sc.dr==='drive' || si===0)) at('crash', 0);
-      if(sc.dr==='waltz'){ at('kick',0); at('hat',1); at('hat',2); at('bass',0,{m:R, len:1}); at('pad',1,{ms:tri, len:0.8}); at('pad',2,{ms:tri, len:0.8}); continue; }
-      if(sc.dr==='half'){ at('kick',0); at('snare',2,{v:0.8}); for(let q=0;q<4;q++) at('hat',q,{v:0.8}); at('bass',0,{m:R, len:4}); at('pad',0,{ms:tri, len:4}); continue; }
-      if(sc.dr==='beat'){ for(let q=0;q<4;q++){ at('kick',q); at('hat',q+0.5); at('bass',q,{m:R, len:0.45}); at('bass',q+0.5,{m:R+12, len:0.4}); } continue; }
-      if(sc.dr==='pop'){ at('kick',0); at('kick',1.5); at('kick',2); at('snare',1); at('snare',3); for(let q=0;q<8;q++) at('hat',q/2,{v:q%2 ? 1 : 0.6});
+      if(i===0 && (dr==='drive' || si===0)) at('crash', 0);
+      if(dr==='taiko'){ at('tom',0); at('tom',1.5,{v:0.7}); at('tom',2); at('rim',3); at('rim',3.5,{v:0.7}); at('hat',1,{v:0.5}); at('bass',0,{m:R, len:2}); at('bass',2,{m:R+7, len:2}); continue; }   // 和太鼓（v677）
+      if(dr==='latin'){ at('kick',0); at('kick',2); [0,1.5,3].forEach(q=>at('rim',q,{v:0.8})); [1,2.5].forEach(q=>at('rim',q,{v:0.5})); for(let q=0;q<8;q++) at('hat',q/2,{v:0.5});
+        at('bass',0,{m:R, len:1.5}); at('bass',1.5,{m:R+7, len:0.5}); at('bass',2,{m:R, len:1.5}); at('bass',3.5,{m:R+7, len:0.5}); at('pad',0,{ms:tri, len:3.8}); continue; }   // ボサノバ風（v677）
+      if(dr==='waltz'){ at('kick',0); at('hat',1); at('hat',2); at('bass',0,{m:R, len:1}); at('pad',1,{ms:tri, len:0.8}); at('pad',2,{ms:tri, len:0.8}); continue; }
+      if(dr==='half'){ at('kick',0); at('snare',2,{v:0.8}); for(let q=0;q<4;q++) at('hat',q,{v:0.8}); at('bass',0,{m:R, len:4}); at('pad',0,{ms:tri, len:4}); continue; }
+      if(dr==='beat'){ for(let q=0;q<4;q++){ at('kick',q); at('hat',q+0.5); at('bass',q,{m:R, len:0.45}); at('bass',q+0.5,{m:R+12, len:0.4}); } continue; }
+      if(dr==='pop'){ at('kick',0); at('kick',1.5); at('kick',2); at('snare',1); at('snare',3); for(let q=0;q<8;q++) at('hat',q/2,{v:q%2 ? 1 : 0.6});
         at('bass',0,{m:R, len:1}); at('bass',1.5,{m:R, len:0.5}); at('bass',2,{m:R+7, len:1}); at('bass',3,{m:R, len:0.5}); at('bass',3.5,{m:R+12, len:0.5}); continue; }
-      if(sc.dr==='build'){ for(let q=0;q<4;q++){ at('kick',q); at('hat',q+0.5); }
+      if(dr==='build'){ for(let q=0;q<4;q++){ at('kick',q); at('hat',q+0.5); }
         if(last){ for(let q=0;q<16;q++) at('snare',q/4,{v:0.35+q/16*0.7}); at('rise',0,{len:4}); } else { at('snare',1); at('snare',3); }
         for(let q=0;q<8;q++) at('bass',q/2,{m:R+(q%2 ? 12 : 0), len:0.45}); continue; }
       // drive（サビ）：4つ打ち・手拍子・裏の オープンハイハット・8分の ベース・和音の きざみ
@@ -652,6 +826,8 @@ function drum(e, t){
   else if(e.k==='hat') nzHit(t, 0.035, 0.13*v, 'highpass', 8500, 0, B);
   else if(e.k==='ohat') nzHit(t, 0.17, 0.1*v, 'highpass', 7800, 0, B);
   else if(e.k==='crash') nzHit(t, 1.5, 0.2*v, 'highpass', 4800, 0, B);
+  else if(e.k==='tom'){ const o=AC.createOscillator(), g=AC.createGain(); o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(68, t+0.25); g.gain.setValueAtTime(0.9*v, t); g.gain.exponentialRampToValueAtTime(0.0001, t+0.45); o.connect(g); g.connect(B); o.start(t); o.stop(t+0.5); nzHit(t, 0.05, 0.25*v, 'lowpass', 900, 0, B); }
+  else if(e.k==='rim') nzHit(t, 0.03, 0.32*v, 'bandpass', 3200, 6, B);
   else if(e.k==='stick') nzHit(t, 0.04, 0.4, 'bandpass', 2700, 5, B);
   else if(e.k==='rise') nzHit(t, e.len*spb, 0.16, 'bandpass', 400, 3, B, 7000);
   else if(e.k==='bass'){ const f=midiFreq(e.m, 440), d=Math.max(0.08, e.len*spb), g=AC.createGain(), lp=AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.setValueAtTime(900, t); lp.frequency.exponentialRampToValueAtTime(260, t+d); lp.Q.value=5; lp.connect(g); g.connect(B);
@@ -940,7 +1116,7 @@ function htmlTun(){
 }
 function songBtn(x, cur){
   const b=st.best[bestKey(x.id)];
-  return '<button type="button" class="'+(x.id===cur?'on':'')+'" onclick="OTO.song(\''+x.id+'\')"><b>'+esc(x.t)+'</b><small>⏱ '+fmtSec(songSec(x))+'　'+(x.my ? '🎼 自分の曲・'+parseSong(x).notes.length+'音' : esc(x.by))+(b?'　🏆'+b:'')+'</small></button>';
+  return '<button type="button" class="'+(x.id===cur?'on':'')+'" onclick="OTO.song(\''+x.id+'\')"><b>'+esc(x.t)+'</b><small>'+(x.orig ? ['','🌱 やさしい・','🌿 ふつう・','🌳 むずかしい・'][x.lv]||'' : '')+'⏱ '+fmtSec(songSec(x))+'　'+(x.my ? '🎼 自分の曲・'+parseSong(x).notes.length+'音' : esc(x.by))+(b?'　🏆'+b:'')+'</small></button>';
 }
 function htmlGame(){
   const s=songOf(), best=st.best[bestKey()]||0;
@@ -1454,6 +1630,8 @@ window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met
   hit:(i,e)=>{ if(e){ e.preventDefault(); } judge(i); },
   wait:()=>{ st.wait=!st.wait; save(); }, fx:v=>{ st.fx=FXL.some(x=>x.id===v) ? v : 'ultra'; save(); render(); }, beat:()=>{ st.beat=!st.beat; save(); },
   back:()=>({on:!!bk.bus, n:bk.ev.length, i:bk.i, kinds:[...new Set(bk.ev.map(e=>e.k))].sort().join(',')}), backOf:id=>{ const s=allSongs().find(x=>x.id===id); if(!s) return null; const p=parseSong(s), ev=backEvents(s, p.beats); return {n:ev.length, kinds:[...new Set(ev.map(e=>e.k))].sort().join(',')}; },
+  theme:id=>{ const x=SONGS.find(y=>y.id===id); return x ? (x.theme||x.n) : ''; },
+  pd:()=>SONGS.map(s=>({id:s.id, sec:Math.round(parseSong(s).beats*60/s.bpm), vars:(s.vars||[]).join('+'), ch:(s.secs&&s.secs[0] ? s.secs[0].ch.join(' ') : '')})),
   fxOn:()=>!!(game && game.fe), fever:()=>!!(game && game.fever), orig:()=>ORIG.map(s=>({id:s.id, t:s.t, sec:Math.round(parseSong(s).beats*60/s.bpm), secs:s.secs.length, shapes:[...new Set(s.secs.map(x=>x.sh))].join(',')})), insts:()=>INST.map(x=>x.id),
   hitTest:(i)=>{ if(!game || !game.playing) return null; const n=game.notes.find(x=>!x.res && x.lane===i); if(!n) return null; game.t0=AC.currentTime-n.t; judge(i); return n.res; }, lanes:v=>{ st.lanes=v==='four' ? 'four' : 'note'; save(); game=null; render(); },
   // 🎼 曲を つくる（v673）
