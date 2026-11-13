@@ -20499,6 +20499,70 @@ async function runBandPc633(browser) {
   if (errs.length || errs2.length) console.log('    ', errs, errs2);
 }
 
+/* ── v671：リセットの横に 既定の大きさ・一覧が 溜まらない ルール・一覧を まとめて 消す ── */
+async function runRec671(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表電卓 v671：既定の大きさ・一覧の ルール・まとめて 消す ──');
+  const w = ms => page.waitForTimeout(ms);
+  const boot = async () => { await page.reload(); await w(900); };
+  await page.evaluate(() => localStorage.setItem('excalc_ui2', '1')); await boot();
+  check('  新しい 画面', await page.evaluate(() => ui2On), true);
+  await page.evaluate(() => { setCellVal(0, 0, '5'); autoRecSave(); });
+  check('  1マスだけの 表は 一覧に 残さない', await page.evaluate(() => getSaves().length), 0);
+  await page.evaluate(() => { setCellVal(1, 0, '7'); autoRecSave(); });
+  check('  2マス 以上で 一覧に 残す・開いている 表として 覚える', await page.evaluate(() => [getSaves().length, localStorage.getItem('excalc_cur_rec') === String(currentSaveId)].join('/')), '1/true');
+  await boot();
+  await page.evaluate(() => { setCellVal(2, 0, '9'); autoRecSave(); });
+  check('  開き直しても 同じ 記録に 入る（新しい Book を 作らない）', await page.evaluate(() => [getSaves().length, getSaves()[0].data[2][0], currentSaveId === getSaves()[0].id].join('/')), '1/9/true');
+  await page.evaluate(() => localStorage.removeItem('excalc_cur_rec')); await boot();
+  await page.evaluate(() => { markSaveDirty(); autoRecSave(); });
+  check('  覚えて いなくても 同じ 中身の 記録が あれば それに つなぐ', await page.evaluate(() => [getSaves().length, currentSaveId === getSaves()[0].id].join('/')), '1/true');
+  await page.evaluate(() => { const a = getSaves(); localStorage.setItem('excalc_cur_rec', '12345'); }); await boot();
+  check('  消えた 記録の 印は 使わない（ある 記録に つなぎ直し、ふやさない）', await page.evaluate(() => [getSaves().length, currentSaveId !== 12345 && (currentSaveId == null || getSaves().some(s => s.id === currentSaveId))].join('/')), '1/true');
+  await page.evaluate(() => { for (let i = 0; i < 4; i++) { newWorkspace(); setCellVal(0, 0, 'a' + i); setCellVal(0, 1, 'b'); autoRecSave(); } });
+  check('  新しい表は ちゃんと 別に 残る', await page.evaluate(() => getSaves().length), 5);
+
+  // ── ▦ 既定の大きさに（リセットの 横） ──
+  check('  ⋮ の メニューと ☰ に リセットと 並んで ある', await page.evaluate(() => { const a = document.getElementById('tmDefSz'), b = document.getElementById('defszBtn'); return [a.parentElement.classList.contains('tm-pair'), a.previousElementSibling.classList.contains('tm-danger'), b.previousElementSibling.id].join('/'); }), 'true/true/resetBtn');
+  await page.evaluate(() => { setSheetSize(30, 8); setCellVal(25, 6, 'x'); setCellVal(1, 1, 'keep'); openTableMenu(); }); await w(400);
+  check('  既定の 大きさを 小さい 字で 出す', await page.evaluate(() => document.querySelector('#tmDefSz .defsz-lb').textContent), '15行×3列');
+  let asked = '';
+  await page.evaluate(() => { window.appConfirm = async (m) => { window.__asked = m; return true; }; document.getElementById('tmDefSz').click(); }); await w(500);
+  asked = await page.evaluate(() => window.__asked || '');
+  check('  外に 中身が あれば 聞いてから 既定の 大きさに（中の 中身は 残す）', await page.evaluate(() => [ROWS + 'x' + COLS, data[25][6], data[1][1]].join('/')) + '|' + /外に 中身の ある セルが 1個/.test(asked), '15x3//keep|true');
+  await page.evaluate(() => undoLast()); await w(200);
+  check('  ↶戻る で 元の 大きさと 中身に', await page.evaluate(() => [ROWS + 'x' + COLS, data[25][6]].join('/')), '30x8/x');
+  await page.evaluate(() => { window.__asked = ''; resetToDefaultSize(); }); await w(300);
+  await page.evaluate(() => resetToDefaultSize()); await w(300);
+  check('  もう 既定なら 知らせるだけ', await page.evaluate(() => document.getElementById('appToast').textContent.includes('もう 既定の 大きさ')), true);
+
+  // ── ☑ えらんで まとめて 消す ──
+  await page.evaluate(() => { const a = getSaves(); a[4].locked = true; persistSaves(a); showSaveList(); }); await w(500);
+  check('  一覧に「☑ えらんで消す」', await page.evaluate(() => !!document.getElementById('saveSelBtn').offsetParent && document.getElementById('saveSelBar').hidden), true);
+  await page.click('#saveSelBtn'); await w(200);
+  const ids = await page.evaluate(() => [...document.querySelectorAll('#saveListBody [data-id]')].map(e => +e.dataset.id));
+  await page.click(`#saveListBody [data-id="${ids[1]}"]`); await page.click(`#saveListBody [data-id="${ids[2]}"]`); await w(200);
+  check('  押すと えらぶ（開かない）・数と 消すボタン', await page.evaluate(() => [isDlgOpen('saveListOverlay'), document.getElementById('saveSelN').textContent, document.getElementById('saveSelDel').disabled, document.querySelectorAll('#saveListBody .picked').length].join('/')), 'true/2件 えらんでいます/false/2');
+  await page.click(`#saveListBody [data-id="${ids[4]}"]`); await w(200);
+  check('  🔒 の 表は えらべない', await page.evaluate(() => [document.querySelectorAll('#saveListBody .picked').length, document.getElementById('appToast').textContent.includes('ロック')].join('/')), '2/true');
+  await page.click('#saveSelAll'); await w(150);
+  check('  すべて（🔒 は 除く）→ すべて外す', await page.evaluate(() => [document.getElementById('saveSelN').textContent, document.getElementById('saveSelAll').textContent].join('/')), '4件 えらんでいます/すべて外す');
+  await page.click('#saveSelAll'); await w(150);
+  await page.click(`#saveListBody [data-id="${ids[1]}"]`); await page.click(`#saveListBody [data-id="${ids[3]}"]`); await w(150);
+  await page.evaluate(() => { window.appConfirm = async () => true; }); 
+  await page.click('#saveSelDel'); await w(500);
+  check('  消す → 2件 へる・えらぶのを やめる', await page.evaluate(() => [getSaves().length, !getSaves().some(s => s.id === +document.querySelector('#saveListBody [data-id]').dataset.id) ? 'x' : 'ok', document.getElementById('saveSelBar').hidden, document.getElementById('appToast').textContent.startsWith('2件の 表を 消しました')].join('/')), '3/ok/true/true');
+  await page.evaluate(() => document.querySelector('#appToast .toast-act').click()); await w(300);
+  check('  お知らせの「元に戻す」で 一覧に 戻る', await page.evaluate(() => [getSaves().length, document.querySelectorAll('#saveListBody [data-id]').length].join('/')), '5/5');
+  await page.click('#saveSelBtn'); await w(100);
+  await page.click(`#saveListBody [data-id="${ids[0]}"]`); await w(100);
+  await page.click('#saveSelDel'); await w(500);
+  check('  開いている 表を 消すと 開いていない 扱い（画面の 表は 残る）', await page.evaluate(() => [currentSaveId, localStorage.getItem('excalc_cur_rec'), data[0][0]].join('/')), '//a3');
+  await page.evaluate(() => closeSaveList()); await w(200);
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 /* v635：範囲（1行・1列・何行何列でも）を Excel と 同じ ように 範囲ごと コピー（右下の 丸・長押しして なぞる・コピー → 広く 選んで 貼り付け） */
 async function runRangeFill635(browser) {
   const { ctx, page, errs } = await newPage(browser);
@@ -20761,7 +20825,7 @@ async function runUi2640(browser) {
   check('  Aa で テンキーが 書式の ページに', await page.evaluate(() => numpadPager.current()), 'fmt');
   await page.click('#atFmt'); await w(400);
   await page.click('#atMore'); await w(400);
-  check('  ⋮ で この表の メニュー（表を 空にする は いちばん 下・赤）', await page.evaluate(() => isDlgOpen('tableMenuOverlay') + '/' + document.querySelector('#tableMenuOverlay .tm-row:last-child').classList.contains('tm-danger')), 'true/true');
+  check('  ⋮ で この表の メニュー（表を 空にする は いちばん 下・赤）', await page.evaluate(() => isDlgOpen('tableMenuOverlay') + '/' + !!document.querySelector('#tableMenuOverlay .tm-list:last-child > .tm-pair:last-child > .tm-row.tm-danger')), 'true/true');   // v671：いちばん下の 段に 既定の 大きさと 並ぶ
   await page.evaluate(() => document.querySelector('#tableMenuOverlay .tm-danger').click()); await w(500);
   check('  この表を 空にする → 空に なる・元に 戻せる', await page.evaluate(() => { const e = data[1][0] === ''; undoLast(); return e + '/' + data[1][0]; }), 'true/りんご');
   // 下の タブ
@@ -22205,7 +22269,7 @@ async function runHyoGen670(browser) {
   await page.evaluate(() => hpRun('ckUnmake')); await w(300);
   check('  やめると ふつうの セル（中身は 残る）', await page.evaluate(() => [cellStyles._ct ? JSON.stringify(cellStyles._ct) : '-', data[1][2], document.getElementById('c1_2').classList.contains('hp-ck')].join('|')), '-|1|false');
   check('  途中の 行を 消しても 範囲の ☑ は 残る', await page.evaluate(() => { cellStyles._ct = { 2: { k: 'ck', r1: 1, r2: 6 } }; deleteRowAt ? 0 : 0; const o = hpRemapKey('_ct', cellStyles._ct, (r, c) => (r === 6 ? null : r > 6 ? [r - 1, c] : [r, c])); return JSON.stringify(o); }), '{"2":{"k":"ck","r1":1,"r2":5}}');
-  check('  使い方に「✨ ことばで表を作る」・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('id=\\"g-hyogen\\"'), (fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').match(/v:'(v[0-9]+)'/) || [])[1]].join('/'), 'true/v670');
+  check('  使い方に「✨ ことばで表を作る」・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('id=\\"g-hyogen\\"'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v670'")].join('/'), 'true/true');
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
@@ -22576,6 +22640,7 @@ const SUITES = [
   [['ggolf', 'v616'], b => runGgolf616(b)],
   [['oto', 'v668'], b => runOto668(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
+  [['rec671', 'v671'], b => runRec671(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
   [['ggolf', 'ggolfhole', 'v620'], b => runGgolfHole620(b)],
   [['ggolf', 'ggolfded', 'v638'], b => runGgolfDed638(b)],
