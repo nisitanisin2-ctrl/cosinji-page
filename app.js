@@ -969,7 +969,10 @@ function buildSheet() {
         formulaEditMode=false; fi.classList.remove('formula-mode');
         if (msPick || e.ctrlKey || e.metaKey) { msTap(r,c); return; }   // v657：Ctrl の 段の「複数選ぶ」が オンの とき   // 複数選択：ばらばらの セルを 足す（v654）
         msClear();
-        if (hpCellTap(r,c)) return;   // ☑ チェック欄は押すと ☑⇄☐、えらぶだけの列は えらぶ窓（v563）
+        if (hpCellTap(r,c)) {   // ☑ チェック欄は押すと ☑⇄☐、えらぶだけの列は えらぶ窓（v563）
+          if (cellGesture==='excel' && hpCkCell(r,c)!=null) showEditBar(true);   // ☑ の そばに 帯（☐ チェックをやめる・消去 など。v672）
+          return;
+        }
         // v418：Excel と同じ操作のとき、選んでいる範囲の中をタップしたら範囲はそのままで帯を出す
         if (cellGesture==='excel' && rangeR1>=0 && document.activeElement!==fi){
           const g=selRect();
@@ -1665,6 +1668,7 @@ function bandCellKind(){
   const g=selRect();
   if(rangeR1>=0 && (g.r2>g.r1 || g.c2>g.c1)) return bandHasNum(g.r1,g.c1,g.r2,g.c2) ? 'range' : 'rtext';   // 数の ない 範囲（見出しの 行 など）は 結合・太字・中央
   if(!(selR>=0) || !data[selR]) return '';
+  if(typeof hpCkCell==='function' && hpCkCell(selR,selC)!=null) return '';   // ☑ の セルは ¥・％ などを 出さない（v672）
   const raw=String(data[selR][selC]==null ? '' : data[selR][selC]).trim();
   if(raw==='') return '';
   if(cellDateFmt(selR,selC)) return '';
@@ -1704,13 +1708,13 @@ function bandPool(k){
   if(k==='col') return ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'];
   if(k==='row') return ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'];
   if(k==='range' || k==='rtext') return BAND_FILL.concat(BAND_RANGE, BAND_FMT, BAND_COMMON);
-  return BAND_FMT.concat(BAND_COMMON);
+  return BAND_FMT.concat(['ck_mk'], BAND_COMMON);   // ☑ チェックに は 1つの セルでも（v672）
 }
 /* はじめの 並び（v624 と 同じ 見え方） */
 const BAND_DEF={
   num:  ['nf_yen','nf_pct','nf_comma','dec_up','dec_dn'].concat(BAND_COMMON),
   text: ['bold','al_l','al_c','al_r'].concat(BAND_COMMON),
-  empty: BAND_COMMON.slice(),
+  empty: ['ck_mk'].concat(BAND_COMMON),   // 空の セル：☑ チェックに（v672）
   range:['autosum','sort_up','sort_dn','chart','cf_q','ck_mk'].concat(BAND_COMMON),
   rtext:['merge','bold','al_c','sort_up','ck_mk','cut','copy','paste','edit','clear','fmt','lock'],
   col:  ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'],
@@ -1775,7 +1779,13 @@ function bandDef(id, kind){
     case 'chart':   if(!rng) return null; it.run=()=>hpRun('chart'); return it;
     case 'cf_q':    if(!rng || !hpOk()) return null; it.run=()=>hpRun('cfQuick'); return it;
     case 'ck_mk': {
-      if(!rng || !hpOk()) return null;
+      if(!hpOk() || document.body.classList.contains('kb-edit') || document.activeElement===document.getElementById('formulaInput')) return null;   // 打って いる 間は 出さない
+      const g=rng ? selRect() : {r1:selR, c1:selC, r2:selR, c2:selC};   // 1つの セルでも（v672）
+      if(!rng){
+        if(hpCkAnyIn(g)){ it.t='☐ チェックをやめる'; it.tip='この セルを ふつうの セルに もどす'; it.run=()=>hpRun('ckUnmake'); return it; }
+        if(!hpCkFits(g)) return null;
+        it.run=()=>hpRun('ckMake'); return it;
+      }
       if(hpCkAllIn(selRect())){ it.t='☐ チェックをやめる'; it.tip='選んだ範囲の チェックボックスを ふつうの セルに もどす'; it.run=()=>hpRun('ckUnmake'); return it; }
       if(!hpCkFits(selRect())) return null;   // 字で 埋まった 範囲（見出しの 行 など）には 出さない
       it.run=()=>hpRun('ckMake'); return it;
@@ -1807,7 +1817,11 @@ function bandDef(id, kind){
 /* いま 帯に 出す 自分の ボタン（いつもの ボタンは index.html に ある） */
 function bandItems(kind){
   if(kind!=='col' && kind!=='row' && isStructMode()) return [];
-  return bandCfgFor(kind).filter(id=>!BAND_COMMON.includes(id)).map(id=>bandDef(id, kind)).filter(Boolean);
+  let ids=bandCfgFor(kind).filter(id=>!BAND_COMMON.includes(id));
+  // ☑ の セルを 選んで いる ときは「☐ チェックをやめる」を いつも 先頭に（消し方が 分かるように。v672）
+  if(kind!=='col' && kind!=='row' && ids.indexOf('ck_mk')<0 && hpOk() && hpCkAnyIn((typeof selRect==='function' && rangeR1>=0) ? selRect() : {r1:selR, c1:selC, r2:selR, c2:selC})) ids=['ck_mk'].concat(ids);
+  else if(kind!=='col' && kind!=='row' && ids[0]!=='ck_mk' && ids.indexOf('ck_mk')>0 && hpCkAnyIn((typeof selRect==='function' && rangeR1>=0) ? selRect() : {r1:selR, c1:selC, r2:selR, c2:selC})) ids=['ck_mk'].concat(ids.filter(x=>x!=='ck_mk'));
+  return ids.map(id=>bandDef(id, kind)).filter(Boolean);
 }
 function bandRender(){
   const m=document.getElementById('cellMenu'), box=document.getElementById('cellMenuCtx'); if(!m || !box) return;
@@ -13082,6 +13096,54 @@ function advanceRowOrAdd(){
   }
   ac();
 }
+/* 打ちかけの 中身を いまの セルへ 入れる（v672）。
+   テンキーで 打った 数（cellEditing）と 入力欄の 字（fiFlush）は、これまで「別の セルを 押す」「Enter」の ときだけ 入って いた。
+   下の タブで 電卓へ 行く・「あ」を 押す・入力欄を 押す・メニューを 開く・アプリを 裏へ 回す と、
+   打った 数が 消えたり、入らない まま 残ったり して いた（「入れたのに 空白」）。 */
+function commitPendingEdit(){
+  let did=false;
+  try{ if(typeof window.fiFlush==='function' && window.fiFlush()) did=true; }catch(_){}
+  if(cellEditing && !isDentaku() && selR>=0 && data[selR]){
+    const v=calcCommitVal();
+    const noop=(v==='0' && data[selR][selC]==='') || v===data[selR][selC];
+    if(!noop && !isLockedCell(selR,selC)) setCellVal(selR,selC,v);
+    else { const el=document.getElementById(`c${selR}_${selC}`); if(el) setCellDisp(el, selR,selC); }
+    cellEditing=false; op1=null; cur_op=null; waiting=false;
+    did=true;
+  }
+  return did;
+}
+/* テンキー・表の セル・入力欄 の ほかを 押したら、先に 入れる */
+document.addEventListener('pointerdown', e=>{
+  if(!(cellEditing && !isDentaku())) return;
+  const t=e.target; if(!t || !t.closest) return;
+  if(t.closest('#numpadSection') || t.closest('.formula-bar') || t.closest('td.cell') || t.closest('.fill-handle, #fillHandle')) return;
+  commitPendingEdit();
+}, true);
+/* 入力欄の 字は、テンキー・入力欄の まわり・表の セル の ほかを 押したら 入れる（フォーカスが 外れない ボタンでも） */
+document.addEventListener('pointerdown', e=>{
+  const fi=document.getElementById('formulaInput'); if(!fi || document.activeElement!==fi) return;
+  const t=e.target; if(!t || !t.closest) return;
+  if(t.closest('#numpadSection') || t.closest('.formula-bar') || t.closest('td.cell') || t.closest('#cellMenu')) return;   // セルの そばの 帯は 入力の 続き（✏ など）
+  if(typeof window.fiFlush==='function') window.fiFlush();
+}, true);
+/* アプリを 裏へ 回す・閉じる 前に 入れる（そのまま 端末が 画面を 閉じても 消えない） */
+function commitPendingNow(){   // 裏へ 回る ときは その場で 書き残す（端末が すぐ 画面を 閉じても 消えない）
+  if(!commitPendingEdit()) return;
+  try{ persistModes(); }catch(_){}
+  try{ if(typeof saveSheets==='function') saveSheets(); }catch(_){}
+  try{ if(typeof autoRecFlush==='function') autoRecFlush(); }catch(_){}
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') commitPendingNow(); }, true);
+window.addEventListener('pagehide', ()=>commitPendingNow(), true);
+/* ↶↷ の あと、入力欄が 開いた ままなら セルの 中身に そろえて 閉じる（取り消した 字が 入力欄に 残って「入れたのに 空白」に 見えて いた。v672） */
+(function(){
+  const wrap=name=>{ const f=window[name]; if(typeof f!=='function') return;
+    window[name]=function(){ commitPendingEdit(); const v=f.apply(this, arguments);
+      try{ const fi=document.getElementById('formulaInput'); if(fi && document.activeElement===fi && typeof window.fiCancel==='function') window.fiCancel(); }catch(_){}
+      return v; }; };
+  setTimeout(()=>{ wrap('undoLast'); wrap('redoLast'); }, 0);
+})();
 function toCell() {
   if (editBlocked()) { if(formulaEditMode){ const fi=document.getElementById('formulaInput'); formulaEditMode=false; fi.classList.remove('formula-mode'); fi.value=data[selR][selC]; const el=document.getElementById(`c${selR}_${selC}`); if(el) setCellDisp(el, selR,selC);} return; }
   if (formulaEditMode) {
@@ -13284,6 +13346,7 @@ function fbKbTap(forceKb){
     return;
   }
   if(editBlocked() || isLockedCell(selR,selC)) return;
+  commitPendingEdit();   // テンキーで 打った 数を 先に 入れる（前は 消えて いた。v672）
   cellEditing=false; op1=null; cur_op=null; waiting=false;
   const v=cellEditString(selR,selC); fi.value=v;
   formulaEditMode=String(v).startsWith('='); fi.classList.toggle('formula-mode', formulaEditMode);
@@ -13367,6 +13430,8 @@ function fxDragEnd(){
   const fi=fiEl(); if(!fi) return;
   fi.addEventListener('pointerdown', ()=>{ if(padBarOn() && document.activeElement!==fi) setFiMode(cellWantsKb(selR,selC)); });
   fi.addEventListener('focus', ()=>syncFiUi());
+  // テンキーで 数を 打った あと 入力欄を 押したら、その 数を 先に セルへ 入れて 入力欄に 出す（前は 入力欄が 空の ままで、続けて 打つと 数が 消えて いた。v672）
+  fi.addEventListener('focus', ()=>{ if(cellEditing && !isDentaku() && commitPendingEdit()){ fi.value=cellEditString(selR,selC); try{ fi.setSelectionRange(fi.value.length, fi.value.length); }catch(_){} } });
   fi.addEventListener('blur', ()=>{ if(window.fiSwitching) return; setTimeout(()=>{ if(document.activeElement!==fi){ fxRef=null; syncFiUi(); } }, 0); });
   fi.addEventListener('click', ()=>{ fxRef=null; });   // カーソルを 動かしたら 入れかえは しない
   new MutationObserver(()=>syncFiUi()).observe(fi, {attributes:true, attributeFilter:['class']});
@@ -18630,7 +18695,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v671';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v672';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18888,10 +18953,14 @@ function hgOpen(q){
 
 /* ── ☑ チェック欄・📋 えらぶだけの列 ── */
 function hpKinds(){ const o=cellStyles._ct; return (o && typeof o==='object' && !Array.isArray(o)) ? o : null; }
+var HP_CELL_CK={k:'ck', cell:1};   // セル 1つずつの ☑（v672：cellStyles['r,c'].ck。セルと いっしょに 動く・コピーされる）
 function hpKindAt(r,c){
-  const o=hpKinds(), k=o && o[c];
-  if(!k || r<(k.r1|0) || (k.r2!=null && r>(k.r2|0)) || !hpOk()) return null;   // r2：その行まで（式テンプレの 1マスだけの えらぶ欄。v565）
-  if((data[r][c]==='' || data[r][c]==null) && hpIsTotalRow(r)) return null;   // 合計の行の 空いたセルは ふつうのセル
+  const o=hpKinds();
+  let k=o && o[c];
+  if(k && (r<(k.r1|0) || (k.r2!=null && r>(k.r2|0)))) k=null;   // r2：その行まで（式テンプレの 1マスだけの えらぶ欄。v565）
+  if(!k){ const cs=cellStyles[r+','+c]; if(cs && cs.ck) k=HP_CELL_CK; }
+  if(!k || !hpOk()) return null;
+  if(k!==HP_CELL_CK && (data[r][c]==='' || data[r][c]==null) && hpIsTotalRow(r)) return null;   // 合計の行の 空いたセルは ふつうのセル（自分で ☑ に した セルは そのまま）
   return k;
 }
 /* チェック欄の中身 → 1（☑）／0（☐）／null（字や式なので そのまま出す）。「済」「○」も ☑ とみる */
@@ -18911,9 +18980,19 @@ function hpCkCell(r,c){
 /* 範囲が ぜんぶ ☑ の セルか（帯の「☐ チェックをやめる」。v670） */
 function hpCkAllIn(g){
   if(!g) return false;
-  for(let c=g.c1;c<=g.c2;c++){ const k=hpKinds() && hpKinds()[c]; if(!k || k.k!=='ck') return false;
-    if(g.r1<(k.r1|0) || (k.r2!=null && g.r2>(k.r2|0))) return false; }   // 範囲が ぜんぶ ☑ の 中
+  let n=0;
+  for(let r=g.r1;r<=g.r2;r++) for(let c=g.c1;c<=g.c2;c++){
+    const k=hpKindAt(r,c); if(!k || k.k!=='ck') return false;   // 範囲が ぜんぶ ☑
+    if(++n>5000) return true;
+  }
   return true;
+}
+/* ☑ の セルが 1つでも あるか（帯の「☐ チェックをやめる」） */
+function hpCkAnyIn(g){
+  if(!g) return false;
+  let n=0;
+  for(let r=g.r1;r<=g.r2;r++) for(let c=g.c1;c<=g.c2;c++){ const k=hpKindAt(r,c); if(k && k.k==='ck') return true; if(++n>5000) return false; }
+  return false;
 }
 /* チェックボックスに できそうな 範囲か：空の セルか ☑ に なる 中身（済・○・1 など）が ある */
 function hpCkFits(g){
@@ -18948,7 +19027,9 @@ function hpCellExtra(td, r, c){
   else if(td.getAttribute('role')==='checkbox'){ td.setAttribute('role','gridcell'); td.removeAttribute('aria-checked'); }
 }
 function hpKindsRefresh(){
-  const o=hpKinds(); if(!o || !hpOk()) return;
+  if(!hpOk()) return;
+  for(const key in cellStyles){ const st=cellStyles[key]; if(st && st.ck){ const p=key.split(','), td=document.getElementById(`c${p[0]}_${p[1]}`); if(td) hpCellExtra(td,+p[0],+p[1]); } }   // セルの ☑（v672）
+  const o=hpKinds(); if(!o) return;
   for(const key in o){
     const c=+key; if(!(c>=0 && c<COLS)) continue;
     for(let r=0;r<ROWS;r++){ const td=document.getElementById(`c${r}_${c}`); if(td) hpCellExtra(td,r,c); }
@@ -19189,7 +19270,7 @@ function hpCfRefresh(){
 /* recalcAll のあとに呼ぶ */
 function hpAfterRecalc(){
   if(cellStyles._cf || (hpCfMap && hpCfMap.size)) hpCfRefresh();
-  if(cellStyles._ct) hpKindsRefresh();
+  hpKindsRefresh();
 }
 /* 日付の決まり（期限が過ぎた・今日）は 日がかわったら 塗り直す */
 document.addEventListener('visibilitychange', ()=>{
@@ -23097,6 +23178,7 @@ function navCloseAll(){
   if(typeof closeSideApp==='function'){ try{ closeSideApp(); }catch(_){} }
 }
 function navGo(tab){
+  commitPendingEdit();   // 打ちかけの 中身を 先に 入れる（v672）
   // 「電卓だけ」の あいだは 表・ひな形へ 移らない（表に 戻ると テンキーは 電卓の まま 動けなく なるため。v659）
   if(calcOnly && isDentaku() && (tab==='sheet' || tab==='tpl')){ toast('「電卓だけ」のあいだは表に移りません（⋮ → 設定 → ⌨テンキー で戻せます）', 3200); navSync(); return; }
   const was=navCurrent();

@@ -655,47 +655,57 @@ function isHeadTop(g){
   return r===0 && g.r2>r;   // 表の いちばん上の 行
 }
 function ckMake(){
-  const g=quickRect(), o=Object.assign({}, hpKinds()||{});
+  const g=quickRect();
   let r1=g.r1;
   if(g.r2>g.r1 && isHeadTop(g)) r1++;   // いちばん上が 見出しなら 見出しとして 残す
   pushSnapshot('チェックボックスにする');
   let fixed=0, kept=0;
-  for(let c=g.c1;c<=g.c2;c++){
-    const was=o[c];
-    if(was && was.k==='ck' && was.r2==null && (was.r1|0)<=r1) continue;   // もう 下まで ☑ の 列
-    const a=(was && was.k==='ck') ? Math.min(was.r1|0, r1) : r1;
-    const b=(was && was.k==='ck' && was.r2==null) ? null : Math.max(g.r2, (was && was.k==='ck') ? (was.r2|0) : g.r2);
-    o[c]=b==null ? {k:'ck', r1:a} : {k:'ck', r1:a, r2:b};
-    for(let r=r1;r<=g.r2;r++){
-      const v=data[r][c]; if(v===''||v==null || String(v).startsWith('=') || isLockedCell(r,c)) continue;
-      const s=hpCkState(v);
-      if(s===1 && v!=='1'){ data[r][c]='1'; fixed++; }
-      else if(s===0){ data[r][c]=''; fixed++; }
-      else if(s==null) kept++;
-    }
+  // セル 1つずつに ☑ の 印（v672：前は 列ごとに 1つの 範囲で、離れた セルを ☑ に すると 間も ☑ に なって いた）
+  for(let r=r1;r<=g.r2;r++) for(let c=g.c1;c<=g.c2;c++){
+    if(isLockedCell(r,c)) continue;
+    const key=r+','+c, st=Object.assign({}, cellStyles[key]||{});
+    if(st.cover) continue;   // 結合で 隠れた セル
+    st.ck=1; if(!st.align) st.align='center';
+    cellStyles[key]=st;
+    const v=data[r][c]; if(v===''||v==null || String(v).startsWith('=')) continue;
+    const s=hpCkState(v);
+    if(s===1 && v!=='1'){ data[r][c]='1'; fixed++; }
+    else if(s===0){ data[r][c]=''; fixed++; }
+    else if(s==null) kept++;
   }
-  cellStyles._ct=o;
   if(typeof clearRangeSelection==='function') clearRangeSelection();
   afterEdit();
-  const ref=ALPHA[g.c1]+(r1+1)+':'+ALPHA[g.c1]+(g.r2+1);
-  toast('☑ チェックボックスにしました。押すたびに ☑⇄☐'+(kept?'（字や数の '+kept+'セルは そのまま）':'')+'。☑ の数は =COUNTIF('+ref+',1)', 4200);
+  const one=(r1===g.r2 && g.c1===g.c2);
+  const ref=ALPHA[g.c1]+(r1+1)+(one?'':':'+ALPHA[g.c2]+(g.r2+1));
+  toast('☑ チェックボックスに しました。押すたびに ☑⇄☐'+(kept?'（字や数の '+kept+'セルは そのまま）':'')+'。やめるときは 選んで 帯の「☐ チェックをやめる」'+(one?'':'。☑ の数は =COUNTIF('+ref+',1)'), 4600);
 }
 function ckUnmake(){
   const g=quickRect(), o=Object.assign({}, hpKinds()||{});
   pushSnapshot('チェックボックスをやめる');
+  // ☑ の しるしの 中身（1）も 消す（「1」だけ 残って いても 分からない。v672）
+  for(let r=g.r1;r<=g.r2;r++) for(let c=g.c1;c<=g.c2;c++){ const k=hpKindAt(r,c); if(k && k.k==='ck' && hpCkCell(r,c)===1 && !isLockedCell(r,c)) data[r][c]=''; }
+  // セルの 印を 外す
+  for(let r=g.r1;r<=g.r2;r++) for(let c=g.c1;c<=g.c2;c++){
+    const key=r+','+c, st=cellStyles[key];
+    if(st && st.ck){ const n=Object.assign({}, st); delete n.ck; if(n.align==='center') delete n.align; if(Object.keys(n).length) cellStyles[key]=n; else delete cellStyles[key]; }
+  }
+  // 列ごとの ☑（☑ チェック欄・ことばで 作った 表）も 範囲の ぶん 外す
   for(let c=g.c1;c<=g.c2;c++){
     const k=o[c]; if(!k || k.k!=='ck') continue;
     const a=k.r1|0, b=(k.r2==null) ? null : k.r2|0;
-    if(g.r1<=a && (b!=null ? g.r2>=b : false)){ delete o[c]; continue; }   // ぜんぶ 外す
-    if(g.r1<=a){ o[c]=Object.assign({}, k, {r1:g.r2+1}); continue; }       // 上を 外す
-    if(b!=null && g.r2>=b){ o[c]=Object.assign({}, k, {r2:g.r1-1}); continue; }   // 下を 外す
-    if(b==null && g.r1>a){ o[c]=Object.assign({}, k, {r2:g.r1-1}); continue; }   // 下まで の 列の 途中から下を 外す（上は 残す）
-    o[c]=Object.assign({}, k, {r2:g.r1-1});                                       // まん中なら 上だけ 残す
+    if(g.r2<a || (b!=null && g.r1>b)) continue;                                   // 重ならない
+    if(g.r1<=a && (b!=null && g.r2>=b)){ delete o[c]; continue; }                   // ぜんぶ 外す
+    if(g.r1<=a){ o[c]=Object.assign({}, k, {r1:g.r2+1}); continue; }               // 上を 外す
+    const keepBelow=(b==null || g.r2<b) ? [g.r2+1, b] : null;                      // 下に 残る ぶんは セルの 印で 残す
+    o[c]=Object.assign({}, k, {r2:g.r1-1});
+    if(keepBelow){ const end=(keepBelow[1]==null) ? Math.min(ROWS-1, g.r2+200) : keepBelow[1];
+      if(keepBelow[1]==null){ o[c]=Object.assign({}, k, {r2:g.r1-1}); }
+      for(let r=keepBelow[0]; r<=end; r++){ if(keepBelow[1]==null && hpRowBlank(r,-1)) continue; const key=r+','+c; cellStyles[key]=Object.assign({}, cellStyles[key]||{}, {ck:1}); } }
   }
   if(Object.keys(o).length) cellStyles._ct=o; else delete cellStyles._ct;
   if(typeof clearRangeSelection==='function') clearRangeSelection();
   afterEdit();
-  toast('ふつうの セルに もどしました（中身の ☑＝1 は そのまま。↶戻る で元に戻せます）', 3400);
+  toast('チェックボックスを 消して ふつうの セルに もどしました（↶戻る で元に戻せます）', 3400);
 }
 
 /* ───────── 🔎 しぼり込み・並べかえ ───────── */
