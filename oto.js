@@ -105,7 +105,7 @@ function lanesOf(notes){
 }
 
 /* ── 保存 ── */
-const DEF={ inst:'piano', vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[],
+const DEF={ inst:'piano', vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[], diff:3,
   met:{bpm:100, beats:4, sub:1, accent:true, snd:'click'}, tun:{a4:440, set:'chrom'}, best:{} };
 let st=JSON.parse(JSON.stringify(DEF));
 function load(){
@@ -119,7 +119,8 @@ function load(){
   if(allSongs().some(x=>x.id===o.song)) st.song=o.song;
   st.wait=!!o.wait;
   if(o.lanes==='four') st.lanes='four';
-  if(o.mode==='fall' || o.mode==='glow') st.mode=o.mode;
+  if(o.mode==='fall' || o.mode==='glow' || o.mode==='slide') st.mode=o.mode;
+  if([1,2,3,4,5].includes(+o.diff)) st.diff=+o.diff;
   st.helper=!!o.helper;
   const m=o.met||{};
   st.met.bpm=clamp(Math.round(+m.bpm||100),20,260);
@@ -130,7 +131,7 @@ function load(){
   const tu=o.tun||{};
   st.tun.a4=clamp(Math.round(+tu.a4||440),430,450);
   st.tun.set=TSET.some(x=>x.id===tu.set) ? tu.set : 'chrom';
-  if(o.best && typeof o.best==='object') for(const k in o.best){ if(/^[a-z0-9]+:(fall|glow):(slow|mid|fast)(:4)?$/.test(k) && isFinite(+o.best[k])) st.best[k]=Math.max(0,Math.round(+o.best[k])); }
+  if(o.best && typeof o.best==='object') for(const k in o.best){ if(/^[a-z0-9]+:(fall|glow|slide):(slow|mid|fast)(:4)?(:d[1-5])?$/.test(k) && isFinite(+o.best[k])) st.best[k]=Math.max(0,Math.round(+o.best[k])); }
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(_){ toastS('保存できませんでした（端末の 空きが 少ない かも しれません）'); } }
 /* 自分の 曲：{id:'u…', t:曲名, bpm, n:'C4:1 R:1 …'} */
@@ -345,18 +346,50 @@ function setTun(k, v){ if(k==='a4') st.tun.a4=clamp(st.tun.a4+(+v),430,450); els
 /* ── 🎮 音ゲー（落ちてくる・光る）── */
 const SPEED={slow:{n:'ゆっくり', k:0.75, fall:2.6}, mid:{n:'ふつう', k:1, fall:2.0}, fast:{n:'はやい', k:1.25, fall:1.5}};
 const WIN={perfect:0.085, good:0.17, miss:0.22};
+/* むずかしさ ★1〜★5（v674）：grid＝その 細かさの 音だけ 残す・win＝判定の 幅・k＝速さ・orn＝飾りの 音を 足す */
+const DIFF=[null,
+  {n:'★1', d:'やさしい：1拍ごとの 音だけ・判定 ゆるめ', win:1.4, k:0.9, grid:1},
+  {n:'★2', d:'少し やさしい：半拍より 細かい 音は まとめる', win:1.18, k:1, grid:0.5},
+  {n:'★3', d:'ふつう：曲の まま', win:1, k:1, grid:0},
+  {n:'★4', d:'むずかしい：速く・判定 きびしめ', win:0.85, k:1.12, grid:0},
+  {n:'★5', d:'達人：飾りの 音が ふえて もっと 速く・判定 きびしい', win:0.72, k:1.22, grid:0, orn:true}];
+/* 曲を 1〜2分に（v674）：組みこみの 曲は 1分を こえるまで くり返す（2分まで）。くり返しの 2回目ごとに 1オクターブ 上（入らなければ 下）で 変化を つける */
+function arrange(s, p){
+  if(s.my || !p.notes.length) return Object.assign({reps:1}, p);
+  const sec=p.beats*60/s.bpm; if(sec>=60) return Object.assign({reps:1}, p);
+  const reps=Math.max(1, Math.min(Math.ceil(60/sec), Math.max(1, Math.floor(120/(sec+60/s.bpm)))));
+  const ms=p.notes.map(n=>n.midi), lo=Math.min(...ms), hi=Math.max(...ms);
+  const notes=[]; let off=0;
+  for(let k=0;k<reps;k++){
+    const tr=(k%2===1) ? (hi+12<=88 ? 12 : lo-12>=43 ? -12 : 0) : 0;
+    p.notes.forEach(n=>notes.push({beat:n.beat+off, len:n.len, midi:n.midi+tr}));
+    off+=p.beats+(k<reps-1 ? 1 : 0);   // くり返しの 間に 1拍 休む
+  }
+  return {notes, beats:off, reps};
+}
+function applyDiff(p, d){
+  const D=DIFF[d]||DIFF[3]; let notes=p.notes.map(n=>Object.assign({},n));
+  if(D.grid){ const out=[]; for(const n of notes){ const q=n.beat/D.grid, on=Math.abs(q-Math.round(q))<1e-6; if(on || !out.length) out.push(n); else out[out.length-1].len+=n.len; } notes=out; }
+  if(D.orn){ const out=[]; notes.forEach((n,i)=>{ const nx=notes[i+1]; if(n.len>=1 && nx && nx.midi!==n.midi){ const h=n.len/2; out.push({beat:n.beat, len:h, midi:n.midi}, {beat:n.beat+h, len:h, midi:n.midi+(nx.midi>n.midi ? 2 : -1)}); } else out.push(n); }); notes=out; }
+  return {notes, beats:p.beats, reps:p.reps};
+}
+function songSec(s){ const p=arrange(s, parseSong(s)); return p.beats*60/s.bpm; }
+const fmtSec=x=>{ x=Math.round(x); return x>=60 ? Math.floor(x/60)+'分'+(x%60 ? (x%60)+'秒' : '') : x+'秒'; };
 let game=null;   // {song, notes:[{t,midi,lane,len,done,res}], lanes, t0, spb, fall, raf, score, combo, max, cnt}
 function songOf(){ return allSongs().find(x=>x.id===st.song)||SONGS[0]; }
-function bestKey(id){ return (id||songOf().id)+':'+st.mode+':'+st.speed+(st.lanes==='four' ? ':4' : ''); }
+function bestKey(id){ return (id||songOf().id)+':'+st.mode+':'+st.speed+(st.lanes==='four' ? ':4' : '')+':d'+st.diff; }
 function newGame(){
-  const s=songOf(), p=parseSong(s), L=buildLanes(p.notes, st.lanes), sp=SPEED[st.speed], spb=60/(s.bpm*sp.k);
-  return {song:s, lanes:L.lanes, spb, fall:sp.fall, notes:p.notes.map(x=>({t:x.beat*spb, len:x.len*spb, midi:x.midi, lane:L.of(x.midi), res:null})),
+  const s=songOf(), D=DIFF[st.diff]||DIFF[3], p=applyDiff(arrange(s, parseSong(s)), st.diff), L=buildLanes(p.notes, st.lanes), sp=SPEED[st.speed], spb=60/(s.bpm*sp.k*D.k);
+  const g={song:s, lanes:L.lanes, spb, fall:sp.fall*(st.diff>=4 ? 0.85 : 1), notes:p.notes.map(x=>({t:x.beat*spb, len:x.len*spb, midi:x.midi, lane:L.of(x.midi), res:null})),
+    win:{perfect:WIN.perfect*D.win, good:WIN.good*D.win, miss:WIN.miss*D.win}, diff:st.diff, reps:p.reps||1,
     end:p.beats*spb, t0:0, raf:0, score:0, combo:0, max:0, cnt:{perfect:0, good:0, miss:0}, early:0, late:0, wait:!!st.wait, playing:false, over:false};
+  if(st.mode==='slide') slideSetup(g);
+  return g;
 }
 function gameStart(){
   if(!ac()){ toastS('この ブラウザーでは 音を 出せません'); return; }
-  gameStop(); game=newGame(); game.playing=true; game.t0=AC.currentTime+(st.mode==='fall' ? game.fall+0.4 : 2.2);
-  render(); game.raf=requestAnimationFrame(gameLoop);
+  gameStop(); game=newGame(); game.playing=true; game.t0=AC.currentTime+(st.mode==='fall' ? game.fall+0.4 : 2.4);
+  render(); if(st.mode==='slide') slideBind(); game.raf=requestAnimationFrame(gameLoop);
 }
 function gameStop(){ if(game){ cancelAnimationFrame(game.raf); game.playing=false; } }
 function listen(){   // お手本：曲を ぜんぶ 鳴らす
@@ -370,19 +403,25 @@ function judge(lane){
   if(!game || !game.playing) return;
   const t=nowT();
   let best=null, bd=1e9;
-  for(const n of game.notes){ if(n.res || n.lane!==lane) continue; const d=Math.abs(n.t-t); if(d<bd){ bd=d; best=n; } if(n.t-t>WIN.miss) break; }
-  if(best && bd<=WIN.good){
-    best.res=bd<=WIN.perfect ? 'perfect' : 'good';
-    if(best.res==='good'){ if(t<best.t) game.early++; else game.late++; }   // はやい／おそい（v673）
-    game.cnt[best.res]++; game.combo++; game.max=Math.max(game.max, game.combo);
-    game.score+=(best.res==='perfect' ? 100 : 60)+Math.min(game.combo,50)*2;
-    playNote(best.midi, AC.currentTime, best.len*0.95);
-    flash(lane, best.res==='good' ? (t<best.t ? 'early' : 'late') : best.res);
+  const W=game.win;
+  for(const n of game.notes){ if(n.res || n.lane!==lane) continue; const d=Math.abs(n.t-t); if(d<bd){ bd=d; best=n; } if(n.t-t>W.miss) break; }
+  if(best && bd<=W.good){
+    const r=scoreHit(best, bd<=W.perfect ? 'perfect' : 'good', t<best.t);
+    flash(lane, r);
   }else{
     // 合わない ときも その 列の 音を 小さく 鳴らす（自由に 弾いても よい）
     const m=game.notes.find(n=>n.lane===lane); if(m) playNote(m.midi, AC.currentTime, 0.25);
     flash(lane, 'free');
   }
+}
+/* 当たった ときの 点・コンボ・音（v674：なぞる と 同じ） */
+function scoreHit(n, res, early){
+  n.res=res;
+  if(res==='good'){ if(early) game.early++; else game.late++; }   // はやい／おそい（v673）
+  game.cnt[res]++; game.combo++; game.max=Math.max(game.max, game.combo);
+  game.score+=(res==='perfect' ? 100 : 60)+Math.min(game.combo,50)*2+(game.diff-3)*10;
+  playNote(n.midi, AC.currentTime, n.len*0.95);
+  return res==='good' ? (early ? 'early' : 'late') : res;
 }
 let fx=[];   // 出た 判定の 文字
 function flash(lane, res){
@@ -401,15 +440,16 @@ function gameLoop(){
   let t=nowT();
   // 待って くれる 練習（v673）：つぎの 音符が 線に 来たら、正しい ボタンを 押すまで 時間を 止める
   if(game.wait){ const nx=game.notes.find(n=>!n.res); if(nx && t>=nx.t){ game.t0=AC.currentTime-nx.t; t=nx.t; game.waiting=nx.lane; } else game.waiting=-1; }
+  if(st.mode==='slide') slideJudge(t);
   // 通りすぎた 音符は ミス（「手伝い」なら 自動で 鳴らす）
   for(const n of game.notes){
     if(n.res) continue;
-    if(n.t>t-WIN.miss) break;
+    if(n.t>t-game.win.miss) break;
     n.res='miss'; game.cnt.miss++; game.combo=0;
     if(st.helper) playNote(n.midi, AC.currentTime, n.len*0.9, st.inst);
-    fx.push({lane:n.lane, res:'miss', t:performance.now()}); hud();
+    fx.push({lane:n.lane, res:'miss', t:performance.now()}); if(st.mode==='slide') slideMiss(n); hud();
   }
-  if(st.mode==='fall') drawFall(t); else drawGlow(t);
+  if(st.mode==='fall') drawFall(t); else if(st.mode==='slide') drawSlide(t); else drawGlow(t);
   if(t>game.end+0.8){ finish(); return; }
   game.raf=requestAnimationFrame(gameLoop);
 }
@@ -451,7 +491,7 @@ function drawGlow(t){
   const lead=0.9;
   document.querySelectorAll('#otoBody .og-pad').forEach(p=>{
     const lane=+p.dataset.l; let k=0;
-    for(const n of game.notes){ if(n.lane!==lane || n.res) continue; const d=n.t-t; if(d>lead) break; if(d<-WIN.good) continue; k=Math.max(k, 1-Math.max(0,d)/lead); }
+    for(const n of game.notes){ if(n.lane!==lane || n.res) continue; const d=n.t-t; if(d>lead) break; if(d<-game.win.good) continue; k=Math.max(k, 1-Math.max(0,d)/lead); }
     p.style.setProperty('--k', k.toFixed(3));
     p.classList.toggle('lit', k>0);
     p.classList.toggle('now', k>0.88);
@@ -459,6 +499,116 @@ function drawGlow(t){
   const c=$('ogCnt');
   if(c) c.textContent=t<0 ? String(Math.ceil(-t*game.song.bpm*SPEED[st.speed].k/60)||'') : '';
   const cv=$('ogFx'); if(cv){ const r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1; if(cv.width!==Math.round(r.width*dpr)){ cv.width=Math.round(r.width*dpr); cv.height=Math.round(r.height*dpr); } const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,r.width,r.height); drawFx(x, r.width/game.lanes.length, 18); }
+}
+
+/* ── 🌀 なぞる（v674）──
+   画面に 散らばった マークへ 指を すべらせて、輪が ちぢんで 重なる ときに 指が 上に あれば 音が 鳴る。
+   マークは 曲の 流れに そって なめらかに 並べる（高い 音ほど 上へ・間が 長いほど 遠く）。同じ 曲なら いつも 同じ 並び */
+function slideSetup(g){
+  let h=2166136261; for(const c of String(g.song.id)+':'+g.diff) h=Math.imul(h^c.charCodeAt(0), 16777619);
+  const rnd=()=>{ h=(h+0x6D2B79F5)|0; let t=h; t=Math.imul(t^(t>>>15), t|1); t^=t+Math.imul(t^(t>>>7), t|61); return ((t^(t>>>14))>>>0)/4294967296; };
+  let x=0.5, y=0.55, a=rnd()*Math.PI*2;
+  g.notes.forEach((n,i)=>{
+    if(i>0){
+      const pv=g.notes[i-1], gap=n.t-pv.t, d=clamp(0.09+0.2*gap, 0.08, 0.34);
+      a+=(rnd()-0.5)*1.5;
+      let nx=x+Math.cos(a)*d, ny=y+Math.sin(a)*d-(n.midi-pv.midi)*0.012;
+      if(nx<0.12 || nx>0.88){ a=Math.PI-a; nx=x+Math.cos(a)*d; }
+      if(ny<0.16 || ny>0.84){ a=-a; ny=y+Math.sin(a)*d; }
+      x=clamp(nx,0.12,0.88); y=clamp(ny,0.16,0.84);
+    }
+    n.x=x; n.y=y;
+  });
+  g.ptr={x:-1, y:-1, on:false, trail:[]};
+  g.parts=[]; g.rings=[]; g.pops=[]; g.pulse=0; g.lead=[0,1.5,1.35,1.15,0.95,0.82][g.diff]||1.15;
+  g.rk=[0,1.25,1.12,1,0.92,0.84][g.diff]||1;
+}
+function slideBind(){
+  const cv=$('ogSl'); if(!cv || !game) return;
+  const pos=e=>{ const r=cv.getBoundingClientRect(); game.ptr.x=e.clientX-r.left; game.ptr.y=e.clientY-r.top; game.ptr.trail.push({x:game.ptr.x, y:game.ptr.y, t:performance.now()}); };
+  cv.addEventListener('pointerdown', e=>{ if(!game) return; e.preventDefault(); try{ cv.setPointerCapture(e.pointerId); }catch(_){} game.ptr.on=true; game.ptr.touch=e.pointerType!=='mouse'; pos(e); });
+  cv.addEventListener('pointermove', e=>{ if(!game) return; if(e.pointerType==='mouse'){ game.ptr.on=true; game.ptr.touch=false; } if(game.ptr.on) pos(e); });
+  const up=e=>{ if(!game) return; if(e.pointerType!=='mouse') game.ptr.on=false; game.ptr.trail.push({x:game.ptr.x, y:game.ptr.y, t:performance.now(), cut:true}); };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('pointerleave', e=>{ if(game && e.pointerType==='mouse') game.ptr.on=false; });
+}
+function slideGeo(){ const cv=$('ogSl'); if(!cv) return null; const r=cv.getBoundingClientRect(); const R=Math.max(30, Math.min(r.width, r.height)*0.085)*game.rk; return {W:r.width, H:r.height, R}; }
+function slideIn(n, G){ const p=game.ptr; if(!p.on || p.x<0) return false; const dx=p.x-n.x*G.W, dy=p.y-n.y*G.H; return dx*dx+dy*dy<=(G.R*1.25)*(G.R*1.25); }
+function slideJudge(t){
+  const G=slideGeo(); if(!G) return; const W=game.win;
+  for(const n of game.notes){
+    if(n.res) continue;
+    const d=t-n.t; if(d<-W.good) break;
+    if(d>W.good){ if(n.wasIn){ slideBoom(n, scoreHit(n, 'good', true), G); } continue; }   // 早めに 来て 通りすぎた → いいね・はやい
+    if(slideIn(n, G)){
+      if(d>=-W.perfect) slideBoom(n, scoreHit(n, d<=W.perfect ? 'perfect' : 'good', false), G);
+      else n.wasIn=true;
+    }
+  }
+}
+function slideBoom(n, res, G){
+  const x=n.x*G.W, y=n.y*G.H, col=PC_COL[pcOf(n.midi)], now=performance.now(), big=res==='perfect';
+  const k=big ? 16 : 9;
+  for(let i=0;i<k;i++){ const a=Math.random()*Math.PI*2, v=(big ? 160 : 100)+Math.random()*180; game.parts.push({x, y, vx:Math.cos(a)*v, vy:Math.sin(a)*v, col, t:now, life:420+Math.random()*260, r:2+Math.random()*3.5}); }
+  game.rings.push({x, y, col, t:now, r0:G.R});
+  game.pops.push({x, y, t:now, res});
+  game.pulse=Math.min(1, game.pulse+(big ? 0.55 : 0.3));
+  if(game.parts.length>400) game.parts.splice(0, game.parts.length-400);
+  hud();
+}
+function slideMiss(n){ const G=slideGeo(); if(G) game.pops.push({x:n.x*G.W, y:n.y*G.H, t:performance.now(), res:'miss'}); }
+function drawSlide(t){
+  const cv=$('ogSl'); if(!cv) return;
+  const r=cv.getBoundingClientRect(), dpr=window.devicePixelRatio||1, W=Math.round(r.width), H=Math.round(r.height);
+  if(cv.width!==W*dpr || cv.height!==H*dpr){ cv.width=W*dpr; cv.height=H*dpr; }
+  const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
+  const now=performance.now(), G={W, H, R:Math.max(30, Math.min(W,H)*0.085)*game.rk};
+  // 背景（当てると ふわっと 明るく）
+  game.pulse*=0.93;
+  const bg=x.createRadialGradient(W/2, H*0.45, 10, W/2, H*0.45, Math.max(W,H)*0.75);
+  bg.addColorStop(0, 'rgba('+Math.round(40+90*game.pulse)+','+Math.round(46+60*game.pulse)+','+Math.round(70+110*game.pulse)+',1)'); bg.addColorStop(1, '#0d1014');
+  x.fillStyle=bg; x.fillRect(0,0,W,H);
+  // これから 来る マーク（遠い 順に 描く）
+  const up=[]; for(const n of game.notes){ if(n.res) continue; const d=n.t-t; if(d>game.lead) break; if(d<-game.win.miss) continue; up.push(n); }
+  // つぎへの 道しるべ
+  x.lineWidth=3; x.setLineDash([6,8]); x.strokeStyle='rgba(255,255,255,.18)';
+  x.beginPath(); up.slice(0,4).forEach((n,i)=>{ const px=n.x*W, py=n.y*H; if(i) x.lineTo(px,py); else x.moveTo(px,py); }); x.stroke(); x.setLineDash([]);
+  for(let i=up.length-1;i>=0;i--){
+    const n=up[i], d=n.t-t, px=n.x*W, py=n.y*H, col=PC_COL[pcOf(n.midi)], a=clamp(1-d/game.lead*0.85, 0.15, 1);
+    x.globalAlpha=a;
+    // ちぢむ 輪
+    if(d>0){ x.strokeStyle=col; x.lineWidth=3; x.beginPath(); x.arc(px, py, G.R*(1+2.2*d/game.lead), 0, Math.PI*2); x.stroke(); }
+    const gr=x.createRadialGradient(px, py-G.R*0.3, 2, px, py, G.R);
+    gr.addColorStop(0, '#fff'); gr.addColorStop(0.25, col); gr.addColorStop(1, col);
+    x.fillStyle=gr; x.beginPath(); x.arc(px, py, G.R, 0, Math.PI*2); x.fill();
+    x.lineWidth=n.wasIn ? 5 : 3; x.strokeStyle=n.wasIn ? '#fff' : 'rgba(255,255,255,.85)'; x.stroke();
+    x.fillStyle='#fff'; x.font='900 '+Math.round(G.R*0.62)+'px system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+    x.shadowColor='rgba(0,0,0,.45)'; x.shadowBlur=4; x.fillText(midiJa(n.midi), px, py+1); x.shadowBlur=0;
+    if(game.wait && game.waiting>=0 && n===up[0] && d<=0){ x.font='800 13px system-ui, sans-serif'; x.fillText('ここへ！', px, py-G.R-14); }
+    x.globalAlpha=1;
+  }
+  // はじける 輪と 粒
+  game.rings=game.rings.filter(g=>now-g.t<420);
+  for(const g of game.rings){ const k=(now-g.t)/420; x.globalAlpha=1-k; x.strokeStyle=g.col; x.lineWidth=6*(1-k)+1; x.beginPath(); x.arc(g.x, g.y, g.r0*(1+k*1.6), 0, Math.PI*2); x.stroke(); }
+  game.parts=game.parts.filter(p=>now-p.t<p.life);
+  for(const p of game.parts){ const k=(now-p.t)/1000, life=(now-p.t)/p.life; x.globalAlpha=1-life; x.fillStyle=p.col; x.beginPath(); x.arc(p.x+p.vx*k, p.y+p.vy*k+120*k*k, p.r*(1-life*0.5), 0, Math.PI*2); x.fill(); }
+  x.globalAlpha=1;
+  // 指の 光の すじ
+  const tr=game.ptr.trail=game.ptr.trail.filter(q=>now-q.t<260);
+  if(tr.length>1){ x.lineCap='round'; x.lineJoin='round'; x.shadowColor='#9fe7ff'; x.shadowBlur=14;
+    for(let i=1;i<tr.length;i++){ if(tr[i].cut) continue; const k=1-(now-tr[i].t)/260; x.strokeStyle='rgba(200,245,255,'+k.toFixed(3)+')'; x.lineWidth=2+9*k; x.beginPath(); x.moveTo(tr[i-1].x, tr[i-1].y); x.lineTo(tr[i].x, tr[i].y); x.stroke(); }
+    x.shadowBlur=0; }
+  if(game.ptr.on && game.ptr.x>=0){ x.fillStyle='rgba(255,255,255,.9)'; x.beginPath(); x.arc(game.ptr.x, game.ptr.y, 7, 0, Math.PI*2); x.fill(); }
+  // 判定の 文字
+  game.pops=game.pops.filter(p=>now-p.t<600);
+  for(const p of game.pops){ const k=(now-p.t)/600; x.globalAlpha=1-k; x.font='900 '+(p.res==='perfect' ? 18 : 15)+'px system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+    x.fillStyle=p.res==='perfect' ? '#ffe082' : p.res==='miss' ? '#ef9a9a' : '#a5d6a7';
+    x.fillText(p.res==='perfect' ? 'ぴったり！' : p.res==='early' ? 'いいね・はやい' : p.res==='late' ? 'いいね・おそい' : p.res==='miss' ? 'ミス' : 'いいね', p.x, p.y-G.R-10-k*26); }
+  x.globalAlpha=1;
+  // 大きな コンボ
+  if(game.combo>=5){ const big=game.combo%25===0 ? 1.25 : 1; x.globalAlpha=0.16+Math.min(0.3, game.pulse*0.4); x.fillStyle='#fff'; x.font='900 '+Math.round(Math.min(W,H)*0.2*big)+'px system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(game.combo), W/2, H/2); x.globalAlpha=1; }
+  if(t<0){ x.fillStyle='rgba(255,255,255,.92)'; x.font='800 46px system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(Math.ceil(-t/game.spb)||''), W/2, H*0.4);
+    x.font='700 14px system-ui, sans-serif'; x.fillText('指を おいて、光る マークへ すべらせよう', W/2, H*0.4+40); }
 }
 function finish(){
   game.playing=false; game.over=true; cancelAnimationFrame(game.raf);
@@ -517,20 +667,22 @@ function htmlTun(){
 }
 function songBtn(x, cur){
   const b=st.best[bestKey(x.id)];
-  return '<button type="button" class="'+(x.id===cur?'on':'')+'" onclick="OTO.song(\''+x.id+'\')"><b>'+esc(x.t)+'</b><small>'+(x.my ? '🎼 自分の曲・'+parseSong(x).notes.length+'音' : '★'.repeat(x.lv)+'　'+esc(x.by))+(b?'　🏆'+b:'')+'</small></button>';
+  return '<button type="button" class="'+(x.id===cur?'on':'')+'" onclick="OTO.song(\''+x.id+'\')"><b>'+esc(x.t)+'</b><small>⏱ '+fmtSec(songSec(x))+'　'+(x.my ? '🎼 自分の曲・'+parseSong(x).notes.length+'音' : esc(x.by))+(b?'　🏆'+b:'')+'</small></button>';
 }
 function htmlGame(){
   const s=songOf(), best=st.best[bestKey()]||0;
   if(game && (game.playing)) return htmlPlay();
-  const res=game && game.over ? '<div class="og-res"><div class="og-rank r'+game.rank+'">'+game.rank+'</div><div><b>'+game.score+' 点</b>'+(game.newBest?'<em>自己ベスト！</em>':'')+(game.fc?'<em class="fc">フルコンボ！</em>':'')+(game.wait?'<em class="pr">練習</em>':'')
+  const res=game && game.over ? '<div class="og-res"><div class="og-rank r'+game.rank+'">'+game.rank+'</div><div><b>'+game.score+' 点</b><em class="df">'+(DIFF[game.diff]||DIFF[3]).n+'</em>'+(game.newBest?'<em>自己ベスト！</em>':'')+(game.fc?'<em class="fc">フルコンボ！</em>':'')+(game.wait?'<em class="pr">練習</em>':'')
     +'<small>正確さ '+Math.round(game.rate*100)+'％ ・ ぴったり '+game.cnt.perfect+' ・ いいね '+game.cnt.good+'（はやい '+game.early+'・おそい '+game.late+'） ・ ミス '+game.cnt.miss+' ・ 最大 '+game.max+' コンボ</small>'
     +(game.early+game.late>=3 ? '<small class="og-tip">'+(game.early>game.late*1.5 ? '💡 少し 早めに 押す くせが あります。線に 来るまで 待ってみましょう' : game.late>game.early*1.5 ? '💡 少し 遅れぎみです。音符を 見て 先に 指を 用意しましょう' : '💡 早い・遅いが まざって います。メトロノームで テンポを 体に 入れると 合いやすく なります')+'</small>' : '')
     +'</div></div>' : '';
-  const groups=[[1,'★ かんたん'],[2,'★★ ふつう'],[3,'★★★ むずかしい']].map(([lv,name])=>{ const l=SONGS.filter(x=>x.lv===lv); return '<div class="og-gname">'+name+'</div>'+l.map(x=>songBtn(x, s.id)).join(''); }).join('');
+  const groups=[[1,'🌱 やさしい 曲'],[2,'🌿 ふつうの 曲'],[3,'🌳 むずかしい 曲']].map(([lv,name])=>{ const l=SONGS.filter(x=>x.lv===lv); return '<div class="og-gname">'+name+'</div>'+l.map(x=>songBtn(x, s.id)).join(''); }).join('');
   const mine='<div class="og-gname">🎼 自分の曲'+(st.my.length ? '（'+st.my.length+'）' : '')+'</div>'+(st.my.length ? st.my.map(x=>songBtn(x, s.id)).join('') : '<div class="og-none">まだ ありません。上の「🎼 曲をつくる」で 作れます</div>');
   return '<div class="og">'+res
-    +'<h4>あそび方</h4>'+seg('あそび方',[{id:'fall',n:'⬇ 落ちてくる'},{id:'glow',n:'🌈 光る ボタン'}],st.mode,'mode')
-    +'<p class="oo-note">'+(st.mode==='fall' ? '上から 落ちて くる 音符が 下の 線に 来たら、同じ 色の ボタンを 押します。合うと その 音が 鳴って メロディーに なります。' : '色が 付いて 輪が しぼんだ ボタンを 押します。合うと その 音が 鳴って メロディーに なります。')+'</p>'
+    +'<h4>あそび方</h4>'+seg('あそび方',[{id:'fall',n:'⬇ 落ちてくる'},{id:'glow',n:'🌈 光る ボタン'},{id:'slide',n:'🌀 なぞる'}],st.mode,'mode')
+    +'<p class="oo-note">'+(st.mode==='fall' ? '上から 落ちて くる 音符が 下の 線に 来たら、同じ 色の ボタンを 押します。合うと その 音が 鳴って メロディーに なります。' : st.mode==='slide' ? '画面に 指を おいた まま、光る マークへ すべらせます。まわりの 輪が ちぢんで マークに 重なる ときに 指が 上に あると 音が 鳴ります（パソコンは マウスを 動かすだけ）。' : '色が 付いて 輪が しぼんだ ボタンを 押します。合うと その 音が 鳴って メロディーに なります。')+'</p>'
+    +'<h4>むずかしさ</h4>'+seg('むずかしさ',DIFF.slice(1).map((x,i)=>({id:i+1,n:x.n})),st.diff,'diff')
+    +'<p class="oo-note">'+esc((DIFF[st.diff]||DIFF[3]).d)+'</p>'
     +'<h4>曲</h4><div class="og-songs">'+groups+mine+'</div>'
     +'<h4>ボタン</h4>'+seg('ボタン',[{id:'note',n:'🎹 音ごと（ド・レ・ミ…）'},{id:'four',n:'4️⃣ 4つだけ（かんたん）'}],st.lanes,'lanes')
     +'<h4>音色</h4>'+seg('音色',INST,st.inst,'inst')
@@ -544,7 +696,8 @@ function htmlGame(){
 }
 function htmlPlay(){
   const L=game.lanes, keys=L.map((ln,i)=>'<button type="button" class="og-key" data-l="'+i+'" style="--c:'+ln.col+'" onpointerdown="OTO.hit('+i+',event)">'+esc(ln.name)+'<small>'+(KEYS[i]||'').toUpperCase()+'</small></button>').join('');
-  const top='<div class="og-hud"><span>'+esc(game.song.t)+(game.wait?'（練習）':'')+'</span><b id="ogScore">0</b><em id="ogCombo"></em><button type="button" onclick="OTO.quit()">やめる</button></div>';
+  const top='<div class="og-hud"><span>'+esc(game.song.t)+'　'+(DIFF[game.diff]||DIFF[3]).n+(game.wait?'（練習）':'')+'</span><b id="ogScore">0</b><em id="ogCombo"></em><button type="button" onclick="OTO.quit()">やめる</button></div>';
+  if(st.mode==='slide') return '<div class="og-play">'+top+'<canvas id="ogSl" class="og-sl"></canvas></div>';
   if(st.mode==='fall') return '<div class="og-play">'+top+'<canvas id="ogCv" class="og-cv"></canvas><div class="og-keys" style="--n:'+L.length+'">'+keys+'</div></div>';
   const pads=L.map((ln,i)=>'<button type="button" class="og-pad" data-l="'+i+'" style="--c:'+ln.col+'" onpointerdown="OTO.hit('+i+',event)"><span>'+esc(ln.name)+'</span></button>').join('');
   return '<div class="og-play">'+top+'<div class="og-glow"><canvas id="ogFx" class="og-fx"></canvas><div class="og-cnt" id="ogCnt"></div><div class="og-pads n'+L.length+'">'+pads+'</div></div></div>';
@@ -822,6 +975,8 @@ body.dark .om-pulse{ background:rgba(67,160,71,.18); }
 /* v673：曲の まとまり・結果・曲を つくる */
 .oo-tabs button{ font-size:13px; padding:9px 2px; white-space:nowrap; }
 @media (max-width:400px){ .oo-tabs{ padding:6px 6px 0; gap:2px; } .oo-tabs button{ font-size:12px; letter-spacing:-.02em; } }
+.og-sl{ flex:1; min-height:0; width:100%; display:block; touch-action:none; user-select:none; -webkit-user-select:none; cursor:crosshair; }
+.og-res em.df{ color:#f9a825; }
 .og-gname{ margin:8px 0 2px; font-size:12.5px; font-weight:800; color:var(--text-light); }
 .og-none{ padding:8px 10px; border-radius:10px; background:var(--cell-hover,#f3f3f3); font-size:12.5px; color:var(--text-light); }
 .og-res em.fc{ color:#e65100; } .og-res em.pr{ color:#1e88e5; }
@@ -889,7 +1044,7 @@ function closeOto(){ if(!$('otoOverlay') || !isDlgOpen('otoOverlay')) return; cl
 
 window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met.bpm+d), beats:v=>setMet('beats',v), sub:v=>setMet('sub',v), snd:v=>setMet('snd',v), accent:()=>setMet('accent'),
   mic:()=>tun.on ? (tunStop(), render()) : tunStart(), tset:v=>setTun('set',v), a4:d=>setTun('a4',d), ref:refTone,
-  mode:v=>{ st.mode=v; save(); game=null; render(); }, song:v=>{ st.song=v; save(); game=null; render(); }, inst:v=>{ st.inst=v; save(); render(); const s=parseSong(songOf()).notes; if(s[0]) playNote(s[0].midi, 0, 0.5); },
+  mode:v=>{ st.mode=['fall','glow','slide'].includes(v) ? v : 'fall'; save(); game=null; render(); }, diff:v=>{ st.diff=clamp(Math.round(+v)||3,1,5); save(); game=null; render(); }, song:v=>{ st.song=v; save(); game=null; render(); }, inst:v=>{ st.inst=v; save(); render(); const s=parseSong(songOf()).notes; if(s[0]) playNote(s[0].midi, 0, 0.5); },
   speed:v=>{ st.speed=v; save(); game=null; render(); }, helper:()=>{ st.helper=!st.helper; save(); }, start:gameStart, listen, quit:()=>{ gameStop(); game=null; render(); },
   hit:(i,e)=>{ if(e){ e.preventDefault(); } judge(i); },
   wait:()=>{ st.wait=!st.wait; save(); }, lanes:v=>{ st.lanes=v==='four' ? 'four' : 'note'; save(); game=null; render(); },
@@ -904,6 +1059,10 @@ window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met
   state:()=>JSON.parse(JSON.stringify(st)), detect, noteToMidi, midiName, midiJa, parseSong, lanesOf,
   game:()=>game ? {playing:game.playing, over:game.over, score:game.score, cnt:Object.assign({},game.cnt), lanes:game.lanes.map(l=>l.pc), names:game.lanes.map(l=>l.name), rank:game.rank, n:game.notes.length, early:game.early, late:game.late, wait:game.wait, waiting:game.waiting, fc:game.fc, rate:game.rate, newBest:game.newBest} : null,
   autoplay:()=>{ if(!game) return; for(const n of game.notes){ n.res='perfect'; game.cnt.perfect++; game.combo++; game.max=Math.max(game.max,game.combo); game.score+=100+Math.min(game.combo,50)*2; } game.end=-1; },
-  time:()=>game && AC ? AC.currentTime-game.t0 : null, met_on:()=>met.on, tun_on:()=>tun.on, showPitch };
+  time:()=>game && AC ? AC.currentTime-game.t0 : null,
+  slide:()=>game && game.notes[0] && game.notes[0].x!=null ? {pts:game.notes.map(n=>[+n.x.toFixed(3), +n.y.toFixed(3)]), lead:game.lead} : null,
+  ptr:(x,y,on)=>{ if(game && game.ptr){ const G=slideGeo(); game.ptr.x=x*(G?G.W:1); game.ptr.y=y*(G?G.H:1); game.ptr.on=on!==false; game.ptr.trail.push({x:game.ptr.x, y:game.ptr.y, t:performance.now()}); } },
+  arranged:id=>{ const s=allSongs().find(x=>x.id===id); if(!s) return null; const p=arrange(s, parseSong(s)); return {reps:p.reps, sec:Math.round(p.beats*60/s.bpm), n:p.notes.length}; },
+  diffNotes:(id,d)=>{ const s=allSongs().find(x=>x.id===id); return s ? applyDiff(arrange(s, parseSong(s)), d).notes.length : 0; }, met_on:()=>met.on, tun_on:()=>tun.on, showPitch };
 Object.assign(window, { openOto, closeOto });
 })();

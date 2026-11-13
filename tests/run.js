@@ -22360,7 +22360,7 @@ async function runOto673(browser) {
   console.log('\n── 🎵 音の道具（v673。音ゲーを 充実・自分で 曲を つくる） ──');
   const w = ms => page.waitForTimeout(ms);
   await page.evaluate(() => openOto('game')); await w(800);
-  check('  曲は 22（★ かんたん・ふつう・むずかしい と 自分の曲 の まとまり）', await page.evaluate(() => [OTO.songs().length, [...document.querySelectorAll('#otoBody .og-gname')].map(e => e.textContent.replace(/（.*/, '')).join('/')].join('|')), '22|★ かんたん/★★ ふつう/★★★ むずかしい/🎼 自分の曲');
+  check('  曲は 22（★ かんたん・ふつう・むずかしい と 自分の曲 の まとまり）', await page.evaluate(() => [OTO.songs().length, [...document.querySelectorAll('#otoBody .og-gname')].map(e => e.textContent.replace(/（.*/, '')).join('/')].join('|')), '22|🌱 やさしい 曲/🌿 ふつうの 曲/🌳 むずかしい 曲/🎼 自分の曲');   // v674：★ は むずかしさ に
   check('  8音 ある 曲（トルコ行進曲）は 高さで 7つの ボタンに まとめる', await page.evaluate(() => { const s = OTO.songs().find(x => x.id === 'turkish'); return s.pcs + '→' + s.lanes; }), '8→7');
   await page.evaluate(() => { OTO.lanes('four'); OTO.song('elise'); OTO.start(); }); await w(300);
   check('  4️⃣ 4つだけ：ボタンは ①〜④・音は 高さの 順', await page.evaluate(() => { const g = OTO.game(); return g.names.join('') + '/' + document.querySelectorAll('#otoBody .og-key').length; }), '①②③④/4');
@@ -22376,7 +22376,7 @@ async function runOto673(browser) {
   check('  🐢 待って くれる：音符が 線で 止まる（時間が 進まない）', await page.evaluate(async () => { const a = OTO.time(); await new Promise(r => setTimeout(r, 400)); const b = OTO.time(); const g = OTO.game(); return [Math.abs(b - a) < 0.05, g.waiting === g.lanes.indexOf(0), g.cnt.miss].join('/'); }), 'true/true/0');
   check('  正しい ボタンで 進む（ぴったり）', await page.evaluate(async () => { const g = OTO.game(); OTO.hit(g.lanes.indexOf(0)); await new Promise(r => setTimeout(r, 120)); return OTO.game().cnt.perfect; }), 1);
   await page.evaluate(() => OTO.autoplay()); await w(900);
-  check('  練習は ベストに 入れない', await page.evaluate(() => [OTO.game().wait, OTO.game().newBest, !!OTO.state().best['kira:fall:mid']].join('/')), 'true/false/false');
+  check('  練習は ベストに 入れない', await page.evaluate(() => [OTO.game().wait, OTO.game().newBest, !!OTO.state().best['kira:fall:mid:d3']].join('/')), 'true/false/false');
   await page.evaluate(() => { OTO.wait(); OTO.quit(); });
   // 文字で 入れる
   check('  ドレミの 文字を 読む（ひらがな・ー・↑↓・#・休・:0.5・C4:1 も）', await page.evaluate(() => OTO.parseText('ど れ みー ソ↑ ラ:0.5 休 シ↓2 ド# C5:1').map(n => (n.m == null ? 'R' : n.m) + ':' + n.len).join(' ')), '60:1 62:1 64:2 79:1 69:0.5 R:1 59:2 61:1 72:1');
@@ -22400,7 +22400,7 @@ async function runOto673(browser) {
   check('  🔴 弾いて 録音：間の 長さを テンポで ¼拍に そろえる', await page.evaluate(() => { OTO.enew && 0; const t0 = performance.now; let k = 0; const at = [0, 500, 1000, 1250, 1500]; performance.now = () => at[k++] ?? 2000; OTO.esel(-1); OTO.erec(); [60, 62, 64, 65, 67].forEach(m => OTO.ek(m)); OTO.erec(); performance.now = t0; return OTO.ed().notes.slice(-5).map(n => n.m + ':' + n.len).join(' '); }), '60:1 62:1 64:0.5 65:0.5 67:1');
   // この 曲で あそぶ
   await page.evaluate(() => OTO.egame()); await w(500);
-  check('  🎮 この曲で あそぶ → 保存して 音ゲーが はじまる', await page.evaluate(() => [OTO.game().playing, OTO.state().my.length, document.querySelector('#otoBody .og-hud span').textContent].join('|')), 'true|2|かえるの まね');
+  check('  🎮 この曲で あそぶ → 保存して 音ゲーが はじまる', await page.evaluate(() => [OTO.game().playing, OTO.state().my.length, document.querySelector('#otoBody .og-hud span').textContent].join('|')), 'true|2|かえるの まね　★3');
   await page.evaluate(() => { OTO.autoplay(); }); await w(3200);
   check('  自分の 曲も ベストを 覚える・✏ この曲を なおす', await page.evaluate(() => { const id = OTO.state().song; return [/^u/.test(id), Object.keys(OTO.state().best).some(k => k.startsWith(id + ':')), !!document.querySelector('#otoBody .om-tap[onclick*="OTO.edit"]')].join('/'); }), 'true/true/true');
   // 消す
@@ -22410,6 +22410,38 @@ async function runOto673(browser) {
   check('  こわれた 自分の 曲は 読まない', await page.evaluate(() => { closeOto(); localStorage.setItem('excalc_oto', JSON.stringify({ my: [{ id: 'x', n: 'C4:1' }, { id: 'u1', t: '<b>', n: 'C4:1 Z9:1 R:2' }, 'zz'] })); openOto('game'); const m = OTO.state().my; return m.length + '/' + m[0].n + '/' + document.querySelector('#otoBody .og-songs').innerHTML.includes('<b><b>'); }), '1/C4:1 R:2/false');
   await page.evaluate(() => closeOto());
   check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('曲をつくる'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v673'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
+/* ── 🎵 音の道具 v674：曲を 1〜2分に・むずかしさ ★1〜★5・🌀 なぞる ── */
+async function runOto674(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎵 音の道具（v674。1〜2分・★1〜★5・なぞる） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openOto('game')); await w(700);
+  check('  組みこみの 曲は どれも 1〜2分（くり返して のばす）', await page.evaluate(() => { const a = OTO.songs().filter(s => !s.my).map(s => OTO.arranged(s.id).sec); return a.length + '/' + a.every(x => x >= 60 && x <= 120); }), '22/true');
+  check('  曲の 長さを 一覧に 出す', await page.evaluate(() => document.querySelector('#otoBody .og-songs button small').textContent.startsWith('⏱ 1分')), true);
+  check('  2回目は 1オクターブ 上（変化を つける）', await page.evaluate(() => { OTO.song('mary'); OTO.mode('fall'); OTO.diff(3); OTO.start(); const g = OTO.game(); OTO.quit(); return g.n; }), 26 * 4);
+  check('  むずかしさは ★1〜★5（説明つき・覚える）', await page.evaluate(() => { const b = [...document.querySelectorAll('#otoBody .oo-seg[aria-label="むずかしさ"] button')].map(x => x.textContent).join(','); OTO.diff(5); return b + '|' + OTO.state().diff + '|' + JSON.parse(localStorage.getItem('excalc_oto')).diff; }), '★1,★2,★3,★4,★5|5|5');
+  check('  ★1 は 細かい 音を まとめ、★5 は 飾りの 音を 足す', await page.evaluate(() => { const n = d => OTO.diffNotes('turkish', d); return [n(1) < n(2), n(2) < n(3), n(3) === n(4), n(5) > n(4)].join('/'); }), 'true/true/true/true');
+  check('  ★ ごとに 判定の 幅・速さが ちがう・ベストも ★ ごと', await page.evaluate(() => { const r = []; for (const d of [1, 5]) { OTO.diff(d); OTO.start(); const g = OTO.game(); r.push(g.n); OTO.quit(); } return r[0] < r[1]; }), true);
+  // 🌀 なぞる
+  await page.evaluate(() => { OTO.diff(3); OTO.mode('slide'); }); await w(200);
+  check('  🌀 なぞる を えらべる（説明つき）', await page.evaluate(() => document.querySelector('#otoBody .oo-seg[aria-label="あそび方"] button.on').textContent + '|' + document.querySelector('#otoBody .oo-note').textContent.includes('すべらせ')), '🌀 なぞる|true');
+  await page.evaluate(() => { OTO.song('kira'); OTO.start(); }); await w(300);
+  check('  マークは 画面の 中に 散らばる・同じ 曲は いつも 同じ 並び', await page.evaluate(() => { const a = OTO.slide().pts; OTO.quit(); OTO.start(); const b = OTO.slide().pts; const ok = a.every(p => p[0] >= 0.12 && p[0] <= 0.88 && p[1] >= 0.16 && p[1] <= 0.84); const spread = Math.max(...a.map(p => p[0])) - Math.min(...a.map(p => p[0])); return [ok, JSON.stringify(a) === JSON.stringify(b), spread > 0.3, !!document.getElementById('ogSl')].join('/'); }), 'true/true/true/true');
+  const fol = await page.evaluate(async () => { const pts = OTO.slide().pts; while (OTO.time() < -0.05) await new Promise(r => setTimeout(r, 10)); for (let k = 0; k < 160; k++) { const g = OTO.game(); const i = g.cnt.perfect + g.cnt.good + g.cnt.miss; if (i >= 6) break; OTO.ptr(pts[i][0], pts[i][1], true); await new Promise(r => setTimeout(r, 20)); } const g = OTO.game(); return [g.cnt.perfect + g.cnt.good >= 5, g.score > 0].join('/'); });
+  check('  指で マークを 追うと 当たって 音が 鳴る（点が 入る）', fol, 'true/true');
+  const away = await page.evaluate(async () => { OTO.ptr(0.01, 0.01, true); const m0 = OTO.game().cnt.miss; await new Promise(r => setTimeout(r, 1600)); return OTO.game().cnt.miss > m0; });
+  check('  はなれて いると ミス', away, true);
+  await page.evaluate(() => { OTO.quit(); OTO.wait(); OTO.start(); }); await w(2900);
+  check('  🐢 待って くれる 練習でも 止まって 待つ → 指を 置くと 進む', await page.evaluate(async () => { const a = OTO.time(); await new Promise(r => setTimeout(r, 300)); const stop = Math.abs(OTO.time() - a) < 0.05; const p = OTO.slide().pts[0]; OTO.ptr(p[0], p[1], true); await new Promise(r => setTimeout(r, 150)); return stop + '/' + OTO.game().cnt.perfect; }), 'true/1');
+  await page.evaluate(() => { OTO.wait(); OTO.quit(); OTO.autoplay && 0; OTO.start(); OTO.autoplay(); }); await w(3300);
+  check('  結果に ★ を 出す・ベストは なぞる・★ ごと', await page.evaluate(() => [document.querySelector('#otoBody .og-res .df').textContent, OTO.state().best['kira:slide:mid:d3'] > 0].join('/')), '★3/true');
+  check('  こわれた 保存でも ★3・落ちてくる に もどす', await page.evaluate(() => { closeOto(); localStorage.setItem('excalc_oto', JSON.stringify({ diff: 9, mode: 'zz' })); openOto('game'); const s = OTO.state(); return s.diff + '/' + s.mode; }), '3/fall');
+  await page.evaluate(() => closeOto());
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('なぞる'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v674'")].join('/'), 'true/true');
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
@@ -22453,7 +22485,7 @@ async function runOto668(browser) {
   const hit = await page.evaluate(async () => { const g0 = OTO.game(); const lane = g0.lanes.indexOf(4); while (OTO.time() < -0.01) await new Promise(r => setTimeout(r, 5)); OTO.hit(lane); return OTO.game().cnt.perfect + OTO.game().cnt.good; });
   check('  音符に 合わせて 押すと 当たる（点が 入る）', hit + '/' + (await page.evaluate(() => OTO.game().score > 0)), '1/true');
   await page.evaluate(() => OTO.autoplay()); await w(500);
-  check('  終わると 結果（ランク・点・自己ベストを 覚える）', await page.evaluate(() => [OTO.game().over, !!document.querySelector('#otoBody .og-rank'), OTO.state().best['mary:fall:fast'] > 0].join('/')), 'true/true/true');
+  check('  終わると 結果（ランク・点・自己ベストを 覚える）', await page.evaluate(() => [OTO.game().over, !!document.querySelector('#otoBody .og-rank'), OTO.state().best['mary:fall:fast:d3'] > 0].join('/')), 'true/true/true');
   await page.evaluate(() => { OTO.mode('glow'); OTO.song('elise'); OTO.speed('mid'); OTO.start(); }); await w(2400);
   check('  🌈 光る ボタン：7つの ボタン・色が 付く', await page.evaluate(() => document.querySelectorAll('#otoBody .og-pad').length + '/' + (document.querySelectorAll('#otoBody .og-pad.lit').length > 0)), '7/true');
   await page.evaluate(() => OTO.quit()); await w(200);
@@ -22780,6 +22812,7 @@ const SUITES = [
   [['ggolf', 'v616'], b => runGgolf616(b)],
   [['oto', 'v668'], b => runOto668(b)],
   [['oto673', 'v673'], b => runOto673(b)],
+  [['oto674', 'v674'], b => runOto674(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['rec671', 'v671'], b => runRec671(b)],
   [['input672', 'v672'], b => runInput672(b)],
