@@ -6627,7 +6627,7 @@ async function runHelpSplit(browser) {
   const hg = await page.evaluate(() => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
     return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.map(i => i.getAttribute('src')), first: document.querySelector('#helpBody').firstElementChild.className,
       marks: [...document.querySelectorAll('#g-screen .hg-list .hg-n')].map(n => n.textContent).join(','), detail: !!document.getElementById('h-detail') }; });
-  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/18/true/1,2,3,4,5,6,7,8,9,10,11');   // v563：📊 表を強くする の節を足した
+  check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/19/true/1,2,3,4,5,6,7,8,9,10,11');   // v563：📊 表を強くする の節を足した
   check('  番号つきの説明はふつうの文の流れ（太字ごとに列に分かれない。v476）', await page.evaluate(() => {
     const li = [...document.querySelectorAll('#helpBody .hg-list li')].find(x => x.querySelector('.hg-n') && x.querySelectorAll('b').length >= 3);
     const steps = document.querySelector('#helpBody .hg-steps > div');
@@ -22353,6 +22353,67 @@ async function runHyoGen670(browser) {
   await ctx.close();
 }
 
+/* ── 🎵 音の道具 v673：曲を ふやす・練習・4つの ボタン・はやい／おそい・🎼 曲を つくる ── */
+async function runOto673(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  page.on('dialog', d => d.accept());
+  console.log('\n── 🎵 音の道具（v673。音ゲーを 充実・自分で 曲を つくる） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openOto('game')); await w(800);
+  check('  曲は 22（★ かんたん・ふつう・むずかしい と 自分の曲 の まとまり）', await page.evaluate(() => [OTO.songs().length, [...document.querySelectorAll('#otoBody .og-gname')].map(e => e.textContent.replace(/（.*/, '')).join('/')].join('|')), '22|★ かんたん/★★ ふつう/★★★ むずかしい/🎼 自分の曲');
+  check('  8音 ある 曲（トルコ行進曲）は 高さで 7つの ボタンに まとめる', await page.evaluate(() => { const s = OTO.songs().find(x => x.id === 'turkish'); return s.pcs + '→' + s.lanes; }), '8→7');
+  await page.evaluate(() => { OTO.lanes('four'); OTO.song('elise'); OTO.start(); }); await w(300);
+  check('  4️⃣ 4つだけ：ボタンは ①〜④・音は 高さの 順', await page.evaluate(() => { const g = OTO.game(); return g.names.join('') + '/' + document.querySelectorAll('#otoBody .og-key').length; }), '①②③④/4');
+  await page.evaluate(() => { OTO.quit(); OTO.lanes('note'); }); await w(100);
+  // はやい／おそい
+  await page.evaluate(() => { OTO.song('mary'); OTO.speed('mid'); OTO.mode('fall'); OTO.start(); }); await w(200);
+  const el = await page.evaluate(async () => { const g = OTO.game(), lane = g.lanes.indexOf(4); while (OTO.time() < -0.13) await new Promise(r => setTimeout(r, 4)); OTO.hit(lane); const a = OTO.game(); return [a.cnt.good, a.early, a.late].join('/'); });
+  check('  少し 早く 押すと「いいね・はやい」と 数える', el, '1/1/0');
+  await page.evaluate(() => OTO.autoplay()); await w(900);
+  check('  結果に 正確さ％・はやい／おそい・くせの ひと言', await page.evaluate(() => { const t = document.querySelector('#otoBody .og-res').textContent; return [/正確さ \d+％/.test(t), t.includes('はやい 1'), OTO.game().fc].join('/'); }), 'true/true/true');
+  // 待って くれる 練習
+  await page.evaluate(() => { OTO.wait(); OTO.song('kira'); OTO.start(); }); await w(3200);
+  check('  🐢 待って くれる：音符が 線で 止まる（時間が 進まない）', await page.evaluate(async () => { const a = OTO.time(); await new Promise(r => setTimeout(r, 400)); const b = OTO.time(); const g = OTO.game(); return [Math.abs(b - a) < 0.05, g.waiting === g.lanes.indexOf(0), g.cnt.miss].join('/'); }), 'true/true/0');
+  check('  正しい ボタンで 進む（ぴったり）', await page.evaluate(async () => { const g = OTO.game(); OTO.hit(g.lanes.indexOf(0)); await new Promise(r => setTimeout(r, 120)); return OTO.game().cnt.perfect; }), 1);
+  await page.evaluate(() => OTO.autoplay()); await w(900);
+  check('  練習は ベストに 入れない', await page.evaluate(() => [OTO.game().wait, OTO.game().newBest, !!OTO.state().best['kira:fall:mid']].join('/')), 'true/false/false');
+  await page.evaluate(() => { OTO.wait(); OTO.quit(); });
+  // 文字で 入れる
+  check('  ドレミの 文字を 読む（ひらがな・ー・↑↓・#・休・:0.5・C4:1 も）', await page.evaluate(() => OTO.parseText('ど れ みー ソ↑ ラ:0.5 休 シ↓2 ド# C5:1').map(n => (n.m == null ? 'R' : n.m) + ':' + n.len).join(' ')), '60:1 62:1 64:2 79:1 69:0.5 R:1 59:2 61:1 72:1');
+  check('  文字に もどす', await page.evaluate(() => OTO.toText(OTO.parseText('ど れ みー ソ↑ ラ:0.5 休 シ↓2 ド#'))), 'ド レ ミ:2 ソ↑ ラ:0.5 休 シ↓:2 ド#');
+  // 🎼 曲を つくる（鍵盤）
+  await page.evaluate(() => OTO.tab('make')); await w(300);
+  const key = async m => { const bb = await page.evaluate(m => { const e = document.querySelector('#otoBody .ok-key[data-m="' + m + '"]'); const x = e.getBoundingClientRect(); return { x: x.left + x.width / 2, y: x.top + x.height * 0.85 }; }, m); await page.mouse.click(bb.x, bb.y); await w(80); };
+  for (const m of [60, 60, 67, 67, 69, 69]) await key(m);
+  await page.evaluate(() => OTO.elen('2')); await w(100); await key(67);
+  check('  鍵盤を 押すと いまの 長さで 並ぶ（8つの 白鍵・5つの 黒鍵）', await page.evaluate(() => [document.querySelectorAll('#otoBody .ok-key.w').length, document.querySelectorAll('#otoBody .ok-key.b').length, OTO.ed().notes.map(n => n.m + ':' + n.len).join(' '), document.querySelectorAll('#okRoll .ok-n').length].join('|')), '8|5|60:1 60:1 67:1 67:1 69:1 69:1 67:2|7');
+  check('  並んだ 音を 押すと 選べて、その うしろに 入る・⌫ で 消す', await page.evaluate(() => { OTO.esel(1); OTO.erest(); const a = OTO.ed().notes.map(n => n.m == null ? 'R' : n.m).join(','); OTO.edelNote(); return a + ' → ' + OTO.ed().notes.length; }), '60,60,R,67,67,69,69,67 → 7');
+  check('  もう一度 押すと いまの 長さに 変わる', await page.evaluate(() => { OTO.elen('0.5'); OTO.esel(0); OTO.esel(0); return OTO.ed().notes[0].len; }), 0.5);
+  await page.evaluate(() => { OTO.etitle('わたしの うた'); OTO.esave(); }); await w(300);
+  check('  💾 保存 → 自分の曲（覚える）', await page.evaluate(() => { const my = OTO.state().my; return [my.length, my[0].t, my[0].n.split(' ').length, JSON.parse(localStorage.getItem('excalc_oto')).my.length, document.querySelectorAll('#otoBody .ok-my').length].join('|'); }), '1|わたしの うた|7|1|1');
+  check('  文字で コピーの 形（もらった 人は 貼るだけ）', await page.evaluate(() => OTO.shareText()), '🎵わたしの うた｜100｜ド:0.5 ド ソ ソ ラ ラ ソ:2');
+  // 文字で 入れる（ヘッダーつき）
+  await page.evaluate(() => { OTO.enew(); }); await w(300);
+  await page.evaluate(() => { document.querySelector('#otoBody .ok-txt').open = true; document.getElementById('okText').value = '🎵かえるの まね｜120｜ドレミファ ミレドー'; OTO.eimport(); }); await w(200);
+  check('  貼った 文字から 曲名・テンポ・音', await page.evaluate(() => { const e = OTO.ed(); return [e.t, e.bpm, e.notes.map(n => n.m + ':' + n.len).join(' ')].join('|'); }), 'かえるの まね|120|60:1 62:1 64:1 65:1 64:1 62:1 60:2');
+  // 録音
+  check('  🔴 弾いて 録音：間の 長さを テンポで ¼拍に そろえる', await page.evaluate(() => { OTO.enew && 0; const t0 = performance.now; let k = 0; const at = [0, 500, 1000, 1250, 1500]; performance.now = () => at[k++] ?? 2000; OTO.esel(-1); OTO.erec(); [60, 62, 64, 65, 67].forEach(m => OTO.ek(m)); OTO.erec(); performance.now = t0; return OTO.ed().notes.slice(-5).map(n => n.m + ':' + n.len).join(' '); }), '60:1 62:1 64:0.5 65:0.5 67:1');
+  // この 曲で あそぶ
+  await page.evaluate(() => OTO.egame()); await w(500);
+  check('  🎮 この曲で あそぶ → 保存して 音ゲーが はじまる', await page.evaluate(() => [OTO.game().playing, OTO.state().my.length, document.querySelector('#otoBody .og-hud span').textContent].join('|')), 'true|2|かえるの まね');
+  await page.evaluate(() => { OTO.autoplay(); }); await w(3200);
+  check('  自分の 曲も ベストを 覚える・✏ この曲を なおす', await page.evaluate(() => { const id = OTO.state().song; return [/^u/.test(id), Object.keys(OTO.state().best).some(k => k.startsWith(id + ':')), !!document.querySelector('#otoBody .om-tap[onclick*="OTO.edit"]')].join('/'); }), 'true/true/true');
+  // 消す
+  await page.evaluate(() => OTO.tab('make')); await w(200);
+  await page.evaluate(() => { window.appConfirm = async () => true; OTO.edelSong(OTO.state().my[0].id); }); await w(300);
+  check('  🗑 自分の 曲を 消す（ベストも）', await page.evaluate(() => [OTO.state().my.length, Object.keys(OTO.state().best).filter(k => k.startsWith('u')).length].join('/')), '1/0');
+  check('  こわれた 自分の 曲は 読まない', await page.evaluate(() => { closeOto(); localStorage.setItem('excalc_oto', JSON.stringify({ my: [{ id: 'x', n: 'C4:1' }, { id: 'u1', t: '<b>', n: 'C4:1 Z9:1 R:2' }, 'zz'] })); openOto('game'); const m = OTO.state().my; return m.length + '/' + m[0].n + '/' + document.querySelector('#otoBody .og-songs').innerHTML.includes('<b><b>'); }), '1/C4:1 R:2/false');
+  await page.evaluate(() => closeOto());
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('曲をつくる'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v673'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -22364,7 +22425,7 @@ async function runOto668(browser) {
     'undefined/true/true/oto/true');
   check('  service-worker・README（表・配る）・説明書・?app= の 名前', [sw.includes("'./oto.js'"), rd.includes('| `oto.js` |'), rd.split('## 配る')[1].includes('`oto.js`'), hl.includes('🎵音の道具＝'), ix.includes("oto:'🎵 音の道具'")].join('/'), 'true/true/true/true/true');
   await page.evaluate(() => openOto()); await w(600);
-  check('  タブは メトロノーム・チューナー・音ゲー', await page.evaluate(() => [...document.querySelectorAll('#otoOverlay .oo-tabs button')].map(b => b.textContent.replace(/^\S+\s/, '')).join(',')), 'メトロノーム,チューナー,音ゲー');
+  check('  タブは メトロノーム・チューナー・音ゲー', await page.evaluate(() => [...document.querySelectorAll('#otoOverlay .oo-tabs button')].map(b => b.textContent.replace(/^\S+\s/, '')).join(',')), 'メトロノーム,チューナー,音ゲー,曲をつくる');   // v673：曲をつくる
   // メトロノーム
   await page.evaluate(() => { OTO.setBpm(120); OTO.met(); }); await w(1200);
   check('  ▶ で 鳴る（拍の 点が 動く）・テンポの 名前', await page.evaluate(() => OTO.met_on() + '/' + (document.querySelectorAll('#otoBody .om-dot.on').length === 1) + '/' + document.getElementById('omName').textContent), 'true/true/アレグロ（速く）');
@@ -22383,7 +22444,7 @@ async function runOto668(browser) {
   await page.evaluate(() => OTO.a4(10));
   // 音ゲー
   await page.evaluate(() => OTO.tab('game')); await w(200);
-  check('  曲は 11・どれも 7音まで・メロディーが 入っている', await page.evaluate(() => { const s = OTO.songs(); return s.length + '/' + s.every(x => x.lanes >= 3 && x.lanes <= 7 && x.n >= 20); }), '11/true');
+  check('  曲は 11・どれも 7音まで・メロディーが 入っている', await page.evaluate(() => { const s = OTO.songs(); return s.length + '/' + s.every(x => x.lanes >= 3 && x.lanes <= 7 && x.n >= 12); }), '22/true');   // v673：22曲
   check('  曲の 書き方（ド・レ…の 並び）', await page.evaluate(() => { const p = OTO.parseSong({ n: 'C4:1 R:1 E4:0.5 C5:2 F#4:1' }); return p.notes.map(n => n.beat + ':' + OTO.midiJa(n.midi)).join(',') + '/' + p.beats + '/' + OTO.lanesOf(p.notes).join('-'); }), '0:ド,2:ミ,2.5:ド,4.5:ファ♯/5.5/0-4-6');
   check('  音色は 8つ・曲は 作者が 亡くなって 長い 曲（だれの 曲か 出す）', await page.evaluate(() => document.querySelectorAll('#otoBody .oo-seg[aria-label="音色"] button').length + '/' + [...document.querySelectorAll('#otoBody .og-songs small')].every(x => /古い 歌|没/.test(x.textContent))), '8/true');
   await page.evaluate(() => { OTO.song('mary'); OTO.speed('fast'); OTO.mode('fall'); OTO.start(); }); await w(400);
@@ -22718,6 +22779,7 @@ const SUITES = [
   [['kyoshi', 'kyoshi613', 'v614'], b => runKyoshi613(b)],
   [['ggolf', 'v616'], b => runGgolf616(b)],
   [['oto', 'v668'], b => runOto668(b)],
+  [['oto673', 'v673'], b => runOto673(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['rec671', 'v671'], b => runRec671(b)],
   [['input672', 'v672'], b => runInput672(b)],
