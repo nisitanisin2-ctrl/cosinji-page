@@ -3996,7 +3996,7 @@ async function runExport(browser) {
   // ── ☰メニューの整理（v375・v459） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数（v459：道具の一覧は ☰ の外の窓に）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 39);   // v625：🗄 全保存・復元 → v627：⬇ エクスポート・⬆ インポート   // v624：🖼画像・🕘前の状態・🔎検索・⬆⬅挿入・↕並べかえ・📌固定・👁隠したのを出す・Excel と同じ分け方   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
+    document.querySelectorAll('#moreMenuOverlay .more-item').length), 40);   // v671：▦ 既定の大きさに（リセットの横）   // v625：🗄 全保存・復元 → v627：⬇ エクスポート・⬆ インポート   // v624：🖼画像・🕘前の状態・🔎検索・⬆⬅挿入・↕並べかえ・📌固定・👁隠したのを出す・Excel と同じ分け方   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccAll').open),
     false);
