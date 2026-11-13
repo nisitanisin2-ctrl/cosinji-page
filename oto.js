@@ -328,14 +328,16 @@ function buildPD(s){
 SONGS.forEach(buildPD);
 
 /* ── 保存 ── */
-const DEF={ inst:'piano', vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[], diff:3, fx:'ultra', beat:true, lisCenter:true,
+const DEF={ inst:'auto', instV:2, trail:'kira', glowMix:true, vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[], diff:3, fx:'ultra', beat:true, lisCenter:true,
   met:{bpm:100, beats:4, sub:1, accent:true, snd:'click'}, tun:{a4:440, set:'chrom'}, best:{} };
 let st=JSON.parse(JSON.stringify(DEF));
 function load(){
   let o=null; try{ o=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(_){}
   st=JSON.parse(JSON.stringify(DEF));
   if(!o || typeof o!=='object') return;
-  if(INST.some(x=>x.id===o.inst)) st.inst=o.inst;
+  if(o.instV===2 && INST.some(x=>x.id===o.inst)) st.inst=o.inst;   // v678：前の はじめの 音（ピアノ）は「曲に 合わせる」に
+  if(TRAILS.some(x=>x.id===o.trail)) st.trail=o.trail;   // なぞる 軌跡（v678）
+  if(o.glowMix===false) st.glowMix=false;
   if(typeof o.vol==='number') st.vol=clamp(o.vol,0,1);
   if(SPEED[o.speed]) st.speed=o.speed;
   if(Array.isArray(o.my)) o.my.slice(0,MAXMY).forEach(x=>{ const c=cleanMy(x); if(c) st.my.push(c); });   // 自分の 曲（v673）
@@ -381,12 +383,19 @@ function ac(){
   return AC;
 }
 const INST=[
+  {id:'auto', n:'🎵 曲に 合わせる（おすすめ）'},   // v678：曲ごとに 合う 音色（はじめは これ）
   {id:'piano', n:'🎹 ピアノ'}, {id:'orgel', n:'🎶 オルゴール'}, {id:'xylo', n:'🪵 木琴'}, {id:'bell', n:'🔔 ベル'},
   {id:'chip', n:'👾 ピコピコ'}, {id:'flute', n:'🪈 笛'}, {id:'guitar', n:'🎸 ギター'}, {id:'organ', n:'⛪ オルガン'},
   /* v675：ふやした 音色 */
   {id:'synth', n:'🎛 シンセ'}, {id:'epiano', n:'✨ エレピ'}, {id:'brass', n:'🎺 ラッパ'}, {id:'strings', n:'🎻 ストリングス'},
   {id:'kalimba', n:'🎐 カリンバ'}, {id:'koto', n:'🎏 こと'}, {id:'steel', n:'🛢 スチールドラム'}, {id:'choir', n:'🎤 コーラス'}
 ];
+/* 曲ごとの おすすめの 音色（v678）。自分の 曲は ピアノ */
+const SONG_INST={kira:'orgel', mary:'xylo', kaeru:'xylo', chou:'flute', london:'piano', joy:'brass', jingle:'bell', saints:'brass', grace:'organ', elise:'piano', minuet:'piano', row:'kalimba', frere:'xylo', oldmac:'guitar', bday:'epiano', sakura:'koto', hotaru:'flute', ieji:'strings', brahms:'orgel', joyworld:'organ', canon:'strings', turkish:'piano',
+  cdash:'synth', cneon:'epiano', cwaltz:'orgel', cdragon:'brass', csakura:'koto', cpico:'chip', cumi:'steel', crobot:'synth', cstar:'bell', cfire:'guitar', cmatsuri:'flute', csky:'brass', cninja:'koto', cfinal:'synth'};
+function autoInst(s){ s=s||(game ? game.song : songOf()); return (s && SONG_INST[s.id]) || 'piano'; }
+const instName=id=>(INST.find(x=>x.id===id)||INST[1]).n;
+const TRAILS=[{id:'n', n:'〰 みじかい'}, {id:'long', n:'🌠 長い'}, {id:'kira', n:'✨ 長い＋キラキラ'}, {id:'rainbow', n:'🌈 虹色キラキラ'}];   // なぞる 指の 軌跡（v678）
 const FXL=[{id:'calm', n:'ひかえめ'}, {id:'norm', n:'ふつう'}, {id:'ultra', n:'🎆 ド派手'}, {id:'mega', n:'🌈 ドド派手'}];   // 当たった ときの 演出の 強さ（v675。ド派手カウンターと 同じ しくみ）
 function env(g, t, a, peak, d, sus, rel, end){
   g.gain.setValueAtTime(0.0001, t);
@@ -398,7 +407,8 @@ function env(g, t, a, peak, d, sus, rel, end){
 function osc(type, f, t, stop, dest, det){ const o=AC.createOscillator(); o.type=type; o.frequency.setValueAtTime(f, t); if(det) o.detune.value=det; o.connect(dest); o.start(t); o.stop(stop); return o; }
 function playNote(midi, when, dur, inst){
   if(!ac()) return;
-  const t=Math.max(when||AC.currentTime, AC.currentTime), f=midiFreq(midi, 440), d=Math.max(0.08, dur||0.4), id=inst||st.inst;
+  const t=Math.max(when||AC.currentTime, AC.currentTime), f=midiFreq(midi, 440), d=Math.max(0.08, dur||0.4); let id=inst||st.inst;
+  if(id==='auto') id=tab==='make' ? 'piano' : autoInst();
   const g=AC.createGain(); g.connect(master);
   if(id==='piano'){
     const end=t+Math.min(d,1.6); env(g,t,0.006,0.5,0.35,0.25,0.35,end);
@@ -646,6 +656,7 @@ function newGame(){
     win:{perfect:WIN.perfect*D.win, good:WIN.good*D.win, miss:WIN.miss*D.win}, diff:st.diff, reps:p.reps||1,
     end:p.beats*spb, beats:p.beats, t0:0, raf:0, score:0, combo:0, max:0, fever:false, beams:[], missA:0, cnt:{perfect:0, good:0, miss:0}, early:0, late:0, wait:!!st.wait, playing:false, over:false};
   if(st.mode==='slide') slideSetup(g);
+  noteStyles(g);
   return g;
 }
 function gameStart(){
@@ -734,18 +745,65 @@ function drawFall(t){
   if(game.fever){ const h=(pn/8)%360; for(let i=0;i<L;i++){ x.fillStyle='hsla('+((h+i*40)%360)+',90%,60%,.07)'; x.fillRect(i*lw,0,lw,H); } }
   x.fillStyle=game.fever ? 'hsl('+((pn/4)%360)+',95%,75%)' : 'rgba(255,255,255,.75)'; x.fillRect(0,hitY-2,W,4);
   if(game.wait && game.waiting>=0){ x.fillStyle='rgba(255,255,255,.16)'; x.fillRect(game.waiting*lw,0,lw,H); x.fillStyle='#fff'; x.font='800 13px system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='top'; x.fillText('押して！', game.waiting*lw+lw/2, 6); }
+  // 流れる 光の すじ（スピード感）
+  x.fillStyle='rgba(255,255,255,.05)';
+  for(let i=0;i<L;i++) for(let k=0;k<6;k++){ const yy=((t>0 ? t : 0)*pps*1.6+k*H/6+i*37)%H; x.fillRect(i*lw+lw/2-1, yy, 2, 26); }
+  // 拍に 合わせて 線が 光る
+  const bph=t>0 ? 1-((t/game.spb)%1) : 0; if(bph>0.6){ x.fillStyle='rgba(255,255,255,'+((bph-0.6)*0.5).toFixed(3)+')'; x.fillRect(0,hitY-6,W,12); }
   for(const n of game.notes){
-    const y=hitY-(n.t-t)*pps; if(y<-40) break; if(n.res && n.res!=='miss') continue; if(y>H+30) continue;
-    const h=Math.max(16, Math.min(n.len*pps*0.85, 120)), c=laneCol(n.lane);
-    x.globalAlpha=n.res==='miss' ? 0.25 : 1; x.fillStyle=c;
-    const rx=n.lane*lw+5, rw=lw-10, ry=y-h;
-    x.beginPath(); if(x.roundRect) x.roundRect(rx, ry, rw, h, 8); else x.rect(rx, ry, rw, h); x.fill();
-    x.fillStyle='rgba(255,255,255,.92)'; x.font='700 '+Math.min(16, lw*0.32)+'px system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='bottom';
-    x.fillText(midiJa(n.midi), rx+rw/2, y-4);
-    x.globalAlpha=1;
+    const y=hitY-(n.t-t)*pps; if(y<-140) break; if(n.res && n.res!=='miss') continue; if(y>H+30) continue;
+    drawNote(x, n, y, lw, pps, hitY, t);
   }
   drawFx(x, lw, hitY-20);
   if(t<0){ x.fillStyle='rgba(255,255,255,.9)'; x.font='800 44px system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(String(Math.ceil(-t*game.song.bpm*SPEED[st.speed].k/60)||''), W/2, H*0.38); }
+}
+/* 落ちてくる 音符の 形（v678）：まとまりごとに 形が かわる（棒・宝石・玉・星・ほうき星・虹・ハート）。長い 音は 光の 尾つき */
+const NSTY=['bar','gem','orb','star','comet','rainbow','heart'];
+function noteStyles(g){
+  const secs=g.song.secs; let k=0;
+  g.notes.forEach(n=>{ let idx; if(secs){ while(k+1<secs.length && secs[k+1].beat<=n.beat+1e-6) k++; idx=k; } else idx=Math.floor(n.beat/16); n.sty=NSTY[idx%NSTY.length]; });
+}
+function starPath(x, cx, cy, R, r, rot){ x.beginPath(); for(let i=0;i<10;i++){ const a=rot-Math.PI/2+i*Math.PI/5, q=i%2 ? r : R; x.lineTo(cx+Math.cos(a)*q, cy+Math.sin(a)*q); } x.closePath(); }
+function drawNote(x, n, y, lw, pps, hitY, t){
+  const c=laneCol(n.lane), cx=n.lane*lw+lw/2, miss=n.res==='miss', near=clamp(1-(hitY-y)/90, 0, 1), sc=1+near*0.18;
+  const tail=Math.max(0, Math.min(n.len*pps*0.85, 160)), sty=n.sty||'bar', now=performance.now();
+  x.save(); x.globalAlpha=miss ? 0.22 : 1;
+  if(sty!=='bar' && sty!=='rainbow' && tail>40){   // 長い 音は 光の 尾
+    const gr=x.createLinearGradient(0, y, 0, y-tail); gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.globalAlpha=(miss ? 0.12 : 0.45); x.fillStyle=gr; x.fillRect(cx-lw*0.16, y-tail, lw*0.32, tail); x.globalAlpha=miss ? 0.22 : 1; }
+  if(!miss){ x.shadowColor=c; x.shadowBlur=10+near*16; }
+  const S=Math.min(lw*0.36, 26)*sc, cy=y-S;
+  if(sty==='bar' || sty==='rainbow'){
+    const h=Math.max(18, Math.min(n.len*pps*0.85, 130)), rx=n.lane*lw+5-(sc-1)*lw*0.2, rw=lw-10+(sc-1)*lw*0.4, ry=y-h;
+    let fill;
+    if(sty==='rainbow'){ fill=x.createLinearGradient(0, ry, 0, y); const h0=(now/5+n.lane*50)%360; for(let i=0;i<=4;i++) fill.addColorStop(i/4, 'hsl('+((h0+i*45)%360)+',95%,62%)'); }
+    else { fill=x.createLinearGradient(0, ry, 0, y); fill.addColorStop(0, '#ffffff'); fill.addColorStop(0.18, c); fill.addColorStop(1, c); }
+    x.fillStyle=fill; x.beginPath(); if(x.roundRect) x.roundRect(rx, ry, rw, h, 9); else x.rect(rx, ry, rw, h); x.fill();
+    x.shadowBlur=0; x.fillStyle='rgba(255,255,255,.55)'; x.fillRect(rx+6, ry+4, rw-12, 3);
+  }else if(sty==='gem'){
+    x.fillStyle=c; x.beginPath(); x.moveTo(cx, cy-S); x.lineTo(cx+S, cy); x.lineTo(cx, cy+S); x.lineTo(cx-S, cy); x.closePath(); x.fill();
+    x.shadowBlur=0; x.fillStyle='rgba(255,255,255,.45)'; x.beginPath(); x.moveTo(cx, cy-S); x.lineTo(cx+S*0.5, cy-S*0.15); x.lineTo(cx-S*0.5, cy-S*0.15); x.closePath(); x.fill();
+    x.strokeStyle='rgba(255,255,255,.8)'; x.lineWidth=2; x.beginPath(); x.moveTo(cx, cy-S); x.lineTo(cx+S, cy); x.lineTo(cx, cy+S); x.lineTo(cx-S, cy); x.closePath(); x.stroke();
+  }else if(sty==='orb'){
+    const g=x.createRadialGradient(cx-S*0.3, cy-S*0.35, 1, cx, cy, S); g.addColorStop(0, '#ffffff'); g.addColorStop(0.3, c); g.addColorStop(1, c);
+    x.fillStyle=g; x.beginPath(); x.arc(cx, cy, S, 0, Math.PI*2); x.fill();
+    x.shadowBlur=0; x.strokeStyle='rgba(255,255,255,.7)'; x.lineWidth=2; x.beginPath(); x.arc(cx, cy, S+4+3*Math.sin(now/120), 0, Math.PI*2); x.stroke();
+  }else if(sty==='star'){
+    x.fillStyle=c; starPath(x, cx, cy, S*1.15, S*0.5, now/700+n.lane); x.fill();
+    x.shadowBlur=0; x.strokeStyle='#fff'; x.lineWidth=2; x.stroke();
+  }else if(sty==='comet'){
+    const gr=x.createLinearGradient(0, cy, 0, cy-S*4.5); gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle=gr; x.beginPath(); x.moveTo(cx-S*0.8, cy); x.lineTo(cx, cy-S*4.5); x.lineTo(cx+S*0.8, cy); x.closePath(); x.fill();
+    const g=x.createRadialGradient(cx, cy, 1, cx, cy, S*0.9); g.addColorStop(0, '#ffffff'); g.addColorStop(0.5, c); g.addColorStop(1, c);
+    x.fillStyle=g; x.beginPath(); x.arc(cx, cy, S*0.9, 0, Math.PI*2); x.fill();
+  }else if(sty==='heart'){
+    const r=S*0.95; x.fillStyle=c; x.beginPath(); x.moveTo(cx, cy+r*0.9);
+    x.bezierCurveTo(cx-r*1.4, cy-r*0.1, cx-r*0.7, cy-r*1.2, cx, cy-r*0.45); x.bezierCurveTo(cx+r*0.7, cy-r*1.2, cx+r*1.4, cy-r*0.1, cx, cy+r*0.9); x.fill();
+    x.shadowBlur=0; x.strokeStyle='rgba(255,255,255,.8)'; x.lineWidth=2; x.stroke();
+  }
+  x.shadowBlur=0; x.fillStyle='#fff'; x.font='900 '+Math.round(Math.min(16, lw*0.32)*sc)+'px system-ui, sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+  x.shadowColor='rgba(0,0,0,.5)'; x.shadowBlur=3; x.fillText(midiJa(n.midi), cx, (sty==='bar' || sty==='rainbow') ? y-11 : cy+1);
+  x.restore();
 }
 function drawFx(x, lw, y){
   const now=performance.now(); fx=fx.filter(f=>now-f.t<550);
@@ -758,8 +816,41 @@ function drawFx(x, lw, y){
   }
   x.globalAlpha=1;
 }
+/* ── 🌈 光る ボタンの 変化（v678）──
+   まとまり（オリジナル曲・昔の 曲の 変奏）ごと、ほかは 32拍ごとに ボタンの ならび（ます目・円・アーチ・ジグザグ・2段）と
+   タイミングの 合図（輪が ちぢむ・外から 枠が 寄る・下から 色が たまる・時計が まわる）が かわる。かわる 1拍半 前に 知らせる */
+const LAYS=['grid','circle','arc','zig','hive'];
+const CUES=[{id:'ring', n:'⭕ 輪が ちぢんだら 押す'}, {id:'frame', n:'🔲 外から 枠が 重なったら 押す'}, {id:'fill', n:'🌊 色が いっぱいに なったら 押す'}, {id:'clock', n:'🕐 時計が ひとまわり したら 押す'}];
+const LAYN={grid:'ます目', circle:'円', arc:'アーチ', zig:'ジグザグ', hive:'2段'};
+function layPos(name, N, W, H){
+  const m=Math.min(W,H), P=[]; let s;
+  if(name==='circle'){ const R=m*0.36; for(let i=0;i<N;i++){ const a=-Math.PI/2+i*2*Math.PI/N; P.push([0.5+R*Math.cos(a)/W, 0.5+R*Math.sin(a)/H]); } s=Math.min(m*0.26, 2*R*Math.sin(Math.PI/N)*0.74); }
+  else if(name==='arc'){ for(let i=0;i<N;i++) P.push([(i+0.5)/N, 0.3+0.42*Math.sin(Math.PI*(i+0.5)/N)]); s=Math.min(W/N*0.92, H*0.26); }
+  else if(name==='zig'){ for(let i=0;i<N;i++) P.push([(i+0.5)/N, i%2 ? 0.34 : 0.66]); s=Math.min(W/N*1.3, H*0.28, m*0.34); }
+  else if(name==='hive'){ const a=Math.ceil(N/2), b=N-a; for(let i=0;i<a;i++) P.push([(i+0.5)/a, 0.33]); for(let i=0;i<b;i++) P.push([(i+0.5+(a-b)/2)/a, 0.67]); s=Math.min(W/a*0.86, H*0.32); }
+  else { const cols=N<=2 ? N : N<=4 ? 2 : N<=6 ? 3 : 4, rows=Math.ceil(N/cols), cell=Math.min(W/cols, H/rows);
+    for(let i=0;i<N;i++){ const r=Math.floor(i/cols), inRow=r<rows-1 ? cols : N-cols*(rows-1), c=i-r*cols; P.push([0.5+(c-(inRow-1)/2)*cell/W, 0.5+(r-(rows-1)/2)*cell/H]); } s=Math.min(cell*0.84, m*0.44); }
+  return {pts:P, s:Math.max(44, s)};
+}
+function glowApply(lay, cue){
+  const box=$('ogPads'); if(!box || !game) return;
+  const r=box.getBoundingClientRect(), pads=[...box.querySelectorAll('.og-pad')], L=layPos(lay, pads.length, r.width||300, r.height||300);
+  box.style.setProperty('--s', Math.round(L.s)+'px'); box.dataset.cue=cue; box.dataset.lay=lay;
+  pads.forEach((p,i)=>{ p.style.left=(L.pts[i][0]*100).toFixed(2)+'%'; p.style.top=(L.pts[i][1]*100).toFixed(2)+'%'; });
+  game.lay=lay; game.cue=cue; game.gw=r.width; game.gh=r.height;
+}
+function glowCue(msg){ const c=$('ogCue'); if(!c) return; c.textContent=msg; c.classList.remove('on'); void c.offsetWidth; c.classList.add('on'); }
 function drawGlow(t){
-  const lead=0.9;
+  if(game.gi==null){ game.gi=0; glowApply('grid', 'ring'); }
+  if(st.glowMix && t>0){
+    const beat=t/game.spb+1.5, secs=game.song.secs; let idx=0;
+    if(secs){ for(let i=0;i<secs.length;i++) if(secs[i].beat<=beat) idx=i; } else idx=Math.floor(beat/32);
+    if(idx!==game.gi){ game.gi=idx; const lay=LAYS[idx%LAYS.length], cue=CUES[idx%CUES.length]; glowApply(lay, cue.id); glowCue('🔀 '+LAYN[lay]+'に！　'+cue.n); }
+  }
+  const box=$('ogPads');
+  if(box){ const r=box.getBoundingClientRect(); if(Math.abs(r.width-game.gw)>2 || Math.abs(r.height-game.gh)>2) glowApply(game.lay, game.cue);
+    box.style.setProperty('--bp', t>0 ? Math.pow(1-((t/game.spb)%1), 3).toFixed(3) : '0'); }
+  const lead=game.cue==='clock' ? 1.1 : game.cue==='frame' || game.cue==='fill' ? 1.0 : 0.9;
   document.querySelectorAll('#otoBody .og-pad').forEach(p=>{
     const lane=+p.dataset.l; let k=0;
     for(const n of game.notes){ if(n.lane!==lane || n.res) continue; const d=n.t-t; if(d>lead) break; if(d<-game.win.good) continue; k=Math.max(k, 1-Math.max(0,d)/lead); }
@@ -1042,10 +1133,30 @@ function drawSlide(t){
   for(const p of game.parts){ const k=(now-p.t)/1000, life=(now-p.t)/p.life; x.globalAlpha=1-life; x.fillStyle=p.col; x.beginPath(); x.arc(p.x+p.vx*k, p.y+p.vy*k+120*k*k, p.r*(1-life*0.5), 0, Math.PI*2); x.fill(); }
   x.globalAlpha=1;
   // 指の 光の すじ
-  const tr=game.ptr.trail=game.ptr.trail.filter(q=>now-q.t<260);
-  if(tr.length>1){ x.lineCap='round'; x.lineJoin='round'; x.shadowColor='#9fe7ff'; x.shadowBlur=14;
-    for(let i=1;i<tr.length;i++){ if(tr[i].cut) continue; const k=1-(now-tr[i].t)/260; x.strokeStyle='rgba(200,245,255,'+k.toFixed(3)+')'; x.lineWidth=2+9*k; x.beginPath(); x.moveTo(tr[i-1].x, tr[i-1].y); x.lineTo(tr[i].x, tr[i].y); x.stroke(); }
+  // 指の 軌跡（v678：長さ・キラキラ・虹色を えらべる）
+  const TL=st.trail==='n' ? 260 : st.trail==='long' ? 900 : 1050, rb=st.trail==='rainbow', kira=rb || st.trail==='kira';
+  const tr=game.ptr.trail=game.ptr.trail.filter(q=>now-q.t<TL);
+  if(tr.length>1){ x.lineCap='round'; x.lineJoin='round';
+    for(let i=1;i<tr.length;i++){ if(tr[i].cut) continue; const k=1-(now-tr[i].t)/TL, hu=(tr[i].t/3)%360;
+      x.shadowColor=rb ? 'hsl('+hu+',100%,60%)' : '#9fe7ff'; x.shadowBlur=6+12*k;
+      x.strokeStyle=rb ? 'hsla('+hu+',100%,72%,'+k.toFixed(3)+')' : 'rgba(200,245,255,'+k.toFixed(3)+')'; x.lineWidth=2+12*k*k+3*k;
+      x.beginPath(); x.moveTo(tr[i-1].x, tr[i-1].y); x.lineTo(tr[i].x, tr[i].y); x.stroke(); }
     x.shadowBlur=0; }
+  game.sparks=game.sparks||[];
+  if(kira && game.ptr.on && game.ptr.x>=0){   // 動いた ぶんだけ きらきらを 出す
+    const lp=game.lastP||{x:game.ptr.x, y:game.ptr.y}, dist=Math.hypot(game.ptr.x-lp.x, game.ptr.y-lp.y), nsp=Math.min(8, Math.floor(dist/7));
+    for(let i=0;i<nsp;i++){ const f=i/Math.max(1,nsp), a=Math.random()*Math.PI*2, v=20+Math.random()*60;
+      game.sparks.push({x:lp.x+(game.ptr.x-lp.x)*f, y:lp.y+(game.ptr.y-lp.y)*f, vx:Math.cos(a)*v, vy:Math.sin(a)*v-20, t:now, life:500+Math.random()*700, r:2+Math.random()*4, hu:rb ? (now/3+Math.random()*60)%360 : -1, c:['#ffffff','#bff4ff','#fff3a6'][i%3]}); }
+    if(nsp>0 || !game.lastP) game.lastP={x:game.ptr.x, y:game.ptr.y};   // ゆっくり 動かしても たまったら 出す
+    if(Math.random()<0.12) game.sparks.push({x:game.ptr.x+(Math.random()-0.5)*16, y:game.ptr.y+(Math.random()-0.5)*16, vx:0, vy:-15, t:now, life:600, r:2.5, hu:rb ? (now/3)%360 : -1, c:'#ffffff'});
+  } else game.lastP=null;
+  if(game.sparks.length>360) game.sparks.splice(0, game.sparks.length-360);
+  game.sparks=game.sparks.filter(q=>now-q.t<q.life);
+  for(const q of game.sparks){ const k=(now-q.t)/1000, life=(now-q.t)/q.life, px=q.x+q.vx*k, py=q.y+q.vy*k+40*k*k, tw=0.55+0.45*Math.sin(now/45+q.r*7), r=q.r*(1-life*0.6)*(0.7+0.5*tw);
+    x.globalAlpha=(1-life)*tw; x.fillStyle=q.hu>=0 ? 'hsl('+q.hu+',100%,75%)' : q.c; x.strokeStyle=x.fillStyle; x.lineWidth=1.2;
+    x.beginPath(); x.moveTo(px-r*2.4, py); x.lineTo(px+r*2.4, py); x.moveTo(px, py-r*2.4); x.lineTo(px, py+r*2.4); x.stroke();   // 十字の 光
+    x.beginPath(); x.arc(px, py, r*0.7, 0, Math.PI*2); x.fill(); }
+  x.globalAlpha=1;
   if(game.ptr.on && game.ptr.x>=0){ x.fillStyle='rgba(255,255,255,.9)'; x.beginPath(); x.arc(game.ptr.x, game.ptr.y, 7, 0, Math.PI*2); x.fill(); }
   // 判定の 文字
   game.pops=game.pops.filter(p=>now-p.t<600);
@@ -1131,11 +1242,13 @@ function htmlGame(){
   return '<div class="og">'+res
     +'<h4>あそび方</h4>'+seg('あそび方',[{id:'fall',n:'⬇ 落ちてくる'},{id:'glow',n:'🌈 光る ボタン'},{id:'slide',n:'🌀 なぞる'}],st.mode,'mode')
     +'<p class="oo-note">'+(st.mode==='fall' ? '上から 落ちて くる 音符が 下の 線に 来たら、同じ 色の ボタンを 押します。合うと その 音が 鳴って メロディーに なります。' : st.mode==='slide' ? '画面に 指を おいた まま、光る マークへ すべらせます。まわりの 輪が ちぢんで マークに 重なる ときに 指が 上に あると 音が 鳴ります（パソコンは マウスを 動かすだけ）。' : '色が 付いて 輪が しぼんだ ボタンを 押します。合うと その 音が 鳴って メロディーに なります。')+'</p>'
+    +(st.mode==='slide' ? '<h4>指の 軌跡</h4>'+seg('軌跡',TRAILS,st.trail,'trail') : '')
+    +(st.mode==='glow' ? '<label class="oo-chk"><input type="checkbox" '+(st.glowMix?'checked':'')+' onchange="OTO.glowMix()"> 🔀 曲の とちゅうで ボタンの ならびと 合図（輪・外から 寄る 枠・たまる 色・時計）が かわる</label>' : '')
     +'<h4>むずかしさ</h4>'+seg('むずかしさ',DIFF.slice(1).map((x,i)=>({id:i+1,n:x.n})),st.diff,'diff')
     +'<p class="oo-note">'+esc((DIFF[st.diff]||DIFF[3]).d)+'</p>'
     +'<h4>曲</h4><div class="og-songs">'+orig+groups+mine+'</div>'
     +'<h4>ボタン</h4>'+seg('ボタン',[{id:'note',n:'🎹 音ごと（ド・レ・ミ…）'},{id:'four',n:'4️⃣ 4つだけ（かんたん）'}],st.lanes,'lanes')
-    +'<h4>音色</h4>'+seg('音色',INST,st.inst,'inst')
+    +'<h4>押した ときの 音色</h4>'+seg('音色',INST,st.inst,'inst')+(st.inst==='auto' ? '<p class="oo-note">「'+esc(s.t)+'」は '+esc(instName(autoInst(s)))+' で 鳴ります（曲ごとに 合う 音色）。好きな 音色を えらぶと どの 曲も その 音に なります。</p>' : '')
     +'<h4>速さ</h4>'+seg('速さ',Object.keys(SPEED).map(id=>({id,n:SPEED[id].n})),st.speed,'speed')
     +'<h4>当たった ときの 演出</h4>'+seg('演出',FXL,st.fx,'fx')
     +'<p class="oo-note">'+(st.fx==='calm' ? '光の 粒を 少なく、画面の ゆれ・点滅・ふるえ（振動）なし。' : st.fx==='norm' ? '粒と 光で 知らせます。10コンボごとに お祝い。' : st.fx==='ultra' ? 'ぴったりで 大きく はじけ、10コンボごとに 光の すじと 紙ふぶき・画面が ゆれます。30コンボで 🔥 フィーバー（点 1.5倍）。' : 'さらに 粒が 多く、流れ星や 光の 輪も。とても 激しいので、光や ゆれが 苦手な 方は ご注意ください。')+'</p>'
@@ -1154,7 +1267,7 @@ function htmlPlay(){
   if(st.mode==='slide') return '<div class="og-play">'+top+'<canvas id="ogSl" class="og-sl"></canvas>'+fl+'</div>';
   if(st.mode==='fall') return '<div class="og-play">'+top+'<canvas id="ogCv" class="og-cv"></canvas><div class="og-keys" style="--n:'+L.length+'">'+keys+'</div>'+fl+'</div>';
   const pads=L.map((ln,i)=>'<button type="button" class="og-pad" data-l="'+i+'" style="--c:'+ln.col+'" onpointerdown="OTO.hit('+i+',event)"><span>'+esc(ln.name)+'</span></button>').join('');
-  return '<div class="og-play">'+top+'<div class="og-glow"><canvas id="ogFx" class="og-fx"></canvas><div class="og-cnt" id="ogCnt"></div><div class="og-pads n'+L.length+'">'+pads+'</div></div>'+fl+'</div>';
+  return '<div class="og-play">'+top+'<div class="og-glow"><canvas id="ogFx" class="og-fx"></canvas><div class="og-cnt" id="ogCnt"></div><div class="og-pads n'+L.length+'" id="ogPads" data-cue="ring" data-lay="grid">'+pads+'</div><div class="og-cue" id="ogCue"></div></div>'+fl+'</div>';
 }
 
 /* ── 🎼 曲を つくる（v673）──
@@ -1546,6 +1659,19 @@ const CSS=`
 .og-pad.now{ box-shadow:0 0 0 4px #fff inset, 0 0 22px var(--c); }
 .og-pad span{ position:relative; z-index:1; }
 .og-pad.hit{ animation:ogKP .3s ease-out; }
+/* v678：ならびが かわる ボタン・いろいろな 合図 */
+.og-glow .og-pads{ position:absolute; inset:12px; display:block; max-width:none; width:auto; }
+.og-glow .og-pad{ position:absolute; left:50%; top:50%; width:var(--s,80px); height:var(--s,80px); aspect-ratio:auto; overflow:visible; transform:translate(-50%,-50%) scale(calc(1 + var(--bp,0) * .05));
+  transition:left .5s cubic-bezier(.3,1.5,.5,1), top .5s cubic-bezier(.3,1.5,.5,1), width .4s, height .4s, background .08s; }
+.og-glow .og-pad.hit{ animation:ogPP .32s ease-out; }
+@keyframes ogPP{ 0%{ background:#fff; color:var(--c); transform:translate(-50%,-50%) scale(.84); box-shadow:0 0 0 3px #fff, 0 0 34px 8px var(--c); } 60%{ transform:translate(-50%,-50%) scale(1.1); } }
+.og-pads[data-cue="frame"] .og-pad::before{ inset:calc((1 - var(--k)) * -60%); border-radius:calc(22px + (1 - var(--k)) * 40px); border:4px solid var(--c); opacity:calc(var(--k) * 1.3); box-shadow:0 0 12px var(--c); }
+.og-pads[data-cue="fill"] .og-pad::before{ inset:auto 0 0 0; height:calc(var(--k) * 100%); border:0; border-radius:0 0 22px 22px; background:linear-gradient(to top, var(--c), color-mix(in srgb, var(--c) 60%, #fff)); opacity:calc(var(--k) * .95); }
+.og-pads[data-cue="fill"] .og-pad.now::before{ border-radius:22px; }
+.og-pads[data-cue="clock"] .og-pad::before{ inset:7%; border:0; border-radius:50%; background:conic-gradient(var(--c) calc(var(--k) * 360deg), rgba(255,255,255,.08) 0); opacity:calc(.25 + var(--k)); }
+.og-pads[data-cue="fill"] .og-pad.lit, .og-pads[data-cue="clock"] .og-pad.lit{ background:#2d343c; }
+.og-cue{ position:absolute; left:50%; top:10px; transform:translateX(-50%); z-index:6; padding:6px 14px; border-radius:18px; background:rgba(0,0,0,.6); color:#fff; font-weight:900; font-size:14px; white-space:nowrap; opacity:0; pointer-events:none; }
+.og-cue.on{ animation:ogCue 2.4s ease-out; } @keyframes ogCue{ 0%{ opacity:0; transform:translate(-50%,-14px) scale(.8); } 12%{ opacity:1; transform:translate(-50%,0) scale(1.08); } 20%{ transform:translate(-50%,0) scale(1); } 80%{ opacity:1; } 100%{ opacity:0; } }
 body.dark .om-pulse{ background:rgba(67,160,71,.18); }
 /* v673：曲の まとまり・結果・曲を つくる */
 .oo-tabs button{ font-size:13px; padding:9px 2px; white-space:nowrap; }
@@ -1628,7 +1754,8 @@ window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met
   mode:v=>{ st.mode=['fall','glow','slide'].includes(v) ? v : 'fall'; save(); game=null; render(); }, diff:v=>{ st.diff=clamp(Math.round(+v)||3,1,5); save(); game=null; render(); }, song:v=>{ st.song=v; save(); game=null; render(); }, inst:v=>{ st.inst=v; save(); render(); const s=parseSong(songOf()).notes; if(s[0]) playNote(s[0].midi, 0, 0.5); },
   speed:v=>{ st.speed=v; save(); game=null; render(); }, helper:()=>{ st.helper=!st.helper; save(); }, start:gameStart, listen, quit:()=>{ gameStop(); game=null; render(); },
   hit:(i,e)=>{ if(e){ e.preventDefault(); } judge(i); },
-  wait:()=>{ st.wait=!st.wait; save(); }, fx:v=>{ st.fx=FXL.some(x=>x.id===v) ? v : 'ultra'; save(); render(); }, beat:()=>{ st.beat=!st.beat; save(); },
+  wait:()=>{ st.wait=!st.wait; save(); }, trail:v=>{ st.trail=TRAILS.some(x=>x.id===v) ? v : 'kira'; save(); render(); }, glowMix:()=>{ st.glowMix=!st.glowMix; save(); },
+  glowState:()=>game ? {lay:game.lay||'grid', cue:game.cue||'ring', gi:game.gi||0} : null, noteStyles:()=>game ? [...new Set(game.notes.map(n=>n.sty))].join(',') : '', sparks:()=>game && game.sparks ? game.sparks.length : 0, autoInst:id=>{ const x=allSongs().find(y=>y.id===id); return x ? autoInst(x) : 'piano'; }, fx:v=>{ st.fx=FXL.some(x=>x.id===v) ? v : 'ultra'; save(); render(); }, beat:()=>{ st.beat=!st.beat; save(); },
   back:()=>({on:!!bk.bus, n:bk.ev.length, i:bk.i, kinds:[...new Set(bk.ev.map(e=>e.k))].sort().join(',')}), backOf:id=>{ const s=allSongs().find(x=>x.id===id); if(!s) return null; const p=parseSong(s), ev=backEvents(s, p.beats); return {n:ev.length, kinds:[...new Set(ev.map(e=>e.k))].sort().join(',')}; },
   theme:id=>{ const x=SONGS.find(y=>y.id===id); return x ? (x.theme||x.n) : ''; },
   pd:()=>SONGS.map(s=>({id:s.id, sec:Math.round(parseSong(s).beats*60/s.bpm), vars:(s.vars||[]).join('+'), ch:(s.secs&&s.secs[0] ? s.secs[0].ch.join(' ') : '')})),
@@ -1647,6 +1774,7 @@ window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met
   game:()=>game ? {playing:game.playing, over:game.over, score:game.score, cnt:Object.assign({},game.cnt), lanes:game.lanes.map(l=>l.pc), names:game.lanes.map(l=>l.name), rank:game.rank, n:game.notes.length, early:game.early, late:game.late, wait:game.wait, waiting:game.waiting, fc:game.fc, rate:game.rate, newBest:game.newBest} : null,
   autoplay:()=>{ if(!game) return; for(const n of game.notes){ n.res='perfect'; game.cnt.perfect++; game.combo++; game.max=Math.max(game.max,game.combo); game.score+=100+Math.min(game.combo,50)*2; } game.end=-1; },
   time:()=>game && AC ? AC.currentTime-game.t0 : null,
+  seek:b=>{ if(game && AC){ const t=b*game.spb; game.notes.forEach(n=>{ if(!n.res && n.t<t-0.3) n.res='skip'; }); game.t0=AC.currentTime-t; bkStop(true); } },   // ためす とき 用：その 拍へ とぶ
   slide:()=>game && game.notes[0] && game.notes[0].x!=null ? {pts:game.notes.map(n=>[+n.x.toFixed(3), +n.y.toFixed(3)]), lead:game.lead} : null,
   ptr:(x,y,on)=>{ if(game && game.ptr){ const G=slideGeo(); game.ptr.x=x*(G?G.W:1); game.ptr.y=y*(G?G.H:1); game.ptr.on=on!==false; game.ptr.trail.push({x:game.ptr.x, y:game.ptr.y, t:performance.now()}); } },
   arranged:id=>{ const s=allSongs().find(x=>x.id===id); if(!s) return null; const p=arrange(s, parseSong(s)); return {reps:p.reps, sec:Math.round(p.beats*60/s.bpm), n:p.notes.length}; },
