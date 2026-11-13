@@ -40,7 +40,7 @@ const SONGS=[
   {id:'london', k:'C', t:'ロンドン橋', by:'イギリスの 古い 歌', bpm:110, lv:2,
    n:'G4:1.5 A4:0.5 G4:1 F4:1 E4:1 F4:1 G4:2 D4:1 E4:1 F4:2 E4:1 F4:1 G4:2 G4:1.5 A4:0.5 G4:1 F4:1 E4:1 F4:1 G4:2 D4:2 G4:2 E4:1 C4:3'},
   {id:'joy', k:'C', t:'よろこびの歌（第九）', by:'ベートーヴェン（1827年 没）', bpm:110, lv:2,
-   n:'E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 E4:1.5 D4:0.5 D4:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:0.5 C4:2 D4:1 D4:1 E4:1 C4:1 D4:1 E4:0.5 F4:0.5 E4:1 C4:1 D4:1 E4:0.5 F4:0.5 E4:1 D4:1 C4:1 D4:1 G3:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:0.5 C4:2'},
+   n:'E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 E4:1.5 D4:0.5 D4:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:0.5 C4:2 D4:1 D4:1 E4:1 C4:1 D4:1 E4:0.5 F4:0.5 E4:1 C4:1 D4:1 E4:0.5 F4:0.5 E4:1 D4:1 C4:1 D4:1 G3:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:0.5 C4:2 D4:1 D4:1 E4:1 C4:1 D4:1 E4:0.5 F4:0.5 E4:1 C4:1 D4:1 E4:0.5 F4:0.5 E4:1 D4:1 C4:1 D4:1 G3:2 E4:1 E4:1 F4:1 G4:1 G4:1 F4:1 E4:1 D4:1 C4:1 C4:1 D4:1 E4:1 D4:1.5 C4:0.5 C4:2'},
   {id:'jingle', k:'C', t:'ジングルベル', by:'ピアポント（1893年 没）', bpm:130, lv:2,
    n:'G3:1 E4:1 D4:1 C4:1 G3:3 G3:0.5 G3:0.5 G3:1 E4:1 D4:1 C4:1 A3:4 A3:1 F4:1 E4:1 D4:1 B3:4 G4:1 G4:1 F4:1 D4:1 E4:4 G3:1 E4:1 D4:1 C4:1 G3:4 G3:1 E4:1 D4:1 C4:1 A3:3 A3:1 A3:1 F4:1 E4:1 D4:1 G4:1 G4:1 G4:1 G4:1 A4:1 G4:1 F4:1 D4:1 C4:3 R:1 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:0.5 E4:4 F4:1 F4:1 F4:1.5 F4:0.5 F4:1 E4:1 E4:1 E4:0.5 E4:0.5 E4:1 D4:1 D4:1 E4:1 D4:2 G4:2 E4:1 E4:1 E4:2 E4:1 E4:1 E4:2 E4:1 G4:1 C4:1.5 D4:0.5 E4:4 F4:1 F4:1 F4:1 F4:1 F4:1 E4:1 E4:1 E4:0.5 E4:0.5 G4:1 G4:1 F4:1 D4:1 C4:4'},
   {id:'saints', k:'C', p:3, t:'聖者の行進', by:'アメリカの 古い 歌', bpm:120, lv:2,
@@ -48,9 +48,9 @@ const SONGS=[
   {id:'grace', k:'C', bar:3, p:1, t:'アメイジング・グレイス', by:'イギリスの 古い 歌', bpm:80, lv:2,
    n:'G3:1 C4:2 E4:0.5 C4:0.5 E4:2 D4:1 C4:2 A3:1 G3:2 G3:1 C4:2 E4:0.5 C4:0.5 E4:2 D4:1 G4:5 E4:1 G4:1.5 E4:0.5 G4:0.5 E4:0.5 C4:2 G3:1 A3:1.5 C4:0.5 C4:0.5 A3:0.5 G3:2 G3:1 C4:2 E4:0.5 C4:0.5 E4:2 D4:1 C4:3'},
   {id:'elise', k:'A', mi:true, bar:3, p:1, t:'エリーゼのために（はじめ）', by:'ベートーヴェン（1827年 没）', bpm:70, lv:3,
-   n:'E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:1.5 B4:0.5 C5:0.5 D5:0.5 E5:1.5 G4:0.5 F5:0.5 E5:0.5 D5:1.5 F4:0.5 E5:0.5 D5:0.5 C5:1.5 E4:0.5 D5:0.5 C5:0.5 B4:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:2'},
+   n:'E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:1.5 R:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:1.5 B4:0.5 C5:0.5 D5:0.5 E5:1.5 G4:0.5 F5:0.5 E5:0.5 D5:1.5 F4:0.5 E5:0.5 D5:0.5 C5:1.5 E4:0.5 D5:0.5 C5:0.5 B4:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:1.5 B4:0.5 C5:0.5 D5:0.5 E5:1.5 G4:0.5 F5:0.5 E5:0.5 D5:1.5 F4:0.5 E5:0.5 D5:0.5 C5:1.5 E4:0.5 D5:0.5 C5:0.5 B4:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 G#4:0.5 B4:0.5 C5:1.5 E4:0.5 E5:0.5 D#5:0.5 E5:0.5 D#5:0.5 E5:0.5 B4:0.5 D5:0.5 C5:0.5 A4:1.5 C4:0.5 E4:0.5 A4:0.5 B4:1.5 E4:0.5 C5:0.5 B4:0.5 A4:2'},
   {id:'minuet', k:'G', bar:3, t:'メヌエット ト長調', by:'ペツォールト（1733年 没）', bpm:110, lv:3,
-   n:'D5:1 G4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 G4:1 G4:1 E5:1 C5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 G4:1 G4:1 C5:1 D5:0.5 C5:0.5 B4:0.5 A4:0.5 B4:1 C5:0.5 B4:0.5 A4:0.5 G4:0.5 F#4:1 G4:0.5 A4:0.5 B4:0.5 G4:0.5 A4:3 D5:1 G4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 G4:1 G4:1 E5:1 C5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 G4:1 G4:1 C5:1 D5:0.5 C5:0.5 B4:0.5 A4:0.5 B4:1 C5:0.5 B4:0.5 A4:0.5 G4:0.5 A4:1 B4:0.5 A4:0.5 G4:0.5 F#4:0.5 G4:3 B5:1 G5:0.5 A5:0.5 B5:0.5 G5:0.5 A5:1 D5:0.5 E5:0.5 F#5:0.5 D5:0.5 G5:1 E5:0.5 F#5:0.5 G5:0.5 D5:0.5 C#5:1 B4:0.5 C#5:0.5 A4:1 A4:0.5 B4:0.5 C#5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 F#5:1 E5:1 F#5:1 A4:1 C#5:1 D5:3 D5:1 G4:0.5 F#4:0.5 G4:1 E5:1 G4:0.5 F#4:0.5 G4:1 D5:1 C5:1 B4:1 A4:0.5 G4:0.5 F#4:0.5 G4:0.5 A4:1 D4:0.5 E4:0.5 F#4:0.5 G4:0.5 A4:0.5 B4:0.5 C5:1 B4:1 A4:1 B4:0.5 D5:0.5 G4:1 F#4:1 G4:3'},
+   n:'D5:1 G4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 G4:1 G4:1 E5:1 C5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 G4:1 G4:1 C5:1 D5:0.5 C5:0.5 B4:0.5 A4:0.5 B4:1 C5:0.5 B4:0.5 A4:0.5 G4:0.5 F#4:1 G4:0.5 A4:0.5 B4:0.5 G4:0.5 A4:3 D5:1 G4:0.5 A4:0.5 B4:0.5 C5:0.5 D5:1 G4:1 G4:1 E5:1 C5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 G4:1 G4:1 C5:1 D5:0.5 C5:0.5 B4:0.5 A4:0.5 B4:1 C5:0.5 B4:0.5 A4:0.5 G4:0.5 A4:1 B4:0.5 A4:0.5 G4:0.5 F#4:0.5 G4:3 B5:1 G5:0.5 A5:0.5 B5:0.5 G5:0.5 A5:1 D5:0.5 E5:0.5 F#5:0.5 D5:0.5 G5:1 E5:0.5 F#5:0.5 G5:0.5 D5:0.5 C#5:1 B4:0.5 C#5:0.5 A4:1 A4:0.5 B4:0.5 C#5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 F#5:1 E5:1 F#5:1 A4:1 C#5:1 D5:3 D5:1 G4:0.5 F#4:0.5 G4:1 E5:1 G4:0.5 F#4:0.5 G4:1 D5:1 C5:1 B4:1 A4:0.5 G4:0.5 F#4:0.5 G4:0.5 A4:1 D4:0.5 E4:0.5 F#4:0.5 G4:0.5 A4:0.5 B4:0.5 C5:1 B4:1 A4:1 B4:0.5 D5:0.5 G4:1 F#4:1 G4:3 B5:1 G5:0.5 A5:0.5 B5:0.5 G5:0.5 A5:1 D5:0.5 E5:0.5 F#5:0.5 D5:0.5 G5:1 E5:0.5 F#5:0.5 G5:0.5 D5:0.5 C#5:1 B4:0.5 C#5:0.5 A4:1 A4:0.5 B4:0.5 C#5:0.5 D5:0.5 E5:0.5 F#5:0.5 G5:1 F#5:1 E5:1 F#5:1 A4:1 C#5:1 D5:3 D5:1 G4:0.5 F#4:0.5 G4:1 E5:1 G4:0.5 F#4:0.5 G4:1 D5:1 C5:1 B4:1 A4:0.5 G4:0.5 F#4:0.5 G4:0.5 A4:1 D4:0.5 E4:0.5 F#4:0.5 G4:0.5 A4:0.5 B4:0.5 C5:1 B4:1 A4:1 B4:0.5 D5:0.5 G4:1 F#4:1 G4:3'},
   /* v673：ふやした 曲 */
   {id:'row', k:'C', bar:3, t:'こげこげボート', by:'アメリカの 古い 歌', bpm:100, lv:1,
    n:'C4:1.5 C4:1.5 C4:1 D4:0.5 E4:1.5 E4:1 D4:0.5 E4:1 F4:0.5 G4:3 C5:0.5 C5:0.5 C5:0.5 G4:0.5 G4:0.5 G4:0.5 E4:0.5 E4:0.5 E4:0.5 C4:0.5 C4:0.5 C4:0.5 G4:1 F4:0.5 E4:1 D4:0.5 C4:3'},
@@ -71,7 +71,7 @@ const SONGS=[
   {id:'joyworld', k:'C', t:'もろびとこぞりて', by:'ヘンデル（1759年 没）', bpm:100, lv:2,
    n:'C5:2 B4:1.5 A4:0.5 G4:3 F4:1 E4:2 D4:2 C4:3 G4:1 A4:3 A4:1 B4:3 B4:1 C5:3 C5:1 C5:1 B4:1 A4:1 G4:1 G4:1.5 F4:0.5 E4:1 C5:1 C5:1 B4:1 A4:1 G4:1 G4:1.5 F4:0.5 E4:1 E4:1 E4:1 E4:1 E4:1 E4:0.5 F4:0.5 G4:3 F4:0.5 E4:0.5 D4:1 D4:1 D4:1 D4:0.5 E4:0.5 F4:3 E4:0.5 D4:0.5 C4:1 C5:2 A4:1 G4:1.5 F4:0.5 E4:1 F4:1 E4:2 D4:2 C4:4'},
   {id:'canon', k:'D', t:'カノン（はじめ）', by:'パッヘルベル（1706年 没）', bpm:80, lv:2,
-   n:'F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2 D5:2 C#5:2 B4:2 A4:2 G4:2 F#4:2 G4:2 E4:2 D4:1 F#4:1 A4:1 G4:1 F#4:1 D4:1 F#4:1 E4:1 D4:1 B3:1 D4:1 A4:1 G4:1 B4:1 A4:1 G4:1'},
+   n:'F#5:2 E5:2 D5:2 C#5:2 B4:2 A4:2 B4:2 C#5:2 D5:2 C#5:2 B4:2 A4:2 G4:2 F#4:2 G4:2 E4:2 D4:1 F#4:1 A4:1 G4:1 F#4:1 D4:1 F#4:1 E4:1 D4:1 B3:1 D4:1 A4:1 G4:1 B4:1 A4:1 G4:1 D5:0.5 C#5:0.5 D5:0.5 D4:0.5 C#4:0.5 A4:0.5 E4:0.5 F#4:0.5 D4:0.5 D5:0.5 C#5:0.5 B4:0.5 C#5:0.5 F#5:0.5 A5:0.5 B5:0.5 G5:0.5 F#5:0.5 E5:0.5 G5:0.5 F#5:0.5 E5:0.5 D5:0.5 C#5:0.5 B4:0.5 A4:0.5 G4:0.5 F#4:0.5 E4:0.5 G4:0.5 F#4:0.5 E4:0.5 D4:4'},
   {id:'turkish', k:'A', mi:true, p:1, t:'トルコ行進曲（はじめ）', by:'モーツァルト（1791年 没）', bpm:90, lv:3,
    n:'B4:0.25 A4:0.25 G#4:0.25 A4:0.25 C5:0.5 R:0.5 D5:0.25 C5:0.25 B4:0.25 C5:0.25 E5:0.5 R:0.5 F5:0.25 E5:0.25 D#5:0.25 E5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 C6:1 A5:0.5 C6:0.5 B5:0.5 A5:0.5 G5:0.5 A5:0.5 B5:0.5 A5:0.5 G5:0.5 A5:0.5 B5:0.5 A5:0.5 G5:0.5 F#5:0.5 E5:1 B4:0.25 A4:0.25 G#4:0.25 A4:0.25 C5:0.5 R:0.5 D5:0.25 C5:0.25 B4:0.25 C5:0.25 E5:0.5 R:0.5 F5:0.25 E5:0.25 D#5:0.25 E5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 B5:0.25 A5:0.25 G#5:0.25 A5:0.25 C6:1 A5:0.5 B5:0.5 C6:0.5 B5:0.5 A5:0.5 G#5:0.5 A5:0.5 E5:0.5 F5:0.5 D5:0.5 C5:1 B4:0.75 A4:0.25 A4:1'}
 ];
@@ -276,8 +276,7 @@ function lanesOf(notes){
 }
 
 /* ── 昔の 曲を 長く（v677）──
-   テーマ（なるべく 曲の 全部の メロディー）を まず 弾き、そのあとは 元の メロディーの まま 変化を つけて くり返す（v681）：
-   oct＝1オクターブ 上／light＝のばす 音の おわりに つなぐ 音を 1つ／echo＝のばす 音の あとに こだま。伴奏の リズムも まとまりごとに かわる。
+   原曲の メロディーを できるだけ そのまま 入れる（v682：くり返しで のばさない）。
    伴奏の コードは 小節ごとに メロディーに 合う 和音を 自動で えらぶ（k＝調・mi＝短調・bar＝1小節の 拍・p＝アウフタクトの 拍） */
 const PNAME=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
 const KEYPC={C:0, 'C#':1, D:2, Eb:3, E:4, F:5, 'F#':6, G:7, Ab:8, A:9, Bb:10, B:11};
@@ -316,24 +315,20 @@ function varLight(t, sc){   // v681：のばす 音（2拍 以上）の おわ�
     else out.push({m:x.m, len:x.len}); });
   return out;
 }
-/* v681：変奏は 元の メロディーが 分かる ものだけに（前の 付点・分散和音などは 曲が 分からなく なるので やめた）。
-   同じ メロディーを、1オクターブ 上・つなぐ 音を 少し・こだま と 伴奏の リズムを 変えて くり返す */
+/* v682：昔の 曲は 原曲の メロディーを できるだけ そのまま 1回（楽譜の くり返しは 曲の 中に 書いて ある）。
+   自分で くり返して のばす ことは しない（短い 曲は 短い まま）。8小節ごとに なぞる 形と 伴奏の リズムを かえる */
 function buildPD(s){
   if(s.secs) return;
-  const theme=nToNotes(s.n), bar=s.bar||4, p=s.p||0, sc=scaleOf(s.k||'C', s.mi);
+  const theme=nToNotes(s.n), bar=s.bar||4, p=s.p||0;
   let L=theme.reduce((a,x)=>a+x.len, 0); const pad=(bar-(L%bar))%bar; if(pad>1e-6){ theme[theme.length-1].len+=pad; L+=pad; }   // 小節に そろえる
-  const T=L*60/s.bpm; let n=Math.min(6, Math.max(1, Math.ceil(60/T))); while(n>1 && n*T>125) n--;
-  const plan={1:['theme'], 2:['theme','oct'], 3:['theme','oct','light'], 4:['theme','oct','light','theme'], 5:['theme','oct','light','echo','theme'], 6:['theme','oct','light','theme','echo','oct']}[n];
-  const make=v=>v==='light' ? varLight(theme, sc) : v==='echo' ? varEcho(theme) : v==='oct' ? varOct(theme) : cp(theme);
-  const SH=['wave','circle','zig','eight','star','heart'], DR={theme:'pop', light:'beat', echo:'half', oct:'drive'};
-  const secs=[], toks=[]; let beat=0;
-  plan.forEach((v,i)=>{
-    const t=make(v), dr=bar===3 ? 'waltz' : (v==='theme' && i>0) ? (i===plan.length-1 ? 'drive' : 'beat') : DR[v];
-    secs.push({beat, len:L, ch:harmonize(t, s, L).map(c=>c.name), sh:SH[i%SH.length], dr, off:p, v});
-    toks.push(...t); beat+=L;
-  });
-  s.theme=s.n; s.n=notesToN(toks); s.secs=secs; s.vars=secs.map(x=>x.v);
-  if(!/Claude/.test(s.by)) s.by+='・Claude 編曲（伴奏・くり返しの 変化）';
+  const ch=harmonize(theme, s, L), CH=8, nb=ch.length, secs=[];
+  const SH=['wave','circle','zig','eight','star','heart'], DRS=bar===3 ? ['waltz'] : ['pop','beat','pop','half'];
+  for(let k=0; k*CH<nb; k++){
+    const b0=k===0 ? 0 : p+k*CH*bar, last=(k+1)*CH>=nb, b1=last ? L : p+(k+1)*CH*bar;
+    secs.push({beat:b0, len:b1-b0, ch:ch.slice(k*CH, (k+1)*CH).map(c=>c.name), sh:SH[k%SH.length], dr:bar===3 ? 'waltz' : (last && k>0) ? 'drive' : DRS[k%DRS.length], off:k===0 ? p : 0, v:'theme'});
+  }
+  s.theme=s.n; s.n=notesToN(theme); s.secs=secs; s.vars=['theme'];
+  if(!/Claude/.test(s.by)) s.by+='・伴奏 Claude';
 }
 SONGS.forEach(buildPD);
 
@@ -1769,7 +1764,7 @@ window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met
   back:()=>({on:!!bk.bus, n:bk.ev.length, i:bk.i, kinds:[...new Set(bk.ev.map(e=>e.k))].sort().join(',')}), backOf:id=>{ const s=allSongs().find(x=>x.id===id); if(!s) return null; const p=parseSong(s), ev=backEvents(s, p.beats); return {n:ev.length, kinds:[...new Set(ev.map(e=>e.k))].sort().join(',')}; },
   secs:id=>{ const x=allSongs().find(y=>y.id===id); if(!x || !x.secs) return []; const all=parseSong(x).notes; return x.secs.map(sc=>{ const ns=all.filter(n=>n.beat>=sc.beat-1e-6 && n.beat<sc.beat+sc.len-1e-6); return {v:sc.v, dr:sc.dr, notes:ns.map(n=>n.midi), lens:ns.map(n=>n.len)}; }); },
   theme:id=>{ const x=SONGS.find(y=>y.id===id); return x ? (x.theme||x.n) : ''; },
-  pd:()=>SONGS.map(s=>({id:s.id, sec:Math.round(parseSong(s).beats*60/s.bpm), vars:(s.vars||[]).join('+'), ch:(s.secs&&s.secs[0] ? s.secs[0].ch.join(' ') : '')})),
+  pd:()=>SONGS.map(s=>({id:s.id, sec:Math.round(parseSong(s).beats*60/s.bpm), vars:(s.vars||[]).join('+'), ch:(s.secs ? s.secs.flatMap(x=>x.ch).join(' ') : '')})),
   fxOn:()=>!!(game && game.fe), fever:()=>!!(game && game.fever), orig:()=>ORIG.map(s=>({id:s.id, t:s.t, sec:Math.round(parseSong(s).beats*60/s.bpm), secs:s.secs.length, shapes:[...new Set(s.secs.map(x=>x.sh))].join(',')})), insts:()=>INST.map(x=>x.id),
   hitTest:(i)=>{ if(!game || !game.playing) return null; const n=game.notes.find(x=>!x.res && x.lane===i); if(!n) return null; game.t0=AC.currentTime-n.t; judge(i); return n.res; }, lanes:v=>{ st.lanes=v==='four' ? 'four' : 'note'; save(); game=null; render(); },
   // 🎼 曲を つくる（v673）
