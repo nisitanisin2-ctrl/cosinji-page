@@ -22564,6 +22564,28 @@ async function runOto678(browser) {
   await ctx.close();
 }
 
+async function runHyoGen679(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ✨ ことばで表を作る（v679。表の 形を 40 ふやす） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(async () => { await hgOpen(); }); await w(600);
+  const Q = ['請求書', '税込の価格表', 'どっちがお得', '商品別の売上', '光熱費', '燃費の記録', '交通費の精算', 'ローンの返済 300万円', '投資のポートフォリオ', '達成率', 'お祝いのお返し', '年賀状', '連絡先', '取引先の一覧', '誕生日リスト', '医療費控除', '薬の飲み忘れ', '体温', '睡眠の記録', '授乳の記録', '犬の散歩', '筋トレの記録', '勉強時間', '習慣 早起き、運動', '子どものお手伝い', '町内会費の集金', '掃除当番', '大掃除', 'ゴミ出し', '旅行の行程', '結婚式の招待客', '総当たり', '人気投票', 'レシピ 2人分を5人分', '賞味期限', '更新日の一覧', '欲しい物リスト', '読書の記録', '作業日報', '座席表'];
+  check('  ふえた 言い方 → 表の 形（40）', await page.evaluate(q => q.map(t => { const sp = HG.parse(t); return sp ? sp.id : '-'; }).join(','), Q),
+    'invoice,taxcalc,unitprice,salesitem,utility,car,koutsuhi,loan,invest,kpi,gift,nenga,contact,customer,birthday,iryohi,medicine,taion,sleep,baby,pet,workout,study,habit,kids,kaihi,touban,cleaning,gomi,trip,guest,league,vote,recipe,food,kigen,wish,reading,nippo,seat');
+  check('  並べた 品名に 種類の 言葉が あっても まちがえない（薬・パスポート）', await page.evaluate(() => ['薬、ばんそうこう、牛乳の買い物', 'パスポート、財布、充電器の持ち物', '3人で割り勘'].map(t => HG.parse(t).id).join(',')), 'shop,motimono,warikan');
+  check('  どの 表も 作ると 式の エラーが 出ない', await page.evaluate(q => { const bad = []; for (const t of q) { resetAll(); HG.apply(t, 'here'); recalcAll(); for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (/^#/.test(String(getCellDisplay(r, c)))) bad.push(t + ':' + r + ',' + c); } return bad.slice(0, 5).join(' '); }, Q), '');
+  check('  レシピ：人数に 合わせて 分量（2人分 200 → 5人分 500）', await page.evaluate(() => { resetAll(); HG.apply('カレーのレシピ 2人分を5人分', 'here'); setCellVal(1, 1, '200'); recalcAll(); return getCellDisplay(1, 3); }), '500');
+  check('  税込：10% と 8%（1000円 → 1100 / 1080）', await page.evaluate(() => { resetAll(); HG.apply('税込の価格表', 'here'); setCellVal(1, 1, '1000'); setCellVal(2, 1, '1000'); setCellVal(2, 2, '8%'); recalcAll(); return getCellDisplay(1, 3) + '/' + getCellDisplay(2, 3); }), '1100/1080');
+  check('  対戦表：○×△ で 勝ち・勝ち点', await page.evaluate(() => { resetAll(); HG.apply('田中、佐藤、鈴木、高橋の総当たり', 'here'); setCellVal(1, 2, '○'); setCellVal(1, 3, '△'); recalcAll(); return [data[1][1], getCellDisplay(1, 5), getCellDisplay(1, 7)].join('/'); }), '－/1/4');
+  check('  当番表：名前を 順番に 入れる', await page.evaluate(() => { resetAll(); HG.apply('田中、佐藤、鈴木の掃除当番', 'here'); return [1, 2, 3, 4].map(r => data[r][1]).join(','); }), '田中,佐藤,鈴木,田中');
+  check('  集金：金額を 入れて おく・☑ で 集まった 額', await page.evaluate(() => { resetAll(); HG.apply('町内会費の集金 1000円 田中、佐藤、鈴木', 'here'); setCellVal(1, 0, '1'); recalcAll(); const r = data.findIndex(x => x[1] === '集まった 額'); return data[1][2] + '/' + getCellDisplay(r, 2); }), '1000/1000');
+  check('  たとえばの ボタンも ふえる', await page.evaluate(() => HG.examples.length >= 40 && HG.examples.every(e => !!HG.parse(e))), true);
+  await page.evaluate(() => { if (window.HG && HG.close) HG.close(); });
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('ふえた表（v679）'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v679'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -22936,6 +22958,7 @@ const SUITES = [
   [['oto677', 'v677'], b => runOto677(b)],
   [['oto678', 'v678'], b => runOto678(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
+  [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['rec671', 'v671'], b => runRec671(b)],
   [['input672', 'v672'], b => runInput672(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
