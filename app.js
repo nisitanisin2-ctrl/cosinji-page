@@ -43,6 +43,7 @@ const evaluating = new Set();
 
 // 複数セル選択
 let rangeR1 = -1, rangeC1 = -1, rangeR2 = -1, rangeC2 = -1;
+let rngExt = false;   // v680：「⤢ 範囲を広げる」中（タップした セルまで 範囲を 広げる）
 
 // コピー&ペースト
 let clipData = null;
@@ -967,6 +968,7 @@ function buildSheet() {
           fxPutRef(cref(r,c), msPick || e.ctrlKey || e.metaKey); return;   // 複数選択（Ctrl）の 間は「,」で つなぐ（v654）   // 押し直すと 入れかえ・関数の 中は「,」で つなぐ（Excel と 同じ。v648）
         }
         formulaEditMode=false; fi.classList.remove('formula-mode');
+        if (rngExt && rangeR1>=0) { extendRange(r,c); if (cellGesture==='excel') showEditBar(true); return; }   // v680：⤢ 範囲を広げる 中は タップした セルまで
         if (msPick || e.ctrlKey || e.metaKey) { msTap(r,c); return; }   // v657：Ctrl の 段の「複数選ぶ」が オンの とき   // 複数選択：ばらばらの セルを 足す（v654）
         msClear();
         if (hpCellTap(r,c)) {   // ☑ チェック欄は押すと ☑⇄☐、えらぶだけの列は えらぶ窓（v563）
@@ -1297,7 +1299,9 @@ function makeRowGrip(rh,r){
 }
 
 /* ── 複数セル選択 ── */
+function rngExtSet(on){ rngExt=!!on; document.body.classList.toggle('rng-ext', rngExt); }
 function clearRangeSelection() {
+  if(rngExt) rngExtSet(false);
   document.querySelectorAll('.sel-range').forEach(el=>el.classList.remove('sel-range','sr-t','sr-b','sr-l','sr-r'));
   const had=rangeR1>=0;
   rangeR1=rangeC1=rangeR2=rangeC2=-1;
@@ -1702,7 +1706,7 @@ const BAND_KINDS=[
 /* 帯に いつも ある ボタン（index.html の #cellMenu の data-act） */
 const BAND_COMMON=['cut','copy','paste','merge','edit','clear','fmt','lock'];
 const BAND_FMT=['nf_yen','nf_pct','nf_comma','dec_up','dec_dn','bold','al_l','al_c','al_r'];
-const BAND_RANGE=['autosum','sort_up','sort_dn','chart','cf_q','ck_mk'];   // 🎨 色の決まり・☑ チェックに（v670）   // コピーの ボタン（BAND_FILL）は 範囲選択と コピーの しかた の ところ（v629）
+const BAND_RANGE=['rng_ext','autosum','sort_up','sort_dn','chart','cf_q','ck_mk'];   // 🎨 色の決まり・☑ チェックに（v670）   // コピーの ボタン（BAND_FILL）は 範囲選択と コピーの しかた の ところ（v629）
 /* 置ける ボタン（帯の 種類ごと） */
 function bandPool(k){
   if(k==='col') return ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'];
@@ -1715,8 +1719,8 @@ const BAND_DEF={
   num:  ['nf_yen','nf_pct','nf_comma','dec_up','dec_dn'].concat(BAND_COMMON),
   text: ['bold','al_l','al_c','al_r'].concat(BAND_COMMON),
   empty: ['ck_mk'].concat(BAND_COMMON),   // 空の セル：☑ チェックに（v672）
-  range:['autosum','sort_up','sort_dn','chart','cf_q','ck_mk'].concat(BAND_COMMON),
-  rtext:['merge','bold','al_c','sort_up','ck_mk','cut','copy','paste','edit','clear','fmt','lock'],
+  range:['rng_ext','autosum','sort_up','sort_dn','chart','cf_q','ck_mk'].concat(BAND_COMMON),
+  rtext:['merge','rng_ext','bold','al_c','sort_up','ck_mk','cut','copy','paste','edit','clear','fmt','lock'],
   col:  ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'],
   row:  ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'],
 };
@@ -1739,6 +1743,7 @@ const BAND_LABEL={
   nf_yen:['¥ 円','お金の形にする（1200 → ¥1,200）。もう一度 押すと もどす'], nf_pct:['％','パーセントにする（0.25 → 25%）。もう一度 押すと もどす'],
   nf_comma:['1,000','3けたごとに「,」を付ける（12000 → 12,000）'], dec_up:['.0＋','小数を 1けた ふやす'], dec_dn:['.0−','小数を 1けた へらす'],
   bold:['𝐁 太字','太い字にする。もう一度 押すと もどす'], al_l:['⇤ 左','左に 寄せる'], al_c:['↔ 中央','まん中に 寄せる'], al_r:['⇥ 右','右に 寄せる'],
+  rng_ext:['⤢ 範囲を広げる','押したあと、セルを タップすると そこまで 範囲が 広がる（はなれた ところ・表を 動かした 先でも）。もう一度 押すと 終わる'],
   autosum:['Σ 合計','選んだ範囲の 下（横長なら 右）に、合計の式（=SUM）を 入れる'],
   sort_up:['↑ 小さい順','選んだ範囲の 行を、いま選んでいる列の 小さい順（あいうえお順）に 並べかえる'], sort_dn:['↓ 大きい順','選んだ範囲の 行を、いま選んでいる列の 大きい順に 並べかえる'],
   chart:['📊 グラフ','選んだ範囲を 棒・折れ線・円グラフに する'],
@@ -1769,6 +1774,8 @@ function bandDef(id, kind){
     case 'dec_dn':  it.keep=1; it.run=()=>bandDec(-1); return it;
     case 'bold':    it.on=!!s.bold; it.keep=1; it.run=()=>kfmtToggle('bold'); return it;
     case 'al_l': case 'al_c': case 'al_r': { const a={al_l:'left', al_c:'center', al_r:'right'}[id]; it.on=s.align===a; it.keep=1; it.run=()=>kfmtAlign(a); return it; }
+    case 'rng_ext': if(!rng) return null; it.on=rngExt; if(rngExt){ it.t='✓ 広げ終わる'; } it.keep=1;
+      it.run=()=>{ rngExtSet(!rngExt); if(rngExt) toast('⤢ セルを タップすると、そこまで 範囲が 広がります（表を 動かしても 大丈夫）。終わるときは「✓ 広げ終わる」', 3600); }; return it;
     case 'autosum': if(!rng) return null; it.run=bandAutoSum; return it;
     case 'sort_up': case 'sort_dn': {
       if(!rng) return null;
@@ -18701,7 +18708,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v679';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v680';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20464,8 +20471,9 @@ function lpSetArmVisual(cls){
 function lpClearArmVisual(){ const el=document.getElementById(`c${lpR}_${lpC}`); if(el) el.classList.remove('lock-arm','setgs-arm','fill-arm'); }
 function startCellPress(r,c,x,y){
   if(typeof hideSeqBtn==='function') hideSeqBtn();   // 別の操作を始めたら連番ボタンを消す
+  fillJustCommitted=false;   // v680：なぞった あと（指を 離すと クリックが 来ない）に 残った「次の 1回を 無視」を、新しく 押した ときに 消す。前は 次の タップが 1回 きかなかった
   lpR=r; lpC=c; lpX=x; lpY=y; lpMoved=false; lpStage=0;
-  lpFromActive=(r===selR && c===selC); rangeDragging=false;
+  lpFromActive=(r===selR && c===selC) || (rangeR1>=0 && r===rangeR2 && c===rangeC2); rangeDragging=false;   // v680：範囲の 先の 端（指を 離した ところ）から なぞると 続きを 広げられる
   lpClearTimers();
   if(cellGesture==='excel'){
     // Excel と同じ：選んだセルの右下の ■ から引っぱるとフィル
@@ -20520,12 +20528,44 @@ function moveCellPress(x,y){
   if(rangeDragging && lpMoved){ rangeDragUpdateTo(x,y); return true; }
   return false;
 }
-/* スライド範囲選択：座標のセルまで選択範囲を伸ばす */
-function rangeDragUpdateTo(clientX, clientY){
-  const target=document.elementFromPoint(clientX,clientY); if(!target) return;
-  const m=target.id?target.id.match(/^c(\d+)_(\d+)$/):null; if(!m) return;
-  extendRange(parseInt(m[1]), parseInt(m[2]));
+/* スライド範囲選択：座標のセルまで選択範囲を伸ばす。
+   v680：指が 表の 端（見えて いる ところの 端から 28px）に 来たら 表を 送りながら 広げる（前は 画面の 端で 止まった） */
+let rdX=0, rdY=0, rdRaf=0;
+const RD_EDGE=28;
+function rangeDragArea(){
+  const w=document.querySelector('.sheet-wrap'); if(!w) return null;
+  const wb=w.getBoundingClientRect(), head=document.querySelector('#sheet thead'), hb=head?head.getBoundingClientRect():null;
+  const rh=document.querySelector('#sheet tbody th'), rw=rh ? rh.getBoundingClientRect().width : 0;
+  return {w, top:Math.max(wb.top, hb?hb.bottom:wb.top), bottom:Math.min(wb.bottom, window.innerHeight), left:wb.left+rw, right:Math.min(wb.right, window.innerWidth)};
 }
+function rangeDragPick(x, y){
+  const a=rangeDragArea(); if(a){ x=Math.max(a.left+2, Math.min(a.right-2, x)); y=Math.max(a.top+2, Math.min(a.bottom-2, y)); }
+  const target=document.elementFromPoint(x,y); if(!target) return;
+  const td=target.closest ? target.closest('#sheet .cell') : null, m=td&&td.id?td.id.match(/^c(\d+)_(\d+)$/):null; if(!m) return;
+  const r=parseInt(m[1]), c=parseInt(m[2]); if(r===rangeR2 && c===rangeC2 && rangeR1>=0) return;
+  extendRange(r, c);
+}
+function rangeDragUpdateTo(clientX, clientY){
+  rdX=clientX; rdY=clientY;
+  rangeDragPick(clientX, clientY);
+  if(!rdRaf && rangeDragEdge()) rdRaf=requestAnimationFrame(rangeAutoScroll);
+}
+function rangeDragEdge(){
+  const a=rangeDragArea(); if(!a) return null;
+  const ox=rdX>a.right-RD_EDGE ? rdX-(a.right-RD_EDGE) : rdX<a.left+RD_EDGE ? rdX-(a.left+RD_EDGE) : 0;
+  const oy=rdY>a.bottom-RD_EDGE ? rdY-(a.bottom-RD_EDGE) : rdY<a.top+RD_EDGE ? rdY-(a.top+RD_EDGE) : 0;
+  return (ox||oy) ? {a, ox, oy} : null;
+}
+function rangeAutoScroll(){
+  rdRaf=0;
+  if(!rangeDragging) return;
+  const e=rangeDragEdge(); if(!e) return;
+  const sp=v=>Math.sign(v)*Math.min(28, 4+Math.abs(v)*0.5), w=e.a.w, bl=w.scrollLeft, bt=w.scrollTop;
+  w.scrollLeft+=e.ox?sp(e.ox):0; w.scrollTop+=e.oy?sp(e.oy):0;
+  rangeDragPick(rdX, rdY);
+  if(w.scrollLeft!==bl || w.scrollTop!==bt) rdRaf=requestAnimationFrame(rangeAutoScroll);
+}
+function rangeDragStop(){ if(rdRaf){ cancelAnimationFrame(rdRaf); rdRaf=0; } }
 function endCellPress(){
   if(lpR<0) return;
   const stage=lpStage, moved=lpMoved, r=lpR, c=lpC;
@@ -20536,6 +20576,7 @@ function endCellPress(){
   if(fillMode && moved){ fillJustCommitted=true; commitFill(); return; }   // ドラッグ＝フィル確定
   if(fillBlock){ blockFillClear(); fillJustCommitted=true; }   // 範囲ごと コピーの 用意だけで 離した：選んだ 範囲は そのまま（v635）
   fillGrabOff();   // 丸を 押しただけで 離した（v630）
+  rangeDragStop();
   if(rangeDragging && moved){ rangeDragging=false; fillJustCommitted=true; if(cellGesture==='excel') showEditBar(true); return; }   // スライド＝範囲選択を確定（次のclickを1回無効化）。v418：帯を出す
   rangeDragging=false;
   fillMode=false; document.body.classList.remove('fill-active');
@@ -20551,7 +20592,7 @@ function cancelCellPress(){
   if(fillMode){ clearFillPreview(); const el=document.getElementById(`c${fillSrcR}_${fillSrcC}`); if(el) el.classList.remove('fill-src'); document.body.classList.remove('fill-active'); }
   fillGrabOff();
   fillMode=false; fillSrcR=fillSrcC=fillEndR=fillEndC=-1;
-  lpR=lpC=-1; lpStage=0; lpMoved=false; rangeDragging=false;
+  lpR=lpC=-1; lpStage=0; lpMoved=false; rangeDragging=false; rangeDragStop();
 }
 /* 右下の 丸（角の つまみ）を 押した 瞬間に、セルを 囲む 枠を オレンジに・丸も 大きく オレンジに して ブルッ（v630）。
    つかめた ことが 分かる。前は 指を 動かすまで 何も 変わらなかった */

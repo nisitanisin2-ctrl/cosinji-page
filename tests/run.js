@@ -19400,7 +19400,7 @@ async function runHyo619(browser) {
   await page.evaluate(() => hideEditBar());
   await tap(0, 1); await page.waitForTimeout(400);
   check('  結合は 帯の はじめの 方（横に すべらせなくても 見える）', await page.evaluate(() => document.getElementById('cellMenuMerge').getBoundingClientRect().right <= innerWidth), true);
-  check('  範囲の 中を タップしても 帯に 結合（v624：文字だけの 範囲は 太字・中央も）', await shown(), '𝐁 太字/↔ 中央/✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/🔒 保護');
+  check('  範囲の 中を タップしても 帯に 結合（v624：文字だけの 範囲は 太字・中央も）', await shown(), '⤢ 範囲を広げる/𝐁 太字/↔ 中央/✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/🔒 保護');
   check('  　文字だけの 範囲は ⊞ 結合が 先頭（v624）', await page.evaluate(() => document.getElementById('cellMenuMerge').style.order), '0');
   await page.click('#cellMenuMerge'); await page.waitForTimeout(400);
   check('  押すと 結合（3列）', await page.evaluate(() => JSON.stringify(mergeAt(0, 0)) + '/' + cellStyles['0,0'].align), '{"rs":1,"cs":3}/center');
@@ -19515,7 +19515,7 @@ async function runHyo624(browser) {
   await page.evaluate(() => { hideEditBar(); clearRangeSelection(); sel(1, 1); }); await w(500);
   let a = await ctr(1, 1), b = await ctr(3, 2);
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await w(80); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await w(600);
-  check('  範囲：合計・並べかえ・グラフ（＋⊞ 結合）', [await ctxBtns(), await page.evaluate(() => !!document.getElementById('cellMenuMerge').offsetParent)].join('|'), 'Σ 合計/↑ 小さい順/↓ 大きい順/📊 グラフ/🎨 色の決まり|true');   // v670：色の決まり（数で 埋まった 範囲には ☑ チェックに は 出ない）
+  check('  範囲：合計・並べかえ・グラフ（＋⊞ 結合）', [await ctxBtns(), await page.evaluate(() => !!document.getElementById('cellMenuMerge').offsetParent)].join('|'), '⤢ 範囲を広げる/Σ 合計/↑ 小さい順/↓ 大きい順/📊 グラフ/🎨 色の決まり|true');   // v670：色の決まり（数で 埋まった 範囲には ☑ チェックに は 出ない）
   await page.evaluate(() => document.querySelector('#cellMenuCtx [data-act=autosum]').click()); await w(400);
   check('  Σ 合計：列ごとに 下へ =SUM（答えも）', await page.evaluate(() => [data[4][1], data[4][2], getCellDisplay(4, 2)].join('/')), '=SUM(B2:B4)/=SUM(C2:C4)/4100');
   await page.evaluate(() => undoLast()); await w(300);
@@ -20130,7 +20130,7 @@ async function runFill629(browser) {
   await reset(); c = await rect(0, 1);
   await swipe(c.l + c.w / 2, c.t + c.h / 2, c.l + c.w / 2, c.t + c.h * 4.5);
   const bandActs = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((a, b) => +a.style.order - +b.style.order).map(b => b.dataset.act).slice(0, 4).join(','));
-  check('  なぞって 範囲を 選ぶと 帯の はじめに ↓ 下へコピー・1,2,3 連番（1列なので → は 出ない）', [await st(), await bandActs()].join(' | '), '空,空,空,空 / 0:1:4:1 | fill_down,fill_series,autosum,sort_up');
+  check('  なぞって 範囲を 選ぶと 帯の はじめに ↓ 下へコピー・1,2,3 連番（1列なので → は 出ない）', [await st(), await bandActs()].join(' | '), '空,空,空,空 / 0:1:4:1 | fill_down,fill_series,rng_ext,autosum');
   await page.evaluate(() => document.querySelector('#cellMenuCtx [data-act=fill_down]').click()); await w(300);
   check('  ↓ 下へコピー（いちばん上を 下へ）・お知らせ', await st() + ' | ' + await page.evaluate(() => document.getElementById('appToast').textContent), '5,5,5,5 / 0:1:4:1 | ↓ 下へコピー：B1:B5（4セル）。↶戻す で 戻せます');
   await page.evaluate(() => undoLast()); await w(200);
@@ -22586,6 +22586,42 @@ async function runHyoGen679(browser) {
   await ctx.close();
 }
 
+async function runRange680(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ▦ 範囲を あとから 広げる（v680） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { resetAll(); setSheetSize(60, 6); }); await w(300);
+  const cdp = await ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  const ctr = s => page.evaluate(s => { const e = document.querySelector(s).getBoundingClientRect(); return [e.left + e.width / 2, e.top + e.height / 2]; }, s);
+  let [x, y] = await ctr('#c1_1'); await page.touchscreen.tap(x, y); await w(400);
+  const bot = await page.evaluate(() => Math.min(document.querySelector('.sheet-wrap').getBoundingClientRect().bottom, innerHeight));
+  await touch('touchStart', x, y); for (let i = 1; i <= 8; i++) { await touch('touchMove', x, y + i * 30); await w(16); }
+  await touch('touchMove', x, bot - 5); await w(1500);
+  const r1 = await page.evaluate(() => [rangeR2, document.querySelector('.sheet-wrap').scrollTop > 200]);
+  await touch('touchEnd'); await w(400);
+  check('  なぞって 画面の 端まで 行くと 表を 送りながら 広がる', r1[0] > 20 && r1[1], true);
+  const before = await page.evaluate(() => rangeR2);
+  [x, y] = await page.evaluate(b => { const e = document.getElementById('c' + b + '_1'); e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + 6]; }, before); await w(300);
+  const hit = await page.evaluate(([x, y]) => (document.elementFromPoint(x, y) || {}).id, [x, y]);
+  await touch('touchStart', x, y); for (let i = 1; i <= 6; i++) { await touch('touchMove', x + i * 20, y - i * 3); await w(16); } await touch('touchEnd'); await w(400);
+  check('  指を 離した あと、範囲の 先の 端から なぞると 続きを 広げられる（はじめは そのまま）', hit + '|' + await page.evaluate(() => [rangeR1, rangeC1, rangeC2 > 1].join('/')), 'c' + before + '_1|1/1/true');
+  check('  帯の はじめに「⤢ 範囲を広げる」', await page.evaluate(() => document.querySelector('#cellMenuCtx button').dataset.act), 'rng_ext');
+  await page.evaluate(() => document.querySelector('#cellMenuCtx button[data-act="rng_ext"]').click()); await w(300);
+  check('  押すと 広げる 中（橙・ボタンは ✓ 広げ終わる）', await page.evaluate(() => [rngExt, document.body.classList.contains('rng-ext'), document.querySelector('#cellMenuCtx button[data-act="rng_ext"]').textContent].join('/')), 'true/true/✓ 広げ終わる');
+  await page.evaluate(() => { document.querySelector('.sheet-wrap').scrollTop += 500; }); await w(300);
+  const t = await page.evaluate(() => { for (let r = ROWS - 1; r > 0; r--) { const e = document.getElementById('c' + r + '_3'); if (e) { const b = e.getBoundingClientRect(); if (b.top > innerHeight * 0.3 && b.bottom < innerHeight * 0.55) return r; } } return -1; });
+  [x, y] = await ctr('#c' + t + '_3'); await page.touchscreen.tap(x, y); await w(400);
+  check('  　表を 動かした 先の セルを タップすると そこまで 広がる（選んだ セルは そのまま）', await page.evaluate(t => [rangeR1, rangeC1, rangeR2 === t, rangeC2, selR, selC].join('/'), t), '1/1/true/3/1/1');
+  await page.evaluate(() => document.querySelector('#cellMenuCtx button[data-act="rng_ext"]').click()); await w(200);
+  check('  　「✓ 広げ終わる」で ふつうに もどる', await page.evaluate(() => rngExt + '/' + document.body.classList.contains('rng-ext')), 'false/false');
+  await page.evaluate(() => { clearRangeSelection(); sel(2, 2); }); await w(200);
+  check('  なぞった あとの 次の タップが きく（前は 1回 無視された）', await page.evaluate(() => { fillJustCommitted = true; startCellPress(3, 3, 0, 0); endCellPress(); return fillJustCommitted; }), false);
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('⤢ 範囲を広げる'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v680'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -22959,6 +22995,7 @@ const SUITES = [
   [['oto678', 'v678'], b => runOto678(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
+  [['range680', 'v680'], b => runRange680(b)],
   [['rec671', 'v671'], b => runRec671(b)],
   [['input672', 'v672'], b => runInput672(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
