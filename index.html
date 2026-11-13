@@ -2856,6 +2856,15 @@ body.ui2.np-side.calc-only { grid-template-areas: "top top" "main numpad" "sheet
 .tm-row:active { background: var(--cell-hover); }
 .tm-row > span { width: 24px; text-align: center; font-size: 18px; }
 .tm-row.tm-danger { color: var(--danger); }
+/* リセットの 横に 既定の 大きさ（v671） */
+.tm-pair { display: flex; border-bottom: 1px solid var(--save-item-border); }
+.tm-pair:last-child { border-bottom: 0; }
+.tm-pair > .tm-row { flex: 1 1 0; min-width: 0; border-bottom: 0; flex-wrap: wrap; row-gap: 0; }
+.tm-pair > .tm-row + .tm-row { border-left: 1px solid var(--save-item-border); }
+.tm-pair > .tm-row small, .more-pair small { display: block; flex-basis: 100%; padding-left: 36px; font-size: 11.5px; color: var(--text-sub); font-weight: normal; }
+.more-pair { display: flex; gap: 6px; }
+.more-pair > .more-item { flex: 1 1 0; min-width: 0; flex-wrap: wrap; }
+.more-pair small { padding-left: 30px; }
 /* 設定の「画面の形」 */
 .set-ui2 { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--save-item-border); border-radius: var(--r-card); background: var(--save-item-bg); }
 .set-ui2-t { font-size: 13px; font-weight: 800; margin-bottom: 6px; }
@@ -3703,6 +3712,24 @@ body.dark .save-mode { background: #143a35; color: #7fcabd; }
   padding: 0 16px 4px; flex-shrink: 0;
 }
 .save-viewbar .sv-spacer { flex: 1 1 auto; }
+/* ☑ えらんで 消す（v671） */
+.save-selbtn { margin-left: 6px; padding: 5px 10px; border-radius: var(--r-btn); border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.save-selbtn.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+.save-selbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; flex-shrink: 0; border-top: 1px solid var(--save-item-border); background: var(--save-item-bg); }
+.save-selbar[hidden] { display: none; }
+.ssb-n { flex: 1 1 auto; min-width: 0; font-size: 13.5px; font-weight: bold; color: var(--text); }
+.ssb-b { min-height: 38px; padding: 4px 12px; border-radius: var(--r-btn); border: 1px solid var(--save-item-border); background: var(--modal-bg, #fff); color: var(--text); font-size: 13.5px; font-weight: bold; cursor: pointer; }
+.ssb-b.ssb-del { background: var(--danger); border-color: var(--danger); color: #fff; }
+.ssb-b:disabled { opacity: .45; cursor: default; }
+#saveListBody.sel-mode [data-id] { position: relative; }
+#saveListBody.sel-mode [data-id]::after { content: ''; position: absolute; top: 50%; right: 12px; transform: translateY(-50%); width: 22px; height: 22px; box-sizing: border-box;
+  border-radius: 50%; border: 2px solid var(--text-light); background: var(--modal-bg, #fff); pointer-events: none; }
+#saveListBody.sel-mode .save-grid [data-id]::after { top: 8px; right: 8px; transform: none; }
+#saveListBody.sel-mode [data-id].picked { outline: 2px solid var(--acc); outline-offset: -2px; }
+#saveListBody.sel-mode [data-id].picked::after { border-color: var(--acc); background: var(--acc) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 12.5l4 4 8-9' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat; }
+#saveListBody.sel-mode [data-id].locked { opacity: .45; }
+#saveListBody.sel-mode .sf-more, #saveListBody.sel-mode .save-item button, #saveListBody.sel-mode .save-item select { visibility: hidden; }
+body.ui2 #saveListOverlay.sel-on .save-new-btn { display: none; }
 .save-sortsel {
   border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text-light);
   border-radius: var(--r-btn); padding: 4px 6px; font-size: 12px; max-width: 46%;
@@ -4872,7 +4899,10 @@ body.dark {
           <button class="more-item menu-item" id="defsizeTopBtn" title="新しい表や ▦通常 に戻したときの行数・列数を決めます"><span>▦</span>既定の大きさ</button>
         </div>
         <div class="more-sec more-danger-sec">表の中身を消す</div>
-        <button class="more-item more-danger menu-item" id="resetBtn" onclick="moreDo(resetAll)"><span>🧹</span>リセット（戻るで元に戻せます）</button>
+        <div class="more-pair">
+          <button class="more-item more-danger menu-item" id="resetBtn" onclick="moreDo(resetAll)"><span>🧹</span>リセット（戻るで元に戻せます）</button>
+          <button class="more-item menu-item" id="defszBtn" onclick="moreDo(resetToDefaultSize)" title="行と列の数を 既定の 大きさに 戻す（戻るで元に戻せます）"><span>▦</span>既定の大きさに<small class="defsz-lb">15行×3列</small></button>
+        </div>
       </details>
       <input id="importCSVInput" type="file" accept=".csv,text/csv" style="display:none" onchange="importCSV(event)">
       <input id="importXLSXInput" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="importXLSX(event)">
@@ -5848,11 +5878,18 @@ body.dark {
         <option value="name">🔤 名前 あ→ん</option>
         <option value="namez">🔤 名前 ん→あ</option>
       </select>
+      <button class="save-selbtn" id="saveSelBtn" onclick="saveSelToggle()" title="いくつか えらんで まとめて 消す">☑ えらんで消す</button>
       <span class="sv-spacer"></span>
       <button class="save-viewbtn" id="saveViewIcon" onclick="setSaveView('icon')" title="ファイルのアイコンで並べます">⊞ アイコン</button>
       <button class="save-viewbtn" id="saveViewList" onclick="setSaveView('list')" title="1件ずつ、ボタン付きで並べます">☰ リスト</button>
     </div>
     <div class="modal-body" id="saveListBody"></div>
+    <div class="save-selbar" id="saveSelBar" hidden><!-- まとめて 消す（v671） -->
+      <span class="ssb-n" id="saveSelN">0件 えらんでいます</span>
+      <button type="button" class="ssb-b" id="saveSelAll" onclick="saveSelAll()">すべて</button>
+      <button type="button" class="ssb-b ssb-del" id="saveSelDel" onclick="saveSelDelete()" disabled>🗑 消す</button>
+      <button type="button" class="ssb-b" onclick="saveSelToggle(false)">やめる</button>
+    </div>
     <div class="save-toolbar">
       <button class="save-tool-btn" id="saveExportBtn" onclick="fullExport()" title="表・保存した表・設定・道具の データ・写真まで ぜんぶを 1つの ファイルに（別の パソコンで インポートすると 同じ 状態に）">⬇ エクスポート</button>
       <button class="save-tool-btn" id="saveImportBtn" onclick="fullPickImport()" title="エクスポートした ファイルから、まったく 同じ 状態に する（前の「保存データ」の ファイルは 足し合わせ）">⬆ インポート</button>
@@ -6075,7 +6112,10 @@ body.dark {
         <button class="tm-row" onclick="tmDo(exportXLSX)"><span>📊</span>Excel で送る・保存</button>
         <button class="tm-row" onclick="tmDo(shareSheetImage)"><span>🖼</span>画像で送る</button>
         <button class="tm-row" onclick="tmDo(freezePanes)"><span>📌</span>見出しを固定</button>
-        <button class="tm-row tm-danger" onclick="tmDo(resetAll)"><span>🧹</span>この表を空にする（元に戻せます）</button>
+        <div class="tm-pair"><!-- リセットの 横に 既定の 大きさ（v671） -->
+          <button class="tm-row tm-danger" onclick="tmDo(resetAll)"><span>🧹</span>この表を空にする<small>元に戻せます</small></button>
+          <button class="tm-row tm-defsz" id="tmDefSz" onclick="tmDo(resetToDefaultSize)"><span>▦</span>既定の大きさに<small class="defsz-lb">15行×3列</small></button>
+        </div>
       </div>
     </div>
   </div>

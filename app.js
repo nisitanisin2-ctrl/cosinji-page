@@ -5760,6 +5760,31 @@ function applyDefaultSize(){
   closeSettingsPanel();   // 規定に戻したら設定を閉じて表を見せる
   toast(`${ROWS}行×${COLS}列にしました`);
 }
+/* ▦ 既定の大きさに戻す（v671。リセットの 横）：行と列の 数だけ 既定に する。中身は 消さない。
+   既定の 外に 中身が あれば 聞いてから 消す。↶戻る で 元に 戻せる */
+async function resetToDefaultSize(){
+  if(isStructMode()){ toast('この表のかたちでは行・列の数を変えられません'); return; }
+  const R=getDefaultRows(), C=getDefaultCols();
+  if(ROWS===R && COLS===C){ toast(`もう 既定の 大きさ（${R}行×${C}列）です`); return; }
+  let out=0;
+  for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) if((r>=R || c>=C) && data[r][c]!=='' && data[r][c]!=null) out++;
+  if(out && !await appConfirm(`既定の ${R}行×${C}列 の 外に 中身の ある セルが ${out}個 あります。\n外の 中身は 消えます（↶戻る で 元に 戻せます）。`, '戻す', 'やめる')) return;
+  pushSnapshot('既定の大きさに戻す');
+  if(out){
+    for(let r=0;r<MAXROWS;r++) for(let c=0;c<MAXCOLS;c++) if(r>=R || c>=C) data[r][c]='';
+    for(const k in cellStyles){ if(k.charCodeAt(0)===95) continue; const p=k.split(','); if(+p[0]>=R || +p[1]>=C) delete cellStyles[k]; }
+  }
+  hideAllBars();
+  setSheetSize(R, C);
+  recalcAll();
+  sel(Math.min(selR,ROWS-1), Math.min(selC,COLS-1));
+  persistModes();
+  if(typeof saveSheets==='function') saveSheets();
+  if(typeof markSaveDirty==='function') markSaveDirty();
+  toast(`${R}行×${C}列（既定の 大きさ）に しました。↶戻る で 元に 戻せます`, 3200);
+}
+/* メニューの「既定の大きさに」の 下の 小さい字 */
+function defszLabelSync(){ const t=getDefaultRows()+'行×'+getDefaultCols()+'列'; document.querySelectorAll('.defsz-lb').forEach(e=>e.textContent=t); }
 /* 設定の「行と列の数」で決めた大きさを、そのままデフォルトにする（v495） */
 function setSizeAsDefault(){
   localStorage.setItem('excalc_default_rows',ROWS);
@@ -5831,7 +5856,7 @@ function toast(msg, ms, opt){
   el.classList.toggle('has-act', !!(opt && opt.undo));
   if(opt && opt.undo){   // 「元に戻す」（v641）
     const b=document.createElement('button'); b.type='button'; b.className='toast-act'; b.textContent='元に戻す';
-    b.addEventListener('click', ()=>{ el.classList.remove('show'); try{ undoLast(); }catch(_){} });
+    b.addEventListener('click', ()=>{ el.classList.remove('show'); try{ if(typeof opt.undo==='function') opt.undo(); else undoLast(); }catch(_){} });
     el.appendChild(b); ms=ms||5000;
   }
   // 新しい 画面（v667）：上の バーの すぐ 下に 小さく 出す（セルの バー・声の 行・テンキーに かぶらない）。出す 時間も 短く
@@ -18045,6 +18070,7 @@ function openUndoList(){
 }
 function closeUndoList(){ closeDlg('undoListOverlay'); }
 function openMoreMenu(){
+  if(typeof defszLabelSync==='function') defszLabelSync();
   renderMoreTools(); applyMoreAcc(); renderMenuRecent();   // 最近使った操作（v624）
   renderMenuNotes();   // 新しい版・バックアップの お知らせ（v639）
   { const lb=document.getElementById('listBtn'); if(lb){ if(!lb.dataset.h0) lb.dataset.h0=lb.innerHTML; lb.innerHTML=ui2On ? '<span>📂</span>表の一覧' : lb.dataset.h0; } }   // v642
@@ -18604,7 +18630,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v670';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v671';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20845,7 +20871,11 @@ function sumPointerUp(e){
 /* ── 保存・ロード ── */
 const SAVE_KEY='excalc_saves';
 function getSaves(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'[]');}catch{return[];}}
-let currentSaveId=null;   // リストから読込／新規保存した記録のid（保存時に上書き先の候補にする）
+/* いま 開いている 記録（v671：アプリを 開き直しても 覚える。前は 開き直すたびに 忘れて、
+   同じ 表が 次に 打った ときに 新しい「Book○」として 一覧に ふえて いた） */
+const CUR_REC_KEY='excalc_cur_rec';
+let currentSaveId=(()=>{ try{ const v=localStorage.getItem(CUR_REC_KEY); if(v==null || v==='') return null; const id=Number(v); return getSaves().some(s=>s.id===id) ? id : null; }catch(_){ return null; } })();   // リストから読込／新規保存した記録のid（保存時に上書き先の候補にする）
+function curRecPersist(){ try{ if(currentSaveId==null) localStorage.removeItem(CUR_REC_KEY); else localStorage.setItem(CUR_REC_KEY, String(currentSaveId)); }catch(_){} }
 /* ── 今開いている記録名の表示（ファイル名の感覚）＋未保存の変更マーカー（●） ── */
 let saveDirty=false;
 /* ── いま中身がどこまで安全か ──────────────────────────────────
@@ -20877,6 +20907,7 @@ function saveStateInfo(){
   return { mark:'✓', cls:'saved', text:'まだ記録には保存していませんが、いまの表は端末に自動保存されています' };
 }
 function updateRecordTitle(){
+  curRecPersist();   // v671
   const el=document.getElementById('recordTitle'); if(!el) return;
   const cur=(currentSaveId!=null)?getSaves().find(s=>s.id===currentSaveId):null;
   const st=saveStateInfo();
@@ -20920,6 +20951,21 @@ function autoRecSnap(){
     data:data.slice(0,R).map(row=>row.slice(0,C)), styles:{...cellStyles},   // 表の 大きさ ぶん だけ（1,000×100 を まるごと 書かない）
     modeSheets:makeAllModesSnap(), curMode:workspaceMode, sheetSet:undefined, sheets:undefined, cur:undefined };
 }
+/* 一覧に 残す ほどの 表か（v671）：中身の ある セルが 2つ 以上・シートが 2枚 以上 */
+function autoRecWorth(){
+  if(Array.isArray(sheets) && sheets.length>1) return true;
+  let n=0;
+  for(let r=0;r<ROWS;r++){ const row=data[r]; if(!row) continue; for(let c=0;c<COLS;c++){ if(row[c]!=='' && row[c]!=null && ++n>=2) return true; } }
+  return false;
+}
+/* 中身が まったく 同じ 記録（新しい 順に 30件まで見る。🔒・ひな形の タブは 除く） */
+function autoRecSame(saves){
+  const R=Math.max(1,ROWS), C=Math.max(1,COLS);
+  const key=JSON.stringify(data.slice(0,R).map(row=>row.slice(0,C)));
+  const list=saves.filter(x=>!x.locked && x.tab!==SAVE_TAB_MODE && x.rows===ROWS && x.cols===COLS).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,30);
+  for(const x of list){ try{ if(JSON.stringify((x.data||[]).slice(0,R).map(row=>(row||[]).slice(0,C)))===key) return x; }catch(_){} }
+  return null;
+}
 function autoRecSave(name){
   autoRecTimer=null;
   if(!autoRecOn()) return false;
@@ -20927,7 +20973,9 @@ function autoRecSave(name){
   let cur=(currentSaveId!=null)?saves.find(s=>s.id===currentSaveId):null;
   if(cur && (cur.locked || cur.tab===SAVE_TAB_MODE)) return false;   // 書きかえない 表
   if(!cur){
-    if(!name && isSheetEmpty() && (!Array.isArray(sheets) || sheets.length<=1)) return false;   // 空の 表は 残さない
+    if(!name && !autoRecWorth()) return false;   // 空や 1マスだけの 表は 残さない（v671）
+    const same=!name && autoRecSame(saves);       // 同じ 中身の 表が もう 一覧に あれば、それを 開いている ことに する（v671）
+    if(same){ currentSaveId=same.id; Object.assign(same, autoRecSnap()); if(!persistSaves(saves)) return false; saveDirty=false; updateRecordTitle(); return true; }
     const id=Date.now();
     cur=Object.assign({ id, name:name||nextBookName(saves), tab:0 }, autoRecSnap());
     saves.unshift(cur); currentSaveId=id;
@@ -21201,7 +21249,7 @@ function showSaveList(){
   setSaveTab(0);
   openDlg('saveListOverlay');
 }
-function closeSaveList(){closeDlg('saveListOverlay');}
+function closeSaveList(){ if(saveSel){ saveSel=null; saveSelSync(); } closeDlg('saveListOverlay'); }
 /* 「いまの表」「記録」「ファイル」の3段階を、いまどこまで安全かと一緒に出す。
    どれも端末の中だけ、という誤解が起きやすいところなので言葉で分けて書く。 */
 function renderSaveStateBanner(){
@@ -21336,6 +21384,7 @@ function bindSaveFileHold(){
   document.querySelectorAll('#saveListBody .save-file').forEach(el=>{
     el.addEventListener('pointerdown', e=>{
       if(e.button!==undefined && e.button>0) return;
+      if(saveSel) return;                                // えらんでいる 間は 長押しの メニューを 出さない（v671）
       if(e.target.closest('.sf-more')) return;
       sfHeld=false; clearTimeout(sfHoldTimer);
       const id=+el.dataset.id;
@@ -21349,6 +21398,7 @@ function bindSaveFileHold(){
     // 開くのはここで行う。タグの onclick に置いていたときは、長押しで指を離した分の
     // クリックが先に届いて、メニューを出したのに記録まで開いてしまっていた。
     el.addEventListener('click', e=>{
+      if(saveSel){ e.preventDefault(); e.stopImmediatePropagation(); saveSelPick(+el.dataset.id); return; }   // えらんで 消す（v671）
       if(e.target.closest('.sf-more')) return;          // ⋯は別の役目
       if(sfHeld){ sfHeld=false; e.preventDefault(); e.stopImmediatePropagation(); return; }   // 長押し＝開かない
       loadSave(+el.dataset.id);
@@ -21403,8 +21453,78 @@ function saveFileMenuAct(id, a, arg){
   else if(a==='delete') deleteSave(id);
 }
 
+/* ☑ えらんで まとめて 消す（v671）：saveSel＝えらんだ 記録の id（null＝えらんで いない） */
+let saveSel=null;
+function saveSelToggle(on){
+  if(on===undefined) on=!saveSel;
+  saveSel=on ? new Set() : null;
+  renderSaveList();
+}
+function saveSelPick(id){
+  if(!saveSel) return;
+  const s=getSaves().find(x=>x.id===id); if(!s) return;
+  if(s.locked){ toast('🔒 ロックした表は消せません（先にロックを外してください）'); return; }
+  if(saveSel.has(id)) saveSel.delete(id); else saveSel.add(id);
+  saveSelSync();
+}
+function saveSelVisible(){ return sortSaves(getSaves().filter(s=>(s.tab||0)===saveActiveTab && !s.locked)).map(s=>s.id); }
+function saveSelAll(){
+  if(!saveSel) return;
+  const ids=saveSelVisible(), all=ids.length && ids.every(id=>saveSel.has(id));
+  ids.forEach(id=>{ if(all) saveSel.delete(id); else saveSel.add(id); });
+  saveSelSync();
+}
+function saveSelSync(){
+  const on=!!saveSel, body=document.getElementById('saveListBody'), bar=document.getElementById('saveSelBar'), btn=document.getElementById('saveSelBtn'), ov=document.getElementById('saveListOverlay');
+  if(body){
+    body.classList.toggle('sel-mode', on);
+    body.querySelectorAll('[data-id]').forEach(el=>{ const p=on && saveSel.has(+el.dataset.id); el.classList.toggle('picked', p); el.setAttribute('aria-pressed', on ? String(p) : ''); if(!on) el.removeAttribute('aria-pressed'); });
+  }
+  if(btn){ btn.classList.toggle('on', on); btn.textContent=on ? '☑ えらんでいます' : '☑ えらんで消す'; }
+  if(ov) ov.classList.toggle('sel-on', on);
+  if(bar){
+    bar.hidden=!on;
+    if(on){
+      const n=saveSel.size, ids=saveSelVisible();
+      document.getElementById('saveSelN').textContent=n ? n+'件 えらんでいます' : '消す 表を 押して えらんでください';
+      document.getElementById('saveSelDel').disabled=!n;
+      document.getElementById('saveSelAll').textContent=(ids.length && ids.every(id=>saveSel.has(id))) ? 'すべて外す' : 'すべて';
+    }
+  }
+}
+/* ☰ リストの 見せ方（1件ずつ ボタン付き）でも 行を 押して えらべる */
+document.addEventListener('click', e=>{
+  if(!saveSel) return;
+  const it=e.target.closest && e.target.closest('#saveListBody .save-item[data-id]');
+  if(!it) return;
+  e.preventDefault(); e.stopPropagation();
+  saveSelPick(+it.dataset.id);
+}, true);
+async function saveSelDelete(){
+  if(!saveSel || !saveSel.size) return;
+  const saves=getSaves(), del=saves.filter(s=>saveSel.has(s.id) && !s.locked);
+  if(!del.length) return;
+  const names=del.slice(0,3).map(s=>'「'+s.name+'」').join('')+(del.length>3?' ほか':'');
+  const cur=del.some(s=>s.id===currentSaveId);
+  if(!await appConfirm(`${del.length}件の 表を 消しますか？\n${names}${cur?'\n（いま 開いている 表も 入っています。画面の 表は そのまま 残ります）':''}`, '消す', 'やめる')) return;
+  const gone=new Set(del.map(s=>s.id));
+  if(!persistSaves(saves.filter(s=>!gone.has(s.id)))) return;
+  const wasCur=currentSaveId;
+  if(gone.has(currentSaveId)){ currentSaveId=null; saveDirty=false; updateRecordTitle(); }
+  saveSel=null;
+  renderSaveList();
+  toast(del.length+'件の 表を 消しました', 6000, {undo:()=>{   // 「元に戻す」で 消した 表を 一覧に 戻す
+    const now=getSaves(), have=new Set(now.map(s=>s.id));
+    persistSaves(now.concat(del.filter(s=>!have.has(s.id))));
+    if(wasCur!=null && currentSaveId==null && gone.has(wasCur)){ currentSaveId=wasCur; updateRecordTitle(); }
+    if(isDlgOpen('saveListOverlay')) renderSaveList();
+    toast(del.length+'件の 表を 一覧に 戻しました');
+  }});
+}
 function renderSaveList() {
   const body=document.getElementById('saveListBody');
+  if(saveSel){ const ok=new Set(saveSelVisible()); [...saveSel].forEach(id=>{ if(!ok.has(id)) saveSel.delete(id); }); }   // ほかの タブに 移ったら 外す
+  setTimeout(saveSelSync, 0);
   syncSaveViewBtns();
   const saves=sortSaves(getSaves().filter(s=>(s.tab||0)===saveActiveTab));
   if(saves.length===0){body.innerHTML='<div class="no-saves">このタブに保存データがありません</div>';return;}
@@ -21417,7 +21537,7 @@ function renderSaveList() {
     const mi=s.mode?modeItemByKey(s.mode):null;   // 保存時のモード（古い保存はmode無し）
     const modeBadge=mi?`<span class="save-mode">${mi.item.icon} ${escHtml(mi.item.name)}</span>`:'';
     return `
-    <div class="save-item${locked?' locked':''}${isCur?' current':''}">
+    <div class="save-item${locked?' locked':''}${isCur?' current':''}" data-id="${s.id}">
       <div class="save-info">
         <div class="save-name">${locked?'🔒 ':''}${escHtml(s.name)}${isCur?'<span class="save-open-badge">📂 開いています</span>':''}</div>
         <div class="save-date">${new Date(s.timestamp).toLocaleString('ja-JP')}　${s.rows}行×${s.cols}列${modeBadge}</div>
@@ -22968,7 +23088,7 @@ function fbOkTap(){
   eq();
 }
 /* この 表の メニュー（⋮） */
-function openTableMenu(){ const t=document.getElementById('tableMenuTitle'); if(t) t.textContent=(document.getElementById('atName')||{}).textContent||'この表'; openDlg('tableMenuOverlay'); }
+function openTableMenu(){ defszLabelSync(); const t=document.getElementById('tableMenuTitle'); if(t) t.textContent=(document.getElementById('atName')||{}).textContent||'この表'; openDlg('tableMenuOverlay'); }
 function closeTableMenu(){ closeDlg('tableMenuOverlay'); }
 function tmDo(fn){ closeTableMenu(); try{ fn(); }catch(e){ toast('うまく開けませんでした'); } }
 /* 下の タブ：開いて いる 窓を 閉じてから 移る（閉じた すぐ あとに 開く ので、戻るの 履歴は ずれない） */
