@@ -20483,7 +20483,7 @@ async function runBandPc633(browser) {
   check('  帯の 上で ホイールを 回すと 横に 送る（テンキーの ページは 変わらない）・左にも ◀', await st() + ' ' + (await npNow() === openWhich0), '送った/◀/▶ true');
   await page.click('#cellMenu .cm-arr-r'); await w(700);
   check('  ▶ を 押すと 右へ 送る（端まで 来たら ▶ は 消える）', await st(), '送った/◀/-');
-  await page.click('#cellMenu .cm-arr-l'); await w(700);
+  for (let i = 0; i < 4 && (await st()).startsWith('送った'); i++) { await page.click('#cellMenu .cm-arr-l'); await w(700); }   // v670：帯の ボタンが ふえて 1回では 戻りきらない ことも
   check('  ◀ で 左へ 戻る', await st(), 'はじめ/-/▶');
   await page.mouse.move(bb.x, bb.y); await page.mouse.wheel(0, 120); await w(300);
   await page.click('#cellMenu [data-act="copy"]'); await w(300);
