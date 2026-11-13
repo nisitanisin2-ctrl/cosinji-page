@@ -22473,6 +22473,42 @@ async function runOto675(browser) {
   await ctx.close();
 }
 
+async function runOto676(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎵 音の道具（v676。マイクで 聞き取って 曲に する） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openOto('make')); await w(500);
+  // 鼻歌の まね：低い 声（C3）・ゆれ・ときどき 1オクターブ とぶ・同じ 音の くり返し・休み
+  const mk = () => { const fr = [], spb = 0.6, mel = [[48, 1], [48, 1], [55, 1], [55, 1], [57, 1], [57, 1], [55, 2], [null, 1], [53, 1], [53, 1], [52, 1], [52, 1]]; let T = 0.5; let r = 7;
+    const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+    for (let i = 0; i < 30; i++) fr.push({ t: i / 60, f: null, v: 0.001 });
+    for (const [m, l] of mel) { const d = l * spb; for (let k = 0; k < d * 60; k++) { const tt = T + k / 60, end = k > d * 60 - 5; const f = m == null || end ? null : 440 * Math.pow(2, (m + 0.3 * Math.sin(tt * 30) - 69) / 12); fr.push({ t: tt, f: (rnd() < 0.05 && f) ? f * 2 : f, v: f ? 0.1 : 0.001 }); } T += d; }
+    return fr; };
+  check('  音に 分ける：同じ 音の くり返し・ゆれ・一瞬の 1オクターブの とびに 強い', await page.evaluate(`(${mk})().length > 0 && OTO.segNotes((${mk})()).map(x => OTO.midiJa(x.m)).join('')`), 'ドドソソララソファファミミ');
+  check('  テンポで そろえる・休みを 入れる・高さを 真ん中へ', await page.evaluate(`OTO.quantize(OTO.segNotes((${mk})()), 100, true).map(n => (n.m == null ? '休' : OTO.midiName(n.m)) + ':' + n.len).join(' ')`), 'C4:1 C4:1 G4:1 G4:1 A4:1 A4:1 G4:2 休:1 F4:1 F4:1 E4:1 E4:1');
+  check('  高さを そろえない ことも できる（覚える）', await page.evaluate(`(() => { OTO.lisCenter(); const a = OTO.quantize(OTO.segNotes((${mk})()), 100, false)[0].m; const s = JSON.parse(localStorage.getItem('excalc_oto')).lisCenter; OTO.lisCenter(); return OTO.midiName(a) + '/' + s; })()`), 'C3/false');
+  check('  雑音（短い 音）だけ なら 入れない', await page.evaluate(() => { const fr = []; for (let i = 0; i < 120; i++) fr.push({ t: i / 60, f: i % 20 < 3 ? 300 : null, v: 0.05 }); return OTO.segNotes(fr).length + '/' + OTO.lisApply(fr) + '/' + OTO.ed().notes.length; }), '0/0/0');
+  // 本物の マイクの かわりに 音を 流す
+  await page.evaluate(() => {
+    navigator.mediaDevices.getUserMedia = async () => { const C = new AudioContext(); const dst = C.createMediaStreamDestination(); let t = C.currentTime + 0.3;
+      [60, 62, 64, 65, 67, 67, 64].forEach(m => { const o = C.createOscillator(), g = C.createGain(); o.type = 'triangle'; o.frequency.value = 440 * Math.pow(2, (m - 69) / 12); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.02); g.gain.setValueAtTime(0.5, t + 0.45); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55); o.connect(g); g.connect(dst); o.start(t); o.stop(t + 0.6); t += 0.6; });
+      return dst.stream; };
+  });
+  await page.evaluate(() => OTO.lis()); await w(800);
+  check('  🎤 を 押すと 聞き取り中の 画面（いまの 音・聞いた 音・止める）', await page.evaluate(() => [OTO.lisOn(), !!document.getElementById('okLisNow'), !!document.getElementById('okLisRoll'), document.querySelector('.ok-lis .om-go').textContent].join('/')), 'true/true/true/■ 止めて 曲に 入れる');
+  await w(4300);
+  await page.evaluate(() => OTO.lisStop(true)); await w(300);
+  check('  止めると 曲に 入る（ド レ ミ ファ ソ ソ ミ）・マイクは 止まる', await page.evaluate(() => OTO.ed().notes.map(n => OTO.midiJa(n.m)).join('') + '/' + OTO.lisOn() + '/' + !document.querySelector('.ok-lis')), 'ドレミファソソミ/false/true');
+  await page.evaluate(() => OTO.lis()); await w(600);
+  check('  ✕ やめる と 入れない・ほかの タブに 行くと 止まる', await page.evaluate(() => { const n = OTO.ed().notes.length; OTO.lisStop(false); const a = OTO.ed().notes.length === n; return a + '/' + OTO.lisOn(); }), 'true/false');
+  await page.evaluate(() => { OTO.lis(); }); await w(300); await page.evaluate(() => OTO.tab('met')); await w(100);
+  check('  　タブを かえると マイクを 止める', await page.evaluate(() => OTO.lisOn()), false);
+  await page.evaluate(() => closeOto());
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('マイクで 聞き取る'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v676'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -22841,6 +22877,7 @@ const SUITES = [
   [['oto673', 'v673'], b => runOto673(b)],
   [['oto674', 'v674'], b => runOto674(b)],
   [['oto675', 'v675'], b => runOto675(b)],
+  [['oto676', 'v676'], b => runOto676(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['rec671', 'v671'], b => runRec671(b)],
   [['input672', 'v672'], b => runInput672(b)],
