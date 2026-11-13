@@ -19806,7 +19806,7 @@ async function runBand626(browser) {
   check('  セルの バーに 表の 名前は 出さない（入力欄を 広く）', await page.evaluate(() => { document.body.classList.add('tb-fold'); const r = !document.getElementById('fbRec') && !document.querySelector('.formula-bar .fb-rec'); document.body.classList.remove('tb-fold'); return r; }), true);
   check('  はじめの 並び：数字の セル', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cut,copy,paste,edit,clear,fmt,lock');
   check('  はじめの 並び：文字の セル', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cut,copy,paste,edit,clear,fmt,lock');
-  check('  はじめの 並び：空の セル', await bandAt(5, 1), 'cut,copy,paste,edit,clear,fmt,lock');
+  check('  はじめの 並び：空の セル', await bandAt(5, 1), 'ck_mk,cut,copy,paste,edit,clear,fmt,lock');   // v672：☑ チェックに
   check('  押しても 並びは 変わらない（v624 の よく押す順は やめた）', await page.evaluate(() => { for (let i = 0; i < 5; i++) { sel(1, 2); showEditBar(true); cellMenuAct('paste'); } hideEditBar(); return localStorage.getItem('excalc_band_use') + '/' + localStorage.getItem('excalc_band_cfg'); }), 'null/null');
   check('  　5回 貼り付けを 押した あとも 同じ 並び', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cut,copy,paste,edit,clear,fmt,lock');
 
@@ -19824,7 +19824,7 @@ async function runBand626(browser) {
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row.off')].find(x => x.querySelector('b').textContent === '𝐁 太字'); r.querySelector('input').click(); }); await w(150);
   check('  ☑ で 出す／出さない・▲ で 左へ・足すと 右はし（見本も すぐ 変わる）', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '⧉ コピー|％|1,000|.0＋|.0−|✂ 切り取り|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護|𝐁 太字');
   check('  　いちばん 左は ▲ が 押せない', await page.evaluate(() => document.querySelector('.bcf-row:not(.off) .bcf-mv').disabled), true);
-  check('  　出さない ボタンは 下に（¥ 円 も ここに）', await page.evaluate(() => [...document.querySelectorAll('.bcf-row.off b')].map(e => e.textContent).join('|')), '¥ 円|⇤ 左|↔ 中央|⇥ 右');
+  check('  　出さない ボタンは 下に（¥ 円 も ここに）', await page.evaluate(() => [...document.querySelectorAll('.bcf-row.off b')].map(e => e.textContent).join('|')), '¥ 円|⇤ 左|↔ 中央|⇥ 右|☑ チェックに');   // v672：☑ チェックに も 置ける
   // 列名の 帯：列を消す を 外す
   await page.evaluate(() => { [...document.querySelectorAll('.bcf-kind')].find(b => b.textContent.includes('列名')).click(); }); await w(150);
   check('  列名の 帯は 列の ボタンだけ', await page.evaluate(() => [...document.querySelectorAll('.bcf-row b')].map(e => e.textContent).join('|')), '↔ 幅を中身に|⬅ 左に列|➡ 右に列|🗑 列を消す|🔎 しぼり込み|🙈 隠す|👁 隠した列を出す|📌 ここまで固定');
@@ -19833,11 +19833,11 @@ async function runBand626(browser) {
   await page.evaluate(() => { [...document.querySelectorAll('.bcf-kind')].find(b => b.textContent.includes('空の セル')).click(); }); await w(150);
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row')].find(x => x.querySelector('b').textContent === '🔒 保護'); r.querySelector('input').click(); }); await w(150);
   check('  決めた ものは 覚える（excalc_band_cfg）', await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('excalc_band_cfg')))),
-    JSON.stringify({ num: ['copy', 'nf_pct', 'nf_comma', 'dec_up', 'dec_dn', 'cut', 'paste', 'merge', 'edit', 'clear', 'fmt', 'lock', 'bold'], col: ['col_fit', 'col_insL', 'col_insR', 'col_flt', 'col_hide', 'col_show', 'col_frz'], empty: ['cut', 'copy', 'paste', 'merge', 'edit', 'clear', 'fmt'] }));
+    JSON.stringify({ num: ['copy', 'nf_pct', 'nf_comma', 'dec_up', 'dec_dn', 'cut', 'paste', 'merge', 'edit', 'clear', 'fmt', 'lock', 'bold'], col: ['col_fit', 'col_insL', 'col_insR', 'col_flt', 'col_hide', 'col_show', 'col_frz'], empty: ['ck_mk', 'cut', 'copy', 'paste', 'merge', 'edit', 'clear', 'fmt'] }));
   await page.evaluate(() => closeBandCfg()); await w(300);
   check('  帯に 効く：数字の セル（コピーが 左はし・¥ なし・太字が 右はし）', await bandAt(1, 2), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cut,paste,edit,clear,fmt,lock,bold');
   check('  　文字の セルは そのまま', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cut,copy,paste,edit,clear,fmt,lock');
-  check('  　空の セルは 保護なし', await bandAt(5, 1), 'cut,copy,paste,edit,clear,fmt');
+  check('  　空の セルは 保護なし', await bandAt(5, 1), 'ck_mk,cut,copy,paste,edit,clear,fmt');
   await page.tap('#ch1'); await w(500);
   check('  　列名の 帯は 列を消す なし', await band(), 'col_fit,col_insL,col_insR,col_flt,col_hide,col_frz');
   await page.evaluate(() => hideEditBar()); await w(200);
