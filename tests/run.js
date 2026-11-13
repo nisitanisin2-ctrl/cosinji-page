@@ -22586,6 +22586,42 @@ async function runHyoGen679(browser) {
   await ctx.close();
 }
 
+async function runRange680(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ▦ 範囲を あとから 広げる（v680） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { resetAll(); setSheetSize(60, 6); }); await w(300);
+  const cdp = await ctx.newCDPSession(page);
+  const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  const ctr = s => page.evaluate(s => { const e = document.querySelector(s).getBoundingClientRect(); return [e.left + e.width / 2, e.top + e.height / 2]; }, s);
+  let [x, y] = await ctr('#c1_1'); await page.touchscreen.tap(x, y); await w(400);
+  const bot = await page.evaluate(() => Math.min(document.querySelector('.sheet-wrap').getBoundingClientRect().bottom, innerHeight));
+  await touch('touchStart', x, y); for (let i = 1; i <= 8; i++) { await touch('touchMove', x, y + i * 30); await w(16); }
+  await touch('touchMove', x, bot - 5); await w(1500);
+  const r1 = await page.evaluate(() => [rangeR2, document.querySelector('.sheet-wrap').scrollTop > 200]);
+  await touch('touchEnd'); await w(400);
+  check('  なぞって 画面の 端まで 行くと 表を 送りながら 広がる', r1[0] > 20 && r1[1], true);
+  const before = await page.evaluate(() => rangeR2);
+  [x, y] = await page.evaluate(b => { const e = document.getElementById('c' + b + '_1'); e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + 6]; }, before); await w(300);
+  const hit = await page.evaluate(([x, y]) => (document.elementFromPoint(x, y) || {}).id, [x, y]);
+  await touch('touchStart', x, y); for (let i = 1; i <= 6; i++) { await touch('touchMove', x + i * 20, y - i * 3); await w(16); } await touch('touchEnd'); await w(400);
+  check('  指を 離した あと、範囲の 先の 端から なぞると 続きを 広げられる（はじめは そのまま）', hit + '|' + await page.evaluate(() => [rangeR1, rangeC1, rangeC2 > 1].join('/')), 'c' + before + '_1|1/1/true');
+  check('  帯の はじめに「⤢ 範囲を広げる」', await page.evaluate(() => document.querySelector('#cellMenuCtx button').dataset.act), 'rng_ext');
+  await page.evaluate(() => document.querySelector('#cellMenuCtx button[data-act="rng_ext"]').click()); await w(300);
+  check('  押すと 広げる 中（橙・ボタンは ✓ 広げ終わる）', await page.evaluate(() => [rngExt, document.body.classList.contains('rng-ext'), document.querySelector('#cellMenuCtx button[data-act="rng_ext"]').textContent].join('/')), 'true/true/✓ 広げ終わる');
+  await page.evaluate(() => { document.querySelector('.sheet-wrap').scrollTop += 500; }); await w(300);
+  const t = await page.evaluate(() => { for (let r = ROWS - 1; r > 0; r--) { const e = document.getElementById('c' + r + '_3'); if (e) { const b = e.getBoundingClientRect(); if (b.top > innerHeight * 0.3 && b.bottom < innerHeight * 0.55) return r; } } return -1; });
+  [x, y] = await ctr('#c' + t + '_3'); await page.touchscreen.tap(x, y); await w(400);
+  check('  　表を 動かした 先の セルを タップすると そこまで 広がる（選んだ セルは そのまま）', await page.evaluate(t => [rangeR1, rangeC1, rangeR2 === t, rangeC2, selR, selC].join('/'), t), '1/1/true/3/1/1');
+  await page.evaluate(() => document.querySelector('#cellMenuCtx button[data-act="rng_ext"]').click()); await w(200);
+  check('  　「✓ 広げ終わる」で ふつうに もどる', await page.evaluate(() => rngExt + '/' + document.body.classList.contains('rng-ext')), 'false/false');
+  await page.evaluate(() => { clearRangeSelection(); sel(2, 2); }); await w(200);
+  check('  なぞった あとの 次の タップが きく（前は 1回 無視された）', await page.evaluate(() => { fillJustCommitted = true; startCellPress(3, 3, 0, 0); endCellPress(); return fillJustCommitted; }), false);
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('⤢ 範囲を広げる'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v680'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -22959,6 +22995,7 @@ const SUITES = [
   [['oto678', 'v678'], b => runOto678(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
+  [['range680', 'v680'], b => runRange680(b)],
   [['rec671', 'v671'], b => runRec671(b)],
   [['input672', 'v672'], b => runInput672(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
