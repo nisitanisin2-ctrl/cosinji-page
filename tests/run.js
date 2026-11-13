@@ -3183,7 +3183,7 @@ async function runStartPage(browser) {
   // はじめての人：案内のあとにホーム
   await page.evaluate(() => { localStorage.removeItem('excalc_startpage'); localStorage.removeItem('excalc_tour_done'); });
   await page.reload(); await page.waitForTimeout(1500);
-  check('  はじめての人は案内が先（ホームは重ねない）', await page.evaluate(() => isDlgOpen('tourOverlay') + '/' + isDlgOpen('homeOverlay')), 'true/false');
+  check('  はじめての人にも案内は出さない（v672）', await page.evaluate(() => isDlgOpen('tourOverlay') + '/' + isDlgOpen('homeOverlay')), 'false/false');
   await page.evaluate(() => tourSkip()); await page.waitForTimeout(700);
   check('  案内を閉じてもホームは出さない（v639。すぐ打てる）', await page.evaluate(() => isDlgOpen('homeOverlay')), false);
   await page.evaluate(() => { closeHome(); setStartPage('last'); }); await page.waitForTimeout(300);
@@ -4444,7 +4444,8 @@ async function runOnboard(browser) {
 
   const open = () => page.evaluate(() => isDlgOpen('tourOverlay'));
   const head = () => page.evaluate(() => document.querySelector('.tour-h').textContent);
-  check('  はじめて開いたら案内が出る', await open(), true);
+  check('  はじめて開いても案内は出さない（v672）', await open(), false);
+  await page.evaluate(() => openTour()); await page.waitForTimeout(300);   // 設定の「はじめての案内をもう一度見る」と同じ
   check('  5枚ある', await page.evaluate(() => TOUR_PAGES.length), 5);
   check('  1枚目は表と電卓', await head(), '表と電卓、どちらも使えます');
   check('  いまどこか分かる丸', await page.evaluate(() =>
@@ -4488,8 +4489,8 @@ async function runOnboard(browser) {
   await page.evaluate(() => openHelp()); await page.waitForTimeout(400);
   check('  説明書に Excel とのちがいの早見表（v415）', await page.evaluate(() => {
     const d = document.getElementById('h-excel'); return !!d && d.querySelectorAll('tr').length >= 12 && d.textContent.includes('右下の ■'); }), true);
-  check('  説明書に入口がある', await page.evaluate(() =>
-    [...document.querySelectorAll('#helpOverlay button')].some(b => b.textContent.includes('はじめての案内'))), true);
+  check('  説明書には入口を出さない（v672。設定から見られる）', await page.evaluate(() =>
+    [...document.querySelectorAll('#helpOverlay button')].some(b => b.textContent.includes('はじめての案内'))), false);
   await page.evaluate(() => closeHelp()); await page.waitForTimeout(350);
 
   // 見本の表
@@ -20625,6 +20626,18 @@ async function runInput672(browser) {
   check('  メニューの リセットの 横に「行と列を既定に」（既定の 大きさを 小さく）', await page.evaluate(() => { const a = document.getElementById('moreReset'), b = document.getElementById('moreDefSz'); return [a.parentElement === b.parentElement, a.nextElementSibling === b, !!b.offsetParent, b.querySelector('.defsz-lb').textContent].join('|'); }), 'true|true|true|15行×3列');
   await tapAt('#moreDefSz'); await w(400);
   check('  押すと 既定の 大きさ（中身は 残る）', await page.evaluate(() => [ROWS + 'x' + COLS, data[1][1], isDlgOpen('moreMenuOverlay')].join('|')), '15x3|a|false');
+  // ── v672：列・行を 足す／消す も ↶戻る で 戻る・はじめての 案内は 出さない ──
+  check('  はじめての 案内は 出さない（v672）', await page.evaluate(() => [isDlgOpen('tourOverlay'), localStorage.getItem('excalc_tour_done')].join('|')), 'false|1');
+  const st = () => page.evaluate(() => [ROWS + 'x' + COLS, data[0].slice(0, 4).join(','), data[1][0], JSON.stringify(colWidths)].join('|'));
+  await page.evaluate(() => { resetAll(); ['A', 'B', 'C'].forEach((v, i) => setCellVal(0, i, v)); setCellVal(1, 0, '=B1&C1'); colWidths = { 1: 120 }; saveSheetSizes(); buildSheet(); });
+  const before = await st();
+  check('  列を 足すと ずれる（式も ついていく）', await page.evaluate(() => { insertColAt(1); return [COLS, data[0].slice(0, 4).join(','), data[1][0], JSON.stringify(colWidths)].join('|'); }), '4|A,,B,C|=C1&D1|{"2":120}');
+  check('  ↶戻る で 列を 足す 前に 戻る（列の 幅も）', await page.evaluate(() => { undoLast(); return 0; }).then(st), before);
+  check('  ↷進む で もう一度 足す', await page.evaluate(() => { redoLast(); return COLS + '|' + data[0].slice(0, 4).join(','); }), '4|A,,B,C');
+  await page.evaluate(() => undoLast());
+  check('  列を 消しても ↶戻る で 戻る', await page.evaluate(() => { deleteColAt(1); const a = COLS + '|' + data[0].slice(0, 3).join(','); undoLast(); return a; }).then(async a => a + ' → ' + await st()), '2|A,C, → ' + before);
+  check('  行を 足す／消すも ↶戻る で 戻る', await page.evaluate(() => { insertRowAt(0); const a = data[1][0]; undoLast(); deleteRowAt(0); const b = data[0][0]; undoLast(); return [a, b, data[0][0], data[1][0], ROWS].join('|'); }), 'A|=#REF!&#REF!|A|=B1&C1|15');
+  check('  前の 操作の 履歴も 消えない', await page.evaluate(() => { setCellVal(5, 0, 'x'); insertColAt(0); undoLast(); undoLast(); return data[5][0]; }), '');
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }

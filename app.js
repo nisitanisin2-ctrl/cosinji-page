@@ -2070,7 +2070,7 @@ async function bandDelLine(k, i){
   if(k==='c'){ for(let r=0;r<ROWS && !has;r++) if(String(data[r][i]==null ? '' : data[r][i])!=='') has=true; }
   else { for(let c=0;c<COLS && !has;c++) if(String(data[i][c]==null ? '' : data[i][c])!=='') has=true; }
   const name=k==='c' ? ALPHA[i]+'列' : (i+1)+'行目';
-  if(has && !await appConfirm(name+'には 中身が あります。消すと 元に 戻せません。消しますか？', '消す', 'やめる')) return;
+  if(has && !await appConfirm(name+'には 中身が あります。消しますか？（↶戻る で 元に 戻せます）', '消す', 'やめる')) return;
   if(k==='c') deleteColAt(i); else deleteRowAt(i);
 }
 
@@ -5935,7 +5935,7 @@ function structOpBlocked(){
 }
 /* 構造変更後の後処理：履歴クリア・保存・再描画・再選択 */
 function afterStructChange(newSelR,newSelC){
-  history.length=0; updateUndoBtn();          // 構造変更は元に戻せないため履歴をクリア
+  // 前は「元に 戻せない」として 戻る 履歴を ぜんぶ 消して いた。v672：足す・消す 前に 表の 控え（pushSnapshot）を 取るので 戻せる
   document.getElementById('rowCount').textContent=ROWS;
   document.getElementById('colCount').textContent=COLS;
   localStorage.setItem('excalc_rows',ROWS);
@@ -5949,6 +5949,7 @@ function afterStructChange(newSelR,newSelC){
 function insertRowAt(at){
   if(structOpBlocked()) return;
   if(ROWS>=MAXROWS){ toast('これ以上行を増やせません（最大'+MAXROWS+'行）'); return; }
+  pushSnapshot('行を足す');
   stripAllMerges();   // 行・列の挿入/削除時は結合を解除（構造破綻を防ぐ）
   at=Math.max(0, Math.min(at, ROWS));
   const newROWS=ROWS+1;
@@ -5959,11 +5960,12 @@ function insertRowAt(at){
   remapAllFormulas((r,c)=> [r>=at ? r+1 : r, c]);
   ROWS=newROWS;
   afterStructChange(at, selC);
-  toast(`${at+1}行目に行を追加しました`);
+  toast(`${at+1}行目に行を追加しました`, 0, {undo:ui2On});
 }
 function deleteRowAt(at){
   if(structOpBlocked()) return;
   if(ROWS<=1){ toast('これ以上行を減らせません'); return; }
+  pushSnapshot('行を消す');
   stripAllMerges();
   at=Math.max(0, Math.min(at, ROWS-1));
   for(let r=at; r<ROWS-1; r++) data[r]=data[r+1].slice();
@@ -5978,6 +5980,7 @@ function deleteRowAt(at){
 function insertColAt(at){
   if(structOpBlocked()) return;
   if(COLS>=MAXCOLS){ toast('これ以上列を増やせません（最大'+MAXCOLS+'列）'); return; }
+  pushSnapshot('列を足す');
   stripAllMerges();
   at=Math.max(0, Math.min(at, COLS));
   const newCOLS=COLS+1;
@@ -5988,11 +5991,12 @@ function insertColAt(at){
   remapAllFormulas((r,c)=> [r, c>=at ? c+1 : c]);
   COLS=newCOLS;
   afterStructChange(selR, at);
-  toast(`${ALPHA[at]}列に列を追加しました`);
+  toast(`${ALPHA[at]}列に列を追加しました`, 0, {undo:ui2On});
 }
 function deleteColAt(at){
   if(structOpBlocked()) return;
   if(COLS<=1){ toast('これ以上列を減らせません'); return; }
+  pushSnapshot('列を消す');
   stripAllMerges();
   at=Math.max(0, Math.min(at, COLS-1));
   for(let c=at; c<COLS-1; c++) for(let r=0;r<MAXROWS;r++) data[r][c]=data[r][c+1];
@@ -10442,7 +10446,7 @@ function applyStartPage(){
   if(window.APP_TOOL){ const t=npToolDef(window.APP_TOOL); if(t){ t.run(); setTimeout(appToolAddHint, 1500); } return; }   // 道具だけのアプリ（v462）
   const v=startPageFromUrl()||startPage;
   if(v==='last') return;
-  if(v==='home'){ if(tourSeen()) openHome(); else homeAfterTour=true; return; }   // はじめての案内のあとに出す
+  if(v==='home'){ openHome(); return; }   // はじめての 案内は 出さない（v672）
   if(v==='normal' || v==='dentaku'){ switchMode(v); return; }
   const t=npToolDef(v);
   if(t && t.ov && typeof t.run==='function') t.run();
@@ -12250,12 +12254,14 @@ let undoing=false;
    丸ごとの形は重いので、まとめて書き換わる操作にだけ使う。 */
 function snapshotAll(){
   return { data:snapshotData(), styles:JSON.parse(JSON.stringify(cellStyles)),
-           rows:ROWS, cols:COLS, mode:tableMode, workspace:workspaceMode };
+           rows:ROWS, cols:COLS, mode:tableMode, workspace:workspaceMode,
+           cw:Object.assign({}, colWidths||{}), rh:Object.assign({}, rowHeights||{}) };   // 列の幅・行の高さも（行・列の 足し消しを 戻す とき。v672）
 }
 function applySnapshotAll(sn){
   loadData(sn.data);
   cellStyles=JSON.parse(JSON.stringify(sn.styles||{}));
   ROWS=sn.rows; COLS=sn.cols;
+  if(sn.cw){ colWidths=Object.assign({}, sn.cw); rowHeights=Object.assign({}, sn.rh||{}); try{ saveSheetSizes(); }catch(_){} }
   // 表示中のモードを直接戻す。switchMode() を使うと、いまのシート一式ごと
   // 入れ替わってしまう（丸ごと戻すのは「表の中身」だけにしたい）ため、ここで直接戻す。
   // 控えたときと別のモード（シート一式）に移っているなら、表示モードは触らない。
@@ -23300,7 +23306,8 @@ if(new URLSearchParams(location.search).get('app')==='receipt') setTimeout(()=>{
 
 /* はじめて開いた人にだけ、案内を出す（v384）。
    組み立てが終わってから出したいので、少しだけ待つ。 */
-if(!tourSeen() && !window.APP_TECHO && !window.APP_TOOL) setTimeout(()=>{ try{ if(!tourSeen()) openTour(); }catch(_){} }, 700);
+// はじめての 案内は 出さない（v672。開いて すぐ 全画面を ふさいで いた。使い方は 📖 から）
+try{ if(!tourSeen()) localStorage.setItem(TOUR_KEY,'1'); }catch(_){}
 
 /* 起動して落ち着いてから、データの守りとバックアップのおすすめ（v382） */
 setTimeout(()=>{ stInitPersist(); }, 1200);
