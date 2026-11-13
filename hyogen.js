@@ -335,7 +335,6 @@ function layout(sp){
       if(c.t==='yen') s.nf='comma';
       if(c.t==='pct') s.nf='pct';
       if(c.t==='date') s.dfmt=c.d||'md';
-      if(c.f!=null) s.color='#7d4e00';
       if(c.t==='ck') s.align='center';
       if(Object.keys(s).length) styles[r+','+i]=s;
     }
