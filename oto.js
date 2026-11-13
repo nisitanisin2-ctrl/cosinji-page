@@ -276,8 +276,8 @@ function lanesOf(notes){
 }
 
 /* ── 昔の 曲を 長く（v677）──
-   テーマ（なるべく 曲の 全部の メロディー）を まず 弾き、そのあと Claude が 作った 変奏で 展開する（同じ くり返しに しない）：
-   pass＝あいだを 8分音符で つなぐ／dot＝はずむ リズム（付点）／arp＝のばす 音を 和音の 分散に／echo＝のばす 音の あとに 1オクターブ 上の こだま／oct＝1オクターブ 上で しめくくり。
+   テーマ（なるべく 曲の 全部の メロディー）を まず 弾き、そのあとは 元の メロディーの まま 変化を つけて くり返す（v681）：
+   oct＝1オクターブ 上／light＝のばす 音の おわりに つなぐ 音を 1つ／echo＝のばす 音の あとに こだま。伴奏の リズムも まとまりごとに かわる。
    伴奏の コードは 小節ごとに メロディーに 合う 和音を 自動で えらぶ（k＝調・mi＝短調・bar＝1小節の 拍・p＝アウフタクトの 拍） */
 const PNAME=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
 const KEYPC={C:0, 'C#':1, D:2, Eb:3, E:4, F:5, 'F#':6, G:7, Ab:8, A:9, Bb:10, B:11};
@@ -305,25 +305,35 @@ function varArp(t, chs, s){ const bar=s.bar||4, p=s.p||0, out=[]; let b=0;
   t.forEach(x=>{ if(x.m!=null && x.len>=2 && Math.abs(x.len*2-Math.round(x.len*2))<1e-6){ const c=chs[clamp(Math.floor((b-p)/bar),0,chs.length-1)], ups=[x.m]; for(let j=1;j<3;j++){ let y=ups[j-1]+1; while(!c.pcs.includes(pcOf(y)) && y<ups[j-1]+12) y++; ups.push(Math.min(96,y)); } const k=Math.round(x.len*2), pat=[0,1,2,1]; for(let j=0;j<k;j++) out.push({m:ups[pat[j%4]], len:0.5}); } else out.push({m:x.m, len:x.len}); b+=x.len; });
   return out; }
 function varEcho(t){ const out=[]; t.forEach(x=>{ if(x.m!=null && x.len>=1.5) out.push({m:x.m, len:x.len-0.5}, {m:Math.min(96, x.m+12), len:0.5}); else out.push({m:x.m, len:x.len}); }); return out; }
-function varOct(t, sc){ const hi=Math.max(...t.filter(x=>x.m!=null).map(x=>x.m)), sh=hi+12<=88 ? 12 : 0; return varPass(t.map(x=>({m:x.m==null ? null : x.m+sh, len:x.len})), sc); }
+function varOct(t){   // メロディーは そのまま 1オクターブ 上（入らなければ 下）
+  const ms=t.filter(x=>x.m!=null).map(x=>x.m), hi=Math.max(...ms), lo=Math.min(...ms), sh=hi+12<=88 ? 12 : lo-12>=48 ? -12 : 0;
+  return t.map(x=>({m:x.m==null ? null : x.m+sh, len:x.len}));
+}
+function varLight(t, sc){   // v681：のばす 音（2拍 以上）の おわりに だけ、次の 音へ つなぐ 音を 1つ（はねる 音が 大きい ときだけ）。ほかの 音は 曲の まま
+  const out=[];
+  t.forEach((x,i)=>{ const nx=t[i+1];
+    if(x.m!=null && x.len>=2 && nx && nx.m!=null && Math.abs(nx.m-x.m)>=3){ const pt=nx.m>x.m ? stepFrom(nx.m,-1,sc) : stepFrom(nx.m,1,sc); out.push({m:x.m, len:x.len-0.5}, {m:pt, len:0.5}); }
+    else out.push({m:x.m, len:x.len}); });
+  return out;
+}
+/* v681：変奏は 元の メロディーが 分かる ものだけに（前の 付点・分散和音などは 曲が 分からなく なるので やめた）。
+   同じ メロディーを、1オクターブ 上・つなぐ 音を 少し・こだま と 伴奏の リズムを 変えて くり返す */
 function buildPD(s){
   if(s.secs) return;
   const theme=nToNotes(s.n), bar=s.bar||4, p=s.p||0, sc=scaleOf(s.k||'C', s.mi);
   let L=theme.reduce((a,x)=>a+x.len, 0); const pad=(bar-(L%bar))%bar; if(pad>1e-6){ theme[theme.length-1].len+=pad; L+=pad; }   // 小節に そろえる
   const T=L*60/s.bpm; let n=Math.min(6, Math.max(1, Math.ceil(60/T))); while(n>1 && n*T>125) n--;
-  const plan={1:['theme'], 2:['theme','pass'], 3:['theme','dot','oct'], 4:['theme','pass','dot','oct'], 5:['theme','pass','arp','dot','oct'], 6:['theme','pass','arp','dot','echo','oct']}[n];
-  const ch0=harmonize(theme, s, L), key0=notesToN(theme), make=v=>v==='pass' ? varPass(theme, sc) : v==='dot' ? varDot(theme, p) : v==='arp' ? varArp(theme, ch0, s) : v==='echo' ? varEcho(theme) : v==='oct' ? varOct(theme, sc) : cp(theme);
-  const SH=['wave','circle','zig','eight','star','heart'], DR={theme:'pop', pass:'beat', dot:'pop', arp:'half', echo:'pop', oct:'drive'};
-  const secs=[], toks=[], used=new Set(); let beat=0;
+  const plan={1:['theme'], 2:['theme','oct'], 3:['theme','oct','light'], 4:['theme','oct','light','theme'], 5:['theme','oct','light','echo','theme'], 6:['theme','oct','light','theme','echo','oct']}[n];
+  const make=v=>v==='light' ? varLight(theme, sc) : v==='echo' ? varEcho(theme) : v==='oct' ? varOct(theme) : cp(theme);
+  const SH=['wave','circle','zig','eight','star','heart'], DR={theme:'pop', light:'beat', echo:'half', oct:'drive'};
+  const secs=[], toks=[]; let beat=0;
   plan.forEach((v,i)=>{
-    let t=make(v);
-    if(v!=='theme' && notesToN(t)===key0){ const alt=['pass','arp','echo','dot','oct'].find(a=>!used.has(a) && !plan.includes(a) && notesToN(make(a))!==key0); if(alt){ v=alt; t=make(alt); } }   // 変わらない 変奏は 別の 変奏に
-    used.add(v);
-    secs.push({beat, len:L, ch:harmonize(t, s, L).map(c=>c.name), sh:SH[i%SH.length], dr:bar===3 ? 'waltz' : DR[v], off:p, v});
+    const t=make(v), dr=bar===3 ? 'waltz' : (v==='theme' && i>0) ? (i===plan.length-1 ? 'drive' : 'beat') : DR[v];
+    secs.push({beat, len:L, ch:harmonize(t, s, L).map(c=>c.name), sh:SH[i%SH.length], dr, off:p, v});
     toks.push(...t); beat+=L;
   });
   s.theme=s.n; s.n=notesToN(toks); s.secs=secs; s.vars=secs.map(x=>x.v);
-  if(!/Claude/.test(s.by)) s.by+='・Claude 編曲（変奏・伴奏）';
+  if(!/Claude/.test(s.by)) s.by+='・Claude 編曲（伴奏・くり返しの 変化）';
 }
 SONGS.forEach(buildPD);
 
@@ -1757,6 +1767,7 @@ window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met
   wait:()=>{ st.wait=!st.wait; save(); }, trail:v=>{ st.trail=TRAILS.some(x=>x.id===v) ? v : 'kira'; save(); render(); }, glowMix:()=>{ st.glowMix=!st.glowMix; save(); },
   glowState:()=>game ? {lay:game.lay||'grid', cue:game.cue||'ring', gi:game.gi||0} : null, noteStyles:()=>game ? [...new Set(game.notes.map(n=>n.sty))].join(',') : '', sparks:()=>game && game.sparks ? game.sparks.length : 0, autoInst:id=>{ const x=allSongs().find(y=>y.id===id); return x ? autoInst(x) : 'piano'; }, fx:v=>{ st.fx=FXL.some(x=>x.id===v) ? v : 'ultra'; save(); render(); }, beat:()=>{ st.beat=!st.beat; save(); },
   back:()=>({on:!!bk.bus, n:bk.ev.length, i:bk.i, kinds:[...new Set(bk.ev.map(e=>e.k))].sort().join(',')}), backOf:id=>{ const s=allSongs().find(x=>x.id===id); if(!s) return null; const p=parseSong(s), ev=backEvents(s, p.beats); return {n:ev.length, kinds:[...new Set(ev.map(e=>e.k))].sort().join(',')}; },
+  secs:id=>{ const x=allSongs().find(y=>y.id===id); if(!x || !x.secs) return []; const all=parseSong(x).notes; return x.secs.map(sc=>{ const ns=all.filter(n=>n.beat>=sc.beat-1e-6 && n.beat<sc.beat+sc.len-1e-6); return {v:sc.v, dr:sc.dr, notes:ns.map(n=>n.midi), lens:ns.map(n=>n.len)}; }); },
   theme:id=>{ const x=SONGS.find(y=>y.id===id); return x ? (x.theme||x.n) : ''; },
   pd:()=>SONGS.map(s=>({id:s.id, sec:Math.round(parseSong(s).beats*60/s.bpm), vars:(s.vars||[]).join('+'), ch:(s.secs&&s.secs[0] ? s.secs[0].ch.join(' ') : '')})),
   fxOn:()=>!!(game && game.fe), fever:()=>!!(game && game.fever), orig:()=>ORIG.map(s=>({id:s.id, t:s.t, sec:Math.round(parseSong(s).beats*60/s.bpm), secs:s.secs.length, shapes:[...new Set(s.secs.map(x=>x.sh))].join(',')})), insts:()=>INST.map(x=>x.id),
