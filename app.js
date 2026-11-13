@@ -9854,7 +9854,7 @@ setTimeout(kyoshiKick, 5000);
 /* ── ⛳ グラウンドゴルフ（v616。ggolf.js。合計と ホールインワンの 数だけで 順位と 賞）── */
 sidePartOpener('openGgolf', ['ggolf.js'], 'グラウンドゴルフ');
 /* ── 🎵 音の道具（v668。oto.js。メトロノーム・チューナー・音ゲー）── */
-sidePartOpener('openOto', ['oto.js'], '音の道具');
+sidePartOpener('openOto', ['hade-fx.js','oto.js'], '音の道具');   // 当たった ときの 演出は hade-fx.js（v675）
 window.closeOto=function(){};
 window.closeGgolf=function(){};
 /* ── 📝 試験報告書（v600。単位水量・カンタブの 報告書と カンタブの 1ページ。shiken.js に 分けてある）── */
@@ -18701,7 +18701,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v674';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v675';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
