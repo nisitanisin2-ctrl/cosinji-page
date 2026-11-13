@@ -105,6 +105,11 @@ const HP_CSS=`
 .hp-tip .r b{ font-size:13.5px; font-variant-numeric:tabular-nums; }
 .hp-tip .r span{ color:var(--text-sub); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .hp-ch-note{ margin-top:6px; font-size:12px; color:var(--text-sub); }
+.hp-qk{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.hp-qb{ display:grid; grid-template-columns:34px 1fr; grid-template-rows:auto auto; column-gap:8px; align-items:center; min-height:54px; padding:6px 8px; border-radius:var(--r-card); border:1px solid var(--save-item-border); background:transparent; color:var(--text); text-align:left; cursor:pointer; }
+.hp-qb .hp-qi{ grid-row:1 / span 2; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:17px; border:1px solid var(--save-item-border); }
+.hp-qb b{ font-size:13.5px; line-height:1.25; } .hp-qb small{ font-size:11.5px; color:var(--text-sub); line-height:1.25; }
+@media (max-width:340px){ .hp-qk{ grid-template-columns:1fr; } }
 .hp-ch-empty{ padding:30px 12px; text-align:center; color:var(--text-sub); font-size:13.5px; }
 @media print{ #printArea .hp-pc{ width:100%; } #printArea .hp-pc svg{ width:100%; height:auto; } #printArea .hp-pt{ margin-top:10px; } }
 @media (max-width:380px){ .hp-body{ padding:10px 10px calc(12px + var(--safe-bottom,0px)); } .hp-tpls{ grid-template-columns:1fr; } .hp-kind small{ display:none; } .hp-kind b{ font-size:13px; } .hp-colors>span{ width:100%; } .hp-col{ width:34px; } }
@@ -360,7 +365,8 @@ const CF_TYPES=[
   ['数', [['neg','マイナスのとき'],['gt','○○より大きい'],['ge','○○以上'],['lt','○○より小さい'],['le','○○以下'],['bt','○○から○○まで'],['eq','○○と同じ']]],
   ['字', [['has','○○を含む'],['blank','空のとき']]],
   ['日付', [['past','期限が過ぎた（今日より前）'],['today','今日'],['soon','今日から○日のうち']]],
-  ['順位', [['top','大きいほうから○つ'],['bot','小さいほうから○つ'],['dup','同じものが ほかにもある']]],
+  ['順位', [['top','大きいほうから○つ'],['bot','小さいほうから○つ'],['above','平均より上'],['below','平均より下'],['dup','同じものが ほかにもある']]],
+  ['大きさ', [['scale','大きさを 色の濃さで（大きいほど濃い）'],['bar','大きさを セルの中の 横の棒で']]],
   ['チェック', [['ck','☑ が付いている'],['unck','☐ （付いていない）']]],
 ];
 const CF_LABEL={}; CF_TYPES.forEach(g=>g[1].forEach(([k,l])=>CF_LABEL[k]=l));
@@ -374,7 +380,9 @@ function cfRuleText(ru){
   if(ru.row) cond=ALPHA[ru.kc]+'列が '+cond+' → 行ぜんぶ';
   return {rng, cond};
 }
-function cfStyleText(s){
+const isSpread=t=>t==='scale'||t==='bar';
+function cfStyleText(s, t){
+  if(isSpread(t)) return (BG_NAMES.find(x=>x[0]===s.bg)||['',''])[1]+(t==='bar'?'の棒':'の濃さ');
   const a=[];
   if(s.fc) a.push((FC_NAMES.find(x=>x[0]===s.fc)||[])[1]+'い字'.replace('いい','い'));
   if(s.bg) a.push('背景 '+(BG_NAMES.find(x=>x[0]===s.bg)||[])[1]);
@@ -382,7 +390,9 @@ function cfStyleText(s){
   if(s.s) a.push('取り消し線');
   return a.join('・')||'見た目なし';
 }
-function swatchStyle(s){
+function swatchStyle(s, t){
+  if(t==='scale' && s.bg) return `background:linear-gradient(90deg, ${hpMix(s.bg,10)}, ${hpMix(s.bg,75)});`;
+  if(t==='bar' && s.bg) return `background:linear-gradient(90deg, ${hpMix(s.bg,55)} 65%, transparent 65%);`;
   return (s.fc?`color:var(--hpf-${s.fc});`:'')+(s.bg?`background:var(--hpb-${s.bg});`:'')+(s.b?'font-weight:bold;':'')+(s.s?'text-decoration:line-through;':'');
 }
 function checkCols(){ const o=hpKinds()||{}; return Object.keys(o).map(Number).filter(x=>o[x] && o[x].k==='ck' && x<COLS); }
@@ -398,8 +408,8 @@ function cfList(){
   if(rules.length){
     html+='<div class="hp-rules">'+rules.map((ru,i)=>{
       const t=cfRuleText(ru), s=hpStPick(ru.st)||{};
-      return `<div class="hp-rule${ru.off?' off':''}"><span class="hp-sw" style="${swatchStyle(s)}">1,234</span>
-        <div class="t">${esc(t.cond)}<small>${esc(t.rng)}・${esc(cfStyleText(s))}</small></div>
+      return `<div class="hp-rule${ru.off?' off':''}"><span class="hp-sw" style="${swatchStyle(s,ru.t)}">1,234</span>
+        <div class="t">${esc(t.cond)}<small>${esc(t.rng)}・${esc(cfStyleText(s,ru.t))}</small></div>
         <button type="button" onclick="HP.cfMove(${i},-1)" ${i?'':'disabled'} aria-label="上へ" title="上へ（強く）">↑</button>
         <button type="button" onclick="HP.cfEdit(${i})" aria-label="直す" title="直す">✎</button>
         <button type="button" onclick="HP.cfDel(${i})" aria-label="消す" title="消す">🗑</button></div>`;
@@ -412,6 +422,8 @@ function cfList(){
     ['top','大きいほうから3つを太字', ALPHA[c]+'列'],
     ['ge','○○以上は 赤い背景', ALPHA[c]+'列'],
     hasCk ? ['ck','☑ の行を灰色に', '行ぜんぶ・取り消し線'] : ['dup','同じものが2つ以上', ALPHA[c]+'列・橙の背景'],
+    ['scale','大きさを色の濃さで', ALPHA[c]+'列・大きいほど濃い緑'],
+    ['bar','大きさを棒で', ALPHA[c]+'列・セルの中に横の棒'],
     ['custom','自分で決める…','どの決まりでも'],
   ];
   html+=`<div class="hp-sec">＋ 決まりを足す（${esc(ALPHA[c])}列「${esc(colName(c,headRowOfCol(c)))}」）</div><div class="hp-tpls">`+
@@ -435,6 +447,8 @@ function cfNew(k){
   else if(k==='dup') Object.assign(ru,{t:'dup', st:{bg:'orange'}});
   else if(k==='ck'){ const kc=checkCols()[0]; Object.assign(ru,{t:'ck', row:1, kc, c1:rg?rg.c1:0, c2:rg?rg.c2:COLS-1, st:{fc:'gray', s:1}}); }
   else if(k==='custom') Object.assign(ru,{t:'gt', v:'', st:{bg:'yellow'}});
+  else if(k==='scale') Object.assign(ru,{t:'scale', st:{bg:'green'}});
+  else if(k==='bar') Object.assign(ru,{t:'bar', st:{bg:'blue'}});
   st.mode='edit'; st.idx=-1; st.ru=ru;
   st.where=(ru.row || ru.c1!==ru.c2) ? 'keep' : 'col';
   cfEditRender();
@@ -461,7 +475,7 @@ function cfEditRender(){
   const needN=(ru.t==='top'||ru.t==='bot'||ru.t==='soon');
   const ckc=checkCols();
   let html=`<label class="hp-f">どこに<select id="hpCw" onchange="HP.cfWhere(this.value)">${opts.map(([k,l])=>`<option value="${k}"${sel1(k)}>${esc(l)}</option>`).join('')}</select></label>
-  <label class="hp-inl"><input type="checkbox" id="hpCrow" ${ru.row?'checked':''} onchange="HP.cfRow(this.checked)"> 行ぜんぶに色をつける（${esc(ALPHA[ru.row?ru.kc:c])}列を見て、表の横いっぱい）</label>
+  ${isSpread(ru.t)?'':`<label class="hp-inl"><input type="checkbox" id="hpCrow" ${ru.row?'checked':''} onchange="HP.cfRow(this.checked)"> 行ぜんぶに色をつける（${esc(ALPHA[ru.row?ru.kc:c])}列を見て、表の横いっぱい）</label>`}
   <label class="hp-f">決まり<select id="hpCt" onchange="HP.cfType(this.value)">${CF_TYPES.map(([g,list])=>`<optgroup label="${esc(g)}">${list.map(([k,l])=>`<option value="${k}"${k===ru.t?' selected':''}>${esc(l)}</option>`).join('')}</optgroup>`).join('')}</select></label>`;
   if(need){
     const isText=(ru.t==='has'||(ru.t==='eq' && isNaN(String(ru.v||'').replace(/,/g,'')) && ru.v!==''));
@@ -470,12 +484,17 @@ function cfEditRender(){
   }
   if(needN) html+=`<label class="hp-inl">${ru.t==='soon'?'今日から':'いくつ'} <input type="number" id="hpCn" min="1" max="999" value="${ru.n||3}" inputmode="numeric" oninput="HP.cfPrev()"> ${ru.t==='soon'?'日のうち':'つ'}</label>`;
   if(ru.t==='past'||ru.t==='today'||ru.t==='soon') html+='<div class="hp-note">日付として入れたセル（例 10/25・2026/10/25）を見ます。日がかわると自動で塗り直します。</div>';
+  if(isSpread(ru.t)){
+    html+=`<div class="hp-note">${ru.t==='bar'?'いちばん大きい数を いっぱいの 長さにして、セルの中に 横の棒を 描きます（Excel の「データバー」）。':'いちばん小さい数を うすく、いちばん大きい数を 濃く 塗ります（Excel の「カラースケール」）。'}合計の行と 日付は 入れません。</div>
+    <div class="hp-sec">色</div><div class="hp-colors"><span>色</span>${BG_NAMES.filter(x=>x[0]).map(([k,l])=>`<button type="button" class="hp-col${(ru.st.bg||'')===k?' on':''}" style="background:${hpMix(k,ru.t==='bar'?55:60)}" onclick="HP.cfSt('bg','${k}')" aria-label="${l}"></button>`).join('')}</div>`;
+  } else {
   html+=`<div class="hp-sec">色・かざり</div>
   <div class="hp-colors"><span>文字</span>${FC_NAMES.map(([k,l])=>`<button type="button" class="hp-col${(ru.st.fc||'')===k?' on':''}" style="${k?`color:var(--hpf-${k})`:''}" onclick="HP.cfSt('fc','${k}')" aria-label="文字の色 ${l}">${k?'あ':'なし'}</button>`).join('')}</div>
   <div class="hp-colors"><span>背景</span>${BG_NAMES.map(([k,l])=>`<button type="button" class="hp-col${(ru.st.bg||'')===k?' on':''}" style="${k?`background:var(--hpb-${k})`:''}" onclick="HP.cfSt('bg','${k}')" aria-label="背景 ${l}">${k?'':'なし'}</button>`).join('')}</div>
   <div class="hp-chips" style="margin-top:8px"><button type="button" class="hp-chip${ru.st.b?' on':''}" onclick="HP.cfSt('b')">太字</button><button type="button" class="hp-chip${ru.st.s?' on':''}" onclick="HP.cfSt('s')">取り消し線</button></div>`;
-  if(ckc.length && ru.t!=='ck' && ru.t!=='unck') html+=`<label class="hp-inl"><input type="checkbox" id="hpCnock" ${ru.nock!=null?'checked':''} onchange="HP.cfNock(this.checked)"> ☑ が付いた行には つけない（${esc(ALPHA[ru.nock!=null?ru.nock:ckc[0]])}列）</label>`;
-  html+=`<div class="hp-prev">見本 <span class="hp-sw" id="hpCsw" style="${swatchStyle(ru.st)}">1,234</span><span id="hpCcnt"></span></div>
+  }
+  if(ckc.length && ru.t!=='ck' && ru.t!=='unck' && !isSpread(ru.t)) html+=`<label class="hp-inl"><input type="checkbox" id="hpCnock" ${ru.nock!=null?'checked':''} onchange="HP.cfNock(this.checked)"> ☑ が付いた行には つけない（${esc(ALPHA[ru.nock!=null?ru.nock:ckc[0]])}列）</label>`;
+  html+=`<div class="hp-prev">見本 <span class="hp-sw" id="hpCsw" style="${swatchStyle(ru.st,ru.t)}">1,234</span><span id="hpCcnt"></span></div>
   <div class="hp-acts">${st.idx>=0?'<button type="button" class="hp-b del left" onclick="HP.cfDel('+st.idx+')">🗑 消す</button>':''}<button type="button" class="hp-b" onclick="HP.cfBack()">もどる</button><button type="button" class="hp-b pri" onclick="HP.cfSave()">決める</button></div>`;
   show('cf', st.idx>=0?'🎨 決まりを直す':'🎨 決まりを足す', html);
   cfPrev();
@@ -496,7 +515,9 @@ function cfRange(ru){
 }
 function cfWhere(w){ cfKeep(); st.where=w; cfRange(st.ru); cfEditRender(); }
 function cfRow(on){ cfKeep(); const ru=st.ru; if(on){ ru.row=1; if(ru.kc==null||ru.kc<0) ru.kc=(ru.c1===ru.c2)?ru.c1:st.c; const rg=tableAround(st.c); if(rg && st.where!=='sel'){ ru.c1=Math.min(rg.c1,ru.kc); ru.c2=Math.max(rg.c2,ru.kc); } } else { delete ru.row; if(st.where!=='sel' && st.where!=='tbl'){ ru.c1=ru.c2=(ru.kc!=null?ru.kc:st.c); } delete ru.kc; } cfEditRender(); }
-function cfType(t){ cfKeep(); st.ru.t=t; if((t==='ck'||t==='unck')){ const kc=checkCols()[0]; if(kc!=null){ st.ru.row=1; st.ru.kc=kc; const rg=tableAround(kc); if(rg){ st.ru.c1=rg.c1; st.ru.c2=rg.c2; } } delete st.ru.nock; } cfEditRender(); }
+function cfType(t){ cfKeep(); st.ru.t=t;
+  if(isSpread(t)){ delete st.ru.row; delete st.ru.kc; delete st.ru.nock; if(st.where!=='sel' && st.where!=='keep') cfRange(st.ru); st.ru.st={bg:(st.ru.st && HP_BG[st.ru.st.bg]) ? st.ru.st.bg : (t==='bar'?'blue':'green')}; }
+  if((t==='ck'||t==='unck')){ const kc=checkCols()[0]; if(kc!=null){ st.ru.row=1; st.ru.kc=kc; const rg=tableAround(kc); if(rg){ st.ru.c1=rg.c1; st.ru.c2=rg.c2; } } delete st.ru.nock; } cfEditRender(); }
 function cfSt(k,v){
   cfKeep();
   const s=st.ru.st=Object.assign({}, st.ru.st);
@@ -509,7 +530,7 @@ function cfNock(on){ cfKeep(); if(on) st.ru.nock=checkCols()[0]; else delete st.
 function cfPrev(){
   cfKeep();
   const ru=st.ru, cnt=$('hpCcnt'); if(!ru || !cnt) return;
-  const sw=$('hpCsw'); if(sw) sw.setAttribute('style', swatchStyle(ru.st));
+  const sw=$('hpCsw'); if(sw) sw.setAttribute('style', swatchStyle(ru.st,ru.t));
   if(!hpStPick(ru.st)){ cnt.textContent='色・かざりを えらんでください'; return; }
   const save=cellStyles._cf;
   let n=0;
@@ -560,6 +581,121 @@ async function cfClearAll(){
   delete cellStyles._cf;
   hpCfRefresh(); persistModes(); if(typeof saveSheets==='function') saveSheets();
   cfList();
+}
+
+/* ───────── 🎨 えらんだ範囲に ワンタップで 色の決まり（v670。範囲の 帯から）───────── */
+const QUICK=[
+  ['scale','🟩','大きさを色の濃さで','大きいほど濃い緑', {t:'scale', st:{bg:'green'}}],
+  ['bar','📊','大きさを棒で','セルの中に横の棒', {t:'bar', st:{bg:'blue'}}],
+  ['neg','🔴','マイナスは赤い字','0 より小さい数', {t:'neg', st:{fc:'red'}}],
+  ['top','🥇','大きいほうから3つ','黄色の背景・太字', {t:'top', n:3, st:{bg:'yellow', b:1}}],
+  ['bot','🔻','小さいほうから3つ','赤の背景', {t:'bot', n:3, st:{bg:'red'}}],
+  ['above','⬆','平均より上','緑の字・太字', {t:'above', st:{fc:'green', b:1}}],
+  ['below','⬇','平均より下','赤の字', {t:'below', st:{fc:'red'}}],
+  ['dup','👥','同じものが2つ以上','橙の背景', {t:'dup', st:{bg:'orange'}}],
+  ['blank','⬜','空いているセル','黄色の背景（入れ忘れに）', {t:'blank', st:{bg:'yellow'}}],
+];
+function quickRect(){ const g=(rangeR1>=0) ? selRect() : {r1:selR, c1:selC, r2:selR, c2:selC}; return g; }
+function cfQuick(){
+  const g=quickRect(), a1=ALPHA[g.c1]+(g.r1+1)+':'+ALPHA[g.c2]+(g.r2+1);
+  st={c:g.c1, mode:'quick', g};
+  const rules=hpRules()||[];
+  const hit=rules.filter(ru=>!(ru.r1>g.r2 || (ru.r2==null?MAXROWS-1:ru.r2)<g.r1 || ru.c1>g.c2 || (ru.c2==null?MAXCOLS-1:ru.c2)<g.c1)).length;
+  let html=`<p class="hp-lead">えらんだ範囲 <b>${esc(a1)}</b> に付けます。中身を直すと すぐ 色も変わります。</p><div class="hp-qk">`
+    +QUICK.map(([k,ic,t,sub],i)=>`<button type="button" class="hp-qb" onclick="HP.cfQuickSet(${i})"><span class="hp-qi" style="${k==='scale'||k==='bar'?swatchStyle(QUICK[i][4].st,k):swatchStyle(QUICK[i][4].st)}">${ic}</span><b>${esc(t)}</b><small>${esc(sub)}</small></button>`).join('')+'</div>';
+  html+=`<div class="hp-acts">${hit?`<button type="button" class="hp-b del left" onclick="HP.cfQuickClear()">🗑 この範囲の決まりを消す（${hit}）</button>`:''}<button type="button" class="hp-b" onclick="HP.cfQuickMore()">✏ 自分で決める…</button><button type="button" class="hp-b" onclick="HP.close()">とじる</button></div>`;
+  show('cf','🎨 色の決まり', html);
+}
+function cfQuickSet(i){
+  const q=QUICK[i]; if(!q) return;
+  const g=st.g||quickRect();
+  const ru=Object.assign({r1:g.r1, r2:g.r2, c1:g.c1, c2:g.c2}, JSON.parse(JSON.stringify(q[4])));
+  pushSnapshot('色の決まり「'+q[2]+'」');
+  const rules=(hpRules()||[]).slice(); rules.unshift(ru);
+  cellStyles._cf=rules;
+  close();
+  if(typeof clearRangeSelection==='function') clearRangeSelection();   // 範囲の 色を はずして 付いた 色を 見せる
+  hpCfRefresh(); persistModes(); if(typeof saveSheets==='function') saveSheets();
+  let n=0; hpCfMap.forEach((v,k)=>{ const p=k.split(','); if(+p[0]>=g.r1 && +p[0]<=g.r2 && +p[1]>=g.c1 && +p[1]<=g.c2) n++; });
+  toast('「'+q[2]+'」を付けました（いま '+n+' セル）。↶戻る で元に戻せます', 3400);
+}
+function cfQuickClear(){
+  const g=st.g||quickRect();
+  const rules=(hpRules()||[]).filter(ru=>ru.r1>g.r2 || (ru.r2==null?MAXROWS-1:ru.r2)<g.r1 || ru.c1>g.c2 || (ru.c2==null?MAXCOLS-1:ru.c2)<g.c1);
+  pushSnapshot('この範囲の 色の決まりを消す');
+  if(rules.length) cellStyles._cf=rules; else delete cellStyles._cf;
+  close(); hpCfRefresh(); persistModes(); if(typeof saveSheets==='function') saveSheets();
+  toast('この範囲の 色の決まりを消しました（↶戻る で元に戻せます）');
+}
+function cfQuickMore(){
+  const g=st.g||quickRect();
+  st={c:g.c1, mode:'edit', idx:-1, ru:{r1:g.r1, r2:g.r2, c1:g.c1, c2:g.c2, t:'gt', v:'', st:{bg:'yellow'}}, where:(g.r1!==g.r2||g.c1!==g.c2)?'sel':'col'};
+  cfEditRender();
+}
+
+/* ───────── ☑ えらんだ範囲を チェックボックスに（v670。範囲の 帯から）─────────
+   列ごとの 決まり（_ct）に「r1〜r2 の 行だけ」で 持たせる。いちばん上が 見出しの 字なら その下から。 */
+/* えらんだ 範囲の いちばん上の 行が 見出しか：字だけ（数・☑ の しるし で ない）か、
+   「済」「○」でも 横の セルが 字（見出しの 行）・太字 なら 見出し */
+function isHeadTop(g){
+  const r=g.r1, raw=c=>String(data[r][c]==null?'':data[r][c]).trim();
+  const isWord=t=>t!=='' && !t.startsWith('=') && isNaN(t.replace(/,/g,''));
+  let any=false, plain=true;
+  for(let c=g.c1;c<=g.c2;c++){
+    const t=raw(c); if(t==='') continue; any=true;
+    if(!isWord(t)) return false;                                  // 数・式は 見出しで ない
+    if(/^[☑☐□✓✔]$/.test(t) || /^(true|false)$/i.test(t)) return false;
+    if(hpCkState(t)!=null) plain=false;                          // 済・○ は まだ 分からない
+  }
+  if(!any) return false;
+  if(plain) return true;
+  const side=[g.c1-1, g.c2+1].filter(c=>c>=0 && c<COLS);
+  if(side.some(c=>isWord(raw(c)))) return true;
+  for(let c=g.c1;c<=g.c2;c++){ const s=cellStyles[r+','+c]; if(s && s.bold) return true; }
+  return r===0 && g.r2>r;   // 表の いちばん上の 行
+}
+function ckMake(){
+  const g=quickRect(), o=Object.assign({}, hpKinds()||{});
+  let r1=g.r1;
+  if(g.r2>g.r1 && isHeadTop(g)) r1++;   // いちばん上が 見出しなら 見出しとして 残す
+  pushSnapshot('チェックボックスにする');
+  let fixed=0, kept=0;
+  for(let c=g.c1;c<=g.c2;c++){
+    const was=o[c];
+    if(was && was.k==='ck' && was.r2==null && (was.r1|0)<=r1) continue;   // もう 下まで ☑ の 列
+    const a=(was && was.k==='ck') ? Math.min(was.r1|0, r1) : r1;
+    const b=(was && was.k==='ck' && was.r2==null) ? null : Math.max(g.r2, (was && was.k==='ck') ? (was.r2|0) : g.r2);
+    o[c]=b==null ? {k:'ck', r1:a} : {k:'ck', r1:a, r2:b};
+    for(let r=r1;r<=g.r2;r++){
+      const v=data[r][c]; if(v===''||v==null || String(v).startsWith('=') || isLockedCell(r,c)) continue;
+      const s=hpCkState(v);
+      if(s===1 && v!=='1'){ data[r][c]='1'; fixed++; }
+      else if(s===0){ data[r][c]=''; fixed++; }
+      else if(s==null) kept++;
+    }
+  }
+  cellStyles._ct=o;
+  if(typeof clearRangeSelection==='function') clearRangeSelection();
+  afterEdit();
+  const ref=ALPHA[g.c1]+(r1+1)+':'+ALPHA[g.c1]+(g.r2+1);
+  toast('☑ チェックボックスにしました。押すたびに ☑⇄☐'+(kept?'（字や数の '+kept+'セルは そのまま）':'')+'。☑ の数は =COUNTIF('+ref+',1)', 4200);
+}
+function ckUnmake(){
+  const g=quickRect(), o=Object.assign({}, hpKinds()||{});
+  pushSnapshot('チェックボックスをやめる');
+  for(let c=g.c1;c<=g.c2;c++){
+    const k=o[c]; if(!k || k.k!=='ck') continue;
+    const a=k.r1|0, b=(k.r2==null) ? null : k.r2|0;
+    if(g.r1<=a && (b!=null ? g.r2>=b : false)){ delete o[c]; continue; }   // ぜんぶ 外す
+    if(g.r1<=a){ o[c]=Object.assign({}, k, {r1:g.r2+1}); continue; }       // 上を 外す
+    if(b!=null && g.r2>=b){ o[c]=Object.assign({}, k, {r2:g.r1-1}); continue; }   // 下を 外す
+    if(b==null && g.r1>a){ o[c]=Object.assign({}, k, {r2:g.r1-1}); continue; }   // 下まで の 列の 途中から下を 外す（上は 残す）
+    o[c]=Object.assign({}, k, {r2:g.r1-1});                                       // まん中なら 上だけ 残す
+  }
+  if(Object.keys(o).length) cellStyles._ct=o; else delete cellStyles._ct;
+  if(typeof clearRangeSelection==='function') clearRangeSelection();
+  afterEdit();
+  toast('ふつうの セルに もどしました（中身の ☑＝1 は そのまま。↶戻る で元に戻せます）', 3400);
 }
 
 /* ───────── 🔎 しぼり込み・並べかえ ───────── */
@@ -1298,7 +1434,7 @@ function chPrint(){
 }
 window.addEventListener('resize', ()=>{ if(view==='chart') { clearTimeout(chartDraw.t); chartDraw.t=setTimeout(chartDraw,150); } });
 
-window.HP={ close, menu, go, kind, kSet, kPreset, kSum, kOk, kSumPut, cf, cfNew, cfEdit, cfWhere, cfRow, cfType, cfSt, cfNock, cfPrev, cfSave, cfBack, cfMove, cfDel, cfClearAll,
+window.HP={ close, menu, go, kind, kSet, kPreset, kSum, kOk, kSumPut, cf, cfNew, cfEdit, cfQuick, cfQuickSet, cfQuickClear, cfQuickMore, ckMake, ckUnmake, cfWhere, cfRow, cfType, cfSt, cfNock, cfPrev, cfSave, cfBack, cfMove, cfDel, cfClearAll,
   filter, fTab, fAll, fOne, fFind, fOk, fClear, fOff, quick, sortBy, pivot, pv, pvCopy, pvChart, pvMake,
   chart, chartOpen, chType, chFlip, chSer, chLc, chPie, chTitle, chTable, chSave, chPrint,
   /* テスト用 */ region, chartSource, chartBuild, chartModel:()=>chartModel(), chartSvg, pieParts, niceTicks, parseOpts, pivotRows:()=>pivotRows(), state:()=>st, view:()=>view };

@@ -1537,7 +1537,7 @@ function padTopRow(){
 }
 /* その場の メニューの ボタンを「アイコン＋下に 小さい 名前」に する（v663）。
    名前は ほかの ところで textContent ごと 書きかわる（保護・結合）ので、出す たびに 作り直す */
-const POP_SHORT={'グラフ・色・しぼる':'グラフ他','結合を解除':'結合解除','保護をやめる':'保護解除','幅を中身に':'幅合わせ','隠した列を出す':'列を出す',
+const POP_SHORT={'色の決まり':'色ルール','チェックをやめる':'チェック解除','チェックに':'チェック','グラフ・色・しぼる':'グラフ他','結合を解除':'結合解除','保護をやめる':'保護解除','幅を中身に':'幅合わせ','隠した列を出す':'列を出す',
   '隠した行を出す':'行を出す','ここまで固定':'固定','下へコピー':'下へ','右へコピー':'右へ','あいうえお順':'あいうえお','しぼり込み':'しぼる','ロック中':'ロック中'};
 const POP_ACT={nf_comma:['1,000','桁区切り'], dec_up:['.0','小数＋'], dec_dn:['.0','小数−'], nf_pct:['%','パーセント'], nf_yen:['¥','円'], fill_series:['123','連番'], more2:['⋯','もっと']};
 function popIconize(menu){
@@ -1698,7 +1698,7 @@ const BAND_KINDS=[
 /* 帯に いつも ある ボタン（index.html の #cellMenu の data-act） */
 const BAND_COMMON=['cut','copy','paste','merge','edit','clear','fmt','lock'];
 const BAND_FMT=['nf_yen','nf_pct','nf_comma','dec_up','dec_dn','bold','al_l','al_c','al_r'];
-const BAND_RANGE=['autosum','sort_up','sort_dn','chart'];   // コピーの ボタン（BAND_FILL）は 範囲選択と コピーの しかた の ところ（v629）
+const BAND_RANGE=['autosum','sort_up','sort_dn','chart','cf_q','ck_mk'];   // 🎨 色の決まり・☑ チェックに（v670）   // コピーの ボタン（BAND_FILL）は 範囲選択と コピーの しかた の ところ（v629）
 /* 置ける ボタン（帯の 種類ごと） */
 function bandPool(k){
   if(k==='col') return ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'];
@@ -1711,8 +1711,8 @@ const BAND_DEF={
   num:  ['nf_yen','nf_pct','nf_comma','dec_up','dec_dn'].concat(BAND_COMMON),
   text: ['bold','al_l','al_c','al_r'].concat(BAND_COMMON),
   empty: BAND_COMMON.slice(),
-  range:['autosum','sort_up','sort_dn','chart'].concat(BAND_COMMON),
-  rtext:['merge','bold','al_c','sort_up','cut','copy','paste','edit','clear','fmt','lock'],
+  range:['autosum','sort_up','sort_dn','chart','cf_q','ck_mk'].concat(BAND_COMMON),
+  rtext:['merge','bold','al_c','sort_up','ck_mk','cut','copy','paste','edit','clear','fmt','lock'],
   col:  ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'],
   row:  ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'],
 };
@@ -1738,6 +1738,8 @@ const BAND_LABEL={
   autosum:['Σ 合計','選んだ範囲の 下（横長なら 右）に、合計の式（=SUM）を 入れる'],
   sort_up:['↑ 小さい順','選んだ範囲の 行を、いま選んでいる列の 小さい順（あいうえお順）に 並べかえる'], sort_dn:['↓ 大きい順','選んだ範囲の 行を、いま選んでいる列の 大きい順に 並べかえる'],
   chart:['📊 グラフ','選んだ範囲を 棒・折れ線・円グラフに する'],
+  cf_q:['🎨 色の決まり','選んだ範囲に「大きさを色の濃さで」「棒で」「マイナスは赤」などを ワンタップで 付ける'],
+  ck_mk:['☑ チェックに','選んだ範囲を、押すたびに ☑⇄☐ の チェックボックスに する'],
   fill_down:['↓ 下へコピー','選んだ範囲の いちばん上の 行を、下の 行に コピーする（数式は ずらして。Excel の Ctrl+D）'],
   fill_right:['→ 右へコピー','選んだ範囲の いちばん左の 列を、右の 列に コピーする（数式は ずらして。Excel の Ctrl+R）'],
   fill_series:['1,2,3 連番','はじめの セルから 1つずつ 増やして 入れる（日付・「第1回」なども。縦長なら 下へ、横1行なら 右へ）'],
@@ -1771,6 +1773,13 @@ function bandDef(id, kind){
       it.run=()=>bandSort(id==='sort_up' ? 1 : -1); return it;
     }
     case 'chart':   if(!rng) return null; it.run=()=>hpRun('chart'); return it;
+    case 'cf_q':    if(!rng || !hpOk()) return null; it.run=()=>hpRun('cfQuick'); return it;
+    case 'ck_mk': {
+      if(!rng || !hpOk()) return null;
+      if(hpCkAllIn(selRect())){ it.t='☐ チェックをやめる'; it.tip='選んだ範囲の チェックボックスを ふつうの セルに もどす'; it.run=()=>hpRun('ckUnmake'); return it; }
+      if(!hpCkFits(selRect())) return null;   // 字で 埋まった 範囲（見出しの 行 など）には 出さない
+      it.run=()=>hpRun('ckMake'); return it;
+    }
     case 'fill_down': case 'fill_right': case 'fill_series': {
       if(!rng) return null;
       const g=selRect();
@@ -6712,6 +6721,7 @@ const KEY_FUNCS={
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
   a_coltype:{g:'設定・機能',label:'☑チェック欄・えらぶ列',short:'チェック',run:()=>hpRun('kind')},
+  a_mktable:{g:'設定・機能',label:'✨ことばで表を作る',short:'表を作る',run:()=>hgOpen()},   // v670
   a_pivot:{g:'設定・機能',label:'📑項目ごとの合計',short:'まとめ',run:()=>hpRun('pivot')},
   a_tools:{g:'設定・機能',label:'🧰道具',short:'道具',run:()=>openToolsList()},   // 道具の一覧を開く（v429）
   a_memo:{g:'設定・機能',label:'📄メモ',short:'メモ',run:()=>openNotesApp()},
@@ -17724,6 +17734,8 @@ function renderTmplPick(){
   const mine=take(customModes.map(m=>'m:'+m.key));
   let html='';
   const normal=tmplEntry('m:normal');
+  // ✨ ことばで表を作る（v670）：さがす 欄に 打った ことばから そのまま 作れる
+  const gen=`<div class="tmpl-group tmpl-top"><button type="button" class="tmpl-chip wide tmpl-gen" data-tk="gen" onclick="tmplGen()"><span class="tmpl-ico">✨</span><span class="tmpl-txt"><span class="tmpl-name">${q?'「'+escHtml(q)+'」で 表を作る':'ことばで表を作る'}</span><span class="tmpl-desc">${q?'見出し・式・合計・☑・色の決まりまで 入れた 表の 見本を 出します':'「3人で割り勘」「家計簿」「12か月の売上」のように 書くか 話すだけ'}</span></span></button></div>`;
   if(normal && tmplMatch(normal,q)) html+=`<div class="tmpl-group tmpl-top">${tmplCard(normal, true)}</div>`;
   if(!q){
     const rec=tmplRecentGet().map(tmplEntry).filter(Boolean).slice(0,4);
@@ -17731,9 +17743,15 @@ function renderTmplPick(){
   }
   html+=groups.map(([n,es])=>tmplGroupHtml(n,es)).join('');
   html+=tmplGroupHtml('🗂 自分のひな形（保存リストから登録）', mine);
-  if(!html) html=`<div class="tmpl-none">「${escHtml(q)}」に合うひな形はありません。<br>ことばを短くするか、ひらがなでさがしてみてください。</div>`;
+  if(!html) html=`<div class="tmpl-none">「${escHtml(q)}」に合うひな形はありません。<br>上の ✨ で、このことばから 表を作れます。</div>`;
+  html=gen+html;
   box.innerHTML=html;
   bindModeDrag();
+}
+function tmplGen(){
+  if(isDlgOpen('modeMenuOverlay') && mmGuardActive()) return;   // 開いた 直後の 指
+  const qi=document.getElementById('tmplSearch');
+  hgOpen(qi ? qi.value.trim() : '');
 }
 function tmplSearchInput(){ renderTmplPick(); const x=document.getElementById('tmplSearchClear'); if(x) x.hidden=!document.getElementById('tmplSearch').value; }
 function tmplSearchClear(){ const i=document.getElementById('tmplSearch'); if(i){ i.value=''; tmplSearchInput(); i.focus(); } }
@@ -18586,7 +18604,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v669';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v670';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18746,11 +18764,17 @@ function applyCellStyle(td, r, c){
   td.style.boxShadow='';
   td.style.removeProperty('--dsize');
   td.classList.remove('cell-locked');
+  if(td.classList.contains('hp-dbar')){ td.classList.remove('hp-dbar'); td.style.removeProperty('--hp-barw'); td.style.removeProperty('--hp-barc'); }
   if(r===selR && c===selC){ updateDateBadge(); if(typeof kfmtSyncState==='function') kfmtSyncState(); }   // 選択セルの書式が変わったら印を更新
   hpCellExtra(td, r, c);   // ☑ チェック欄・▾ えらぶだけの列（v563）
   let s=cellStyles[`${r},${c}`];
   const cf=(hpCfMap && hpCfMap.size) ? hpCfMap.get(r+','+c) : null;   // 🎨 条件で付く色を重ねる（v563）
   if(cf) s=Object.assign({}, s||{}, hpCfStyle(cf,false));
+  if(cf && cf.bar){   // セルの中の 横の棒（v670。範囲を 選んでも 消えない ように 背景の 絵で 描く）
+    td.classList.add('hp-dbar');
+    td.style.setProperty('--hp-barw', Math.max(2, Math.round((cf.w||0)*100))+'%');
+    td.style.setProperty('--hp-barc', hpMix(cf.bar, 55));
+  }
   if(!s) return;
   if(s.locked)    td.classList.add('cell-locked');
   if(s.bold)      td.style.fontWeight='bold';
@@ -18814,6 +18838,28 @@ function hpRun(act, arg){
   });
 }
 
+/* ── ✨ ことばで表を作る（v670。hyogen.js は はじめて使うときに読む）── */
+var hgLoading;
+function loadHgPart(){
+  if(window.HG) return Promise.resolve(true);
+  if(hgLoading) return hgLoading;
+  hgLoading=new Promise(res=>{
+    const sc=document.createElement('script'); sc.src='hyogen.js';
+    sc.onload=()=>{ hgLoading=null; res(!!window.HG); };
+    sc.onerror=()=>{ hgLoading=null; sc.remove(); res(false); };
+    document.head.appendChild(sc);
+  });
+  return hgLoading;
+}
+function hgOpen(q){
+  if(tableMode==='dentaku'){ toast('表の画面で使えます'); return Promise.resolve(); }
+  if(isDlgOpen('modeMenuOverlay')) closeModeMenu();
+  return loadHgPart().then(ok=>{
+    if(!ok){ toast('部品を読み込めませんでした。インターネットにつながるところで、一度アプリを開き直してください'); return; }
+    window.HG.open(typeof q==='string' ? q : '');
+  });
+}
+
 /* ── ☑ チェック欄・📋 えらぶだけの列 ── */
 function hpKinds(){ const o=cellStyles._ct; return (o && typeof o==='object' && !Array.isArray(o)) ? o : null; }
 function hpKindAt(r,c){
@@ -18835,6 +18881,28 @@ function hpCkCell(r,c){
   const k=hpKindAt(r,c); if(!k || k.k!=='ck') return null;
   const raw=(data[r] && data[r][c]!=null) ? String(data[r][c]) : '';
   return raw.startsWith('=') ? null : hpCkState(raw);
+}
+/* 範囲が ぜんぶ ☑ の セルか（帯の「☐ チェックをやめる」。v670） */
+function hpCkAllIn(g){
+  if(!g) return false;
+  for(let c=g.c1;c<=g.c2;c++){ const k=hpKinds() && hpKinds()[c]; if(!k || k.k!=='ck') return false;
+    if(g.r1<(k.r1|0) || (k.r2!=null && g.r2>(k.r2|0))) return false; }   // 範囲が ぜんぶ ☑ の 中
+  return true;
+}
+/* チェックボックスに できそうな 範囲か：空の セルか ☑ に なる 中身（済・○・1 など）が ある */
+function hpCkFits(g){
+  if(!g) return false;
+  if(g.r1===g.r2){   // 1行だけで 字（見出し・表題）が ある 範囲は 結合や 太字の 行
+    for(let c=g.c1;c<=g.c2;c++){ const v=data[g.r1][c]; if(v!=='' && v!=null && !String(v).startsWith('=') && isNaN(String(v).trim()) && hpCkState(v)==null) return false; }
+  }
+  let n=0;
+  for(let r=g.r1;r<=g.r2;r++) for(let c=g.c1;c<=g.c2;c++){
+    const v=data[r] && data[r][c];
+    if(v==='' || v==null) return true;
+    if(!String(v).startsWith('=') && hpCkState(v)!=null) return true;
+    if(++n>5000) return true;
+  }
+  return false;
 }
 function hpRowBlank(r, skip){
   const row=data[r]; if(!row) return true;
@@ -18942,8 +19010,25 @@ function hpStPick(st){
   return Object.keys(o).length ? o : null;
 }
 /* 色を書式の形に。画面では夜の色にも切りかわる変数、書き出し・印刷では明るい画面の色 */
+/* 色の濃さ・棒の 色（ふつうの 背景より 濃い。夜は 暗めの 変数）。v670 */
+var HP_SC={yellow:'#f4c430', red:'#e5675c', green:'#43a86a', blue:'#4f8fe0', gray:'#8f98a3', orange:'#f39a3d'};
+var hpMixOk;
+function hpMix(name, pct){
+  if(hpMixOk==null){ try{ hpMixOk=!!(window.CSS && CSS.supports && CSS.supports('color','color-mix(in srgb, red 50%, transparent)')); }catch(_){ hpMixOk=false; } }
+  if(hpMixOk) return `color-mix(in srgb, var(--hps-${name}) ${pct}%, transparent)`;
+  const h=HP_SC[name]||'#888888';
+  return `rgba(${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)},${(pct/100).toFixed(2)})`;
+}
+/* 白に 混ぜた 色（書き出し・印刷用） */
+function hpMixHex(name, f){
+  const h=HP_SC[name]||'#888888', m=i=>Math.round(255-(255-parseInt(h.slice(i,i+2),16))*f).toString(16).padStart(2,'0');
+  return '#'+m(1)+m(3)+m(5);
+}
+function hpScPct(a){ return Math.round(10+65*a); }
 function hpCfStyle(cf, hex){
   const o={};
+  if(cf.sc) o.bg=hex ? hpMixHex(cf.sc, hpScPct(cf.a||0)/100) : hpMix(cf.sc, hpScPct(cf.a||0));
+  if(cf.bar && hex) o.bg=hpMixHex(cf.bar, 0.12+0.3*(cf.w||0));   // Excel・印刷には 棒が ないので うすい 色で
   if(cf.fc) o.color=hex ? HP_FC[cf.fc] : `var(--hpf-${cf.fc})`;
   if(cf.bg) o.bg=hex ? HP_BG[cf.bg] : `var(--hpb-${cf.bg})`;
   if(cf.b) o.bold=true;
@@ -18976,6 +19061,12 @@ function hpCfTest(ru, probe, today, val){
     const th=xs[Math.min(n, xs.length)-1];
     return (r,c)=>{ const x=val(r,c).n; return x!=null && (t==='top' ? x>=th : x<=th); };
   }
+  if(t==='above' || t==='below'){   // 平均より 上／下（v670）
+    const xs=probe.map(([r,c])=>val(r,c)).filter(x=>x.n!=null && x.d==null).map(x=>x.n);
+    if(!xs.length) return ()=>false;
+    const av=xs.reduce((a,b)=>a+b,0)/xs.length;
+    return (r,c)=>{ const x=val(r,c); return x.n!=null && x.d==null && (t==='above' ? x.n>av : x.n<av); };
+  }
   if(t==='dup'){
     const cnt=new Map();
     probe.forEach(([r,c])=>{ const s=val(r,c).s.toLowerCase(); if(s!=='') cnt.set(s,(cnt.get(s)||0)+1); });
@@ -19005,6 +19096,23 @@ function hpCfTest(ru, probe, today, val){
     return false;
   };
 }
+/* 大きさで 見せる 決まり（v670）：scale＝色の濃さ・bar＝セルの中の 横の棒・above/below＝平均より 上／下 */
+var HP_CF_SPREAD={scale:1, bar:1, above:1, below:1};
+/* 色の濃さ・棒：範囲の 数の いちばん小さい〜大きい を 0〜1 に。日付は 入れない */
+function hpCfSpread(ru, probe, val, bg){
+  const out=new Map(), xs=[];
+  probe.forEach(([r,c])=>{ const x=val(r,c); if(x.n!=null && x.d==null) xs.push([r,c,x.n]); });
+  if(!xs.length || !HP_BG[bg]) return out;
+  let lo=Infinity, hi=-Infinity; xs.forEach(a=>{ if(a[2]<lo) lo=a[2]; if(a[2]>hi) hi=a[2]; });
+  xs.forEach(([r,c,n])=>{
+    let w;
+    if(ru.t==='bar') w=(lo>=0) ? (hi>0 ? n/hi : 0) : (hi>lo ? (n-lo)/(hi-lo) : 1);   // 0 からの 長さ（マイナスが あれば いちばん小さいから）
+    else w=(hi>lo) ? (n-lo)/(hi-lo) : 1;
+    w=Math.max(0, Math.min(1, w));
+    out.set(r+','+c, ru.t==='bar' ? {bar:bg, w:Math.round(w*100)/100} : {sc:bg, a:Math.round(w*100)/100});
+  });
+  return out;
+}
 /* いまのシートの「条件で付く見た目」をすべて出す（上にある決まりほど強い） */
 function hpCfCompute(){
   const out=new Map();
@@ -19019,11 +19127,15 @@ function hpCfCompute(){
     const c1=Math.max(0, ru.c1|0), c2=Math.min(COLS-1, ru.c2==null ? COLS-1 : ru.c2|0);
     if(r1>r2 || c1>c2) continue;
     const rowMode=!!ru.row && ru.kc>=0 && ru.kc<COLS;
-    const rank=(ru.t==='top' || ru.t==='bot' || ru.t==='dup');   // 順位・同じもの は 合計の行を比べる仲間に入れない
+    const rank=(ru.t==='top' || ru.t==='bot' || ru.t==='dup' || HP_CF_SPREAD[ru.t]);   // 順位・同じもの・大きさ（色の濃さ・棒・平均）は 合計の行を比べる仲間に入れない
     const probe=[];
     for(let r=r1;r<=r2;r++){
       if(rank && hpIsTotalRow(r)) continue;
       if(rowMode) probe.push([r, ru.kc]); else for(let c=c1;c<=c2;c++) probe.push([r,c]);
+    }
+    if(ru.t==='scale' || ru.t==='bar'){   // 大きさを 色の濃さ・横の棒で（v670。行ぜんぶ には しない）
+      hpCfSpread(ru, probe, val, st.bg).forEach((o,k)=>{ const p=k.split(','); put(+p[0], +p[1], o); });
+      continue;
     }
     const test=hpCfTest(ru, probe, today, val);
     const nock=(ru.nock!=null && ru.nock>=0 && ru.nock<COLS) ? ru.nock : -1;
@@ -19233,6 +19345,10 @@ function hpRemapKey(k, v, mapFn){
     const o={};
     for(const key in v){
       const it=v[key], c2=fc(+key); if(c2==null || !it) continue;
+      if(it.r2!=null && (it.k==='ck' || it.rg)){   // 範囲だけの ☑・ことばで作った表の えらぶ欄（v670）：間の 行が 増えたり 減ったり しても 範囲で ついていく
+        const sp=hpMapSpan(it.r1|0, it.r2|0, fr, MAXROWS); if(!sp) continue;
+        o[c2]=Object.assign({}, it, {r1:sp[0], r2:sp[1]}); continue;
+      }
       if(it.r2!=null){   // 決まった行だけの えらぶ欄（v565）：その行についていく。行が消えたら やめる
         const a=fr(it.r1|0), b=fr(it.r2|0); if(a==null || b==null) continue;
         o[c2]=Object.assign({}, it, {r1:Math.min(a,b), r2:Math.max(a,b)}); continue;

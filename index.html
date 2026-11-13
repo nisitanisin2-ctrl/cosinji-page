@@ -3838,6 +3838,8 @@ body.mode-reordering .mode-item { touch-action: none; }
 .tmpl-top .tmpl-chip { align-items: center; }
 .tmpl-top .tmpl-ico { font-size: 22px; width: 30px; }
 .tmpl-top .tmpl-name { font-size: 15px; }
+.tmpl-chip.tmpl-gen { width: 100%; border-color: var(--acc); background: var(--acc-weak, rgba(25,118,210,.08)); }   /* ✨ ことばで表を作る（v670） */
+.tmpl-chip.tmpl-gen .tmpl-name { color: var(--acc-text, var(--acc)); }
 .tmpl-recent .tmpl-grid { padding: 6px; border-radius: var(--r-btn); background: rgba(33,115,70,0.06); }
 .tmpl-search-row { position: sticky; top: -10px; z-index: 2; display: flex; gap: 6px; align-items: center; padding: 2px 0 8px; background: var(--modal-bg);
   box-shadow: 0 -10px 0 var(--modal-bg); }
@@ -4292,6 +4294,13 @@ body.dark .cell.cell-err { color: #ff8a80 !important; background: rgba(255,138,1
   --hpb-yellow:#fff59d; --hpb-red:#ffcdd2; --hpb-green:#c8e6c9; --hpb-blue:#bbdefb; --hpb-gray:#e0e0e0; --hpb-orange:#ffe0b2; }
 body.dark { --hpf-red:#ff8a80; --hpf-blue:#82b1ff; --hpf-green:#81c784; --hpf-gray:#8a93a6; --hpf-orange:#ffb74d;
   --hpb-yellow:#5c5000; --hpb-red:#5e2328; --hpb-green:#1f4d2c; --hpb-blue:#1c3b63; --hpb-gray:#3a4152; --hpb-orange:#5e3a08; }
+/* 大きさを 色の濃さ・横の棒で（v670）。棒は 背景の 絵なので、セルの 背景色・選んだ 範囲の 色と 重なっても 残る */
+:root { --hps-yellow:#f4c430; --hps-red:#e5675c; --hps-green:#43a86a; --hps-blue:#4f8fe0; --hps-gray:#8f98a3; --hps-orange:#f39a3d; }
+body.dark { --hps-yellow:#b8901a; --hps-red:#b5473f; --hps-green:#2f8a52; --hps-blue:#3a6fb8; --hps-gray:#6b7480; --hps-orange:#b86e22; }
+.cell.hp-dbar { background-image: linear-gradient(90deg, var(--hp-barc) var(--hp-barw), transparent var(--hp-barw)) !important;
+  background-size: 100% 70% !important; background-position: left center !important; background-repeat: no-repeat !important; }
+.cell.sel-range.hp-dbar { background-image: linear-gradient(var(--sel-tint), var(--sel-tint)), linear-gradient(90deg, var(--hp-barc) var(--hp-barw), transparent var(--hp-barw)) !important;
+  background-size: 100% 100%, 100% 70% !important; }
 /* ☑ チェック欄：字は隠して四角を描く（コピー・書き出しでは ☑／☐ の字になる） */
 .cell.hp-ck { position: relative; color: transparent !important; text-align: center; }
 .cell.hp-ck::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
