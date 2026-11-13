@@ -1720,7 +1720,7 @@ const BAND_DEF={
   text: ['bold','al_l','al_c','al_r'].concat(BAND_COMMON),
   empty: ['ck_mk'].concat(BAND_COMMON),   // 空の セル：☑ チェックに（v672）
   range:['rng_ext','autosum','sort_up','sort_dn','chart','cf_q','ck_mk'].concat(BAND_COMMON),
-  rtext:['rng_ext','merge','bold','al_c','sort_up','ck_mk','cut','copy','paste','edit','clear','fmt','lock'],
+  rtext:['merge','rng_ext','bold','al_c','sort_up','ck_mk','cut','copy','paste','edit','clear','fmt','lock'],
   col:  ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'],
   row:  ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'],
 };

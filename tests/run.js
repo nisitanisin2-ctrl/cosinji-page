@@ -19400,7 +19400,7 @@ async function runHyo619(browser) {
   await page.evaluate(() => hideEditBar());
   await tap(0, 1); await page.waitForTimeout(400);
   check('  結合は 帯の はじめの 方（横に すべらせなくても 見える）', await page.evaluate(() => document.getElementById('cellMenuMerge').getBoundingClientRect().right <= innerWidth), true);
-  check('  範囲の 中を タップしても 帯に 結合（v624：文字だけの 範囲は 太字・中央も）', await shown(), '𝐁 太字/↔ 中央/✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/🔒 保護');
+  check('  範囲の 中を タップしても 帯に 結合（v624：文字だけの 範囲は 太字・中央も）', await shown(), '⤢ 範囲を広げる/𝐁 太字/↔ 中央/✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/🔒 保護');
   check('  　文字だけの 範囲は ⊞ 結合が 先頭（v624）', await page.evaluate(() => document.getElementById('cellMenuMerge').style.order), '0');
   await page.click('#cellMenuMerge'); await page.waitForTimeout(400);
   check('  押すと 結合（3列）', await page.evaluate(() => JSON.stringify(mergeAt(0, 0)) + '/' + cellStyles['0,0'].align), '{"rs":1,"cs":3}/center');
@@ -19515,7 +19515,7 @@ async function runHyo624(browser) {
   await page.evaluate(() => { hideEditBar(); clearRangeSelection(); sel(1, 1); }); await w(500);
   let a = await ctr(1, 1), b = await ctr(3, 2);
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await w(80); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await w(600);
-  check('  範囲：合計・並べかえ・グラフ（＋⊞ 結合）', [await ctxBtns(), await page.evaluate(() => !!document.getElementById('cellMenuMerge').offsetParent)].join('|'), 'Σ 合計/↑ 小さい順/↓ 大きい順/📊 グラフ/🎨 色の決まり|true');   // v670：色の決まり（数で 埋まった 範囲には ☑ チェックに は 出ない）
+  check('  範囲：合計・並べかえ・グラフ（＋⊞ 結合）', [await ctxBtns(), await page.evaluate(() => !!document.getElementById('cellMenuMerge').offsetParent)].join('|'), '⤢ 範囲を広げる/Σ 合計/↑ 小さい順/↓ 大きい順/📊 グラフ/🎨 色の決まり|true');   // v670：色の決まり（数で 埋まった 範囲には ☑ チェックに は 出ない）
   await page.evaluate(() => document.querySelector('#cellMenuCtx [data-act=autosum]').click()); await w(400);
   check('  Σ 合計：列ごとに 下へ =SUM（答えも）', await page.evaluate(() => [data[4][1], data[4][2], getCellDisplay(4, 2)].join('/')), '=SUM(B2:B4)/=SUM(C2:C4)/4100');
   await page.evaluate(() => undoLast()); await w(300);
@@ -20130,7 +20130,7 @@ async function runFill629(browser) {
   await reset(); c = await rect(0, 1);
   await swipe(c.l + c.w / 2, c.t + c.h / 2, c.l + c.w / 2, c.t + c.h * 4.5);
   const bandActs = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((a, b) => +a.style.order - +b.style.order).map(b => b.dataset.act).slice(0, 4).join(','));
-  check('  なぞって 範囲を 選ぶと 帯の はじめに ↓ 下へコピー・1,2,3 連番（1列なので → は 出ない）', [await st(), await bandActs()].join(' | '), '空,空,空,空 / 0:1:4:1 | fill_down,fill_series,autosum,sort_up');
+  check('  なぞって 範囲を 選ぶと 帯の はじめに ↓ 下へコピー・1,2,3 連番（1列なので → は 出ない）', [await st(), await bandActs()].join(' | '), '空,空,空,空 / 0:1:4:1 | fill_down,fill_series,rng_ext,autosum');
   await page.evaluate(() => document.querySelector('#cellMenuCtx [data-act=fill_down]').click()); await w(300);
   check('  ↓ 下へコピー（いちばん上を 下へ）・お知らせ', await st() + ' | ' + await page.evaluate(() => document.getElementById('appToast').textContent), '5,5,5,5 / 0:1:4:1 | ↓ 下へコピー：B1:B5（4セル）。↶戻す で 戻せます');
   await page.evaluate(() => undoLast()); await w(200);
