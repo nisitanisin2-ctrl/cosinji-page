@@ -3183,7 +3183,7 @@ async function runStartPage(browser) {
   // はじめての人：案内のあとにホーム
   await page.evaluate(() => { localStorage.removeItem('excalc_startpage'); localStorage.removeItem('excalc_tour_done'); });
   await page.reload(); await page.waitForTimeout(1500);
-  check('  はじめての人は案内が先（ホームは重ねない）', await page.evaluate(() => isDlgOpen('tourOverlay') + '/' + isDlgOpen('homeOverlay')), 'true/false');
+  check('  はじめての人にも案内は出さない（v672）', await page.evaluate(() => isDlgOpen('tourOverlay') + '/' + isDlgOpen('homeOverlay')), 'false/false');
   await page.evaluate(() => tourSkip()); await page.waitForTimeout(700);
   check('  案内を閉じてもホームは出さない（v639。すぐ打てる）', await page.evaluate(() => isDlgOpen('homeOverlay')), false);
   await page.evaluate(() => { closeHome(); setStartPage('last'); }); await page.waitForTimeout(300);
@@ -3996,7 +3996,7 @@ async function runExport(browser) {
   // ── ☰メニューの整理（v375・v459） ──
   await page.evaluate(() => openMoreMenu()); await page.waitForTimeout(400);
   check('  項目の数（v459：道具の一覧は ☰ の外の窓に）', await page.evaluate(() =>
-    document.querySelectorAll('#moreMenuOverlay .more-item').length), 39);   // v625：🗄 全保存・復元 → v627：⬇ エクスポート・⬆ インポート   // v624：🖼画像・🕘前の状態・🔎検索・⬆⬅挿入・↕並べかえ・📌固定・👁隠したのを出す・Excel と同じ分け方   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
+    document.querySelectorAll('#moreMenuOverlay .more-item').length), 40);   // v671：▦ 既定の大きさに（リセットの横）   // v625：🗄 全保存・復元 → v627：⬇ エクスポート・⬆ インポート   // v624：🖼画像・🕘前の状態・🔎検索・⬆⬅挿入・↕並べかえ・📌固定・👁隠したのを出す・Excel と同じ分け方   // v465：戻す・声を外し、⌨（右置きのときだけ出る）を足した。v560：📝別の名前で保存（記録を開いているときだけ見える）。v563：📊 表を強くする の5つ
   check('  はじめは畳んである', await page.evaluate(() =>
     document.getElementById('moreAccAll').open),
     false);
@@ -4444,7 +4444,8 @@ async function runOnboard(browser) {
 
   const open = () => page.evaluate(() => isDlgOpen('tourOverlay'));
   const head = () => page.evaluate(() => document.querySelector('.tour-h').textContent);
-  check('  はじめて開いたら案内が出る', await open(), true);
+  check('  はじめて開いても案内は出さない（v672）', await open(), false);
+  await page.evaluate(() => openTour()); await page.waitForTimeout(300);   // 設定の「はじめての案内をもう一度見る」と同じ
   check('  5枚ある', await page.evaluate(() => TOUR_PAGES.length), 5);
   check('  1枚目は表と電卓', await head(), '表と電卓、どちらも使えます');
   check('  いまどこか分かる丸', await page.evaluate(() =>
@@ -4488,8 +4489,8 @@ async function runOnboard(browser) {
   await page.evaluate(() => openHelp()); await page.waitForTimeout(400);
   check('  説明書に Excel とのちがいの早見表（v415）', await page.evaluate(() => {
     const d = document.getElementById('h-excel'); return !!d && d.querySelectorAll('tr').length >= 12 && d.textContent.includes('右下の ■'); }), true);
-  check('  説明書に入口がある', await page.evaluate(() =>
-    [...document.querySelectorAll('#helpOverlay button')].some(b => b.textContent.includes('はじめての案内'))), true);
+  check('  説明書には入口を出さない（v672。設定から見られる）', await page.evaluate(() =>
+    [...document.querySelectorAll('#helpOverlay button')].some(b => b.textContent.includes('はじめての案内'))), false);
   await page.evaluate(() => closeHelp()); await page.waitForTimeout(350);
 
   // 見本の表
@@ -19805,7 +19806,7 @@ async function runBand626(browser) {
   check('  セルの バーに 表の 名前は 出さない（入力欄を 広く）', await page.evaluate(() => { document.body.classList.add('tb-fold'); const r = !document.getElementById('fbRec') && !document.querySelector('.formula-bar .fb-rec'); document.body.classList.remove('tb-fold'); return r; }), true);
   check('  はじめの 並び：数字の セル', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cut,copy,paste,edit,clear,fmt,lock');
   check('  はじめの 並び：文字の セル', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cut,copy,paste,edit,clear,fmt,lock');
-  check('  はじめの 並び：空の セル', await bandAt(5, 1), 'cut,copy,paste,edit,clear,fmt,lock');
+  check('  はじめの 並び：空の セル', await bandAt(5, 1), 'ck_mk,cut,copy,paste,edit,clear,fmt,lock');   // v672：☑ チェックに
   check('  押しても 並びは 変わらない（v624 の よく押す順は やめた）', await page.evaluate(() => { for (let i = 0; i < 5; i++) { sel(1, 2); showEditBar(true); cellMenuAct('paste'); } hideEditBar(); return localStorage.getItem('excalc_band_use') + '/' + localStorage.getItem('excalc_band_cfg'); }), 'null/null');
   check('  　5回 貼り付けを 押した あとも 同じ 並び', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cut,copy,paste,edit,clear,fmt,lock');
 
@@ -19823,7 +19824,7 @@ async function runBand626(browser) {
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row.off')].find(x => x.querySelector('b').textContent === '𝐁 太字'); r.querySelector('input').click(); }); await w(150);
   check('  ☑ で 出す／出さない・▲ で 左へ・足すと 右はし（見本も すぐ 変わる）', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '⧉ コピー|％|1,000|.0＋|.0−|✂ 切り取り|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護|𝐁 太字');
   check('  　いちばん 左は ▲ が 押せない', await page.evaluate(() => document.querySelector('.bcf-row:not(.off) .bcf-mv').disabled), true);
-  check('  　出さない ボタンは 下に（¥ 円 も ここに）', await page.evaluate(() => [...document.querySelectorAll('.bcf-row.off b')].map(e => e.textContent).join('|')), '¥ 円|⇤ 左|↔ 中央|⇥ 右');
+  check('  　出さない ボタンは 下に（¥ 円 も ここに）', await page.evaluate(() => [...document.querySelectorAll('.bcf-row.off b')].map(e => e.textContent).join('|')), '¥ 円|⇤ 左|↔ 中央|⇥ 右|☑ チェックに');   // v672：☑ チェックに も 置ける
   // 列名の 帯：列を消す を 外す
   await page.evaluate(() => { [...document.querySelectorAll('.bcf-kind')].find(b => b.textContent.includes('列名')).click(); }); await w(150);
   check('  列名の 帯は 列の ボタンだけ', await page.evaluate(() => [...document.querySelectorAll('.bcf-row b')].map(e => e.textContent).join('|')), '↔ 幅を中身に|⬅ 左に列|➡ 右に列|🗑 列を消す|🔎 しぼり込み|🙈 隠す|👁 隠した列を出す|📌 ここまで固定');
@@ -19832,11 +19833,11 @@ async function runBand626(browser) {
   await page.evaluate(() => { [...document.querySelectorAll('.bcf-kind')].find(b => b.textContent.includes('空の セル')).click(); }); await w(150);
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row')].find(x => x.querySelector('b').textContent === '🔒 保護'); r.querySelector('input').click(); }); await w(150);
   check('  決めた ものは 覚える（excalc_band_cfg）', await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('excalc_band_cfg')))),
-    JSON.stringify({ num: ['copy', 'nf_pct', 'nf_comma', 'dec_up', 'dec_dn', 'cut', 'paste', 'merge', 'edit', 'clear', 'fmt', 'lock', 'bold'], col: ['col_fit', 'col_insL', 'col_insR', 'col_flt', 'col_hide', 'col_show', 'col_frz'], empty: ['cut', 'copy', 'paste', 'merge', 'edit', 'clear', 'fmt'] }));
+    JSON.stringify({ num: ['copy', 'nf_pct', 'nf_comma', 'dec_up', 'dec_dn', 'cut', 'paste', 'merge', 'edit', 'clear', 'fmt', 'lock', 'bold'], col: ['col_fit', 'col_insL', 'col_insR', 'col_flt', 'col_hide', 'col_show', 'col_frz'], empty: ['ck_mk', 'cut', 'copy', 'paste', 'merge', 'edit', 'clear', 'fmt'] }));
   await page.evaluate(() => closeBandCfg()); await w(300);
   check('  帯に 効く：数字の セル（コピーが 左はし・¥ なし・太字が 右はし）', await bandAt(1, 2), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cut,paste,edit,clear,fmt,lock,bold');
   check('  　文字の セルは そのまま', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cut,copy,paste,edit,clear,fmt,lock');
-  check('  　空の セルは 保護なし', await bandAt(5, 1), 'cut,copy,paste,edit,clear,fmt');
+  check('  　空の セルは 保護なし', await bandAt(5, 1), 'ck_mk,cut,copy,paste,edit,clear,fmt');
   await page.tap('#ch1'); await w(500);
   check('  　列名の 帯は 列を消す なし', await band(), 'col_fit,col_insL,col_insR,col_flt,col_hide,col_frz');
   await page.evaluate(() => hideEditBar()); await w(200);
@@ -20559,6 +20560,84 @@ async function runRec671(browser) {
   await page.click('#saveSelDel'); await w(500);
   check('  開いている 表を 消すと 開いていない 扱い（画面の 表は 残る）', await page.evaluate(() => [currentSaveId, localStorage.getItem('excalc_cur_rec'), data[0][0]].join('/')), '//a3');
   await page.evaluate(() => closeSaveList()); await w(200);
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
+/* ── v672：打ちかけの 中身が 消えない・1つの セルに ☑・下の メニューの リセットの 横に 既定の 大きさ ── */
+async function runInput672(browser) {
+  const { devices } = require('playwright');
+  let ctx = null, page = null;
+  const errs = [];
+  console.log('\n── 表電卓 v672：打ちかけの 中身・1つの セルの ☑・リセットの 横 ──');
+  const w = ms => page.waitForTimeout(ms);
+  const boot = async () => {   // 試すたびに まっさらな 場で（前の 試しの 打ちかけが 書き戻されない ように）
+    if (ctx) await ctx.close();
+    ctx = await browser.newContext({ ...devices['Pixel 7'] }); page = await ctx.newPage();
+    page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+    page.on('dialog', d => d.accept());
+    await page.addInitScript(() => { if (!localStorage.getItem('v672init')) { localStorage.clear(); localStorage.setItem('v672init', '1'); localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); } });
+    await page.goto(INDEX); await page.waitForTimeout(1200); };
+  const tapAt = async sel => { const bb = await page.evaluate(s => { const e = document.querySelector(s); if (!e || !e.offsetParent) return null; const x = e.getBoundingClientRect(); return { x: x.left + x.width / 2, y: x.top + x.height / 2 }; }, sel); if (!bb) return false; await page.touchscreen.tap(bb.x, bb.y); await w(450); return true; };
+  const key = async t => { const bb = await page.evaluate(t => { const e = [...document.querySelectorAll('#numpadPage1 button')].find(b => b.offsetParent && b.textContent.trim() === t); if (!e) return null; const x = e.getBoundingClientRect(); return { x: x.left + x.width / 2, y: x.top + x.height / 2 }; }, t); if (!bb) return false; await page.touchscreen.tap(bb.x, bb.y); await w(300); return true; };
+  // テンキーで 12 と 打って から いろいろ 押す
+  const typed = async (name, act) => {
+    await boot(); await tapAt('#c1_0'); await key('1'); await key('2');
+    const mid = await page.evaluate(() => cellEditing + '/' + disp_val);
+    await act(); await w(500);
+    if (mid !== 'true/12') console.log('    （打てて いない：' + mid + '）');
+    check('  テンキーで 打った 数 →' + name + ' でも 入る', await page.evaluate(() => data[1][0]), '12');
+  };
+  await typed('下の タブで 電卓へ', async () => { await tapAt('#appNav [data-nav="calc"]'); await tapAt('#appNav [data-nav="sheet"]'); });
+  await typed('「あ」（本体の キーボード）', async () => { await tapAt('#fbKb'); });
+  await typed('入力欄を 押す', async () => { await tapAt('#formulaInput'); });
+  await typed('⋮ メニュー', async () => { await tapAt('#atMore'); });
+  await typed('行の 番号', async () => { await tapAt('#rh3'); });
+  await typed('アプリを 裏へ 回して 開き直す', async () => { await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }); await w(1500); await page.reload(); await w(1100); });
+  // 入力欄で 打った 字
+  await boot(); await tapAt('#c1_0'); await tapAt('#formulaInput'); await page.keyboard.insertText('りんご'); await w(150);
+  check('  （入力欄に 打てた）', await page.evaluate(() => document.getElementById('formulaInput').value + '|' + (document.activeElement === document.getElementById('formulaInput'))), 'りんご|true');
+  await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); }); await w(1500); await page.reload(); await w(1100);
+  check('  入力欄の 字 → アプリを 裏へ 回して 開き直しても 残る', await page.evaluate(() => data[1][0]), 'りんご');
+  await boot(); await tapAt('#c1_0'); await tapAt('#formulaInput'); await page.keyboard.insertText('みかん'); await w(150);
+  await tapAt('#rh3');
+  check('  入力欄の 字 → 行の 番号を 押しても 入る', await page.evaluate(() => data[1][0]), 'みかん');
+  await page.evaluate(() => setCellVal(5, 1, 'x')); await tapAt('#c1_0'); await tapAt('#formulaInput'); await page.keyboard.insertText('ぶどう'); await w(150);
+  await tapAt('#atUndo');
+  check('  入力欄で 打って ↶ → 打った 字を 取り消し、入力欄も そろう', await page.evaluate(() => { const fi = document.getElementById('formulaInput'); return [data[1][0], data[5][1], fi.value, document.activeElement === fi].join('|'); }), 'みかん|x|みかん|false');
+
+  // ── 1つの セルに ☑ ──
+  await boot();
+  await page.evaluate(() => { setCellVal(1, 0, '牛乳'); setCellVal(4, 0, 'パン'); });
+  await tapAt('#c1_1'); await tapAt('#c1_1');
+  check('  空の セルの 帯に「☑ チェックに」', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).map(b => b.dataset.act)[0]), 'ck_mk');
+  await page.evaluate(() => document.querySelector('#cellMenu button[data-act="ck_mk"]').click()); await w(600);
+  await tapAt('#c4_1'); await tapAt('#c4_1'); await page.evaluate(() => document.querySelector('#cellMenu button[data-act="ck_mk"]').click()); await w(600);
+  check('  1つずつ ☑（間の セルは ふつうの まま）', await page.evaluate(() => [1, 2, 3, 4].map(r => document.getElementById('c' + r + '_1').classList.contains('hp-ck') ? 'v' : '-').join('') + '|' + (cellStyles._ct ? 'ct' : '-')), 'v--v|-');
+  await tapAt('#c1_1');
+  check('  押すと ☑ に なり、そばの 帯の 先頭に「☐ チェックをやめる」（¥・％ は 出さない）', await page.evaluate(() => { const bs = [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent); return [data[1][1], bs[0].dataset.act, (bs[0].getAttribute('aria-label') || bs[0].textContent).includes('チェックをやめる'), bs.some(b => b.dataset.act === 'nf_yen')].join('|'); }), '1|ck_mk|true|false');
+  await page.evaluate(() => document.querySelector('#cellMenu button[data-act="ck_mk"]').click()); await w(600);
+  check('  やめると ☑ も 中身の 1 も 消える（ほかの ☑ は 残る）', await page.evaluate(() => [document.getElementById('c1_1').classList.contains('hp-ck'), data[1][1], document.getElementById('c4_1').classList.contains('hp-ck')].join('|')), 'false||true');
+  check('  行を 足しても ☑ は セルと いっしょに 動く', await page.evaluate(() => { insertRowAt(2); return [document.getElementById('c5_1').classList.contains('hp-ck'), document.getElementById('c4_1').classList.contains('hp-ck')].join('|'); }), 'true|false');
+
+  // ── 下の メニューの リセットの 横 ──
+  await page.evaluate(() => { setSheetSize(20, 6); setCellVal(1, 1, 'a'); });
+  await tapAt('#appNav [data-nav="menu"]'); await w(300);
+  check('  メニューの リセットの 横に「行と列を既定に」（既定の 大きさを 小さく）', await page.evaluate(() => { const a = document.getElementById('moreReset'), b = document.getElementById('moreDefSz'); return [a.parentElement === b.parentElement, a.nextElementSibling === b, !!b.offsetParent, b.querySelector('.defsz-lb').textContent].join('|'); }), 'true|true|true|15行×3列');
+  await tapAt('#moreDefSz'); await w(400);
+  check('  押すと 既定の 大きさ（中身は 残る）', await page.evaluate(() => [ROWS + 'x' + COLS, data[1][1], isDlgOpen('moreMenuOverlay')].join('|')), '15x3|a|false');
+  // ── v672：列・行を 足す／消す も ↶戻る で 戻る・はじめての 案内は 出さない ──
+  check('  はじめての 案内は 出さない（v672）', await page.evaluate(() => [isDlgOpen('tourOverlay'), localStorage.getItem('excalc_tour_done')].join('|')), 'false|1');
+  const st = () => page.evaluate(() => [ROWS + 'x' + COLS, data[0].slice(0, 4).join(','), data[1][0], JSON.stringify(colWidths)].join('|'));
+  await page.evaluate(() => { resetAll(); ['A', 'B', 'C'].forEach((v, i) => setCellVal(0, i, v)); setCellVal(1, 0, '=B1&C1'); colWidths = { 1: 120 }; saveSheetSizes(); buildSheet(); });
+  const before = await st();
+  check('  列を 足すと ずれる（式も ついていく）', await page.evaluate(() => { insertColAt(1); return [COLS, data[0].slice(0, 4).join(','), data[1][0], JSON.stringify(colWidths)].join('|'); }), '4|A,,B,C|=C1&D1|{"2":120}');
+  check('  ↶戻る で 列を 足す 前に 戻る（列の 幅も）', await page.evaluate(() => { undoLast(); return 0; }).then(st), before);
+  check('  ↷進む で もう一度 足す', await page.evaluate(() => { redoLast(); return COLS + '|' + data[0].slice(0, 4).join(','); }), '4|A,,B,C');
+  await page.evaluate(() => undoLast());
+  check('  列を 消しても ↶戻る で 戻る', await page.evaluate(() => { deleteColAt(1); const a = COLS + '|' + data[0].slice(0, 3).join(','); undoLast(); return a; }).then(async a => a + ' → ' + await st()), '2|A,C, → ' + before);
+  check('  行を 足す／消すも ↶戻る で 戻る', await page.evaluate(() => { insertRowAt(0); const a = data[1][0]; undoLast(); deleteRowAt(0); const b = data[0][0]; undoLast(); return [a, b, data[0][0], data[1][0], ROWS].join('|'); }), 'A|=#REF!&#REF!|A|=B1&C1|15');
+  check('  前の 操作の 履歴も 消えない', await page.evaluate(() => { setCellVal(5, 0, 'x'); insertColAt(0); undoLast(); undoLast(); return data[5][0]; }), '');
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
@@ -22262,12 +22341,12 @@ async function runHyoGen670(browser) {
   await w(200);
   check('  見出しから 選んでも ☑ チェックに', await page.evaluate(() => bandItems(bandCellKind()).map(x => x.id + ':' + x.t).filter(x => x.startsWith('ck_mk')).join(',')), 'ck_mk:☑ チェックに');
   await page.evaluate(() => hpRun('ckMake')); await w(400);
-  check('  見出しは 残して 下を ☑ に（○ は ☑・字は そのまま）', await page.evaluate(() => [JSON.stringify(cellStyles._ct), data[0][2], data[3][2], data[5][2], document.getElementById('c1_2').classList.contains('hp-ck'), document.getElementById('c5_2').classList.contains('hp-ck')].join('|')), '{"2":{"k":"ck","r1":1,"r2":6}}|済|1|メモ|true|false');
+  check('  見出しは 残して 下を ☑ に（○ は ☑・字は そのまま）', await page.evaluate(() => [[0, 1, 2, 3, 4, 5, 6].filter(r => cellStyles[r + ',2'] && cellStyles[r + ',2'].ck).join(''), cellStyles._ct ? 'ct' : '-', data[0][2], data[3][2], data[5][2], document.getElementById('c1_2').classList.contains('hp-ck'), document.getElementById('c5_2').classList.contains('hp-ck')].join('|')), '123456|-|済|1|メモ|true|false');   // v672：セル 1つずつの 印
   check('  押すと ☑⇄☐・COUNTIF で 数える', await page.evaluate(() => { hpCellTap(1, 2); hpCellTap(2, 2); hpCellTap(2, 2); setCellVal(8, 2, '=COUNTIF(C2:C7,1)'); recalcAll(); return [data[1][2], data[2][2], getCellDisplay(8, 2)].join('|'); }), '1||2');
   await page.evaluate(() => { clearRangeSelection(); sel(1, 2); extendRange(6, 2); }); await w(150);
   check('  ぜんぶ ☑ の 範囲なら「☐ チェックをやめる」', await page.evaluate(() => bandItems(bandCellKind()).filter(x => x.id === 'ck_mk').map(x => x.t).join(',')), '☐ チェックをやめる');
   await page.evaluate(() => hpRun('ckUnmake')); await w(300);
-  check('  やめると ふつうの セル（中身は 残る）', await page.evaluate(() => [cellStyles._ct ? JSON.stringify(cellStyles._ct) : '-', data[1][2], document.getElementById('c1_2').classList.contains('hp-ck')].join('|')), '-|1|false');
+  check('  やめると ふつうの セル（☑ の 1 も 消す。v672）', await page.evaluate(() => [cellStyles._ct ? JSON.stringify(cellStyles._ct) : '-', [1, 2, 3, 4, 5, 6].some(r => cellStyles[r + ',2'] && cellStyles[r + ',2'].ck), data[1][2], data[5][2], document.getElementById('c1_2').classList.contains('hp-ck')].join('|')), '-|false||メモ|false');
   check('  途中の 行を 消しても 範囲の ☑ は 残る', await page.evaluate(() => { cellStyles._ct = { 2: { k: 'ck', r1: 1, r2: 6 } }; deleteRowAt ? 0 : 0; const o = hpRemapKey('_ct', cellStyles._ct, (r, c) => (r === 6 ? null : r > 6 ? [r - 1, c] : [r, c])); return JSON.stringify(o); }), '{"2":{"k":"ck","r1":1,"r2":5}}');
   check('  使い方に「✨ ことばで表を作る」・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('id=\\"g-hyogen\\"'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v670'")].join('/'), 'true/true');
   check('  エラーなし', errs.join(' / '), '');
@@ -22641,6 +22720,7 @@ const SUITES = [
   [['oto', 'v668'], b => runOto668(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['rec671', 'v671'], b => runRec671(b)],
+  [['input672', 'v672'], b => runInput672(b)],
   [['ggolf', 'ggolfxl', 'v618'], b => runGgolfXl618(b)],
   [['ggolf', 'ggolfhole', 'v620'], b => runGgolfHole620(b)],
   [['ggolf', 'ggolfded', 'v638'], b => runGgolfDed638(b)],

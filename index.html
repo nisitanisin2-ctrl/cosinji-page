@@ -2461,6 +2461,12 @@ body.ui2 .fb-sum, body.ui2 .fb-mic { display: none !important; }   /* v642：Σ�
 .more-reset { align-items: center; gap: 10px; width: 100%; margin: 0 0 10px; padding: 11px 14px; border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent); border-radius: var(--r-card);
   background: color-mix(in srgb, var(--danger) 7%, var(--modal-bg, #fff)); color: var(--danger); font: inherit; font-size: 15px; cursor: pointer; touch-action: manipulation; text-align: left; }
 .more-reset > span { font-size: 19px; } .more-reset b { font-weight: 800; } .more-reset small { font-size: 11.5px; color: var(--text-light); margin-left: auto; }
+/* リセットと 既定の 大きさを 横に 並べる（v672） */
+.more-reset-row { gap: 8px; margin: 0 0 10px; }
+.more-reset-row > .more-reset { flex: 1 1 0; min-width: 0; margin: 0; display: flex; padding: 10px 12px; }
+.more-reset-row .mr-t { display: flex; flex-direction: column; min-width: 0; font-size: 14.5px; line-height: 1.3; }
+.more-reset-row .mr-t small { margin-left: 0; }
+.more-reset.more-defsz { border-color: var(--save-item-border); background: var(--save-item-bg); color: var(--text); }
 /* キーの 上の 低い 段（v642）：ふつうの キーの 半分くらいの 高さ */
 body.ui2 #numpadPage1 .btn.kp-half { height: calc(21px * var(--key-scale, 1.3)); min-height: 0 !important; line-height: 1; padding: 0 3px !important; font-size: calc(11.5px * var(--key-scale, 1.3)); font-weight: 700;
   background: #4a545e; color: #fff; white-space: nowrap; }
@@ -4821,7 +4827,10 @@ body.dark {
       <!-- お知らせ（v639）：新しい版・バックアップの おすすめ。起動の ときに 割りこませず ここに 出す -->
       <div class="more-notes" id="moreNotes" hidden></div>
       <!-- リセット（新しい 画面。v642）：メニューの いちばん上 -->
-      <button class="more-reset ui2-only" id="moreReset" onclick="moreDo(resetAll)" title="表の中身を消して 空にする（すぐ後なら「元に戻す」で戻せます）"><span>🧹</span><b>リセット</b><small>表を空にする（元に戻せます）</small></button>
+      <div class="more-reset-row ui2-only"><!-- リセットの 横に 既定の 大きさ（v672） -->
+        <button class="more-reset" id="moreReset" onclick="moreDo(resetAll)" title="表の中身を消して 空にする（すぐ後なら「元に戻す」で戻せます）"><span>🧹</span><span class="mr-t"><b>リセット</b><small>表を空にする</small></span></button>
+        <button class="more-reset more-defsz" id="moreDefSz" onclick="moreDo(resetToDefaultSize)" title="行と列の 数を 既定の 大きさに 戻す（中身は 残す。元に戻せます）"><span>▦</span><span class="mr-t"><b>行と列を既定に</b><small class="defsz-lb">15行×3列</small></span></button>
+      </div>
       <!-- 最近使った操作（v624）。ほかの機能の中で 押した ものを 3つ -->
       <div class="more-recent" id="moreRecent" hidden><span class="more-recent-t">🕘 最近使った</span><div class="more-recent-list" id="moreRecentList"></div></div>
       <!-- 標準モード／かんたんモード（v482。前は ⚙設定 のいちばん上にあった） -->
