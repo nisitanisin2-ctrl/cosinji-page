@@ -672,7 +672,8 @@ function gameStart(){
   listenStop();
   if(!ac()){ toastS('この ブラウザーでは 音を 出せません'); return; }
   gameStop(); game=newGame(); game.playing=true; game.t0=AC.currentTime+(st.mode==='fall' ? game.fall+0.4 : 2.4);
-  if(st.beat && !game.wait) bkStart(backEvents(game.song, game.beats), game.t0, game.spb);   // 🥁 伴奏（待って くれる 練習では 鳴らさない）
+  if(st.beat && !game.wait) bkStart(backEvents(game.song, game.beats), game.t0, game.spb);
+  if(st.bg!=='off') bgPrep();   // 背景の 絵を 先に 作る（v684）   // 🥁 伴奏（待って くれる 練習では 鳴らさない）
   render(); if(st.mode==='slide') slideBind(); fxInit(); game.raf=requestAnimationFrame(gameLoop);
 }
 function gameStop(){ bkStop(true); if(game){ cancelAnimationFrame(game.raf); game.playing=false; } }
@@ -1044,20 +1045,116 @@ function finale(big){
   requestAnimationFrame(step);
 }
 
-/* ── 🌌 動く 背景（v684）──
-   宇宙（星が 流れる）・惑星（輪の ある 星と 月・星雲）・海（光の すじと あわ）・空（雲と 太陽）・夕焼け（山と 鳥）を、
-   曲の まとまりごとに ふわっと 切りかえる（自動）か、1つに 決める。音符や ボタンが 見えにくく ならないよう、上から 暗く 重ねる。
-   拍で 少し 明るく、🔥 フィーバーでは 色が うつり 変わる */
+/* ── 🌌 動く 背景（v684。写実的に：自然な 模様（ノイズ）で 先に 絵を 作って おき、動きを 重ねる）──
+   宇宙（天の川・星雲・明るさや 色の ちがう 星）・惑星（しま模様と 渦の ある 星・何重もの 輪・クレーターの 月）・
+   海（水の 中の ゆらめく 光の 網目・光の すじ・海藻・魚・あわ）・空（立体的な 雲が 2層で 流れる・まぶしい 太陽）・
+   夕焼け（下から 照らされた 雲・かすみの かかった 山並み・鳥）。曲の まとまりごとに ふわっと 切りかえる（自動）か 1つに 決める。
+   音符や ボタンが 見えるよう、上から 暗く 重ねる。拍で 少し 明るく、🔥 フィーバーでは 色が うつり 変わる */
 const BGS=[{id:'auto', n:'🔀 自動（曲の 流れで かわる）'}, {id:'space', n:'🌌 宇宙'}, {id:'planet', n:'🪐 惑星'}, {id:'sea', n:'🌊 海'}, {id:'sky', n:'☁ 空'}, {id:'sunset', n:'🌇 夕焼け'}, {id:'off', n:'なし'}];
 const BG_SCENES=['space','planet','sea','sky','sunset'];
-let bgs=null;   // {stars, bubbles, clouds, seed}
+/* なめらかな でたらめ（値ノイズ）。px・py を 渡すと くり返す 模様（つなぎ目なしで 流せる） */
+function mkNoise(seed){
+  let h=seed||1; const r=()=>{ h=(h*16807)%2147483647; return h/2147483647; };
+  const p=new Uint8Array(256); for(let i=0;i<256;i++) p[i]=i; for(let i=255;i>0;i--){ const j=Math.floor(r()*(i+1)); const t=p[i]; p[i]=p[j]; p[j]=t; }
+  const v=new Float32Array(256); for(let i=0;i<256;i++) v[i]=r();
+  const H=(x,y)=>v[p[(p[x&255]+y)&255]];
+  return (x,y,px,py)=>{ const xi=Math.floor(x), yi=Math.floor(y), xf=x-xi, yf=y-yi, u=xf*xf*(3-2*xf), w=yf*yf*(3-2*yf);
+    const X0=px ? ((xi%px)+px)%px : xi, X1=px ? (((xi+1)%px)+px)%px : xi+1, Y0=py ? ((yi%py)+py)%py : yi, Y1=py ? (((yi+1)%py)+py)%py : yi+1;
+    const a=H(X0,Y0), b=H(X1,Y0), c=H(X0,Y1), d=H(X1,Y1); return a+(b-a)*u+(c-a)*w+(a-b-c+d)*u*w; };
+}
+function fbm(n, x, y, oct, px, py){ let s=0, a=0.5, f=1, t=0; for(let i=0;i<oct;i++){ s+=a*n(x*f, y*f, px ? px*f : 0, py ? py*f : 0); t+=a; a*=0.5; f*=2; } return s/t; }
+const cvs=(w,h)=>{ const c=document.createElement('canvas'); c.width=w; c.height=h; return c; };
+const sstep=(a,b,x)=>{ const t=clamp((x-a)/(b-a),0,1); return t*t*(3-2*t); };
+const BGT={};   // 作った 絵（一度だけ）
+function bgTex(k){
+  if(BGT[k]) return BGT[k];
+  const N=mkNoise(k.length*7919+13), N2=mkNoise(k.length*104729+7);
+  if(k==='nebula'){   // 天の川と 星雲
+    const w=220, h=440, c=cvs(w,h), x=c.getContext('2d'), im=x.createImageData(w,h), d=im.data;
+    for(let j=0;j<h;j++) for(let i=0;i<w;i++){
+      const u=i/w, v=j/h, dl=(u*0.9+v*0.45-0.72)/0.26, band=Math.exp(-dl*dl);   // ななめの 帯
+      const n=fbm(N, u*4, v*4, 5), m=fbm(N2, u*6+3, v*6, 5), dust=sstep(0.55, 0.72, fbm(N2, u*9, v*9, 4));
+      const neb=Math.pow(n, 2.2)*1.9, glow=band*(0.35+0.9*n)*(1-0.85*dust);
+      const o=(j*w+i)*4;
+      d[o]=Math.min(255, 255*(glow*0.62+neb*0.32*m+neb*0.08));
+      d[o+1]=Math.min(255, 255*(glow*0.52+neb*0.12));
+      d[o+2]=Math.min(255, 255*(glow*0.78+neb*0.42*(1-m)+neb*0.2));
+      d[o+3]=255;
+    }
+    x.putImageData(im,0,0); return BGT[k]=c;
+  }
+  if(k==='stars'){   // 動かない 星（色・明るさ いろいろ）
+    const w=900, h=1600, c=cvs(w,h), x=c.getContext('2d'); let s=12345; const r=()=>{ s=(s*16807)%2147483647; return s/2147483647; };
+    for(let i=0;i<2600;i++){ const px=r()*w, py=r()*h, m=Math.pow(r(),6), rad=0.35+m*1.6, tc=r(), col=tc<0.15 ? '255,205,170' : tc<0.35 ? '190,215,255' : '255,255,255';
+      x.fillStyle='rgba('+col+','+(0.25+0.75*Math.max(m, r()*0.6)).toFixed(2)+')'; x.beginPath(); x.arc(px,py,rad,0,6.283); x.fill();
+      if(m>0.45){ const g=x.createRadialGradient(px,py,0,px,py,rad*7); g.addColorStop(0,'rgba('+col+',.45)'); g.addColorStop(1,'rgba('+col+',0)'); x.fillStyle=g; x.fillRect(px-rad*7,py-rad*7,rad*14,rad*14); } }
+    return BGT[k]=c;
+  }
+  if(k==='planet'){   // ガスの 星（しま・渦・光の 当たり方・大気）と 輪
+    const R=170, W2=R*4.6, H2=R*2.6, c=cvs(W2,H2), x=c.getContext('2d'), cx=W2/2, cy=H2/2;
+    const ring=(front)=>{ x.save(); x.translate(cx,cy); x.rotate(-0.32); x.scale(1,0.26);
+      for(let rr=R*1.28; rr<R*2.2; rr+=1.2){ const q=(rr-R*1.28)/(R*0.92), a=(0.25+0.6*fbm(N2, q*14, 0.5, 3))*(q>0.62 && q<0.68 ? 0.1 : 1)*(1-q*0.35);
+        x.strokeStyle='rgba(225,200,160,'+a.toFixed(3)+')'; x.lineWidth=1.4; x.beginPath(); x.arc(0,0,rr, front ? 0 : Math.PI, front ? Math.PI : 2*Math.PI); x.stroke(); }
+      x.restore(); };
+    ring(false);
+    const S=R*2, pc=cvs(S,S), px=pc.getContext('2d'), im=px.createImageData(S,S), d=im.data, L=[-0.55,-0.4,0.73];
+    const pal=[[222,196,160],[190,140,98],[238,222,196],[168,110,74],[214,176,132]];
+    for(let j=0;j<S;j++) for(let i=0;i<S;i++){
+      const nx=(i-R+0.5)/R, ny=(j-R+0.5)/R, rr=nx*nx+ny*ny; const o=(j*S+i)*4; if(rr>1){ d[o+3]=0; continue; }
+      const nz=Math.sqrt(1-rr), lat=ny, tu=fbm(N, nx*3+5, ny*12, 5);
+      let b=(Math.sin((lat+0.09*tu)*23)+1)/2*(pal.length-1); const b0=Math.floor(b), f=b-b0, c0=pal[b0], c1=pal[Math.min(pal.length-1,b0+1)];
+      let col=[c0[0]+(c1[0]-c0[0])*f, c0[1]+(c1[1]-c0[1])*f, c0[2]+(c1[2]-c0[2])*f];
+      const sx=nx-0.35, sy=(ny-0.32)*2.2, sp=Math.exp(-(sx*sx+sy*sy)*28); if(sp>0.05) col=[col[0]*(1-sp)+205*sp, col[1]*(1-sp)+95*sp, col[2]*(1-sp)+70*sp];   // 大きな 渦
+      const diff=Math.max(0, nx*L[0]+ny*L[1]+nz*L[2]), sh=0.06+0.94*Math.pow(diff,0.85), rim=Math.pow(1-nz,3)*0.5;
+      d[o]=Math.min(255,col[0]*sh+rim*120); d[o+1]=Math.min(255,col[1]*sh+rim*150); d[o+2]=Math.min(255,col[2]*sh+rim*220); d[o+3]=255*sstep(1,0.985,rr);
+    }
+    px.putImageData(im,0,0); x.drawImage(pc, cx-R, cy-R);
+    ring(true);
+    const ag=x.createRadialGradient(cx,cy,R*0.95,cx,cy,R*1.12); ag.addColorStop(0,'rgba(150,190,255,.25)'); ag.addColorStop(1,'rgba(150,190,255,0)'); x.fillStyle=ag; x.beginPath(); x.arc(cx,cy,R*1.12,0,6.283); x.fill();
+    return BGT[k]=c;
+  }
+  if(k==='moon'){
+    const R=64, S=R*2, c=cvs(S,S), x=c.getContext('2d'), im=x.createImageData(S,S), d=im.data, L=[-0.6,-0.45,0.66];
+    let s=777; const r=()=>{ s=(s*16807)%2147483647; return s/2147483647; }; const cr=Array.from({length:18},()=>({x:r()*1.6-0.8, y:r()*1.6-0.8, r:0.05+r()*0.18}));
+    for(let j=0;j<S;j++) for(let i=0;i<S;i++){ const nx=(i-R+0.5)/R, ny=(j-R+0.5)/R, rr=nx*nx+ny*ny, o=(j*S+i)*4; if(rr>1){ d[o+3]=0; continue; }
+      const nz=Math.sqrt(1-rr); let g=150+60*fbm(N, nx*4+2, ny*4, 5)-30*sstep(0.55,0.7,fbm(N2,nx*2,ny*2,4));
+      for(const q of cr){ const dx=nx-q.x, dy=ny-q.y, dd=Math.sqrt(dx*dx+dy*dy)/q.r; if(dd<1) g-=25*(1-dd); else if(dd<1.25) g+=18*(1.25-dd)*4*Math.max(0,-(dx*L[0]+dy*L[1])); }
+      const sh=0.05+0.95*Math.max(0, nx*L[0]+ny*L[1]+nz*L[2]); d[o]=d[o+1]=g*sh; d[o+2]=Math.min(255,g*sh*1.05); d[o+3]=255*sstep(1,0.97,rr); }
+    x.putImageData(im,0,0); return BGT[k]=c;
+  }
+  if(k==='caustic'){   // 水の 中の 光の 網目（くり返す 模様）
+    const S=256, c=cvs(S,S), x=c.getContext('2d'), im=x.createImageData(S,S), d=im.data;
+    for(let j=0;j<S;j++) for(let i=0;i<S;i++){ const v=fbm(N, i/S*4, j/S*4, 4, 4, 4), w=fbm(N2, i/S*4, j/S*4, 3, 4, 4); const cst=Math.pow(1-Math.abs(Math.sin((v*1.4+w*0.6)*14)), 10); const o=(j*S+i)*4; d[o]=170; d[o+1]=235; d[o+2]=255; d[o+3]=255*cst; }
+    x.putImageData(im,0,0); return BGT[k]=c;
+  }
+  if(k==='cloud' || k==='cloud2' || k==='scloud'){   // 立体的な 雲（横に くり返す）。scloud＝夕焼けの 色
+    const w=640, h=k==='cloud2' ? 160 : 220, c=cvs(w,h), x=c.getContext('2d'), im=x.createImageData(w,h), d=im.data, sc=k==='cloud2' ? 7 : 4;
+    for(let j=0;j<h;j++) for(let i=0;i<w;i++){
+      const u=i/w*sc, v=j/h*sc*h/w*2.2, n=fbm(N, u, v, 5, sc, 0), up=fbm(N, u, v-0.05, 5, sc, 0), fy=Math.sin(Math.PI*j/h);
+      const den=sstep(0.5, 0.64, n*0.55+0.45*fy*n+0.1*fy), lit=k==='scloud' ? clamp(0.62+(up-n)*9+0.25*(1-j/h), 0.35, 1.08) : clamp(0.9+(n-up)*5+0.12*(1-j/h), 0.68, 1.06), o=(j*w+i)*4;
+      if(k==='scloud'){ const t=clamp(j/h*1.2,0,1); d[o]=Math.min(255,(120+135*t)*lit+40); d[o+1]=Math.min(255,(80+90*t)*lit+10); d[o+2]=Math.min(255,(140-40*t)*lit+20); }
+      else { const gb=Math.min(255, 255*lit); d[o]=gb*0.97; d[o+1]=gb*0.98; d[o+2]=Math.min(255, gb*1.04); }
+      d[o+3]=255*den*(k==='cloud2' ? 0.75 : 0.95);
+    }
+    x.putImageData(im,0,0); return BGT[k]=c;
+  }
+  return null;
+}
+let bgs=null;
 function bgInit(W, H){
   let h=99991; const rnd=()=>{ h=(h*16807)%2147483647; return h/2147483647; };
-  bgs={W, H,
-    stars:Array.from({length:150},()=>({x:rnd(), y:rnd(), r:0.4+rnd()*1.6, p:rnd()*6.28, s:0.3+rnd()*1.2})),
-    bubbles:Array.from({length:40},()=>({x:rnd(), y:rnd(), r:1.5+rnd()*5, s:0.4+rnd()*1.2, p:rnd()*6.28})),
-    clouds:Array.from({length:7},()=>({x:rnd(), y:0.05+rnd()*0.55, w:0.25+rnd()*0.35, s:0.15+rnd()*0.4})),
-    birds:Array.from({length:6},()=>({x:rnd(), y:0.15+rnd()*0.3, s:0.5+rnd()*0.6, p:rnd()*6.28}))};
+  bgs={W, H, tw:Array.from({length:26},()=>({x:rnd(), y:rnd(), r:1+rnd()*1.6, p:rnd()*6.28, c:rnd()<0.3 ? '255,215,180' : '210,230,255'})),
+    bubbles:Array.from({length:34},()=>({x:rnd(), y:rnd(), r:1.5+rnd()*4.5, s:0.4+rnd()*1.2, p:rnd()*6.28})),
+    snow:Array.from({length:70},()=>({x:rnd(), y:rnd(), r:0.5+rnd()*1.2, s:0.1+rnd()*0.3})),
+    weeds:Array.from({length:9},(_,i)=>({x:(i+rnd()*0.8)/9, h:0.12+rnd()*0.2, p:rnd()*6.28, w:3+rnd()*4})),
+    fish:Array.from({length:7},()=>({y:0.35+rnd()*0.35, s:0.4+rnd()*0.5, o:rnd(), z:0.6+rnd()*0.7})),
+    birds:Array.from({length:6},()=>({x:rnd(), y:0.18+rnd()*0.22, s:0.5+rnd()*0.6, p:rnd()*6.28})),
+    ridges:null};
+  // 夕焼けの 山並み（3層・遠いほど かすむ）
+  const N=mkNoise(4242), rc=cvs(W,H), x=rc.getContext('2d');
+  [['#7a4a78',0.62,0.16,3],['#4c2a52',0.7,0.2,5],['#24142c',0.8,0.22,7]].forEach(([c,base,amp,f],k)=>{ x.fillStyle=c; x.beginPath(); x.moveTo(0,H); for(let px=0;px<=W;px+=4){ const v=fbm(N, px/W*f+k*10, k*3.7, 5); x.lineTo(px, H*(base-amp*Math.pow(v,1.4))); } x.lineTo(W,H); x.closePath(); x.fill();
+    const hz=x.createLinearGradient(0,H*(base-amp),0,H); hz.addColorStop(0,'rgba(255,170,140,'+(0.18-k*0.06).toFixed(2)+')'); hz.addColorStop(1,'rgba(255,170,140,0)'); x.fillStyle=hz; x.fillRect(0,H*(base-amp),W,H); });
+  bgs.ridges=rc;
 }
 function bgSceneAt(t){
   if(st.bg!=='auto') return st.bg;
@@ -1065,48 +1162,71 @@ function bgSceneAt(t){
   let idx=0; if(secs){ for(let i=0;i<secs.length;i++) if(secs[i].beat<=beat) idx=i; } else idx=Math.max(0, Math.floor(beat/32));
   return BG_SCENES[(idx+off)%BG_SCENES.length];
 }
+const TEX_OF={space:['nebula','stars'], planet:['nebula','stars','planet','moon'], sea:['caustic'], sky:['cloud','cloud2'], sunset:['scloud']};
+function bgPrep(){   // あそぶ 前に 少しずつ 絵を 作る（固まらないように）
+  const ks=[...new Set([].concat(...BG_SCENES.map(s=>TEX_OF[s])))].filter(k=>!BGT[k]);
+  const step=()=>{ const k=ks.shift(); if(!k) return; try{ bgTex(k); }catch(_){} setTimeout(step, 30); }; setTimeout(step, 30);
+}
+function cover(x, img, W, H, ox, oy, sc){   // 画面を おおうように 引きのばす
+  const s=Math.max(W/img.width, H/img.height)*(sc||1), w=img.width*s, h=img.height*s; x.drawImage(img, (W-w)/2+(ox||0), (H-h)/2+(oy||0), w, h);
+}
 function drawScene(x, sc, W, H, tm, a){
   if(a<=0.01) return;
   x.save(); x.globalAlpha=a;
-  const g=(c0,c1,c2)=>{ const gr=x.createLinearGradient(0,0,0,H); gr.addColorStop(0,c0); if(c2){ gr.addColorStop(0.6,c1); gr.addColorStop(1,c2); } else gr.addColorStop(1,c1); x.fillStyle=gr; x.fillRect(0,0,W,H); };
+  const g=(stops)=>{ const gr=x.createLinearGradient(0,0,0,H); stops.forEach(([p,c])=>gr.addColorStop(p,c)); x.fillStyle=gr; x.fillRect(0,0,W,H); };
   if(sc==='space' || sc==='planet'){
-    g(sc==='space' ? '#060a1f' : '#120826', sc==='space' ? '#0c1438' : '#1a0f3a', '#04050f');
-    if(sc==='planet'){   // 星雲
-      [[0.25,0.3,'rgba(190,80,255,.22)'],[0.8,0.65,'rgba(60,140,255,.2)']].forEach(([px,py,c])=>{ const r=Math.max(W,H)*0.55, gr=x.createRadialGradient(px*W,py*H,0,px*W,py*H,r); gr.addColorStop(0,c); gr.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H); });
-    }
-    const sp=sc==='space' ? 18 : 6;
-    for(const s of bgs.stars){ const y=((s.y*H)+tm*sp*s.s)%H, tw=0.5+0.5*Math.sin(tm*2+s.p); x.fillStyle='rgba(255,255,255,'+(0.35+0.6*tw).toFixed(2)+')'; x.beginPath(); x.arc(s.x*W, y, s.r*(sc==='space' ? 1 : 0.8), 0, 6.283); x.fill(); }
-    if(sc==='space'){ const k=(tm*0.35)%3; if(k<0.6){ const q=k/0.6, sx=W*(0.9-q*0.8), sy=H*(0.05+q*0.35); const gr=x.createLinearGradient(sx,sy,sx+80,sy-30); gr.addColorStop(0,'rgba(255,255,255,.9)'); gr.addColorStop(1,'rgba(255,255,255,0)'); x.strokeStyle=gr; x.lineWidth=2; x.beginPath(); x.moveTo(sx,sy); x.lineTo(sx+80,sy-30); x.stroke(); } }
-    if(sc==='planet'){   // 輪の ある 惑星と 月
-      const R=Math.min(W,H)*0.28, cx=W*0.82+Math.sin(tm*0.05)*10, cy=H*0.26+Math.cos(tm*0.04)*8;
-      const pg=x.createRadialGradient(cx-R*0.35, cy-R*0.35, R*0.1, cx, cy, R); pg.addColorStop(0,'#ffd59a'); pg.addColorStop(0.6,'#d9824b'); pg.addColorStop(1,'#5a2a1a');
-      x.save(); x.translate(cx,cy); x.rotate(-0.35);
-      x.strokeStyle='rgba(255,220,170,.55)'; x.lineWidth=R*0.12; x.beginPath(); x.ellipse(0,0,R*1.7,R*0.45,0,Math.PI,2*Math.PI); x.stroke();
-      x.fillStyle=pg; x.beginPath(); x.arc(0,0,R,0,6.283); x.fill();
-      x.strokeStyle='rgba(255,220,170,.7)'; x.beginPath(); x.ellipse(0,0,R*1.7,R*0.45,0,0,Math.PI); x.stroke(); x.restore();
-      const ma=tm*0.25, mx=W*0.2+Math.cos(ma)*W*0.06, my=H*0.72+Math.sin(ma)*H*0.03, mr=Math.min(W,H)*0.07;
-      const mg=x.createRadialGradient(mx-mr*0.3,my-mr*0.3,1,mx,my,mr); mg.addColorStop(0,'#f2f6ff'); mg.addColorStop(1,'#7b88a8'); x.fillStyle=mg; x.beginPath(); x.arc(mx,my,mr,0,6.283); x.fill();
+    g([[0,'#03040c'],[1,'#060816']]);
+    x.globalCompositeOperation='lighter'; x.globalAlpha=a*(sc==='space' ? 0.95 : 0.55);
+    cover(x, bgTex('nebula'), W, H, Math.sin(tm*0.02)*20, (tm*3)%40-20, 1.12);
+    x.globalAlpha=a; const st2=bgTex('stars'), sy=(tm*(sc==='space' ? 6 : 2))%st2.height;
+    x.drawImage(st2, 0, sy, st2.width, st2.height-sy, 0, 0, W, (st2.height-sy)*W/st2.width); x.drawImage(st2, 0, 0, st2.width, sy, 0, (st2.height-sy)*W/st2.width, W, sy*W/st2.width);
+    for(const s of bgs.tw){ const tw=Math.pow(0.5+0.5*Math.sin(tm*2.2+s.p),3), px=s.x*W, py=s.y*H, L=s.r*(5+9*tw);   // またたく 星（光の すじ）
+      x.strokeStyle='rgba('+s.c+','+(0.25+0.6*tw).toFixed(2)+')'; x.lineWidth=0.8; x.beginPath(); x.moveTo(px-L,py); x.lineTo(px+L,py); x.moveTo(px,py-L); x.lineTo(px,py+L); x.stroke();
+      x.fillStyle='rgba('+s.c+',.95)'; x.beginPath(); x.arc(px,py,s.r*0.8,0,6.283); x.fill(); }
+    x.globalCompositeOperation='source-over';
+    if(sc==='space'){ const k=(tm*0.3)%4; if(k<0.5){ const q=k/0.5, sx=W*(0.95-q*0.9), sy2=H*(0.05+q*0.3), gr=x.createLinearGradient(sx,sy2,sx+110,sy2-40); gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(1,'rgba(160,200,255,0)'); x.strokeStyle=gr; x.lineWidth=2; x.beginPath(); x.moveTo(sx,sy2); x.lineTo(sx+110,sy2-40); x.stroke(); } }
+    if(sc==='planet'){
+      const P=bgTex('planet'), pw=Math.min(W*1.25, H*0.95), ph=pw*P.height/P.width;
+      x.drawImage(P, W*0.62-pw/2+Math.sin(tm*0.05)*12, H*0.24-ph/2+Math.cos(tm*0.04)*8, pw, ph);
+      const M=bgTex('moon'), mr=Math.min(W,H)*0.17, ang=tm*0.12; x.drawImage(M, W*0.2+Math.cos(ang)*W*0.05-mr/2, H*0.72+Math.sin(ang)*H*0.025-mr/2, mr, mr);
     }
   }else if(sc==='sea'){
-    g('#0b5a86','#06304f','#021526');
+    g([[0,'#0f6d98'],[0.35,'#0a4a72'],[0.75,'#052b45'],[1,'#02121f']]);
     x.globalCompositeOperation='lighter';
-    for(let i=0;i<6;i++){ const px=W*(0.1+i*0.17)+Math.sin(tm*0.4+i)*30, gr=x.createLinearGradient(0,0,0,H*0.9); gr.addColorStop(0,'rgba(140,220,255,.16)'); gr.addColorStop(1,'rgba(140,220,255,0)'); x.fillStyle=gr; x.beginPath(); x.moveTo(px-12,0); x.lineTo(px+12,0); x.lineTo(px+70,H*0.9); x.lineTo(px+20,H*0.9); x.closePath(); x.fill(); }
+    for(let i=0;i<7;i++){ const px=W*(0.05+i*0.15)+Math.sin(tm*0.35+i*1.7)*28, wd=18+12*Math.sin(i*2.1), gr=x.createLinearGradient(0,0,0,H*0.85); gr.addColorStop(0,'rgba(170,230,255,.2)'); gr.addColorStop(1,'rgba(170,230,255,0)'); x.fillStyle=gr; x.beginPath(); x.moveTo(px-wd,0); x.lineTo(px+wd,0); x.lineTo(px+wd*4+60,H*0.85); x.lineTo(px+40,H*0.85); x.closePath(); x.fill(); }
+    const C=bgTex('caustic'), cs=Math.max(W,H)*0.55;   // 光の 網目（2枚を ずらして ゆらめかせる）
+    const fade=x.createLinearGradient(0,0,0,H); fade.addColorStop(0,'rgba(0,0,0,0)'); fade.addColorStop(1,'rgba(0,0,0,1)');
+    [[tm*14, tm*9, 0.32],[ -tm*11, tm*13, 0.26]].forEach(([ox,oy,al])=>{ x.globalAlpha=a*al; for(let yy=-cs;yy<H*0.7;yy+=cs) for(let xx=-cs;xx<W+cs;xx+=cs) x.drawImage(C, xx+((ox%cs)+cs)%cs-cs, yy+((oy%cs)+cs)%cs, cs, cs); });
+    x.globalAlpha=a;
+    for(const p of bgs.snow){ const y=(p.y*H+tm*12*p.s)%H; x.fillStyle='rgba(210,240,255,.35)'; x.fillRect(p.x*W+Math.sin(tm+p.y*9)*6, y, p.r, p.r); }
     x.globalCompositeOperation='source-over';
-    x.strokeStyle='rgba(200,240,255,.35)'; x.lineWidth=2; x.beginPath(); for(let px=0;px<=W;px+=8){ const py=8+Math.sin(px/40+tm*1.5)*5; px ? x.lineTo(px,py) : x.moveTo(px,py); } x.stroke();
-    for(const b of bgs.bubbles){ const y=H-((b.y*H+tm*30*b.s)%(H+20)), bx=b.x*W+Math.sin(tm*1.5+b.p)*8; x.strokeStyle='rgba(220,245,255,.55)'; x.lineWidth=1.2; x.beginPath(); x.arc(bx,y,b.r,0,6.283); x.stroke(); }
-    x.fillStyle='rgba(10,40,60,.6)'; x.beginPath(); x.moveTo(0,H); for(let px=0;px<=W;px+=20) x.lineTo(px, H-18-Math.sin(px/60)*10); x.lineTo(W,H); x.fill();   // 海の 底
+    for(const f of bgs.fish){ const fx=((f.o+tm*0.03*f.s)%1.2)*W*1.2-W*0.1, fy=f.y*H+Math.sin(tm*1.3+f.o*9)*10, z=f.z*10;   // 遠くの 魚
+      x.fillStyle='rgba(6,30,48,.75)'; x.beginPath(); x.ellipse(fx,fy,z*1.4,z*0.55,0,0,6.283); x.fill(); x.beginPath(); x.moveTo(fx-z*1.2,fy); x.lineTo(fx-z*2.2,fy-z*0.6); x.lineTo(fx-z*2.2,fy+z*0.6); x.fill(); }
+    for(const w of bgs.weeds){ const bx=w.x*W, hh=w.h*H; x.strokeStyle='rgba(8,50,40,.95)'; x.lineWidth=w.w; x.lineCap='round'; x.beginPath(); x.moveTo(bx,H); for(let k=1;k<=8;k++){ const q=k/8; x.lineTo(bx+Math.sin(tm*1.2+w.p+q*2.5)*14*q, H-hh*q); } x.stroke(); }
+    x.fillStyle='#03141c'; x.beginPath(); x.moveTo(0,H); for(let px=0;px<=W;px+=10) x.lineTo(px, H-14-Math.abs(Math.sin(px/70)*18)-Math.sin(px/23)*4); x.lineTo(W,H); x.fill();
+    for(const b of bgs.bubbles){ const y=H-((b.y*H+tm*34*b.s)%(H+30)), bx=b.x*W+Math.sin(tm*1.6+b.p)*7;
+      const gr=x.createRadialGradient(bx-b.r*0.35,y-b.r*0.35,0,bx,y,b.r); gr.addColorStop(0,'rgba(255,255,255,.75)'); gr.addColorStop(0.5,'rgba(200,240,255,.12)'); gr.addColorStop(0.9,'rgba(200,240,255,.35)'); gr.addColorStop(1,'rgba(200,240,255,0)'); x.fillStyle=gr; x.beginPath(); x.arc(bx,y,b.r,0,6.283); x.fill(); }
   }else if(sc==='sky'){
-    g('#2f7fd0','#6fb3ea','#bfe2fb');
-    const sx=W*0.82, sy=H*0.16, sg=x.createRadialGradient(sx,sy,4,sx,sy,Math.min(W,H)*0.3); sg.addColorStop(0,'rgba(255,255,230,1)'); sg.addColorStop(0.2,'rgba(255,250,200,.8)'); sg.addColorStop(1,'rgba(255,250,200,0)'); x.fillStyle=sg; x.fillRect(0,0,W,H);
-    for(const c of bgs.clouds){ const cw=c.w*W, cx=((c.x*W+tm*12*c.s)%(W+cw*2))-cw, cy=c.y*H; x.fillStyle='rgba(255,255,255,.85)';
-      [[0,0,0.32],[0.25,-0.12,0.28],[0.5,0,0.3],[0.72,0.05,0.22],[0.36,0.08,0.3]].forEach(([dx,dy,r])=>{ x.beginPath(); x.ellipse(cx+dx*cw, cy+dy*cw*0.5, r*cw*0.6, r*cw*0.38, 0, 0, 6.283); x.fill(); }); }
+    g([[0,'#1d5fb6'],[0.55,'#5b9fe0'],[1,'#cfe8fb']]);
+    const sx=W*0.8, sy=H*0.13, R=Math.min(W,H);
+    x.globalCompositeOperation='lighter';
+    const sg=x.createRadialGradient(sx,sy,0,sx,sy,R*0.55); sg.addColorStop(0,'rgba(255,255,240,1)'); sg.addColorStop(0.06,'rgba(255,252,225,.95)'); sg.addColorStop(0.2,'rgba(255,240,200,.35)'); sg.addColorStop(1,'rgba(255,240,200,0)'); x.fillStyle=sg; x.fillRect(0,0,W,H);
+    [[0.35,0.04,'rgba(180,220,255,.10)'],[0.6,0.02,'rgba(255,220,180,.10)'],[0.85,0.06,'rgba(170,255,210,.06)']].forEach(([q,r,c])=>{ const fx=sx+(W*0.35-sx)*q*1.4, fy=sy+(H*0.7-sy)*q*1.4; x.fillStyle=c; x.beginPath(); x.arc(fx,fy,R*r,0,6.283); x.fill(); });   // レンズの 光
+    x.globalCompositeOperation='source-over';
+    const C2=bgTex('cloud2'), C=bgTex('cloud');
+    const tile=(img, y, h, sp, al)=>{ const w=img.width*h/img.height, o=-((tm*sp)%w); x.globalAlpha=a*al; for(let xx=o; xx<W; xx+=w) x.drawImage(img, xx, y, w, h); };
+    tile(C2, H*0.08, H*0.22, 6, 0.8); tile(C, H*0.32, H*0.42, 15, 1);
   }else if(sc==='sunset'){
-    g('#2b1b4f','#c2456c','#ffb062');
-    const sx=W*0.5, sy=H*0.78, R=Math.min(W,H)*0.18, sg=x.createRadialGradient(sx,sy,R*0.2,sx,sy,R*2.5); sg.addColorStop(0,'rgba(255,230,150,1)'); sg.addColorStop(0.3,'rgba(255,170,90,.6)'); sg.addColorStop(1,'rgba(255,150,80,0)'); x.fillStyle=sg; x.fillRect(0,0,W,H);
-    x.fillStyle='#ffd27a'; x.beginPath(); x.arc(sx,sy,R,0,6.283); x.fill();
-    [['#3a1f4a',0.8,90],['#24122f',0.88,60]].forEach(([c,base,amp],j)=>{ x.fillStyle=c; x.beginPath(); x.moveTo(0,H); for(let px=0;px<=W;px+=16) x.lineTo(px, H*base-Math.abs(Math.sin(px/(140+j*60)+j))*amp*0.6); x.lineTo(W,H); x.fill(); });
-    x.strokeStyle='rgba(40,20,40,.8)'; x.lineWidth=2;
-    for(const b of bgs.birds){ const bx=((b.x*W+tm*25*b.s)%(W+40))-20, by=b.y*H+Math.sin(tm+b.p)*6, f=Math.sin(tm*8+b.p)*4; x.beginPath(); x.moveTo(bx-8,by-f); x.quadraticCurveTo(bx-3,by-4,bx,by); x.quadraticCurveTo(bx+3,by-4,bx+8,by-f); x.stroke(); }
+    g([[0,'#1b1440'],[0.3,'#5a2a6a'],[0.55,'#c84a5c'],[0.75,'#f2864a'],[0.9,'#ffc370'],[1,'#ffd890']]);
+    const sx=W*0.52, sy=H*0.47, R=Math.min(W,H)*0.11;
+    x.globalCompositeOperation='lighter';
+    const sg=x.createRadialGradient(sx,sy,R*0.5,sx,sy,R*6); sg.addColorStop(0,'rgba(255,220,150,.9)'); sg.addColorStop(0.25,'rgba(255,160,90,.35)'); sg.addColorStop(1,'rgba(255,120,80,0)'); x.fillStyle=sg; x.fillRect(0,0,W,H);
+    x.globalCompositeOperation='source-over';
+    const dg=x.createRadialGradient(sx,sy-R*0.2,0,sx,sy,R); dg.addColorStop(0,'#fff4cf'); dg.addColorStop(1,'#ffbf5e'); x.fillStyle=dg; x.beginPath(); x.arc(sx,sy,R,0,6.283); x.fill();
+    const C=bgTex('scloud'), cw=C.width*(H*0.36)/C.height, o=-((tm*7)%cw); x.globalAlpha=a*0.92; for(let xx=o; xx<W; xx+=cw) x.drawImage(C, xx, H*0.12, cw, H*0.36);
+    x.globalAlpha=a; x.drawImage(bgs.ridges, 0, 0, W, H);
+    x.strokeStyle='rgba(30,12,30,.85)'; x.lineWidth=1.8;
+    for(const b of bgs.birds){ const bx=((b.x*W+tm*22*b.s)%(W+40))-20, by=b.y*H+Math.sin(tm+b.p)*6, f=Math.sin(tm*7+b.p)*4; x.beginPath(); x.moveTo(bx-8,by-f); x.quadraticCurveTo(bx-3,by-4,bx,by); x.quadraticCurveTo(bx+3,by-4,bx+8,by-f); x.stroke(); }
   }
   x.restore();
 }
@@ -1123,9 +1243,10 @@ function drawBg(t){
   x.clearRect(0,0,W,H);
   if(k<1) drawScene(x, game.bgPrev, W, H, tm, 1);
   drawScene(x, sc, W, H, tm, k<1 ? k : 1);
-  // 見やすさの ために 暗く 重ねる（拍で 少し 明るく・フィーバーは 色が うつる）
+  // 見やすさの ために 暗く 重ねる・まわりを 少し 暗く（拍で 少し 明るく・フィーバーは 色が うつる）
   const bp=t>0 ? Math.pow(1-((t/game.spb)%1), 4) : 0;
-  x.fillStyle='rgba(8,10,18,'+(0.5-bp*0.1).toFixed(3)+')'; x.fillRect(0,0,W,H);
+  x.fillStyle='rgba(6,8,16,'+(0.42-bp*0.08).toFixed(3)+')'; x.fillRect(0,0,W,H);
+  const vg=x.createRadialGradient(W/2,H/2,Math.min(W,H)*0.35,W/2,H/2,Math.max(W,H)*0.75); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.45)'); x.fillStyle=vg; x.fillRect(0,0,W,H);
   if(game.fever){ x.globalCompositeOperation='lighter'; x.fillStyle='hsla('+((tm*60)%360)+',90%,55%,.10)'; x.fillRect(0,0,W,H); x.globalCompositeOperation='source-over'; }
 }
 
