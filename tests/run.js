@@ -22639,6 +22639,36 @@ async function runOto681(browser) {
   await ctx.close();
 }
 
+async function runOto683(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎼 曲をつくる（v683。ぜんぶ消す・戻す・入れかえ・縦の 鍵盤・横持ち・お手本の 再生／停止） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { window.appConfirm = async () => true; openOto('make'); }); await w(500);
+  check('  縦持ちは 1オクターブ（白8・黒5）', await page.evaluate(() => OTO.kbOcts() + '/' + document.querySelectorAll('#okKb .ok-key.w').length + '/' + document.querySelectorAll('#okKb .ok-key.b').length), '1/8/5');
+  await page.evaluate(() => [60, 62, 64, 65, 67].forEach(m => OTO.ek(m)));
+  check('  ✏ 入れかえ：選んだ 音を 鍵盤の 音に して 次の 音へ', await page.evaluate(() => { OTO.esel(1); OTO.erep(); OTO.ek(72); OTO.ek(71); OTO.erep(); return OTO.ed().notes.map(n => OTO.midiName(n.m)).join(' '); }), 'C4 C5 B4 F4 G4');
+  check('  ↶ 戻す・↷ やり直し', await page.evaluate(() => { OTO.eundo(); OTO.eundo(); const a = OTO.ed().notes.map(n => OTO.midiName(n.m)).join(' '); OTO.eredo(); return a + ' / ' + OTO.ed().notes.map(n => OTO.midiName(n.m)).join(' '); }), 'C4 D4 E4 F4 G4 / C4 C5 E4 F4 G4');
+  check('  🗑 ぜんぶ消す（↶ で もどせる）', await page.evaluate(async () => { await OTO.eclear(); const a = OTO.ed().notes.length; OTO.eundo(); return a + '/' + OTO.ed().notes.length; }), '0/5');
+  check('  音の 上げ下げ：選んで いなければ 曲 ぜんぶ・選んで いれば その 音', await page.evaluate(() => { OTO.esel(OTO.ed().sel); if (OTO.ed().sel >= 0) OTO.esel(OTO.ed().sel); const s0 = OTO.ed().sel; OTO.eshift(12); const a = OTO.ed().notes.map(n => OTO.midiName(n.m)).join(' '); OTO.esel(0); OTO.eshift(-1); return s0 + '|' + a + '|' + OTO.midiName(OTO.ed().notes[0].m); }), '-1|C5 C6 E5 F5 G5|B4');
+  check('  縦の 鍵盤（高さ順・上が 高い）を えらべて 覚える', await page.evaluate(() => { OTO.kbLay('vert'); const k = [...document.querySelectorAll('#okKb .ok-key')].map(b => +b.dataset.m); const ok = k.length === 13 && k[0] > k[12]; const sv = JSON.parse(localStorage.getItem('excalc_oto')).kbLay; OTO.kbLay('piano'); return ok + '/' + sv; }), 'true/vert');
+  check('  鍵盤の 広さを 2・3オクターブに（横持ちは 自動で 2）', await page.evaluate(() => { OTO.kbW('3'); const a = document.querySelectorAll('#okKb .ok-key').length; OTO.kbW('auto'); return a; }), 37);
+  check('  録音中は テンポの 音（切れる）', await page.evaluate(async () => { OTO.erec(); const a = OTO.recMetOn(); OTO.erec(); OTO.recClick(); OTO.erec(); const b = OTO.recMetOn(); OTO.erec(); OTO.recClick(); return a + '/' + b; }), 'true/false');
+  await page.evaluate(() => { OTO.tab('game'); OTO.song('kira'); OTO.listen(); }); await w(300);
+  check('  👂 お手本：押すと 再生・もう一度で 止める（重ならない）', await page.evaluate(() => { const a = OTO.demoOn() + ':' + document.getElementById('ogListen').textContent; OTO.listen(); return a + ' / ' + OTO.demoOn() + ':' + document.getElementById('ogListen').textContent; }), 'true:■ お手本を 止める / false:👂 お手本');
+  check('  　あそび始めると お手本は 止まる', await page.evaluate(() => { OTO.listen(); OTO.start(); const a = OTO.demoOn(); OTO.quit(); return a; }), false);
+  await page.evaluate(() => closeOto());
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('✏ 入れかえ'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v683'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+  // 横持ち
+  const c2 = await browser.newContext({ ...require('playwright').devices['Pixel 7 landscape'] }); const p2 = await c2.newPage();
+  await p2.goto('file://' + path.join(ROOT, 'index.html')); await p2.waitForTimeout(300);
+  await p2.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); }); await p2.reload(); await p2.waitForTimeout(1200);
+  await p2.evaluate(() => openOto('make')); await p2.waitForTimeout(400);
+  check('  横持ちは 鍵盤が 2オクターブに 広がる', await p2.evaluate(() => OTO.kbOcts() + '/' + document.querySelectorAll('#okKb .ok-key').length), '2/25');
+  await c2.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -23011,6 +23041,7 @@ const SUITES = [
   [['oto677', 'v677'], b => runOto677(b)],
   [['oto678', 'v678'], b => runOto678(b)],
   [['oto682', 'v682'], b => runOto681(b)],
+  [['oto683', 'v683'], b => runOto683(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
