@@ -22692,6 +22692,24 @@ async function runOto684(browser) {
   await ctx.close();
 }
 
+async function runOto685(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🌌 背景の 動き（v685） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openOto('game')); await w(500);
+  check('  背景の 動きを えらべる（はじめは ふつう）・背景 なし も ある', await page.evaluate(() => [...document.querySelectorAll('#otoBody .oo-seg[aria-label="背景の動き"] button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') + '|' + [...document.querySelectorAll('#otoBody .oo-seg[aria-label="背景"] button')].some(b => b.textContent === 'なし')), 'ひかえめ,ふつう*,大きく|true');
+  const sp = [];
+  for (const m of ['calm', 'norm', 'big']) { await page.evaluate(m => { OTO.quit(); OTO.bgMove(m); OTO.bg('planet'); OTO.mode('fall'); OTO.song('kira'); OTO.start(); }, m); await w(2700); sp.push(await page.evaluate(() => OTO.bgSpd())); }
+  check('  ひかえめ ＜ ふつう ＜ 大きく（動きの 速さ）', sp[0] < sp[1] && sp[1] < sp[2], true);
+  check('  惑星は 自転する', await page.evaluate(async () => { const a = OTO.bgRot(); await new Promise(r => setTimeout(r, 600)); return OTO.bgRot() > a; }), true);
+  check('  コンボで 速く なる', await page.evaluate(() => { OTO.setCombo(0); return new Promise(r => setTimeout(() => { const a = OTO.bgSpd(); OTO.setCombo(40); setTimeout(() => r(OTO.bgSpd() > a), 100); }, 100)); }), true);
+  check('  背景を なし に すると 絵も 動きの 設定も 出ない', await page.evaluate(() => { OTO.quit(); OTO.bg('off'); const a = !document.querySelector('#otoBody .oo-seg[aria-label="背景の動き"]'); OTO.start(); const b = !document.getElementById('ogBg'); OTO.quit(); OTO.bg('auto'); OTO.bgMove('norm'); return a + '/' + b; }), 'true/true');
+  await page.evaluate(() => closeOto());
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('背景の 動き'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v685'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -23066,6 +23084,7 @@ const SUITES = [
   [['oto682', 'v682'], b => runOto681(b)],
   [['oto683', 'v683'], b => runOto683(b)],
   [['oto684', 'v684'], b => runOto684(b)],
+  [['oto685', 'v685'], b => runOto685(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
