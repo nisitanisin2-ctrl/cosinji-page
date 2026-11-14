@@ -333,7 +333,7 @@ function buildPD(s){
 SONGS.forEach(buildPD);
 
 /* ── 保存 ── */
-const DEF={ inst:'auto', instV:2, trail:'kira', glowMix:true, vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[], diff:3, fx:'ultra', beat:true, lisCenter:true, kbLay:'piano', kbW:'auto', recClick:true, bg:'auto',
+const DEF={ inst:'auto', instV:2, trail:'kira', glowMix:true, vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[], diff:3, fx:'ultra', beat:true, lisCenter:true, kbLay:'piano', kbW:'auto', recClick:true, bg:'auto', bgMove:'norm',
   met:{bpm:100, beats:4, sub:1, accent:true, snd:'click'}, tun:{a4:440, set:'chrom'}, best:{} };
 let st=JSON.parse(JSON.stringify(DEF));
 function load(){
@@ -358,7 +358,8 @@ function load(){
   if(o.kbLay==='vert') st.kbLay='vert';   // 鍵盤の ならべ方（v683）
   if(['auto','1','2','3'].includes(String(o.kbW))) st.kbW=String(o.kbW);
   if(o.recClick===false) st.recClick=false;
-  if(BGS.some(x=>x.id===o.bg)) st.bg=o.bg;   // 動く 背景（v684）   // 🎤 聞き取りの 高さ（v676）
+  if(BGS.some(x=>x.id===o.bg)) st.bg=o.bg;
+  if(['calm','norm','big'].includes(o.bgMove)) st.bgMove=o.bgMove;   // 背景の 動き（v684）   // 動く 背景（v684）   // 🎤 聞き取りの 高さ（v676）
   const m=o.met||{};
   st.met.bpm=clamp(Math.round(+m.bpm||100),20,260);
   st.met.beats=[1,2,3,4,5,6,7,8,9,12].includes(+m.beats) ? +m.beats : 4;
@@ -1090,27 +1091,33 @@ function bgTex(k){
       if(m>0.45){ const g=x.createRadialGradient(px,py,0,px,py,rad*7); g.addColorStop(0,'rgba('+col+',.45)'); g.addColorStop(1,'rgba('+col+',0)'); x.fillStyle=g; x.fillRect(px-rad*7,py-rad*7,rad*14,rad*14); } }
     return BGT[k]=c;
   }
-  if(k==='planet'){   // ガスの 星（しま・渦・光の 当たり方・大気）と 輪
-    const R=170, W2=R*4.6, H2=R*2.6, c=cvs(W2,H2), x=c.getContext('2d'), cx=W2/2, cy=H2/2;
-    const ring=(front)=>{ x.save(); x.translate(cx,cy); x.rotate(-0.32); x.scale(1,0.26);
-      for(let rr=R*1.28; rr<R*2.2; rr+=1.2){ const q=(rr-R*1.28)/(R*0.92), a=(0.25+0.6*fbm(N2, q*14, 0.5, 3))*(q>0.62 && q<0.68 ? 0.1 : 1)*(1-q*0.35);
-        x.strokeStyle='rgba(225,200,160,'+a.toFixed(3)+')'; x.lineWidth=1.4; x.beginPath(); x.arc(0,0,rr, front ? 0 : Math.PI, front ? Math.PI : 2*Math.PI); x.stroke(); }
-      x.restore(); };
-    ring(false);
-    const S=R*2, pc=cvs(S,S), px=pc.getContext('2d'), im=px.createImageData(S,S), d=im.data, L=[-0.55,-0.4,0.73];
+  if(k==='pmap'){   // 惑星の 表面の 地図（横に 一周。回すと 自転して 見える）
+    const w=512, h=256, c=cvs(w,h), x=c.getContext('2d'), im=x.createImageData(w,h), d=im.data;
     const pal=[[222,196,160],[190,140,98],[238,222,196],[168,110,74],[214,176,132]];
-    for(let j=0;j<S;j++) for(let i=0;i<S;i++){
-      const nx=(i-R+0.5)/R, ny=(j-R+0.5)/R, rr=nx*nx+ny*ny; const o=(j*S+i)*4; if(rr>1){ d[o+3]=0; continue; }
-      const nz=Math.sqrt(1-rr), lat=ny, tu=fbm(N, nx*3+5, ny*12, 5);
+    for(let j=0;j<h;j++) for(let i=0;i<w;i++){
+      const lon=i/w, lat=j/h*2-1, tu=fbm(N, lon*8, lat*6, 5, 8, 0);
       let b=(Math.sin((lat+0.09*tu)*23)+1)/2*(pal.length-1); const b0=Math.floor(b), f=b-b0, c0=pal[b0], c1=pal[Math.min(pal.length-1,b0+1)];
       let col=[c0[0]+(c1[0]-c0[0])*f, c0[1]+(c1[1]-c0[1])*f, c0[2]+(c1[2]-c0[2])*f];
-      const sx=nx-0.35, sy=(ny-0.32)*2.2, sp=Math.exp(-(sx*sx+sy*sy)*28); if(sp>0.05) col=[col[0]*(1-sp)+205*sp, col[1]*(1-sp)+95*sp, col[2]*(1-sp)+70*sp];   // 大きな 渦
-      const diff=Math.max(0, nx*L[0]+ny*L[1]+nz*L[2]), sh=0.06+0.94*Math.pow(diff,0.85), rim=Math.pow(1-nz,3)*0.5;
-      d[o]=Math.min(255,col[0]*sh+rim*120); d[o+1]=Math.min(255,col[1]*sh+rim*150); d[o+2]=Math.min(255,col[2]*sh+rim*220); d[o+3]=255*sstep(1,0.985,rr);
+      let dl=lon-0.3; dl-=Math.round(dl); const sx=dl*9, sy=(lat-0.32)*2.4, sp=Math.exp(-(sx*sx+sy*sy)*6);   // 大きな 渦
+      if(sp>0.05) col=[col[0]*(1-sp)+205*sp, col[1]*(1-sp)+95*sp, col[2]*(1-sp)+70*sp];
+      const o=(j*w+i)*4; d[o]=col[0]; d[o+1]=col[1]; d[o+2]=col[2]; d[o+3]=255;
     }
-    px.putImageData(im,0,0); x.drawImage(pc, cx-R, cy-R);
-    ring(true);
-    const ag=x.createRadialGradient(cx,cy,R*0.95,cx,cy,R*1.12); ag.addColorStop(0,'rgba(150,190,255,.25)'); ag.addColorStop(1,'rgba(150,190,255,0)'); x.fillStyle=ag; x.beginPath(); x.arc(cx,cy,R*1.12,0,6.283); x.fill();
+    x.putImageData(im,0,0); return BGT[k]=c;
+  }
+  if(k==='pshade'){   // 光の 当たり方（かげ）と 大気の ふち
+    const R=170, S=R*2, c=cvs(S,S), x=c.getContext('2d'), im=x.createImageData(S,S), d=im.data, L=[-0.55,-0.4,0.73];
+    for(let j=0;j<S;j++) for(let i=0;i<S;i++){ const nx=(i-R+0.5)/R, ny=(j-R+0.5)/R, rr=nx*nx+ny*ny, o=(j*S+i)*4; if(rr>1){ d[o+3]=0; continue; }
+      const nz=Math.sqrt(1-rr), sh=0.06+0.94*Math.pow(Math.max(0, nx*L[0]+ny*L[1]+nz*L[2]),0.85), rim=Math.pow(1-nz,3)*0.6;
+      d[o]=120*rim; d[o+1]=150*rim; d[o+2]=230*rim; d[o+3]=255*Math.min(1,(1-sh)+rim*0.2); }
+    x.putImageData(im,0,0);
+    const ag=x.createRadialGradient(R,R,R*0.95,R,R,R); ag.addColorStop(0,'rgba(150,190,255,0)'); ag.addColorStop(1,'rgba(150,190,255,.35)'); x.globalCompositeOperation='lighter'; x.fillStyle=ag; x.beginPath(); x.arc(R,R,R,0,6.283); x.fill();
+    return BGT[k]=c;
+  }
+  if(k==='ringB' || k==='ringF'){   // 輪（奥の 半分・手前の 半分）
+    const R=170, W2=R*4.6, H2=R*2.6, c=cvs(W2,H2), x=c.getContext('2d'), front=k==='ringF';
+    x.translate(W2/2,H2/2); x.rotate(-0.32); x.scale(1,0.26);
+    for(let rr=R*1.28; rr<R*2.2; rr+=1.2){ const q=(rr-R*1.28)/(R*0.92), a=(0.25+0.6*fbm(N2, q*14, 0.5, 3))*(q>0.62 && q<0.68 ? 0.1 : 1)*(1-q*0.35);
+      x.strokeStyle='rgba(225,200,160,'+a.toFixed(3)+')'; x.lineWidth=1.4; x.beginPath(); x.arc(0,0,rr, front ? 0 : Math.PI, front ? Math.PI : 2*Math.PI); x.stroke(); }
     return BGT[k]=c;
   }
   if(k==='moon'){
@@ -1140,7 +1147,7 @@ function bgTex(k){
   }
   return null;
 }
-let bgs=null;
+let bgs=null, bgSpd=1, bgProg=0, bgRot=0;
 function bgInit(W, H){
   let h=99991; const rnd=()=>{ h=(h*16807)%2147483647; return h/2147483647; };
   bgs={W, H, tw:Array.from({length:26},()=>({x:rnd(), y:rnd(), r:1+rnd()*1.6, p:rnd()*6.28, c:rnd()<0.3 ? '255,215,180' : '210,230,255'})),
@@ -1149,6 +1156,8 @@ function bgInit(W, H){
     weeds:Array.from({length:9},(_,i)=>({x:(i+rnd()*0.8)/9, h:0.12+rnd()*0.2, p:rnd()*6.28, w:3+rnd()*4})),
     fish:Array.from({length:7},()=>({y:0.35+rnd()*0.35, s:0.4+rnd()*0.5, o:rnd(), z:0.6+rnd()*0.7})),
     birds:Array.from({length:6},()=>({x:rnd(), y:0.18+rnd()*0.22, s:0.5+rnd()*0.6, p:rnd()*6.28})),
+    warp:Array.from({length:150},()=>({x:rnd()*2-1, y:rnd()*2-1, z:0.05+rnd()*0.95})),
+    school:Array.from({length:16},()=>({dx:rnd()*2-1, dy:rnd()*2-1, z:3+rnd()*3, p:rnd()*6.28})),
     ridges:null};
   // 夕焼けの 山並み（3層・遠いほど かすむ）
   const N=mkNoise(4242), rc=cvs(W,H), x=rc.getContext('2d');
@@ -1162,7 +1171,7 @@ function bgSceneAt(t){
   let idx=0; if(secs){ for(let i=0;i<secs.length;i++) if(secs[i].beat<=beat) idx=i; } else idx=Math.max(0, Math.floor(beat/32));
   return BG_SCENES[(idx+off)%BG_SCENES.length];
 }
-const TEX_OF={space:['nebula','stars'], planet:['nebula','stars','planet','moon'], sea:['caustic'], sky:['cloud','cloud2'], sunset:['scloud']};
+const TEX_OF={space:['nebula','stars'], planet:['nebula','stars','pmap','pshade','ringB','ringF','moon'], sea:['caustic'], sky:['cloud','cloud2'], sunset:['scloud']};
 function bgPrep(){   // あそぶ 前に 少しずつ 絵を 作る（固まらないように）
   const ks=[...new Set([].concat(...BG_SCENES.map(s=>TEX_OF[s])))].filter(k=>!BGT[k]);
   const step=()=>{ const k=ks.shift(); if(!k) return; try{ bgTex(k); }catch(_){} setTimeout(step, 30); }; setTimeout(step, 30);
@@ -1184,10 +1193,22 @@ function drawScene(x, sc, W, H, tm, a){
       x.strokeStyle='rgba('+s.c+','+(0.25+0.6*tw).toFixed(2)+')'; x.lineWidth=0.8; x.beginPath(); x.moveTo(px-L,py); x.lineTo(px+L,py); x.moveTo(px,py-L); x.lineTo(px,py+L); x.stroke();
       x.fillStyle='rgba('+s.c+',.95)'; x.beginPath(); x.arc(px,py,s.r*0.8,0,6.283); x.fill(); }
     x.globalCompositeOperation='source-over';
+    if(sc==='space'){   // ワープ：星が 手前へ 飛んで くる（v684）
+      x.globalCompositeOperation='lighter';
+      for(const w of bgs.warp){ const px=W/2+w.x/w.z*W*0.32, py=H*0.45+w.y/w.z*H*0.32, z2=Math.min(1, w.z+0.05*bgSpd), qx=W/2+w.x/z2*W*0.32, qy=H*0.45+w.y/z2*H*0.32, br=1-w.z;
+        x.strokeStyle='rgba(210,230,255,'+(br*0.9).toFixed(3)+')'; x.lineWidth=0.5+2.2*br; x.beginPath(); x.moveTo(qx,qy); x.lineTo(px,py); x.stroke(); }
+      x.globalCompositeOperation='source-over'; }
     if(sc==='space'){ const k=(tm*0.3)%4; if(k<0.5){ const q=k/0.5, sx=W*(0.95-q*0.9), sy2=H*(0.05+q*0.3), gr=x.createLinearGradient(sx,sy2,sx+110,sy2-40); gr.addColorStop(0,'rgba(255,255,255,.95)'); gr.addColorStop(1,'rgba(160,200,255,0)'); x.strokeStyle=gr; x.lineWidth=2; x.beginPath(); x.moveTo(sx,sy2); x.lineTo(sx+110,sy2-40); x.stroke(); } }
     if(sc==='planet'){
-      const P=bgTex('planet'), pw=Math.min(W*1.25, H*0.95), ph=pw*P.height/P.width;
-      x.drawImage(P, W*0.62-pw/2+Math.sin(tm*0.05)*12, H*0.24-ph/2+Math.cos(tm*0.04)*8, pw, ph);
+      // 自転する 星：表面の 地図を 細い たてに 分けて 球に 見える ように ならべ、かげを 重ねる（v684）
+      const pw=Math.min(W*1.25, H*0.95), R=pw/4.6, cx=W*0.62+Math.sin(tm*0.05)*12, cy=H*0.24+Math.cos(tm*0.04)*8, RB=bgTex('ringB'), RF=bgTex('ringF'), MP=bgTex('pmap'), SHD=bgTex('pshade'), ph=pw*RB.height/RB.width;
+      x.drawImage(RB, cx-pw/2, cy-ph/2, pw, ph);
+      x.save(); x.beginPath(); x.arc(cx,cy,R,0,6.283); x.clip();
+      const NS=48, rot=bgRot;
+      for(let k2=0;k2<NS;k2++){ const t0=-Math.PI/2+Math.PI*k2/NS, t1=t0+Math.PI/NS, x0=cx+R*Math.sin(t0), x1=cx+R*Math.sin(t1); let u=((t0+rot)/(2*Math.PI))%1; if(u<0) u+=1; const sw=MP.width/(2*NS), sx=Math.min(MP.width-sw, u*MP.width);
+        x.drawImage(MP, sx, 0, sw, MP.height, x0, cy-R, x1-x0+0.8, 2*R); }
+      x.drawImage(SHD, cx-R, cy-R, 2*R, 2*R); x.restore();
+      x.drawImage(RF, cx-pw/2, cy-ph/2, pw, ph);
       const M=bgTex('moon'), mr=Math.min(W,H)*0.17, ang=tm*0.12; x.drawImage(M, W*0.2+Math.cos(ang)*W*0.05-mr/2, H*0.72+Math.sin(ang)*H*0.025-mr/2, mr, mr);
     }
   }else if(sc==='sea'){
@@ -1198,6 +1219,19 @@ function drawScene(x, sc, W, H, tm, a){
     const fade=x.createLinearGradient(0,0,0,H); fade.addColorStop(0,'rgba(0,0,0,0)'); fade.addColorStop(1,'rgba(0,0,0,1)');
     [[tm*14, tm*9, 0.32],[ -tm*11, tm*13, 0.26]].forEach(([ox,oy,al])=>{ x.globalAlpha=a*al; for(let yy=-cs;yy<H*0.7;yy+=cs) for(let xx=-cs;xx<W+cs;xx+=cs) x.drawImage(C, xx+((ox%cs)+cs)%cs-cs, yy+((oy%cs)+cs)%cs, cs, cs); });
     x.globalAlpha=a;
+    // 水面（上の 方で 波が ゆれる）
+    x.globalCompositeOperation='lighter';
+    for(let L2=0;L2<3;L2++){ x.strokeStyle='rgba(200,245,255,'+(0.35-L2*0.1).toFixed(2)+')'; x.lineWidth=2.5-L2*0.6; x.beginPath();
+      for(let px=0;px<=W;px+=6){ const py=H*(0.03+L2*0.035)+Math.sin(px/38+tm*(1.6+L2*0.4))*5+Math.sin(px/17-tm*2.3)*2.5; px ? x.lineTo(px,py) : x.moveTo(px,py); } x.stroke(); }
+    x.globalCompositeOperation='source-over';
+    // ときどき 横切る 魚の 群れ と クジラの かげ
+    const q=(tm*0.06)%1.7; if(q<1){ const bx=-W*0.25+q*W*1.5, by=H*0.48+Math.sin(q*7)*H*0.05; x.fillStyle='rgba(8,36,56,.8)';
+      for(const f of bgs.school){ const fx=bx+f.dx*W*0.18, fy=by+f.dy*H*0.07+Math.sin(tm*4+f.p)*2, z=f.z, wig=Math.sin(tm*14+f.p)*z*0.4;
+        x.beginPath(); x.ellipse(fx,fy,z*1.6,z*0.6,0,0,6.283); x.fill(); x.beginPath(); x.moveTo(fx-z*1.4,fy); x.lineTo(fx-z*2.4,fy-z*0.7+wig); x.lineTo(fx-z*2.4,fy+z*0.7+wig); x.fill(); } }
+    const q2=(tm*0.025+0.6)%2.4; if(q2<1){ const wx=W*1.3-q2*W*1.9, wy=H*0.3+Math.sin(q2*3)*H*0.03, L=W*0.55; x.fillStyle='rgba(2,18,30,.45)';
+      x.beginPath(); x.ellipse(wx,wy,L*0.5,L*0.13,-0.04,0,6.283); x.fill();
+      x.beginPath(); x.moveTo(wx+L*0.45,wy); x.quadraticCurveTo(wx+L*0.62,wy-L*0.02+Math.sin(tm*1.5)*L*0.04,wx+L*0.7,wy-L*0.1+Math.sin(tm*1.5)*L*0.05); x.lineTo(wx+L*0.72,wy+L*0.08+Math.sin(tm*1.5)*L*0.05); x.quadraticCurveTo(wx+L*0.6,wy+L*0.03,wx+L*0.45,wy+L*0.03); x.fill();
+      x.beginPath(); x.ellipse(wx-L*0.05,wy+L*0.11,L*0.12,L*0.025,0.5,0,6.283); x.fill(); }
     for(const p of bgs.snow){ const y=(p.y*H+tm*12*p.s)%H; x.fillStyle='rgba(210,240,255,.35)'; x.fillRect(p.x*W+Math.sin(tm+p.y*9)*6, y, p.r, p.r); }
     x.globalCompositeOperation='source-over';
     for(const f of bgs.fish){ const fx=((f.o+tm*0.03*f.s)%1.2)*W*1.2-W*0.1, fy=f.y*H+Math.sin(tm*1.3+f.o*9)*10, z=f.z*10;   // 遠くの 魚
@@ -1215,16 +1249,19 @@ function drawScene(x, sc, W, H, tm, a){
     x.globalCompositeOperation='source-over';
     const C2=bgTex('cloud2'), C=bgTex('cloud');
     const tile=(img, y, h, sp, al)=>{ const w=img.width*h/img.height, o=-((tm*sp)%w); x.globalAlpha=a*al; for(let xx=o; xx<W; xx+=w) x.drawImage(img, xx, y, w, h); };
-    tile(C2, H*0.08, H*0.22, 6, 0.8); tile(C, H*0.32, H*0.42, 15, 1);
+    tile(C2, H*0.08, H*0.22, 6, 0.8); tile(C, H*0.32, H*0.42, 24, 1);   // 遠くは ゆっくり・近くは 速く（飛んで いる ように）
+    x.globalAlpha=a; x.strokeStyle='rgba(30,40,60,.7)'; x.lineWidth=1.6;
+    for(const b of bgs.birds){ const bx=((b.x*W+tm*40*b.s)%(W+40))-20, by=b.y*H*1.4+Math.sin(tm+b.p)*8, f=Math.sin(tm*8+b.p)*4; x.beginPath(); x.moveTo(bx-7,by-f); x.quadraticCurveTo(bx-3,by-4,bx,by); x.quadraticCurveTo(bx+3,by-4,bx+7,by-f); x.stroke(); }
   }else if(sc==='sunset'){
     g([[0,'#1b1440'],[0.3,'#5a2a6a'],[0.55,'#c84a5c'],[0.75,'#f2864a'],[0.9,'#ffc370'],[1,'#ffd890']]);
-    const sx=W*0.52, sy=H*0.47, R=Math.min(W,H)*0.11;
+    const sx=W*0.52, sy=H*(0.36+0.24*bgProg), R=Math.min(W,H)*0.11;   // 曲が 進むと 太陽が しずむ
     x.globalCompositeOperation='lighter';
     const sg=x.createRadialGradient(sx,sy,R*0.5,sx,sy,R*6); sg.addColorStop(0,'rgba(255,220,150,.9)'); sg.addColorStop(0.25,'rgba(255,160,90,.35)'); sg.addColorStop(1,'rgba(255,120,80,0)'); x.fillStyle=sg; x.fillRect(0,0,W,H);
     x.globalCompositeOperation='source-over';
     const dg=x.createRadialGradient(sx,sy-R*0.2,0,sx,sy,R); dg.addColorStop(0,'#fff4cf'); dg.addColorStop(1,'#ffbf5e'); x.fillStyle=dg; x.beginPath(); x.arc(sx,sy,R,0,6.283); x.fill();
     const C=bgTex('scloud'), cw=C.width*(H*0.36)/C.height, o=-((tm*7)%cw); x.globalAlpha=a*0.92; for(let xx=o; xx<W; xx+=cw) x.drawImage(C, xx, H*0.12, cw, H*0.36);
-    x.globalAlpha=a; x.drawImage(bgs.ridges, 0, 0, W, H);
+    x.globalAlpha=a; x.fillStyle='rgba(30,10,60,'+(0.35*bgProg).toFixed(3)+')'; x.fillRect(0,0,W,H);   // だんだん 暗く
+    x.drawImage(bgs.ridges, 0, 0, W, H);
     x.strokeStyle='rgba(30,12,30,.85)'; x.lineWidth=1.8;
     for(const b of bgs.birds){ const bx=((b.x*W+tm*22*b.s)%(W+40))-20, by=b.y*H+Math.sin(tm+b.p)*6, f=Math.sin(tm*7+b.p)*4; x.beginPath(); x.moveTo(bx-8,by-f); x.quadraticCurveTo(bx-3,by-4,bx,by); x.quadraticCurveTo(bx+3,by-4,bx+8,by-f); x.stroke(); }
   }
@@ -1237,12 +1274,23 @@ function drawBg(t){
   if(cv.width!==Math.round(W*dpr) || cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
   if(!bgs || bgs.W!==W || bgs.H!==H) bgInit(W, H);
   const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
-  const tm=performance.now()/1000, sc=bgSceneAt(Math.max(0,t));
-  if(game.bgSc!==sc){ game.bgPrev=game.bgSc||sc; game.bgSc=sc; game.bgT=tm; }
-  const k=clamp((tm-(game.bgT||0))/1.4, 0, 1);   // 1.4秒で ふわっと 切りかえ
+  const now=performance.now()/1000, dt=clamp(now-(game.bgNow||now), 0, 0.05); game.bgNow=now;
+  // 動きの 強さ：設定（ひかえめ・ふつう・大きく）× 盛り上がり（サビ・フィーバー・コンボ）。この 時計で 景色を 動かす
+  const secs=game.song.secs, beatNow=Math.max(0,t)/game.spb; let dr='';
+  if(secs){ for(const s2 of secs) if(s2.beat<=beatNow) dr=s2.dr; }
+  const MV={calm:0.35, norm:1, big:1.9}[st.bgMove]||1, boost=1+(game.fever ? 0.7 : 0)+Math.min(game.combo||0, 50)/100+(dr==='drive' ? 0.35 : 0);
+  bgSpd=MV*boost; game.bgMT=(game.bgMT||0)+dt*bgSpd; bgProg=clamp(t/(game.end||1), 0, 1);
+  bgRot+=dt*0.12*bgSpd;
+  for(const w of bgs.warp){ w.z-=dt*0.22*bgSpd; if(w.z<=0.04 || Math.abs(w.x/w.z)>1.8 || Math.abs(w.y/w.z)>2.2){ w.z=1; w.x=Math.random()*2-1; w.y=Math.random()*2-1; } }
+  const tm=game.bgMT, sc=bgSceneAt(Math.max(0,t));
+  if(game.bgSc!==sc){ game.bgPrev=game.bgSc||sc; game.bgSc=sc; game.bgT=now; }
+  const k=clamp((now-(game.bgT||0))/1.4, 0, 1);   // 1.4秒で ふわっと 切りかえ
   x.clearRect(0,0,W,H);
+  const bpz=t>0 ? Math.pow(1-((t/game.spb)%1), 3) : 0, zm=1.03+0.018*Math.min(2, MV)*bpz;   // 拍で 少し ズーム（はずむ）
+  x.save(); x.translate(W/2,H/2); x.scale(zm,zm); x.translate(-W/2,-H/2);
   if(k<1) drawScene(x, game.bgPrev, W, H, tm, 1);
   drawScene(x, sc, W, H, tm, k<1 ? k : 1);
+  x.restore();
   // 見やすさの ために 暗く 重ねる・まわりを 少し 暗く（拍で 少し 明るく・フィーバーは 色が うつる）
   const bp=t>0 ? Math.pow(1-((t/game.spb)%1), 4) : 0;
   x.fillStyle='rgba(6,8,16,'+(0.42-bp*0.08).toFixed(3)+')'; x.fillRect(0,0,W,H);
@@ -1479,6 +1527,7 @@ function htmlGame(){
     +'<h4>押した ときの 音色</h4>'+seg('音色',INST,st.inst,'inst')+(st.inst==='auto' ? '<p class="oo-note">「'+esc(s.t)+'」は '+esc(instName(autoInst(s)))+' で 鳴ります（曲ごとに 合う 音色）。好きな 音色を えらぶと どの 曲も その 音に なります。</p>' : '')
     +'<h4>速さ</h4>'+seg('速さ',Object.keys(SPEED).map(id=>({id,n:SPEED[id].n})),st.speed,'speed')
     +'<h4>背景</h4>'+seg('背景',BGS,st.bg,'bg')
+    +(st.bg!=='off' ? '<h4>背景の 動き</h4>'+seg('背景の動き',[{id:'calm',n:'ひかえめ'},{id:'norm',n:'ふつう'},{id:'big',n:'大きく'}],st.bgMove,'bgMove')+'<p class="oo-note">宇宙は 星が 手前へ 飛び、惑星は 自転し、海は 波と 魚の 群れ・クジラ、空は 雲と 鳥、夕焼けは 曲が 進むと 太陽が しずみます。サビや 🔥 フィーバー・コンボで 速く なり、拍で 少し はずみます。</p>' : '')
     +'<h4>当たった ときの 演出</h4>'+seg('演出',FXL,st.fx,'fx')
     +'<p class="oo-note">'+(st.fx==='calm' ? '光の 粒を 少なく、画面の ゆれ・点滅・ふるえ（振動）なし。' : st.fx==='norm' ? '粒と 光で 知らせます。10コンボごとに お祝い。' : st.fx==='ultra' ? 'ぴったりで 大きく はじけ、10コンボごとに 光の すじと 紙ふぶき・画面が ゆれます。30コンボで 🔥 フィーバー（点 1.5倍）。' : 'さらに 粒が 多く、流れ星や 光の 輪も。とても 激しいので、光や ゆれが 苦手な 方は ご注意ください。')+'</p>'
     +'<label class="oo-chk"><input type="checkbox" '+(st.beat?'checked':'')+' onchange="OTO.beat()"> 🥁 伴奏を 鳴らす（ドラム。⚡ オリジナル曲は ベースと 和音も）</label>'
@@ -2052,7 +2101,7 @@ window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met
   secs:id=>{ const x=allSongs().find(y=>y.id===id); if(!x || !x.secs) return []; const all=parseSong(x).notes; return x.secs.map(sc=>{ const ns=all.filter(n=>n.beat>=sc.beat-1e-6 && n.beat<sc.beat+sc.len-1e-6); return {v:sc.v, dr:sc.dr, notes:ns.map(n=>n.midi), lens:ns.map(n=>n.len)}; }); },
   theme:id=>{ const x=SONGS.find(y=>y.id===id); return x ? (x.theme||x.n) : ''; },
   pd:()=>SONGS.map(s=>({id:s.id, sec:Math.round(parseSong(s).beats*60/s.bpm), vars:(s.vars||[]).join('+'), ch:(s.secs ? s.secs.flatMap(x=>x.ch).join(' ') : '')})),
-  bg:v=>{ st.bg=BGS.some(x=>x.id===v) ? v : 'auto'; save(); render(); }, bgScene:()=>game ? game.bgSc||'' : '',
+  bg:v=>{ st.bg=BGS.some(x=>x.id===v) ? v : 'auto'; save(); render(); }, bgMove:v=>{ st.bgMove=['calm','norm','big'].includes(v) ? v : 'norm'; save(); render(); }, bgSpd:()=>bgSpd, bgRot:()=>bgRot, setCombo:n=>{ if(game) game.combo=n; }, bgScene:()=>game ? game.bgSc||'' : '',
   fxOn:()=>!!(game && game.fe), fever:()=>!!(game && game.fever), orig:()=>ORIG.map(s=>({id:s.id, t:s.t, sec:Math.round(parseSong(s).beats*60/s.bpm), secs:s.secs.length, shapes:[...new Set(s.secs.map(x=>x.sh))].join(',')})), insts:()=>INST.map(x=>x.id),
   hitTest:(i)=>{ if(!game || !game.playing) return null; const n=game.notes.find(x=>!x.res && x.lane===i); if(!n) return null; game.t0=AC.currentTime-n.t; judge(i); return n.res; }, lanes:v=>{ st.lanes=v==='four' ? 'four' : 'note'; save(); game=null; render(); },
   // 🎼 曲を つくる（v673）
