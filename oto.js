@@ -333,7 +333,7 @@ function buildPD(s){
 SONGS.forEach(buildPD);
 
 /* ── 保存 ── */
-const DEF={ inst:'auto', instV:2, trail:'kira', glowMix:true, vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[], diff:3, fx:'ultra', beat:true, lisCenter:true, kbLay:'piano', kbW:'auto', recClick:true,
+const DEF={ inst:'auto', instV:2, trail:'kira', glowMix:true, vol:0.8, speed:'mid', song:'kira', mode:'fall', helper:false, wait:false, lanes:'note', my:[], diff:3, fx:'ultra', beat:true, lisCenter:true, kbLay:'piano', kbW:'auto', recClick:true, bg:'auto',
   met:{bpm:100, beats:4, sub:1, accent:true, snd:'click'}, tun:{a4:440, set:'chrom'}, best:{} };
 let st=JSON.parse(JSON.stringify(DEF));
 function load(){
@@ -357,7 +357,8 @@ function load(){
   if(o.lisCenter===false) st.lisCenter=false;
   if(o.kbLay==='vert') st.kbLay='vert';   // 鍵盤の ならべ方（v683）
   if(['auto','1','2','3'].includes(String(o.kbW))) st.kbW=String(o.kbW);
-  if(o.recClick===false) st.recClick=false;   // 🎤 聞き取りの 高さ（v676）
+  if(o.recClick===false) st.recClick=false;
+  if(BGS.some(x=>x.id===o.bg)) st.bg=o.bg;   // 動く 背景（v684）   // 🎤 聞き取りの 高さ（v676）
   const m=o.met||{};
   st.met.bpm=clamp(Math.round(+m.bpm||100),20,260);
   st.met.beats=[1,2,3,4,5,6,7,8,9,12].includes(+m.beats) ? +m.beats : 4;
@@ -745,6 +746,7 @@ function gameLoop(){
     if(st.helper) playNote(n.midi, AC.currentTime, n.len*0.9, st.inst);
     fx.push({lane:n.lane, res:'miss', t:performance.now()}); if(st.mode==='slide') slideMiss(n); else { const pt=lanePt(n.lane); if(pt) hitFx(pt[0], pt[1], '#90a4ae', 'miss', n.lane); } hud();
   }
+  if(st.bg!=='off') drawBg(t);
   if(st.mode==='fall') drawFall(t); else if(st.mode==='slide') drawSlide(t); else drawGlow(t);
   fxFrame();
   if(t>game.end+0.8){ finish(); return; }
@@ -1042,6 +1044,91 @@ function finale(big){
   requestAnimationFrame(step);
 }
 
+/* ── 🌌 動く 背景（v684）──
+   宇宙（星が 流れる）・惑星（輪の ある 星と 月・星雲）・海（光の すじと あわ）・空（雲と 太陽）・夕焼け（山と 鳥）を、
+   曲の まとまりごとに ふわっと 切りかえる（自動）か、1つに 決める。音符や ボタンが 見えにくく ならないよう、上から 暗く 重ねる。
+   拍で 少し 明るく、🔥 フィーバーでは 色が うつり 変わる */
+const BGS=[{id:'auto', n:'🔀 自動（曲の 流れで かわる）'}, {id:'space', n:'🌌 宇宙'}, {id:'planet', n:'🪐 惑星'}, {id:'sea', n:'🌊 海'}, {id:'sky', n:'☁ 空'}, {id:'sunset', n:'🌇 夕焼け'}, {id:'off', n:'なし'}];
+const BG_SCENES=['space','planet','sea','sky','sunset'];
+let bgs=null;   // {stars, bubbles, clouds, seed}
+function bgInit(W, H){
+  let h=99991; const rnd=()=>{ h=(h*16807)%2147483647; return h/2147483647; };
+  bgs={W, H,
+    stars:Array.from({length:150},()=>({x:rnd(), y:rnd(), r:0.4+rnd()*1.6, p:rnd()*6.28, s:0.3+rnd()*1.2})),
+    bubbles:Array.from({length:40},()=>({x:rnd(), y:rnd(), r:1.5+rnd()*5, s:0.4+rnd()*1.2, p:rnd()*6.28})),
+    clouds:Array.from({length:7},()=>({x:rnd(), y:0.05+rnd()*0.55, w:0.25+rnd()*0.35, s:0.15+rnd()*0.4})),
+    birds:Array.from({length:6},()=>({x:rnd(), y:0.15+rnd()*0.3, s:0.5+rnd()*0.6, p:rnd()*6.28}))};
+}
+function bgSceneAt(t){
+  if(st.bg!=='auto') return st.bg;
+  const sid=game.song.id||'', off=[...sid].reduce((a,c)=>a+c.charCodeAt(0),0)%BG_SCENES.length, beat=t/game.spb, secs=game.song.secs;
+  let idx=0; if(secs){ for(let i=0;i<secs.length;i++) if(secs[i].beat<=beat) idx=i; } else idx=Math.max(0, Math.floor(beat/32));
+  return BG_SCENES[(idx+off)%BG_SCENES.length];
+}
+function drawScene(x, sc, W, H, tm, a){
+  if(a<=0.01) return;
+  x.save(); x.globalAlpha=a;
+  const g=(c0,c1,c2)=>{ const gr=x.createLinearGradient(0,0,0,H); gr.addColorStop(0,c0); if(c2){ gr.addColorStop(0.6,c1); gr.addColorStop(1,c2); } else gr.addColorStop(1,c1); x.fillStyle=gr; x.fillRect(0,0,W,H); };
+  if(sc==='space' || sc==='planet'){
+    g(sc==='space' ? '#060a1f' : '#120826', sc==='space' ? '#0c1438' : '#1a0f3a', '#04050f');
+    if(sc==='planet'){   // 星雲
+      [[0.25,0.3,'rgba(190,80,255,.22)'],[0.8,0.65,'rgba(60,140,255,.2)']].forEach(([px,py,c])=>{ const r=Math.max(W,H)*0.55, gr=x.createRadialGradient(px*W,py*H,0,px*W,py*H,r); gr.addColorStop(0,c); gr.addColorStop(1,'rgba(0,0,0,0)'); x.fillStyle=gr; x.fillRect(0,0,W,H); });
+    }
+    const sp=sc==='space' ? 18 : 6;
+    for(const s of bgs.stars){ const y=((s.y*H)+tm*sp*s.s)%H, tw=0.5+0.5*Math.sin(tm*2+s.p); x.fillStyle='rgba(255,255,255,'+(0.35+0.6*tw).toFixed(2)+')'; x.beginPath(); x.arc(s.x*W, y, s.r*(sc==='space' ? 1 : 0.8), 0, 6.283); x.fill(); }
+    if(sc==='space'){ const k=(tm*0.35)%3; if(k<0.6){ const q=k/0.6, sx=W*(0.9-q*0.8), sy=H*(0.05+q*0.35); const gr=x.createLinearGradient(sx,sy,sx+80,sy-30); gr.addColorStop(0,'rgba(255,255,255,.9)'); gr.addColorStop(1,'rgba(255,255,255,0)'); x.strokeStyle=gr; x.lineWidth=2; x.beginPath(); x.moveTo(sx,sy); x.lineTo(sx+80,sy-30); x.stroke(); } }
+    if(sc==='planet'){   // 輪の ある 惑星と 月
+      const R=Math.min(W,H)*0.28, cx=W*0.82+Math.sin(tm*0.05)*10, cy=H*0.26+Math.cos(tm*0.04)*8;
+      const pg=x.createRadialGradient(cx-R*0.35, cy-R*0.35, R*0.1, cx, cy, R); pg.addColorStop(0,'#ffd59a'); pg.addColorStop(0.6,'#d9824b'); pg.addColorStop(1,'#5a2a1a');
+      x.save(); x.translate(cx,cy); x.rotate(-0.35);
+      x.strokeStyle='rgba(255,220,170,.55)'; x.lineWidth=R*0.12; x.beginPath(); x.ellipse(0,0,R*1.7,R*0.45,0,Math.PI,2*Math.PI); x.stroke();
+      x.fillStyle=pg; x.beginPath(); x.arc(0,0,R,0,6.283); x.fill();
+      x.strokeStyle='rgba(255,220,170,.7)'; x.beginPath(); x.ellipse(0,0,R*1.7,R*0.45,0,0,Math.PI); x.stroke(); x.restore();
+      const ma=tm*0.25, mx=W*0.2+Math.cos(ma)*W*0.06, my=H*0.72+Math.sin(ma)*H*0.03, mr=Math.min(W,H)*0.07;
+      const mg=x.createRadialGradient(mx-mr*0.3,my-mr*0.3,1,mx,my,mr); mg.addColorStop(0,'#f2f6ff'); mg.addColorStop(1,'#7b88a8'); x.fillStyle=mg; x.beginPath(); x.arc(mx,my,mr,0,6.283); x.fill();
+    }
+  }else if(sc==='sea'){
+    g('#0b5a86','#06304f','#021526');
+    x.globalCompositeOperation='lighter';
+    for(let i=0;i<6;i++){ const px=W*(0.1+i*0.17)+Math.sin(tm*0.4+i)*30, gr=x.createLinearGradient(0,0,0,H*0.9); gr.addColorStop(0,'rgba(140,220,255,.16)'); gr.addColorStop(1,'rgba(140,220,255,0)'); x.fillStyle=gr; x.beginPath(); x.moveTo(px-12,0); x.lineTo(px+12,0); x.lineTo(px+70,H*0.9); x.lineTo(px+20,H*0.9); x.closePath(); x.fill(); }
+    x.globalCompositeOperation='source-over';
+    x.strokeStyle='rgba(200,240,255,.35)'; x.lineWidth=2; x.beginPath(); for(let px=0;px<=W;px+=8){ const py=8+Math.sin(px/40+tm*1.5)*5; px ? x.lineTo(px,py) : x.moveTo(px,py); } x.stroke();
+    for(const b of bgs.bubbles){ const y=H-((b.y*H+tm*30*b.s)%(H+20)), bx=b.x*W+Math.sin(tm*1.5+b.p)*8; x.strokeStyle='rgba(220,245,255,.55)'; x.lineWidth=1.2; x.beginPath(); x.arc(bx,y,b.r,0,6.283); x.stroke(); }
+    x.fillStyle='rgba(10,40,60,.6)'; x.beginPath(); x.moveTo(0,H); for(let px=0;px<=W;px+=20) x.lineTo(px, H-18-Math.sin(px/60)*10); x.lineTo(W,H); x.fill();   // 海の 底
+  }else if(sc==='sky'){
+    g('#2f7fd0','#6fb3ea','#bfe2fb');
+    const sx=W*0.82, sy=H*0.16, sg=x.createRadialGradient(sx,sy,4,sx,sy,Math.min(W,H)*0.3); sg.addColorStop(0,'rgba(255,255,230,1)'); sg.addColorStop(0.2,'rgba(255,250,200,.8)'); sg.addColorStop(1,'rgba(255,250,200,0)'); x.fillStyle=sg; x.fillRect(0,0,W,H);
+    for(const c of bgs.clouds){ const cw=c.w*W, cx=((c.x*W+tm*12*c.s)%(W+cw*2))-cw, cy=c.y*H; x.fillStyle='rgba(255,255,255,.85)';
+      [[0,0,0.32],[0.25,-0.12,0.28],[0.5,0,0.3],[0.72,0.05,0.22],[0.36,0.08,0.3]].forEach(([dx,dy,r])=>{ x.beginPath(); x.ellipse(cx+dx*cw, cy+dy*cw*0.5, r*cw*0.6, r*cw*0.38, 0, 0, 6.283); x.fill(); }); }
+  }else if(sc==='sunset'){
+    g('#2b1b4f','#c2456c','#ffb062');
+    const sx=W*0.5, sy=H*0.78, R=Math.min(W,H)*0.18, sg=x.createRadialGradient(sx,sy,R*0.2,sx,sy,R*2.5); sg.addColorStop(0,'rgba(255,230,150,1)'); sg.addColorStop(0.3,'rgba(255,170,90,.6)'); sg.addColorStop(1,'rgba(255,150,80,0)'); x.fillStyle=sg; x.fillRect(0,0,W,H);
+    x.fillStyle='#ffd27a'; x.beginPath(); x.arc(sx,sy,R,0,6.283); x.fill();
+    [['#3a1f4a',0.8,90],['#24122f',0.88,60]].forEach(([c,base,amp],j)=>{ x.fillStyle=c; x.beginPath(); x.moveTo(0,H); for(let px=0;px<=W;px+=16) x.lineTo(px, H*base-Math.abs(Math.sin(px/(140+j*60)+j))*amp*0.6); x.lineTo(W,H); x.fill(); });
+    x.strokeStyle='rgba(40,20,40,.8)'; x.lineWidth=2;
+    for(const b of bgs.birds){ const bx=((b.x*W+tm*25*b.s)%(W+40))-20, by=b.y*H+Math.sin(tm+b.p)*6, f=Math.sin(tm*8+b.p)*4; x.beginPath(); x.moveTo(bx-8,by-f); x.quadraticCurveTo(bx-3,by-4,bx,by); x.quadraticCurveTo(bx+3,by-4,bx+8,by-f); x.stroke(); }
+  }
+  x.restore();
+}
+function drawBg(t){
+  const cv=$('ogBg'); if(!cv || !game) return;
+  const r=cv.getBoundingClientRect(), dpr=Math.min(2, window.devicePixelRatio||1), W=Math.round(r.width), H=Math.round(r.height);
+  if(!W || !H) return;
+  if(cv.width!==Math.round(W*dpr) || cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+  if(!bgs || bgs.W!==W || bgs.H!==H) bgInit(W, H);
+  const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
+  const tm=performance.now()/1000, sc=bgSceneAt(Math.max(0,t));
+  if(game.bgSc!==sc){ game.bgPrev=game.bgSc||sc; game.bgSc=sc; game.bgT=tm; }
+  const k=clamp((tm-(game.bgT||0))/1.4, 0, 1);   // 1.4秒で ふわっと 切りかえ
+  x.clearRect(0,0,W,H);
+  if(k<1) drawScene(x, game.bgPrev, W, H, tm, 1);
+  drawScene(x, sc, W, H, tm, k<1 ? k : 1);
+  // 見やすさの ために 暗く 重ねる（拍で 少し 明るく・フィーバーは 色が うつる）
+  const bp=t>0 ? Math.pow(1-((t/game.spb)%1), 4) : 0;
+  x.fillStyle='rgba(8,10,18,'+(0.5-bp*0.1).toFixed(3)+')'; x.fillRect(0,0,W,H);
+  if(game.fever){ x.globalCompositeOperation='lighter'; x.fillStyle='hsla('+((tm*60)%360)+',90%,55%,.10)'; x.fillRect(0,0,W,H); x.globalCompositeOperation='source-over'; }
+}
+
 /* ── 🌀 なぞる（v674）──
    画面に 散らばった マークへ 指を すべらせて、輪が ちぢんで 重なる ときに 指が 上に あれば 音が 鳴る。
    マークは 曲の 流れに そって なめらかに 並べる（高い 音ほど 上へ・間が 長いほど 遠く）。同じ 曲なら いつも 同じ 並び */
@@ -1125,7 +1212,8 @@ function drawSlide(t){
   game.pulse*=0.93;
   const bg=x.createRadialGradient(W/2, H*0.45, 10, W/2, H*0.45, Math.max(W,H)*0.75);
   bg.addColorStop(0, 'rgba('+Math.round(40+90*game.pulse)+','+Math.round(46+60*game.pulse)+','+Math.round(70+110*game.pulse)+',1)'); bg.addColorStop(1, '#0d1014');
-  x.fillStyle=bg; x.fillRect(0,0,W,H);
+  if(st.bg!=='off'){ x.clearRect(0,0,W,H); const pg=x.createRadialGradient(W/2, H*0.45, 10, W/2, H*0.45, Math.max(W,H)*0.75); pg.addColorStop(0, 'rgba(120,140,255,'+(0.28*game.pulse).toFixed(3)+')'); pg.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle=pg; x.fillRect(0,0,W,H); }   // 動く 背景が 見えるように（v684）
+  else { x.fillStyle=bg; x.fillRect(0,0,W,H); }
   // これから 来る マーク（遠い 順に 描く）
   const up=[]; for(const n of game.notes){ if(n.res) continue; const d=n.t-t; if(d>game.lead) break; if(d<-game.win.miss) continue; up.push(n); }
   // つぎへの 道しるべ
@@ -1269,6 +1357,7 @@ function htmlGame(){
     +'<h4>ボタン</h4>'+seg('ボタン',[{id:'note',n:'🎹 音ごと（ド・レ・ミ…）'},{id:'four',n:'4️⃣ 4つだけ（かんたん）'}],st.lanes,'lanes')
     +'<h4>押した ときの 音色</h4>'+seg('音色',INST,st.inst,'inst')+(st.inst==='auto' ? '<p class="oo-note">「'+esc(s.t)+'」は '+esc(instName(autoInst(s)))+' で 鳴ります（曲ごとに 合う 音色）。好きな 音色を えらぶと どの 曲も その 音に なります。</p>' : '')
     +'<h4>速さ</h4>'+seg('速さ',Object.keys(SPEED).map(id=>({id,n:SPEED[id].n})),st.speed,'speed')
+    +'<h4>背景</h4>'+seg('背景',BGS,st.bg,'bg')
     +'<h4>当たった ときの 演出</h4>'+seg('演出',FXL,st.fx,'fx')
     +'<p class="oo-note">'+(st.fx==='calm' ? '光の 粒を 少なく、画面の ゆれ・点滅・ふるえ（振動）なし。' : st.fx==='norm' ? '粒と 光で 知らせます。10コンボごとに お祝い。' : st.fx==='ultra' ? 'ぴったりで 大きく はじけ、10コンボごとに 光の すじと 紙ふぶき・画面が ゆれます。30コンボで 🔥 フィーバー（点 1.5倍）。' : 'さらに 粒が 多く、流れ星や 光の 輪も。とても 激しいので、光や ゆれが 苦手な 方は ご注意ください。')+'</p>'
     +'<label class="oo-chk"><input type="checkbox" '+(st.beat?'checked':'')+' onchange="OTO.beat()"> 🥁 伴奏を 鳴らす（ドラム。⚡ オリジナル曲は ベースと 和音も）</label>'
@@ -1282,7 +1371,7 @@ function htmlGame(){
 function htmlPlay(){
   const L=game.lanes, keys=L.map((ln,i)=>'<button type="button" class="og-key" data-l="'+i+'" style="--c:'+ln.col+'" onpointerdown="OTO.hit('+i+',event)">'+esc(ln.name)+'<small>'+(KEYS[i]||'').toUpperCase()+'</small></button>').join('');
   const top='<div class="og-hud"><span>'+esc(game.song.t)+'　'+(DIFF[game.diff]||DIFF[3]).n+(game.wait?'（練習）':'')+'</span><b id="ogScore">0</b><em id="ogCombo"></em><button type="button" onclick="OTO.quit()">やめる</button></div>';
-  const fl='<canvas id="ogFxL" class="og-fxl" aria-hidden="true"></canvas>';   // 演出の 重ね（v675）
+  const fl='<canvas id="ogFxL" class="og-fxl" aria-hidden="true"></canvas>'+(st.bg!=='off' ? '<canvas id="ogBg" class="og-bg" aria-hidden="true"></canvas>' : '');   // 演出の 重ね（v675）
   if(st.mode==='slide') return '<div class="og-play">'+top+'<canvas id="ogSl" class="og-sl"></canvas>'+fl+'</div>';
   if(st.mode==='fall') return '<div class="og-play">'+top+'<canvas id="ogCv" class="og-cv"></canvas><div class="og-keys" style="--n:'+L.length+'">'+keys+'</div>'+fl+'</div>';
   const pads=L.map((ln,i)=>'<button type="button" class="og-pad" data-l="'+i+'" style="--c:'+ln.col+'" onpointerdown="OTO.hit('+i+',event)"><span>'+esc(ln.name)+'</span></button>').join('');
@@ -1704,6 +1793,9 @@ const CSS=`
 .og-rank.rS{ background:linear-gradient(135deg,#ffb300,#e65100); } .og-rank.rA{ background:#43a047; } .og-rank.rB{ background:#1e88e5; } .og-rank.rC{ background:#8e24aa; }
 .og-play{ position:relative; overflow:hidden; display:flex; flex-direction:column; height:100%; min-height:420px; margin:-10px -14px -18px; background:#14181c; color:#fff; }
 .og-fxl{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:5; }
+.og-bg{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }   /* 動く 背景（v684） */
+.og-play > .og-hud, .og-play > .og-cv, .og-play > .og-keys, .og-play > .og-glow, .og-play > .og-sl{ position:relative; z-index:1; }
+.og-play > .og-hud{ background:rgba(0,0,0,.35); }
 .og-fin{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:30; }
 .og-hud em.fev{ color:#ffb000; text-shadow:0 0 8px #ff4500; }
 .og-hud{ display:flex; align-items:center; gap:10px; padding:8px 12px; font-size:13px; }
@@ -1839,6 +1931,7 @@ window.OTO={ tab:setTab, met:metToggle, tap:metTap, setBpm, bpm:d=>setBpm(st.met
   secs:id=>{ const x=allSongs().find(y=>y.id===id); if(!x || !x.secs) return []; const all=parseSong(x).notes; return x.secs.map(sc=>{ const ns=all.filter(n=>n.beat>=sc.beat-1e-6 && n.beat<sc.beat+sc.len-1e-6); return {v:sc.v, dr:sc.dr, notes:ns.map(n=>n.midi), lens:ns.map(n=>n.len)}; }); },
   theme:id=>{ const x=SONGS.find(y=>y.id===id); return x ? (x.theme||x.n) : ''; },
   pd:()=>SONGS.map(s=>({id:s.id, sec:Math.round(parseSong(s).beats*60/s.bpm), vars:(s.vars||[]).join('+'), ch:(s.secs ? s.secs.flatMap(x=>x.ch).join(' ') : '')})),
+  bg:v=>{ st.bg=BGS.some(x=>x.id===v) ? v : 'auto'; save(); render(); }, bgScene:()=>game ? game.bgSc||'' : '',
   fxOn:()=>!!(game && game.fe), fever:()=>!!(game && game.fever), orig:()=>ORIG.map(s=>({id:s.id, t:s.t, sec:Math.round(parseSong(s).beats*60/s.bpm), secs:s.secs.length, shapes:[...new Set(s.secs.map(x=>x.sh))].join(',')})), insts:()=>INST.map(x=>x.id),
   hitTest:(i)=>{ if(!game || !game.playing) return null; const n=game.notes.find(x=>!x.res && x.lane===i); if(!n) return null; game.t0=AC.currentTime-n.t; judge(i); return n.res; }, lanes:v=>{ st.lanes=v==='four' ? 'four' : 'note'; save(); game=null; render(); },
   // 🎼 曲を つくる（v673）

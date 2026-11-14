@@ -22669,6 +22669,29 @@ async function runOto683(browser) {
   await c2.close();
 }
 
+async function runOto684(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🌌 音ゲーの 動く 背景（v684） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openOto('game')); await w(400);
+  check('  背景を えらべる（はじめは 自動）', await page.evaluate(() => [...document.querySelectorAll('#otoBody .oo-seg[aria-label="背景"] button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',')), '🔀 自動（曲の 流れで かわる）*,🌌 宇宙,🪐 惑星,🌊 海,☁ 空,🌇 夕焼け,なし');
+  const got = [];
+  for (const [sc, m] of [['space', 'fall'], ['planet', 'glow'], ['sea', 'slide'], ['sky', 'fall'], ['sunset', 'glow']]) {
+    await page.evaluate(([sc, m]) => { OTO.quit(); OTO.bg(sc); OTO.mode(m); OTO.song('cdash'); OTO.start(); }, [sc, m]); await w(600);
+    got.push(await page.evaluate(() => OTO.bgScene() + ':' + !!document.getElementById('ogBg')));
+  }
+  check('  宇宙・惑星・海・空・夕焼け（どの あそび方でも）', got.join(' '), 'space:true planet:true sea:true sky:true sunset:true');
+  await page.evaluate(() => { OTO.quit(); OTO.bg('auto'); OTO.mode('fall'); OTO.song('cdash'); OTO.start(); }); await w(2800);
+  const sc = []; for (const b of [1, 17, 33]) { await page.evaluate(x => OTO.seek(x), b); await w(400); sc.push(await page.evaluate(() => OTO.bgScene())); }
+  check('  自動：曲の まとまりごとに 景色が かわる', new Set(sc).size, 3);
+  check('  背景の 上は 暗く して 見やすく（真ん中の 明るさが ひかえめ）', await page.evaluate(() => { const c = document.getElementById('ogBg'), x = c.getContext('2d'), d = x.getImageData(c.width / 2, c.height / 2, 1, 1).data; return (d[0] + d[1] + d[2]) / 3 < 170; }), true);
+  check('  なし に すると 背景の 絵を 出さない（覚える）', await page.evaluate(() => { OTO.quit(); OTO.bg('off'); OTO.start(); const a = !document.getElementById('ogBg'); OTO.quit(); const s = JSON.parse(localStorage.getItem('excalc_oto')).bg; OTO.bg('auto'); return a + '/' + s; }), 'true/off');
+  await page.evaluate(() => closeOto());
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('🪐 惑星'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v684'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto668(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎵 音の道具（v668。メトロノーム・チューナー・音ゲー） ──');
@@ -23042,6 +23065,7 @@ const SUITES = [
   [['oto678', 'v678'], b => runOto678(b)],
   [['oto682', 'v682'], b => runOto681(b)],
   [['oto683', 'v683'], b => runOto683(b)],
+  [['oto684', 'v684'], b => runOto684(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
