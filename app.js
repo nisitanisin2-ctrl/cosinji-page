@@ -258,7 +258,7 @@ function cellRawValue(idx, r, c){
   evaluating.add(key);
   const prev=EVAL_SHEET; EVAL_SHEET=idx;
   try{
-    return parseArith(raw.slice(1).replace(/×/g,'*').replace(/÷/g,'/'));
+    return parseArith(fxOps(raw.slice(1)));
   } catch(e){
     if(isFormulaError(e)) throw e;           // 参照先のエラーはそのまま呼び出し元へ運ぶ
     return NaN;
@@ -513,9 +513,11 @@ function tellCellError(r, c){
   return true;
 }
 function evalFormula(formula) {
-  const expr = String(formula).slice(1).replace(/×/g,'*').replace(/÷/g,'/');
+  const expr = fxOps(String(formula).slice(1));
   return parseArith(expr);
 }
+/* 式の × ÷ を * / に する。" " の 中の 文字は そのまま（=IF(A1>100,"○","×") の × が「*」に なって いた。v691） */
+function fxOps(s){ return String(s).split('"').map((p,i)=>i%2 ? p : p.replace(/×/g,'*').replace(/÷/g,'/')).join('"'); }
 
 function parseArith(s) {
   if(s.indexOf('$')>=0) s=stripAbsRefs(s);   // 絶対参照 $A$1・A$1・$A1 は A1 として読む（v417）
@@ -3295,7 +3297,7 @@ function xlIsNumeric(raw){ if(raw==null||raw==='') return false; const t=String(
 function xlBorder(css){ if(!css) return null; const wm=css.match(/(\d+(?:\.\d+)?)px/); const w=wm?parseFloat(wm[1]):1; const cm=css.match(/#([0-9a-fA-F]{6})/); const color='FF'+(cm?cm[1].toUpperCase():'000000'); const style=/double/i.test(css)?'double':(w>=3.5?'thick':(w>=2.5?'medium':'thin')); return {style,color}; }
 /* アプリの数式→Excelの数式 */
 function appFormulaToXlsx(f){
-  let out=String(f).replace(/×/g,'*').replace(/÷/g,'/').replace(/\bPI\b/g,'PI()').replace(/\bE\b(?!\d)/g,'EXP(1)');
+  let out=fxOps(String(f)).replace(/\bPI\b/g,'PI()').replace(/\bE\b(?!\d)/g,'EXP(1)');
   out=out.replace(/[VvＶ]参照\s*\(/g,'VLOOKUP(').replace(/[XxＸ]参照\s*\(/g,'XLOOKUP(');   // 日本語名→Excelの関数名
   // シート参照 名前!A1 は Excel が解釈しやすいよう '名前'!A1 に（引用符で囲む）
   out=out.replace(/(^|[^'\w])([^\s'"(),:!+\-*/^=<>&%]+)!/g, (m,pre,name)=> pre+"'"+name.replace(/'/g,"''")+"'!");
@@ -13741,22 +13743,66 @@ function speechLettersToRefs(t){
   for(const [yomi,ch] of SPEECH_LETTERS) t=t.replace(new RegExp(yomi+'(の)?(?=\\d)','g'), ch);
   return t;
 }
-/* 「A1からA5の合計」「A1からA5までの平均」→ SUM(A1:A5) / AVERAGE(A1:A5) */
+/* 「A1からA5の合計」「A1からA5までの平均」→ SUM(A1:A5) / AVERAGE(A1:A5)
+   v691：「合計 A1からA5」（関数の ことばが 先）・「A1とA2とA3の合計」・「A1:A5の合計」・「A1からA5まで足す」・
+   「〜の合計を四捨五入（切り上げ・切り捨て）」も。後ろに ほかの 言葉が 続く ときは 式に しない
+   （前は「A1からA5の合計に消費税」が 消費税を 落とした =SUM(A1:A5) に なって いた） */
 const SPEECH_RANGE_FUNCS=[
-  [/(合計|ごうけい|足した|総額)/, 'SUM'],
-  [/(平均|へいきん|ならし)/, 'AVERAGE'],
-  [/(いちばん大きい|最大|さいだい)/, 'MAX'],
-  [/(いちばん小さい|最小|さいしょう)/, 'MIN'],
-  [/(個数|件数|かず|数)/, 'COUNT'],
+  ['合計|ごうけい|総計|総額|トータル|和|足したもの|足した数|足した|足す|たす|サム', 'SUM'],
+  ['平均|へいきん|ならし|アベレージ', 'AVERAGE'],
+  ['いちばん大きい数|いちばん大きいもの|いちばん大きい|最大|さいだい|マックス', 'MAX'],
+  ['いちばん小さい数|いちばん小さいもの|いちばん小さい|最小|さいしょう|ミニマム|ミン', 'MIN'],
+  ['個数|件数|かず|数|カウント', 'COUNT'],
 ];
+const SPEECH_RANGE_FILL='(?:値)?(?:を(?:出して|出す|だして|求めて|求める|教えて|入れて))?';
+// 「四捨五入」は 先に 漢数字を 直すので「4捨5入」に なって 来る
+const SPEECH_ROUND={'四捨五入':'ROUND','4捨5入':'ROUND','ししゃごにゅう':'ROUND','切り上げ':'ROUNDUP','切りあげ':'ROUNDUP','きりあげ':'ROUNDUP','切り捨て':'ROUNDDOWN','切りすて':'ROUNDDOWN','きりすて':'ROUNDDOWN'};
+const SPEECH_ROUND_RE='(?:を|して|し)?('+Object.keys(SPEECH_ROUND).join('|')+')(?:して|する|した)?';
+function speechRangeWrap(f, rd){ return rd ? `=${SPEECH_ROUND[rd]}(${f.slice(1)},0)` : f; }
 function speechRangeFormula(t){
-  const m=t.match(/^([A-Z]+\d+)(から|〜|~|-)([A-Z]+\d+)(まで)?(の)?(.+)$/);
-  if(!m) return null;
-  const tail=m[6];
-  for(const [re,fn] of SPEECH_RANGE_FUNCS){
-    if(re.test(tail)) return `=${fn}(${m[1]}:${m[3]})`;
+  const REF='([A-Z]{1,2}\\d+)', SEP='(?:から|〜|~|-|:)';
+  for(const [words, fn] of SPEECH_RANGE_FUNCS){
+    // A1からA5の合計（を四捨五入）
+    let m=t.match(new RegExp('^'+REF+SEP+REF+'(?:まで)?(?:の|を)?(?:'+words+')'+SPEECH_RANGE_FILL+'(?:'+SPEECH_ROUND_RE+')?$'));
+    if(m) return speechRangeWrap(`=${fn}(${m[1]}:${m[2]})`, m[3]);
+    // 合計 A1からA5（関数の ことばが 先）
+    m=t.match(new RegExp('^(?:'+words+')(?:の|は|を)?'+REF+SEP+REF+'(?:まで)?$'));
+    if(m) return `=${fn}(${m[1]}:${m[2]})`;
+    // A1とA2とA3の合計
+    m=t.match(new RegExp('^'+REF+'((?:(?:と|及び|および)[A-Z]{1,2}\\d+)+)(?:の|を)?(?:'+words+')'+SPEECH_RANGE_FILL+'(?:'+SPEECH_ROUND_RE+')?$'));
+    if(m){ const refs=[m[1]].concat(m[2].split(/と|及び|および/).filter(Boolean)); return speechRangeWrap(`=${fn}(${refs.join(',')})`, m[3]); }
   }
   return null;
+}
+/* 関数の 形で 言った（書いた）とき（v691）：「SUM(A1:A5)」「ROUND(A1,0)」「イコール IF(A1>100,"○","×")」「SUM A1:A5」
+   → 先頭に = を 付けて 式に する。下の ふつうの 言い方の 直し（x を * に・「,」を 落とす など）を 通すと
+   MAX の X や 区切りの「,」が 壊れるので、その 前に 見る。表電卓に ない 関数の 名前なら null（文字の まま） */
+const SPEECH_FUNC_YOMI={'サム':'SUM','アベレージ':'AVERAGE','マックス':'MAX','ミニマム':'MIN','ミン':'MIN','カウント':'COUNT'};
+function speechFuncCall(text){
+  if(typeof FORMULA_FUNCS!=='object') return null;
+  let s=toHalfAscii(String(text)).replace(/[“”]/g,'"').trim().replace(/[。．.、]+$/,'').replace(/^(イコール|いこーる|=)\s*/,'').trim();
+  // かっこ なしで「SUM A1:A5」「サム エー1から エー5」
+  const fw=speechLettersToRefs(s).match(/^(SUM|AVERAGE|MAX|MIN|COUNT|サム|アベレージ|マックス|ミニマム|ミン|カウント)\s*(?:の)?\s*([A-Za-z]{1,2}\d+)\s*(?:から|〜|~|:|-)\s*([A-Za-z]{1,2}\d+)(?:まで)?$/i);
+  if(fw){ const fn=SPEECH_FUNC_YOMI[fw[1]] || fw[1].toUpperCase(); return `=${fn}(${fw[2].toUpperCase()}:${fw[3].toUpperCase()})`; }
+  const m=s.match(/^([A-Za-z][A-Za-z0-9.]*)\s*\(/);
+  if(!m || !FORMULA_FUNCS[m[1].toUpperCase()]) return null;
+  const parts=s.split('"');
+  if(parts.length%2===0) return null;                   // " が 閉じて いない
+  let out='';
+  for(let i=0;i<parts.length;i++){
+    if(i%2){ out+='"'+parts[i]+'"'; continue; }          // " の 中（文字）は そのまま
+    let p=speechLettersToRefs(parts[i]).replace(/([A-Za-z]{1,2}\d+)\s*(?:から|〜|~)\s*([A-Za-z]{1,2}\d+)(?:まで)?/g, '$1:$2').replace(/\s+/g,'');
+    const sheets=[]; p=p.replace(/([^(),:+\-*\/^&<>=]+)!/g, (_, n)=>{ sheets.push(n); return '\u0000'+(sheets.length-1)+'!'; });   // シートの 名前（=商品!C2）は そのまま
+    p=p.toUpperCase();
+    if(/[^A-Z0-9.:,()+\-*\/^%<>=&$!\u0000]/.test(p)) return null;   // 日本語などが 残る＝式では ない
+    out+=p.replace(/\u0000(\d+)!/g, (_, k)=>sheets[+k]+'!');
+  }
+  let d=0;
+  for(const ch of out.replace(/"[^"]*"/g,'')){ if(ch==='(') d++; else if(ch===')'){ d--; if(d<0) return null; } }
+  if(d!==0) return null;                                // かっこが 合わない
+  const names=out.replace(/"[^"]*"/g,'').match(/[A-Z][A-Z0-9.]*(?=\()/g)||[];
+  if(names.some(n=>!FORMULA_FUNCS[n])) return null;     // 表電卓に ない 関数
+  return '='+out;
 }
 /* 話し言葉を式の記号に直す（長い言い方から先に置き換える） */
 const SPEECH_WORDS=[
@@ -13831,7 +13877,9 @@ function speechToFormula(text){
   if(text==null) return null;
   let t=String(text).trim();
   if(t==='' || t.startsWith('=')) return null;        // 空・すでに数式は触らない
+  const fc=speechFuncCall(t); if(fc) return fc;       // 「ROUND(A1,0)」「SUM A1:A5」のような 関数の 形（v691）
   if(typeof unitEval==='function' && unitEval(t)) return null;   // 📐「3.5m×2.4m」は 単位つきの まま（v602）
+  t=t.replace(/^(イコール|いこーる)/,'');               // 頭に「イコール」と 言った ときも（v691）
   // 全角の数字・記号を半角へ。setCellVal の normalizeFullWidth は
   // 「全体が数値のときだけ」半角にするので、ここでは使わず自前で直す。
   t=toHalfAscii(t);
@@ -14456,7 +14504,8 @@ function sayAnswer(ex){
    さがす（ひらがな・カタカナ・全角半角は 気にしない）・どこで 使えるか・分類 で しぼれる。答えも 出す（あとから 少しずつ 計算） */
 const SAY_TABLE=['251かける68','1たす2かける3','10わる3','100ひく35','2500かける1.08','ルート16','2の3乗','3分の2たす4分の1',
   'かっこ1たす2かっことじかける3','エー1たすビー1','エー1かける1.1','ビー2ひくシー2','エー1からエー5の合計','エー1からエー5の平均',
-  'ビー2からビー9の最大','ビー2からビー9の最小','エー1からエー10の個数','シー3わるエー3かける100'];
+  'ビー2からビー9の最大','ビー2からビー9の最小','エー1からエー10の個数','シー3わるエー3かける100',
+  '合計エー1からエー5','エー1とエー2とエー3の合計','エー1からエー5の平均を四捨五入','SUM A1からA5'];   // v691：関数の ことばが 先・セルを ならべる・四捨五入・関数の 名前
 /* ひらがなで さがした ときの 言いかえ（漢字の 言葉にも 当てる） */
 const SAY_SYN={'わりかん':'割り勘','しょうひぜい':'消費税','ぜいこみ':'税込','ぜいぬき':'税抜','つぼ':'坪','へいべい':'平米','ねんれい':'年齢','なんさい':'何歳',
   'へいきん':'平均','ごうけい':'合計','わりびき':'割引','わりまし':'割増','ぱーせんと':'%','ひゃくぶんりつ':'%','りし':'利','きんり':'金利','ろーん':'ローン','ちょきん':'貯金',
@@ -15281,6 +15330,9 @@ function voiceAccept(text){
   voiceStop();
   if(!raw){ toast('聞き取れませんでした'); return; }
   if(isLockedCell(selR,selC)){ toast('このセルは保護されています'); return; }
+  // テンキーで 打ちかけの 数が あると、あとで セルを 選び直した ときに 書き戻されて 声の 中身が 消えて いた（v691）。
+  // 声で 入れる 中身に おきかえる
+  if(cellEditing){ cellEditing=false; op1=null; cur_op=null; waiting=false; }
   const p=speechPrepare(raw, selR, selC);
   const f=p.f, v=p.v, answerAt=p.answerAt;
   setCellVal(selR,selC,v);
@@ -18961,7 +19013,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v690';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v691';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
