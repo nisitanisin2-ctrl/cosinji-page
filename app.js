@@ -8394,6 +8394,7 @@ window.addEventListener('popstate', e=>{
     backAskTool(top.tool);
     return;
   }
+  if(top && typeof top.back==='function' && top.back()){ backGuardPush(); return; }   // 画面の 中で 1つ 戻れる ときは それだけ（説明書の ページ。v690）
   const f=backGuardStack.pop();
   if(f){
     f();
@@ -14450,29 +14451,124 @@ function sayAnswer(ex){
   }catch(_){}
   return '';
 }
-let sayFind='';
-function openSayHelp(){ sayFind=''; renderSayHelp(); openDlg('sayHelpOverlay');
-  if(!window.KoePhrase) loadKoePhrase().then(ok=>{ if(ok) renderSayHelp(true); }); }
-function closeSayHelp(){ closeDlg('sayHelpOverlay'); }
+/* ══ 声で 計算できる 言葉の 一覧（v690）══
+   表（セルに 式で 入る）・電卓（言い回しで 答え）・🎙 声の計算帳（道具。文例 ぜんぶ）で 言える 言葉を 1つの 表に。
+   さがす（ひらがな・カタカナ・全角半角は 気にしない）・どこで 使えるか・分類 で しぼれる。答えも 出す（あとから 少しずつ 計算） */
+const SAY_TABLE=['251かける68','1たす2かける3','10わる3','100ひく35','2500かける1.08','ルート16','2の3乗','3分の2たす4分の1',
+  'かっこ1たす2かっことじかける3','エー1たすビー1','エー1かける1.1','ビー2ひくシー2','エー1からエー5の合計','エー1からエー5の平均',
+  'ビー2からビー9の最大','ビー2からビー9の最小','エー1からエー10の個数','シー3わるエー3かける100'];
+/* ひらがなで さがした ときの 言いかえ（漢字の 言葉にも 当てる） */
+const SAY_SYN={'わりかん':'割り勘','しょうひぜい':'消費税','ぜいこみ':'税込','ぜいぬき':'税抜','つぼ':'坪','へいべい':'平米','ねんれい':'年齢','なんさい':'何歳',
+  'へいきん':'平均','ごうけい':'合計','わりびき':'割引','わりまし':'割増','ぱーせんと':'%','ひゃくぶんりつ':'%','りし':'利','きんり':'金利','ろーん':'ローン','ちょきん':'貯金',
+  'きゅうりょう':'給料','じきゅう':'時給','てどり':'手取','ねんしゅう':'年収','ねんぴ':'燃費','がそりん':'ガソリン','じそく':'時速','きょり':'距離','じかん':'時間',
+  'ひにち':'日','われき':'和暦','れいわ':'令和','へいせい':'平成','しょうわ':'昭和','えん':'円','めんせき':'面積','たいせき':'体積','おつり':'お釣り','おこめ':'米',
+  'ししゃごにゅう':'四捨五入','きりあげ':'切り上げ','きりすて':'切り捨て','ルート':'√','るーと':'ルート','じょう':'乗','ぶんすう':'分','あまり':'余り','そすう':'素数',
+  'さ':'差','わ':'和','せき':'積','しょう':'商','ばい':'倍','たんい':'単位','みりりっとる':'ミリリットル','りっとる':'リットル','きろ':'キロ','せんち':'センチ','めーとる':'メートル',
+  'ごう':'合','しょう':'升','げんせん':'源泉','ぼーなす':'ボーナス','たす':'足','ひく':'引','かける':'掛','わる':'割','せる':'エー1','はんい':'から'};
+function sayWords(q){
+  const w=findWords(q), n=findNorm(q);
+  Object.keys(SAY_SYN).forEach(k=>{ const nk=findNorm(k); if(nk.length>=2 && (n===nk || (n.length>=2 && n.includes(nk)))) w.push(findNorm(SAY_SYN[k])); });
+  return w;
+}
+const SAY_WHERE=[['all','すべて'],['表','📋 表のセル'],['電卓','🧮 電卓'],['帳','🎙 声の計算帳']];
+let sayFind='', sayWhere='all', sayGenre='all', sayAll=null, sayAns=new Map(), sayAnsTimer=0;
+let koeExLoading=null;
+function loadKoeExamples(){
+  if(window.KOE_EXAMPLES) return Promise.resolve(true);
+  if(koeExLoading) return koeExLoading;
+  koeExLoading=new Promise(res=>{ const sc=document.createElement('script'); sc.src='koe/examples.js';
+    sc.onload=()=>{ koeExLoading=null; res(!!window.KOE_EXAMPLES); }; sc.onerror=()=>{ koeExLoading=null; sc.remove(); res(false); }; document.head.appendChild(sc); });
+  return koeExLoading;
+}
+/* 表の セルで 式に なるか（声で 入れると =式 に なる） */
+function sayTableOk(ex){ try{ return speechToFormula(ex)!==null; }catch(_){ return false; } }
+function sayBuild(){
+  const map=new Map(), out=[];
+  const put=(ex, g, ic, where, ans)=>{
+    let x=map.get(ex);
+    if(!x){ x={ex, g, ic, w:new Set(), ans:ans==null ? null : String(ans)}; map.set(ex, x); out.push(x); }
+    where.forEach(w=>x.w.add(w));
+    if(x.ans==null && ans!=null) x.ans=String(ans);
+  };
+  // 電卓の まとまり（ふつうの計算 など）を 先に。表の セルの 例で 同じ 言い方は その まとまりの 行に「表」の 印を 足す（v690）
+  sayList().forEach(x=>put(x.ex, x.g, SAY_ICON[x.g]||'🎙', ['電卓'].concat(sayTableOk(x.ex) ? ['表'] : [])));
+  SAY_TABLE.forEach(ex=>{ const f=speechToFormula(ex)||''; put(ex, '表のセルで（声で 式を 入れる）', '📋', ['表'].concat(!/[A-Z]{1,2}\d/.test(f.replace(/SQRT|SUM|AVERAGE|MAX|MIN|COUNT/g,'')) && sayUnderstands(ex) ? ['電卓'] : [])); });   // セルを 指す 言い方は 表だけ
+  (window.KOE_EXAMPLES||[]).forEach(g=>g.ex.forEach(e=>{
+    const ex=Array.isArray(e) ? e[0] : e, ans=Array.isArray(e) ? e[1] : null;
+    const w=['帳']; if(sayUnderstands(ex)) w.push('電卓'); if(sayTableOk(ex)) w.push('表');
+    put(ex, g.g, g.ic, w, ans);
+  }));
+  return out;
+}
+function openSayHelp(where){
+  sayFind=''; sayWhere=SAY_WHERE.some(w=>w[0]===where) ? where : 'all'; sayGenre='all';
+  const el=document.getElementById('sayHelpFind'); if(el) el.value='';
+  sayAll=null; renderSayHelp(); openDlg('sayHelpOverlay');
+  Promise.all([window.KoePhrase ? true : loadKoePhrase(), loadKoeExamples()]).then(()=>{ sayAll=null; renderSayHelp(true); });
+}
+function closeSayHelp(){ clearTimeout(sayAnsTimer); closeDlg('sayHelpOverlay'); }
 function sayHelpFind(v){ sayFind=String(v||'').trim(); renderSayHelp(true); }
+function saySetWhere(w){ sayWhere=w; sayGenre='all'; renderSayHelp(true); }
+function saySetGenre(g){ sayGenre=g; renderSayHelp(true); }
+function sayAnsOf(x){
+  if(x.ans!=null) return x.ans;
+  if(sayAns.has(x.ex)) return sayAns.get(x.ex);
+  return null;
+}
+function sayAnsText(x){
+  const a=sayAnsOf(x);
+  if(a!=null && a!=='') return a;
+  if(x.w.has('表') && !x.w.has('電卓')){ const f=speechToFormula(x.ex); if(f) return '＝ '+formulaToReadable(f); }
+  return a;
+}
 function renderSayHelp(keepInput){
   const box=document.getElementById('sayHelpBody'); if(!box) return;
-  const q=sayFind;
-  const all=sayList().filter(x=>!q || x.ex.indexOf(q)>=0 || x.g.indexOf(q)>=0);
-  if(!all.length){ box.innerHTML='<div class="veg-empty">見つかりませんでした</div>'; return; }
-  let html='';
-  SAY_GROUPS.forEach(g=>{
-    const list=all.filter(x=>x.g===g); if(!list.length) return;
-    html+=`<div class="say-g">${SAY_ICON[g]||'・'} ${escHtml(g)}</div>`;
-    html+=list.map(x=>{
-      const a=sayAnswer(x.ex);
-      return `<button class="say-row" onclick="sayTry('${escHtml(x.ex).replace(/'/g,"\\'")}')">`
-        +`<span class="say-ex">「${escHtml(x.ex)}」</span>`
-        +(a?`<span class="say-ans">${escHtml(a)}</span>`:'')+`</button>`;
-    }).join('');
+  if(!sayAll) sayAll=sayBuild();
+  const qs=sayWords(sayFind);
+  const inW=sayAll.filter(x=>sayWhere==='all' || x.w.has(sayWhere));
+  const genres=[]; inW.forEach(x=>{ if(!genres.some(g=>g[0]===x.g)) genres.push([x.g, x.ic]); });
+  const list=inW.filter(x=>(sayGenre==='all' || x.g===sayGenre) && (!qs.length || qs.some(w=>findNorm(x.ex+' '+x.g+' '+(sayAnsOf(x)||'')).includes(w))));
+  // はじめの ほうの 行は その場で 答えを 出す（すぐ 見えるように。のこりは あとから 少しずつ）
+  { const t0=performance.now();
+    for(const x of list){ if(performance.now()-t0>40) break; if(sayAnsOf(x)==null && x.w.has('電卓')){ let a=''; try{ a=sayAnswer(x.ex); }catch(_){} sayAns.set(x.ex, a); } } }
+  const chip=(on, js, t)=>'<button type="button" class="say-chip'+(on?' on':'')+'" onclick="'+js+'">'+t+'</button>';
+  let html='<div class="say-chips">'+SAY_WHERE.map(([w,t])=>chip(sayWhere===w, "saySetWhere('"+w+"')", escHtml(t)+'<small>'+(w==='all'?sayAll.length:sayAll.filter(x=>x.w.has(w)).length)+'</small>')).join('')+'</div>'
+    +'<div class="say-chips say-genres">'+chip(sayGenre==='all', "saySetGenre('all')", 'ぜんぶの 分類')+genres.map(([g,ic])=>chip(sayGenre===g, 'saySetGenre(this.dataset.g)', escHtml(ic+' '+g.replace(/（.*）$/,''))).replace('<button ', '<button data-g="'+escHtml(g)+'" ')).join('')+'</div>'
+    +'<div class="say-count">'+list.length+' 件'+(sayFind?'（「'+escHtml(sayFind)+'」）':'')+(window.KOE_EXAMPLES?'':'　…声の計算帳の 文例を 読み込んでいます')+'</div>';
+  if(!list.length) html+='<div class="veg-empty">見つかりませんでした。ちがう 言い方でも さがして みてください</div>';
+  let lastG='';
+  const MAXR=400;
+  list.slice(0, MAXR).forEach((x, i)=>{
+    if(x.g!==lastG){ html+='<div class="say-g">'+escHtml(x.ic)+' '+escHtml(x.g)+'</div>'; lastG=x.g; }
+    const a=sayAnsText(x);
+    html+='<button type="button" class="say-row" data-i="'+sayAll.indexOf(x)+'" onclick="sayTryRow(+this.dataset.i)">'
+      +'<span class="say-ex">「'+escHtml(x.ex)+'」</span>'
+      +'<span class="say-ans" data-ex="'+escHtml(x.ex)+'">'+(a ? escHtml(a) : '')+'</span>'
+      +'<span class="say-w">'+['表','電卓','帳'].filter(w=>x.w.has(w)).map(w=>'<i class="sw-'+(w==='帳'?'koe':w==='表'?'hyo':'dt')+'">'+(w==='帳'?'計算帳':w)+'</i>').join('')+'</span></button>';
   });
+  if(list.length>MAXR) html+='<div class="say-count">ほかに '+(list.length-MAXR)+' 件。さがす・分類で しぼってください</div>';
   box.innerHTML=html;
   if(!keepInput){ const el=document.getElementById('sayHelpFind'); if(el) el.value=''; }
+  // 答えは 少しずつ 計算して 入れる（一度 計算した ものは 覚える）
+  clearTimeout(sayAnsTimer);
+  const todo=list.slice(0, MAXR).filter(x=>sayAnsOf(x)==null && (x.w.has('電卓')));
+  const step=()=>{
+    const t0=performance.now();
+    while(todo.length && performance.now()-t0<12){
+      const x=todo.shift(); let a=''; try{ a=sayAnswer(x.ex); }catch(_){}
+      sayAns.set(x.ex, a);
+      if(a) box.querySelectorAll('.say-ans').forEach(el=>{ if(el.dataset.ex===x.ex) el.textContent=a; });
+    }
+    if(todo.length) sayAnsTimer=setTimeout(step, 16);
+  };
+  if(todo.length) sayAnsTimer=setTimeout(step, 30);
+}
+/* 行を 押す：電卓で 使える ものは 電卓で その場で 計算。声の計算帳だけの 言い方は 声の計算帳で */
+function sayTryRow(i){
+  const x=sayAll && sayAll[i]; if(!x) return;
+  if(x.w.has('電卓')){ sayTry(x.ex); return; }
+  if(x.w.has('表')){ toast('表で セルを 選んで 🎤 で「'+x.ex+'」と 言うと、式で 入ります', 3600); return; }
+  toast('🎙 声の計算帳（🧰 道具）で 言える 言い方です。声の計算帳の「📚 文例」にも あります', 3600);
 }
 /* お手本をタップ：電卓に切り替えて、その場で計算して見せる */
 function sayTry(ex){
@@ -18126,7 +18222,7 @@ function pickMode(key){ closeModeMenu(); switchMode(key); }
 function toggleSettings() {
   if(typeof renderUi2Seg==='function') renderUi2Seg();
   const btn=document.getElementById('settingsBtn');
-  if(!isDlgOpen('settingsPanel')){ const sp=document.getElementById('settingsPanel'); if(sp) sp.classList.remove('show-all'); ezSync(); }   // かんたん表示は、よく使う設定から（v461）
+  if(!isDlgOpen('settingsPanel')){ const sp=document.getElementById('settingsPanel'); if(sp) sp.classList.remove('show-all'); ezSync(); renderSetQuick(); placeSetBlocks(); const d=document.getElementById('setTabDesc'); if(d && !d.innerHTML) d.innerHTML=SET_TAB_DESC[settingsTab]||''; }   // かんたん表示は、よく使う設定から（v461）。v690：よく変える 設定・置き場所
   const open=isDlgOpen('settingsPanel') ? !closeDlg('settingsPanel') : openDlg('settingsPanel');
   btn.classList.toggle('open', open);
 }
@@ -18495,7 +18591,7 @@ function setUiMode(m){
 }
 function toggleAllSettings(){
   const sp=document.getElementById('settingsPanel'); if(!sp) return;
-  sp.classList.toggle('show-all'); ezSync();
+  sp.classList.toggle('show-all'); ezSync(); placeSetBlocks();
 }
 function ezSync(){
   document.querySelectorAll('#uiModeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.m===(uiEasy?'easy':'full')));
@@ -18781,6 +18877,57 @@ function setFindGo(i){
     setTimeout(()=>x.el.classList.remove('set-flash'), 1800);
   });
 }
+/* ══ 設定を 見つけやすく（v690）══
+   ・いちばん上に「🔍 設定をさがす」
+   ・「⭐ よく変える 設定」の 近道：押すと その 設定の タブを 開いて、その 場所まで 送って 光らせる（setGoTo）
+   ・タブを 開くと、そのタブに 何が あるかを 1行で（SET_TAB_DESC）
+   ・🔈 読み上げの声 は 計算タブの 声の ところへ、画面の形 は 見た目タブへ（かんたんモードの ときは 上の まま） */
+const SET_TAB_DESC=[
+  '<b>📐 表の操作</b>：行と列の数・セルの操作・<b>コピーの しかた</b>（メニューから／角の つまみ）・<b>セルの メニューの 場所と 名前</b>・帯の ボタン',
+  '<b>🎨 見た目</b>：<b>画面の形</b>（新しい／前の）・色と背景（着せかえ）・<b>文字と テンキーの 大きさ</b>・はじめに 開く ページ・画面の 詰め方',
+  '<b>⌨ テンキー</b>：テンキー・セルのバー・合計の <b>置き場所</b>・電卓だけに する・ページと 記号・<b>ボタンの 配置</b>・道具の 窓に 出す 道具',
+  '<b>🧮 計算</b>：小数の けた・<b>消費税と 端数</b>・日付の 形・入れたときの 自動の 変換・<b>🔈 声</b>（読み上げ・声で 入れる）・ひな形',
+  '<b>💾 保存とデータ</b>：いまの 表の 保存・前の 状態に 戻す・<b>別の 端末へ 移す</b>（エクスポート・インポート）・この 端末の 空き',
+];
+const SET_QUICK=[
+  ['📋','コピーの しかた','fillHowSeg'], ['🎛','メニューの 場所','bandWhereSeg'], ['🏷','メニューの 名前','bandLabelSeg'],
+  ['🔠','文字の 大きさ','cellSize'], ['⌨','テンキーの 大きさ','keySize'], ['📍','テンキーの 置き場所','npPlaceSeg'],
+  ['🖥','画面の形','ui2Seg'], ['🎨','色と 背景','setGrpColor'], ['🌙','夜の色',null, ()=>{ toggleDark(); toast(document.body.classList.contains('dark') ? '🌙 夜の色に しました（もう一度で 戻る）' : '☀ 明るい 色に 戻しました'); }],
+  ['🔈','読み上げの 声',null, ()=>{ toggleSettings(); openVoiceSet(); }], ['🧾','消費税・端数','taxRate'], ['🔢','小数の けた','decCount'],
+  ['📅','日付の 形','defDateFmt'], ['🏠','はじめの ページ','startPageSel'], ['🔀','ボタンの 配置','keypadEditBtn'], ['🧰','道具の 窓','toolsBtnSec'],
+  ['💾','バックアップ','setExportBtn'], ['🔢','行と 列の 数','rowCount'],
+];
+function renderSetQuick(){
+  const box=document.getElementById('setQuickRow'); if(!box || box.children.length) return;
+  box.innerHTML=SET_QUICK.map((q,i)=>'<button type="button" onclick="setQuickGo('+i+')" title="'+escHtml(q[1])+'"><i>'+q[0]+'</i>'+escHtml(q[1])+'</button>').join('');
+}
+function setQuickGo(i){ const q=SET_QUICK[i]; if(!q) return; if(q[3]){ q[3](); return; } setGoTo(q[2]); }
+/* 設定の その 場所へ 飛んで 光らせる（設定が 閉じて いれば 開く）。説明書の「設定の 場所」からも 使う */
+function setGoTo(id){
+  const el=document.getElementById(id); if(!el) return false;
+  if(!isDlgOpen('settingsPanel')) toggleSettings();
+  placeSetBlocks(true);
+  const page=el.closest('[id^="setPage"]'); if(page) setSettingsTab(+page.id.replace('setPage',''));
+  for(let d=el; d; d=d.parentElement){ if(d.tagName==='DETAILS') d.open=true; }
+  const tgt=el.closest('.set-row') || (el.tagName==='DETAILS' ? el : null) || el;
+  // 見出し（.set-sec）が すぐ 前に あれば いっしょに 見せる
+  const sec=(()=>{ let x=tgt.previousElementSibling; for(let k=0;k<3 && x;k++,x=x.previousElementSibling){ if(x.classList && x.classList.contains('set-sec')) return x; } return null; })();
+  requestAnimationFrame(()=>{
+    try{ (sec||tgt).scrollIntoView({block:'start', behavior:'smooth'}); }catch(_){ (sec||tgt).scrollIntoView(); }
+    tgt.classList.remove('set-flash'); void tgt.offsetWidth; tgt.classList.add('set-flash');
+    setTimeout(()=>tgt.classList.remove('set-flash'), 1800);
+  });
+  return true;
+}
+/* 🔈 読み上げの声・画面の形 の 置き場所：かんたん表示の ときは 上（set-easy）、ほかは タブの 中 */
+function placeSetBlocks(all){
+  const sp=document.getElementById('settingsPanel'), v=document.getElementById('setVoiceBtn'), u=document.getElementById('setUi2');
+  const ez=document.getElementById('setEasy'), vs=document.getElementById('setVoiceSlot'), us=document.getElementById('setUi2Slot');
+  if(!sp || !v || !u || !ez || !vs || !us) return;
+  const easyView=!all && typeof uiEasy!=='undefined' && uiEasy && !sp.classList.contains('show-all');
+  if(easyView){ if(v.parentElement!==ez) ez.insertBefore(v, ez.firstChild); if(u.parentElement!==ez) v.after(u); }
+  else { if(v.parentElement!==vs) vs.appendChild(v); if(u.parentElement!==us) us.appendChild(u); }
+}
 function setSettingsTab(i){
   { const sp=document.getElementById('settingsPanel'); if(sp && !sp.classList.contains('show-all')){ sp.classList.add('show-all'); if(typeof ezSync==='function') ezSync(); } }   // 設定の場所へ飛ぶときは全部を出す（v461）
   i=Math.max(0, Math.min(SETTINGS_TAB_MAX, i));
@@ -18789,6 +18936,8 @@ function setSettingsTab(i){
   for(let p=0;p<=SETTINGS_TAB_MAX;p++){ const el=document.getElementById('setPage'+p); if(el) el.classList.toggle('open',p===i); }
   if(i===2){ const k=document.getElementById('setGrpKeys'); if(k) k.open=true; }   // テンキーの タブは 開いたまま（v624）
   localStorage.setItem('excalc_settings_tab',String(i));
+  { const d=document.getElementById('setTabDesc'); if(d) d.innerHTML=SET_TAB_DESC[i]||''; }   // v690：この タブに ある もの
+  placeSetBlocks();
 }
 /* 設定本体を横フリックしてタブを切替（左＝次、右＝前）。縦スクロールやボタンのタップは邪魔しない */
 function attachSettingsSwipe(){
@@ -18812,7 +18961,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v689';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v690';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -18833,7 +18982,13 @@ function loadHelp(){
   if(document.getElementById('helpVer')) return Promise.resolve(true);    // もう入っている
   const fill=()=>{
     if(typeof window.EXCALC_HELP_HTML!=='string') return false;
-    body.innerHTML=window.EXCALC_HELP_HTML;
+    // v690：新しい 説明書（目次・話題の ページ・道具ごとの ページ）を 上に。これまでの 説明書は「📚 くわしい説明」の ページ
+    if(Array.isArray(window.EXCALC_HELP_PAGES)){
+      // 上の 帯（← もどる・📖 目次）は 説明書の 窓の 中で いつも 上に 出るよう、ページの 外（#helpBody の すぐ下）に 置く
+      body.innerHTML='<div class="hb-bar" id="hbBar"></div><div class="hb-page" id="hbPage"></div>'+
+        '<div class="hb-old" id="hbOld" hidden><div class="hb-note hb-oldnote">📚 これまでの 説明書です。ぜんぶの 機能を くわしく 書いて あります。写真は 前の 画面の ものなので、新しい 画面では ボタンの 場所が ちがう ことが あります（新しい 画面の 説明は <a onclick="helpHome()">📖 目次</a> から）。</div>'+window.EXCALC_HELP_HTML+'</div>';
+      helpHist=[]; helpIdx=null; helpRender('home');
+    } else body.innerHTML=window.EXCALC_HELP_HTML;
     return true;
   };
   if(fill()) return Promise.resolve(true);
@@ -18853,13 +19008,17 @@ function loadHelp(){
   });
   return helpLoading;
 }
-function openHelp(){
-  openDlg('helpOverlay');
+function openHelp(page){
+  if(openDlg('helpOverlay')){
+    // 端末の「戻る」は、説明書の 中で 前の ページへ（目次で 押すと 閉じる。v690）
+    const g=backGuardStack[backGuardStack.length-1];
+    if(g && g.dlgId==='helpOverlay') g.back=()=>{ if(!helpHist.length || !document.getElementById('hbBar')) return false; helpBack(); return true; };
+  }
   return loadHelp().then(ok=>{
     if(!ok) return false;
     renderHelpFuncTable();
-    const ver=document.getElementById('helpVer');
-    if(ver) ver.textContent='バージョン '+APP_VERSION;
+    ['helpVer','hbVer'].forEach(id=>{ const ver=document.getElementById(id); if(ver) ver.textContent='バージョン '+APP_VERSION; });
+    if(document.getElementById('hbBar')){ helpHist=[]; helpRender(typeof page==='string' && page ? page : 'home'); }
     return true;
   });
 }
@@ -18867,9 +19026,178 @@ function closeHelp(){ closeDlg('helpOverlay'); }
 /* 説明書：クイックナビのチップから、その項目を開いてスクロール */
 function helpJump(id){
   const el=document.getElementById(id); if(!el) return;
+  const old=document.getElementById('hbOld');
+  if(old && old.contains(el) && old.hidden){ helpGo('old:'+id); return; }
   if(el.tagName==='DETAILS') el.open=true;
   el.scrollIntoView({behavior:'smooth', block:'start'});
 }
+
+/* ── 説明書（v690）：目次 → 話題の ページ（新しい 画面に 合わせた 短い 説明）と 道具ごとの ページ ──
+   中身は help.js の EXCALC_HELP_PAGES（話題）・EXCALC_HELP_TOOLS（道具の ひとこと・できること・くわしく）。
+   道具の 名前・まとまり・はじめに は ここの NP_TOOLS・TOOL_CATS・TOOL_HINTS から 作るので、道具を 足すと 目次にも 出る。
+   ページは 'home'・'p:話題'・'tools'・'tool:道具'・'old'（これまでの 説明書）・'old:見出しの id'。 */
+let helpCur='home', helpHist=[], helpIdx=null;
+function helpGo(key){
+  if(!document.getElementById('hbBar')) return;
+  if(key!==helpCur) helpHist.push(helpCur);
+  helpRender(key);
+}
+function helpBack(){ helpRender(helpHist.length ? helpHist.pop() : 'home'); }
+function helpHome(){ helpHist=[]; helpRender('home'); }
+function helpTopic(id){ return (window.EXCALC_HELP_PAGES||[]).find(p=>p.id===id)||null; }
+function helpToolList(){
+  const seen=new Set(), out=[];
+  for(const [cat, ids] of TOOL_CATS){ for(const id of ids){ const t=npToolDef(id); if(t && !seen.has(id)){ seen.add(id); out.push({t, cat}); } } }
+  for(const t of NP_TOOLS) if(!seen.has(t.id)) out.push({t, cat:'🧰 そのほか'});
+  return out;
+}
+function helpToolTitle(key){ const t=npToolDef(key); return t ? t.label : '道具'; }
+function helpRender(key){
+  const pageEl=document.getElementById('hbPage'), old=document.getElementById('hbOld'), bar=document.getElementById('hbBar');
+  if(!pageEl || !old || !bar) return;
+  helpCur=key;
+  const isOld=key==='old' || key.startsWith('old:');
+  let title='📖 目次', html='';
+  if(key==='home'){ html=helpHomeHtml(); }
+  else if(key.startsWith('p:')){
+    const p=helpTopic(key.slice(2));
+    if(!p){ helpCur='home'; html=helpHomeHtml(); }
+    else { title=p.ic+' '+p.t; html='<div class="hb-ttl"><span>'+p.ic+'</span>'+escHtml(p.t)+'</div>'+p.h+helpNextHtml(p.id); }
+  }
+  else if(key==='tools'){ title='🧰 道具'; html=helpToolsHtml(); }
+  else if(key.startsWith('tool:')){ title=helpToolTitle(key.slice(5)); html=helpToolHtml(key.slice(5)); }
+  else if(isOld){ title='📚 くわしい説明'; }
+  bar.innerHTML=(key==='home' ? '' : '<button class="hb-back" onclick="helpBack()" aria-label="前の ページへ">←</button>')+
+    '<span class="hb-bar-t">'+escHtml(title)+'</span>'+(key==='home' ? '' : '<button class="hb-homebtn" onclick="helpHome()">📖 目次</button>');
+  pageEl.hidden=isOld; old.hidden=!isOld;
+  pageEl.innerHTML=isOld ? '' : html;
+  if(key==='p:settings') helpQuickSetRender();
+  const body=document.getElementById('helpBody'); if(body) body.scrollTop=0;
+  if(key.startsWith('old:')){
+    const el=document.getElementById(key.slice(4));
+    if(el){ if(el.tagName==='DETAILS') el.open=true; requestAnimationFrame(()=>el.scrollIntoView({block:'start'})); }
+  }
+  if(key==='home'){ const f=document.getElementById('hbFind'); if(f && helpLastQ){ f.value=helpLastQ; helpFind(helpLastQ); } }
+}
+function helpHomeHtml(){
+  const cards=(window.EXCALC_HELP_PAGES||[]).map(p=>{
+    const go=p.go==='tools' ? "helpGo('tools')" : p.go==='old' ? "helpGo('old')" : "helpGo('p:"+p.id+"')";
+    const sub=p.go==='tools' ? NP_TOOLS.length+'の 道具を 1つずつ' : p.s;
+    return '<button class="hb-card'+(p.id==='start'?' hb-card-wide':'')+'" data-p="'+p.id+'" onclick="'+go+'"><span class="hb-ic">'+p.ic+'</span><b>'+escHtml(p.t)+'</b><small>'+escHtml(sub||'')+'</small></button>';
+  }).join('');
+  return '<div class="hb-hello">知りたい ことを 押すか、下の 欄で さがしてください。</div>'+
+    '<input class="hb-find" id="hbFind" type="search" enterkeyhint="search" autocomplete="off" placeholder="🔍 説明書を さがす（例：コピー・合計・声・保存）" oninput="helpFind(this.value)">'+
+    '<div class="hb-res" id="hbFindRes"></div>'+
+    '<div class="hb-grid" id="hbGrid">'+cards+'</div>'+
+    '<div class="hb-foot"><button class="set-act" onclick="closeHelp(); setTimeout(openWhatsNew, 320);">🆕 新しくなったことを見る</button><div class="help-ver" id="hbVer">バージョン '+APP_VERSION+'</div></div>';
+}
+/* 話題の ページの 下：つぎの 話題へ */
+function helpNextHtml(id){
+  const ps=(window.EXCALC_HELP_PAGES||[]).filter(p=>!p.go), i=ps.findIndex(p=>p.id===id);
+  const nx=ps[i+1], pv=ps[i-1];
+  return '<div class="hb-pn">'+(pv ? '<button onclick="helpGo(\'p:'+pv.id+'\')">◀ '+escHtml(pv.t)+'</button>' : '<span></span>')+
+    (nx ? '<button onclick="helpGo(\'p:'+nx.id+'\')">'+escHtml(nx.t)+' ▶</button>' : '<button onclick="helpGo(\'tools\')">🧰 道具 ▶</button>')+'</div>';
+}
+function helpToolsHtml(){
+  const D=window.EXCALC_HELP_TOOLS||{};
+  let h='<div class="hb-p">押すと その 道具の 説明の ページ。道具は 下の タブの <b>道具</b> から 開きます。</div>'+
+    '<input class="hb-find" id="hbToolFind" type="search" autocomplete="off" placeholder="🔍 道具を さがす（例：写真・お金・声・現場）" oninput="helpToolFind(this.value)">';
+  let cat='';
+  for(const {t, cat:c} of helpToolList()){
+    if(c!==cat){ if(cat) h+='</div>'; cat=c; h+='<div class="hb-cat">'+escHtml(c)+'</div><div class="hb-tlist">'; }
+    const [ic, tx]=toolLabelSplit(t.label), d=D[t.id]||{};
+    h+='<button class="hb-tool" data-tool="'+t.id+'" onclick="helpGo(\'tool:'+t.id+'\')"><span class="hb-ic">'+ic+'</span><span class="hb-tx"><b>'+escHtml(tx)+(t.ov?'':' ↗')+'</b><small>'+escHtml(d.s||'')+'</small></span></button>';
+  }
+  return h+(cat?'</div>':'')+'<div class="hb-none" id="hbToolNone" hidden>見つかりません。ことばを 短く して みてください。</div>';
+}
+function helpToolFind(q){
+  const D=window.EXCALC_HELP_TOOLS||{}, ws=String(q||'').trim().split(/\s+/).filter(Boolean);
+  let n=0;
+  document.querySelectorAll('#hbPage .hb-tool').forEach(b=>{
+    const id=b.dataset.tool, d=D[id]||{}, t=npToolDef(id);
+    const text=(t ? t.label : '')+' '+(d.s||'')+' '+(d.c||[]).join(' ')+' '+(TOOL_HINTS[id]||'');
+    const ok=!ws.length || ws.every(w=>helpHit(text, w));
+    b.hidden=!ok; if(ok) n++;
+  });
+  document.querySelectorAll('#hbPage .hb-tlist').forEach(l=>{ const any=[...l.children].some(b=>!b.hidden); l.hidden=!any; if(l.previousElementSibling) l.previousElementSibling.hidden=!any; });
+  const none=document.getElementById('hbToolNone'); if(none) none.hidden=n>0;
+}
+function helpToolHtml(id){
+  const t=npToolDef(id); if(!t) return '<div class="hb-p">この 道具は 見つかりません。</div>';
+  const D=(window.EXCALC_HELP_TOOLS||{})[id]||{}, [ic, tx]=toolLabelSplit(t.label);
+  const L=helpToolList(), i=L.findIndex(x=>x.t.id===id), cat=(L[i]||{}).cat||'';
+  const start=TOOL_HINTS[id] || D.st || '';
+  let h='<div class="hb-tool-head"><span class="hb-tool-ic">'+ic+'</span><div><b>'+escHtml(tx)+'</b><small>'+escHtml(D.s||'')+'</small></div></div>'+
+    '<button class="hb-open" onclick="helpToolGo(\''+id+'\')">▶ この 道具を 開く</button>';
+  if(start) h+='<div class="hb-h">はじめに</div><div class="hb-p">'+escHtml(start)+'</div>';
+  if(D.c && D.c.length) h+='<div class="hb-h">できること</div><ul class="hb-ul">'+D.c.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+  if(D.m) h+='<details class="hb-det"><summary>📚 もっと くわしく</summary><div class="hb-det-b">'+D.m+'</div></details>';
+  h+='<div class="hb-h">どこに ある？</div><div class="hb-p">下の タブの <b>道具</b> → <b>'+escHtml(cat)+'</b> → <b>'+escHtml(t.label)+'</b>。'+
+    '「☆ 選ぶ」で ★ に すると いちばん 上に 並びます。テンキーの キーや 自分の ボタンにも 登録できます。</div>';
+  if(!t.ov) h+='<div class="hb-note">↗ 別の アプリとして 開きます。左上の「← 表電卓」で 表電卓へ 帰れます。</div>';
+  const pv=L[i-1], nx=L[i+1];
+  h+='<div class="hb-pn">'+(pv ? '<button onclick="helpGo(\'tool:'+pv.t.id+'\')">◀ '+escHtml(pv.t.label)+'</button>' : '<span></span>')+
+    (nx ? '<button onclick="helpGo(\'tool:'+nx.t.id+'\')">'+escHtml(nx.t.label)+' ▶</button>' : '<span></span>')+'</div>';
+  return h;
+}
+/* 説明書から 何かを 開く：説明書を 閉じてから（閉じる 動きと 重ならないよう 少し 待つ） */
+function helpAct(fn){ closeHelp(); setTimeout(()=>{ try{ fn(); }catch(_){ toast('うまく開けませんでした'); } }, 320); }
+function helpToolGo(id){ const t=npToolDef(id); if(!t) return; helpAct(()=>{ noteRecentTool(id); t.run(); }); }
+function helpSetGo(id){ helpAct(()=>setGoTo(id)); }
+function helpSay(where){ helpAct(()=>openSayHelp(where)); }
+function helpSamples(){
+  helpAct(()=>{ if(isDentaku()) navGo('sheet'); hgOpen('').then(()=>{ if(window.HG && window.HG.samples) window.HG.samples(); }); });
+}
+function helpOld(anchor){ helpGo(anchor ? 'old:'+anchor : 'old'); }
+/* 設定の ページ：よく 変える 設定（設定の 画面の「⭐ よく変える 設定」と 同じ もの）を ボタンで */
+function helpQuickSetRender(){
+  const box=document.getElementById('hbQuickSet'); if(!box) return;
+  box.innerHTML=SET_QUICK.map((q,i)=>'<button class="hb-mini" onclick="helpAct(()=>setQuickGo('+i+'))">'+q[0]+' '+escHtml(q[1])+'</button>').join('');
+}
+/* さがす：話題の ページ・道具の ページ・これまでの 説明書の 見出しごとに 字を 集めて、ことばが ぜんぶ 入って いる ものを 出す */
+let helpLastQ='';
+function helpTextOf(html){ const d=document.createElement('div'); d.innerHTML=html; d.querySelectorAll('img').forEach(i=>i.remove()); return d.textContent.replace(/\s+/g,' ').trim(); }
+function helpBuildIdx(){
+  if(helpIdx) return helpIdx;
+  const out=[];
+  for(const p of (window.EXCALC_HELP_PAGES||[])){ if(p.h){ const body=helpTextOf(p.h); out.push({key:'p:'+p.id, t:p.ic+' '+p.t, sub:'', text:p.t+' '+(p.s||'')+' '+body, body}); } }
+  const D=window.EXCALC_HELP_TOOLS||{};
+  for(const {t, cat} of helpToolList()){ const d=D[t.id]||{}; out.push({key:'tool:'+t.id, t:t.label, sub:'🧰 道具（'+cat+'）', text:t.label+' '+(d.s||'')+' '+(TOOL_HINTS[t.id]||d.st||'')+' '+(d.c||[]).join(' ')+' '+(d.m ? helpTextOf(d.m) : '')}); }
+  const old=document.getElementById('hbOld');
+  if(old){
+    old.querySelectorAll('.hg-sec[id]').forEach(s=>{ const h=s.querySelector('.hg-h'); out.push({key:'old:'+s.id, t:h ? h.textContent.trim() : s.id, sub:'📚 くわしい説明', text:s.textContent.replace(/\s+/g,' ')}); });
+    old.querySelectorAll('details[id]').forEach(s=>{ const h=s.querySelector('summary'); out.push({key:'old:'+s.id, t:h ? h.textContent.trim() : s.id, sub:'📚 くわしい説明', text:s.textContent.replace(/\s+/g,' ')}); });
+  }
+  out.forEach(o=>{ o.n=findNorm(o.text); o.nt=findNorm(o.t); o.body=o.body || o.text; });
+  return helpIdx=out;
+}
+/* 1つの ことばが 入って いるか（ひらがな・カタカナ・全角半角を そろえ、言いかえも 見る） */
+function helpHit(text, w){ const n=findNorm(text); return findWords(w).some(x=>x && n.includes(x)); }
+function helpFind(q){
+  helpLastQ=String(q||'');
+  const res=document.getElementById('hbFindRes'), grid=document.getElementById('hbGrid'); if(!res) return;
+  const ws=helpLastQ.trim().split(/\s+/).filter(Boolean);
+  if(!ws.length){ res.innerHTML=''; if(grid) grid.hidden=false; return; }
+  const idx=helpBuildIdx(), hits=[];
+  for(const o of idx){
+    let sc=0, ok=true;
+    for(const w of ws){ const vs=findWords(w); if(vs.some(v=>v && o.nt.includes(v))) sc+=10; else if(vs.some(v=>v && o.n.includes(v))) sc+=1; else { ok=false; break; } }
+    if(ok) hits.push({o, sc});
+  }
+  hits.sort((a,b)=>b.sc-a.sc);
+  if(grid) grid.hidden=true;
+  if(!hits.length){ res.innerHTML='<div class="hb-none">見つかりません。ことばを 短く するか、下の 目次から えらんで ください。<button class="hb-mini" onclick="helpClearFind()">目次を 出す</button></div>'; return; }
+  // 抜き出し：さがした ことば（言いかえ・カタカナも）の 少し前から。絵文字が 途中で 切れないよう 字ごとに 切る
+  const kata=v=>v.replace(/[\u3041-\u3096]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+  const snip=o=>{
+    const t=o.body; let i=-1;
+    for(const v of [ws[0]].concat(findWords(ws[0]))){ if(!v) continue; i=t.indexOf(v); if(i<0) i=t.indexOf(kata(v)); if(i>=0) break; }
+    const cs=Array.from(t), ci=i<0 ? 0 : Array.from(t.slice(0, i)).length, a=Math.max(0, ci-20);
+    return (a?'…':'')+cs.slice(a, a+80).join('')+(cs.length>a+80?'…':''); };
+  res.innerHTML='<div class="hb-cnt">'+hits.length+'件</div>'+hits.slice(0,40).map(({o})=>
+    '<button class="hb-hit" onclick="helpGo(\''+o.key+'\')"><b>'+escHtml(o.t)+'</b>'+(o.sub?'<i>'+escHtml(o.sub)+'</i>':'')+'<small>'+escHtml(snip(o))+'</small></button>').join('');
+}
+function helpClearFind(){ helpLastQ=''; const f=document.getElementById('hbFind'); if(f){ f.value=''; f.focus(); } helpFind(''); }
 
 /* 数字として消去対象になるセルか（文字・数式・空は残す） */
 function isPlainNumberCell(v){

@@ -128,6 +128,7 @@ body.big .msg .idea-tip{font-size:14px}
 .favs::-webkit-scrollbar{display:none}
 .favs button{flex:none;min-height:30px;max-width:62vw;padding:0 11px;border-radius:var(--r-pill);background:var(--acc-weak);color:var(--acc);font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .favs button.pick{background:var(--acc);color:#fff}
+.ex .ex-a{margin-left:6px;font-size:12px;font-weight:700;opacity:.75}
 .ex-row{display:inline-flex;align-items:stretch;margin:0 6px 6px 0;max-width:100%}
 .ex-row .ex{margin:0;border-radius:var(--r-pill) 0 0 var(--r-pill)}
 .ex-star,.ex-run{min-width:36px;padding:0 8px;background:var(--acc-weak);color:var(--sub);font-size:15px;border-left:1px solid var(--bg)}
@@ -453,7 +454,7 @@ body.big .msg .idea-tip{font-size:14px}
    ・足し上げ／予算／練習のときは、言葉の受け取り方が変わる（state.mode）
    ・入れたものは この端末の中だけ（localStorage の koe_*）に残る
    ════════════════════════════════════════════════════════════════ */
-const APP_VERSION='v28';
+const APP_VERSION='v29';
 const LS_STATE='koe_state', LS_VARS='koe_vars', LS_SET='koe_settings', LS_BOOK='koe_book';
 
 /* ── 設定 ── */
@@ -2179,7 +2180,8 @@ function renderEx(){
   const tset=q && window.KOE_INTENTS ? new Set(KOE_INTENTS.examplesOf(KOE_INTENTS.topicsOf(q), gs)) : null;
   const hit=(t, g)=>!q || norm(t).includes(q) || (g && norm(g.g).includes(q)) || (tset && tset.has(t));
   const fav=loadList(LS_FAV), rec=loadList(LS_RECENT).filter(t=>!fav.includes(t));
-  const row=(t, run)=>'<span class="ex-row"><button class="ex'+(t===guideEx?' pick':'')+'" onclick="pickEx(this)">'+escHtml(t)+'</button>'
+  const ans=new Map(); gs.forEach(g=>g.ex.forEach(x=>{ if(Array.isArray(x)) ans.set(x[0], x[1]); }));   // 答えの 分かって いる 文例は 答えも 出す（v29）
+  const row=(t, run)=>'<span class="ex-row"><button class="ex'+(t===guideEx?' pick':'')+'" data-t="'+escHtml(t)+'" onclick="pickEx(this)">'+escHtml(t)+(ans.has(t)?'<small class="ex-a">＝ '+escHtml(String(ans.get(t)))+'</small>':'')+'</button>'
     +'<button class="ex-star'+(fav.includes(t)?' on':'')+'" data-t="'+escHtml(t)+'" onclick="toggleFav(this.dataset.t)" aria-label="お気に入り'+(fav.includes(t)?'から外す':'に入れる')+'">'+(fav.includes(t)?'★':'☆')+'</button>'
     +(run?'<button class="ex-run" data-t="'+escHtml(t)+'" onclick="runFav(this.dataset.t)" aria-label="すぐ計算">▶</button>':'')+'</span>';
   const mine=(title, list)=>{ const l=list.filter(t=>hit(t)); return l.length ? '<div class="ex-group"><h3>'+title+'<span class="ex-count">'+l.length+'</span></h3>'+l.map(t=>row(t,true)).join('')+'</div>' : ''; };
@@ -2193,7 +2195,7 @@ function renderEx(){
   $('exBody').innerHTML=(top+show)||'<div class="note">見つかりませんでした。</div>';
 }
 function pickGenre(id){ exGenre=id; renderEx(); const b=$('exBody'); if(b) b.scrollIntoView({block:'start'}); }
-function pickEx(btn){ setGuide(btn.textContent); closePanel(); toast('「'+btn.textContent+'」の言い方で話してください'); }
+function pickEx(btn){ const t=btn.dataset.t||btn.textContent; setGuide(t); closePanel(); toast('「'+t+'」の言い方で話してください'); }
 /* 選んだ文例（この言い方で）。数を当てはめる元にする。端末に覚えておく */
 let guideEx='';
 try{ guideEx=localStorage.getItem('koe_guide')||''; }catch(_){}
