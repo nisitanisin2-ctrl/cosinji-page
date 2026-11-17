@@ -22917,6 +22917,52 @@ async function runHelp690(browser) {
   await ctx.close();
 }
 
+/* v691：表で 関数を 声（キーボードの 音声入力も）で 言ったとき、頭に ＝ を 付けた 式で 入れる。
+   ROUND・IF・COUNTIF・VLOOKUP なども（前は SUM・AVERAGE などの 6つだけ 式に なり、ほかは「＝」の ない 文字の まま だった）。
+   MAX の X が かけ算に・区切りの「,」が 消えて いたのも 直す。あわせて 声の 言い方を ふやし、余計な 言葉が 続く ときは 決めつけない */
+async function runVoiceFx691(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表で 関数を 声で 言うと ＝ 付きの 式に（v691） ──');
+  await page.evaluate(() => { ['10', '20', '30', '40', '50'].forEach((v, i) => setCellVal(i, 0, v)); setCellVal(0, 1, '100'); setCellVal(1, 1, '200'); setCellVal(2, 1, '300'); recalcAll(); });
+  const CASES = [
+    // 関数の 名前で（認識が 関数の 形で 返す・キーボードで 打った）
+    ['SUM(A1:A5)', '=SUM(A1:A5)'], ['sum(a1:a5)', '=SUM(A1:A5)'], ['ＳＵＭ（Ａ１：Ａ５）', '=SUM(A1:A5)'], ['イコールSUM(A1:A5)', '=SUM(A1:A5)'],
+    ['ROUND(A1,0)', '=ROUND(A1,0)'], ['round(a1*1.1,0)', '=ROUND(A1*1.1,0)'], ['ROUNDDOWN(A1*1.08,0)', '=ROUNDDOWN(A1*1.08,0)'],
+    ['MAX(A1:A5)', '=MAX(A1:A5)'], ['MIN(A1:A5)', '=MIN(A1:A5)'], ['IF(A1>100,"○","×")', '=IF(A1>100,"○","×")'],
+    ['COUNTIF(A1:A5,">20")', '=COUNTIF(A1:A5,">20")'], ['VLOOKUP(A1,B1:C5,2,0)', '=VLOOKUP(A1,B1:C5,2,0)'], ['SUM(A1から A5)', '=SUM(A1:A5)'],
+    ['SUM A1:A5', '=SUM(A1:A5)'], ['サム エー1からエー5', '=SUM(A1:A5)'], ['SUM(A1:A5)*1.1', '=SUM(A1:A5)*1.1'], ['SUM(A1:A5)。', '=SUM(A1:A5)'],
+    // ことばで
+    ['エー1からエー5の合計', '=SUM(A1:A5)'], ['合計エー1からエー5', '=SUM(A1:A5)'], ['平均 エー1からエー5', '=AVERAGE(A1:A5)'],
+    ['エー1とエー2とエー3の合計', '=SUM(A1,A2,A3)'], ['A1：A5の合計', '=SUM(A1:A5)'], ['エー1からエー5まで足す', '=SUM(A1:A5)'],
+    ['A1からA5の和', '=SUM(A1:A5)'], ['A1からA5のトータル', '=SUM(A1:A5)'], ['A1からA5のカウント', '=COUNT(A1:A5)'],
+    ['エー1からエー5の平均を四捨五入', '=ROUND(AVERAGE(A1:A5),0)'], ['エー1からエー5の合計を切り捨て', '=ROUNDDOWN(SUM(A1:A5),0)'],
+    ['エー1からエー5の合計を出して', '=SUM(A1:A5)'], ['エー1からエー5までの合計値', '=SUM(A1:A5)'], ['A1からA5の最大値', '=MAX(A1:A5)'],
+    ['イコール1たす2', '=1+2'], ['251かける68', '=251*68'], ['エー1たすエー2', '=A1+A2'],
+    // 式に しない（文字の まま）
+    ['TODAY()', 'null'], ['ABC(1)', 'null'], ['SUM(山田)', 'null'], ['SUM(A1:A5', 'null'], ['合計', 'null'], ['エー1からエー5の合計に消費税', 'null'], ['みかん3個', 'null'],
+  ];
+  const got = await page.evaluate(cs => cs.map(([t]) => String(speechToFormula(t))), CASES);
+  const bad = CASES.filter((c, i) => got[i] !== c[1]).map((c, i) => c[0] + '→' + got[CASES.indexOf(c)] + '（' + c[1] + '）');
+  check('  関数の 名前でも ことばでも ＝ 付きの 式に・式で ない ものは 文字の まま（' + CASES.length + '件）', bad.join(' / '), '');
+  // 声で 入れる（アプリの 🎤）：セルに 式が 入って 答えが 出る
+  const put = t => page.evaluate(t => { sel(8, 0); voiceAccept(t); const v = data[8][0] + ' = ' + getCellDisplay(8, 0); setCellVal(8, 0, ''); return v; }, t);
+  check('  🎤「ROUND(A1*1.1,0)」→ =ROUND(A1*1.1,0) ＝ 11', await put('ROUND(A1*1.1,0)'), '=ROUND(A1*1.1,0) = 11');
+  check('  🎤「IF(A1>100,"○","×")」→ × が そのまま 出る', await put('IF(A1>100,"○","×")'), '=IF(A1>100,"○","×") = ×');
+  check('  🎤「合計 エー1から エー5」→ 150', await put('合計エー1からエー5'), '=SUM(A1:A5) = 150');
+  check('  🎤「エー1とエー2とエー3の合計」→ 60', await put('エー1とエー2とエー3の合計'), '=SUM(A1,A2,A3) = 60');
+  // キーボードで 打った（音声入力した）字も 同じ（入力欄で 決める）
+  check('  入力欄に「count(a1:a5)」→ =COUNT(A1:A5)', await page.evaluate(() => { sel(8, 0); const fi = document.getElementById('formulaInput'); fi.focus(); fi.value = 'count(a1:a5)'; fi.dispatchEvent(new Event('input')); fi.blur(); return new Promise(r => setTimeout(() => { const v = data[8][0] + ' = ' + getCellDisplay(8, 0); setCellVal(8, 0, ''); r(v); }, 400)); }), '=COUNT(A1:A5) = 5');
+  // テンキーで 打ちかけの ときに 🎤：声の 中身が 書き戻されない
+  check('  テンキーで 打ちかけでも 声の 中身が 残る', await page.evaluate(() => { sel(8, 0); num('1'); voiceAccept('エー1からエー5の合計'); sel(9, 0); sel(8, 0); const v = data[8][0]; setCellVal(8, 0, ''); return v; }), '=SUM(A1:A5)');
+  // " " の 中の × ÷ は 文字の まま（打った 式でも）・Excel に 書き出す 式でも
+  check('  =IF(…,"○","×") の × は 文字の まま・計算の × は かけ算', await page.evaluate(() => { setCellVal(9, 0, '=IF(A1>5,"○","×")'); setCellVal(9, 1, '=IF(A1>100,"×÷","なし")'); setCellVal(9, 2, '=A1×2÷4'); recalcAll();
+    const v = [getCellDisplay(9, 0), getCellDisplay(9, 1), getCellDisplay(9, 2), appFormulaToXlsx('=IF(A1>1,"×","○")*1'), appFormulaToXlsx('=A1×2')].join('/'); [0, 1, 2].forEach(c => setCellVal(9, c, '')); return v; }), '○/なし/5/=IF(A1>1,"×","○")*1/=A1*2');
+  check('  言える 言葉の 一覧（表）に 新しい 言い方', await page.evaluate(() => ['合計エー1からエー5', 'エー1とエー2とエー3の合計', 'エー1からエー5の平均を四捨五入', 'SUM A1からA5'].every(x => SAY_TABLE.includes(x) && speechToFormula(x))), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runPadLabel688(browser) {
   const { devices } = require('playwright');
   const errs = [];
@@ -23368,6 +23414,7 @@ const SUITES = [
   [['fillmenu687', 'v687'], b => runFillMenu687(b)],
   [['padlabel688', 'v688'], b => runPadLabel688(b)],
   [['help690', 'v690'], b => runHelp690(b)],
+  [['voicefx691', 'v691'], b => runVoiceFx691(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
