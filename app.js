@@ -19160,7 +19160,7 @@ function helpTextOf(html){ const d=document.createElement('div'); d.innerHTML=ht
 function helpBuildIdx(){
   if(helpIdx) return helpIdx;
   const out=[];
-  for(const p of (window.EXCALC_HELP_PAGES||[])){ if(p.h) out.push({key:'p:'+p.id, t:p.ic+' '+p.t, sub:'', text:p.t+' '+(p.s||'')+' '+helpTextOf(p.h)}); }
+  for(const p of (window.EXCALC_HELP_PAGES||[])){ if(p.h){ const body=helpTextOf(p.h); out.push({key:'p:'+p.id, t:p.ic+' '+p.t, sub:'', text:p.t+' '+(p.s||'')+' '+body, body}); } }
   const D=window.EXCALC_HELP_TOOLS||{};
   for(const {t, cat} of helpToolList()){ const d=D[t.id]||{}; out.push({key:'tool:'+t.id, t:t.label, sub:'🧰 道具（'+cat+'）', text:t.label+' '+(d.s||'')+' '+(TOOL_HINTS[t.id]||d.st||'')+' '+(d.c||[]).join(' ')+' '+(d.m ? helpTextOf(d.m) : '')}); }
   const old=document.getElementById('hbOld');
@@ -19168,7 +19168,7 @@ function helpBuildIdx(){
     old.querySelectorAll('.hg-sec[id]').forEach(s=>{ const h=s.querySelector('.hg-h'); out.push({key:'old:'+s.id, t:h ? h.textContent.trim() : s.id, sub:'📚 くわしい説明', text:s.textContent.replace(/\s+/g,' ')}); });
     old.querySelectorAll('details[id]').forEach(s=>{ const h=s.querySelector('summary'); out.push({key:'old:'+s.id, t:h ? h.textContent.trim() : s.id, sub:'📚 くわしい説明', text:s.textContent.replace(/\s+/g,' ')}); });
   }
-  out.forEach(o=>{ o.n=findNorm(o.text); o.nt=findNorm(o.t); });
+  out.forEach(o=>{ o.n=findNorm(o.text); o.nt=findNorm(o.t); o.body=o.body || o.text; });
   return helpIdx=out;
 }
 /* 1つの ことばが 入って いるか（ひらがな・カタカナ・全角半角を そろえ、言いかえも 見る） */
@@ -19187,10 +19187,13 @@ function helpFind(q){
   hits.sort((a,b)=>b.sc-a.sc);
   if(grid) grid.hidden=true;
   if(!hits.length){ res.innerHTML='<div class="hb-none">見つかりません。ことばを 短く するか、下の 目次から えらんで ください。<button class="hb-mini" onclick="helpClearFind()">目次を 出す</button></div>'; return; }
-  const snip=o=>{ const w=findWords(ws[0])[0]||''; const t=o.text; const n=findNorm(t); if(!w) return t.slice(0,60);
-    // ならした 字と 元の 字は 長さが ちがう ことが あるので、元の 字で もう一度 さがす（なければ はじめから）
-    let i=t.indexOf(ws[0]); if(i<0) i=Math.max(0, Math.round(n.indexOf(w)*t.length/Math.max(1,n.length)));
-    const a=Math.max(0,i-24); return (a?'…':'')+t.slice(a, a+80)+'…'; };
+  // 抜き出し：さがした ことば（言いかえ・カタカナも）の 少し前から。絵文字が 途中で 切れないよう 字ごとに 切る
+  const kata=v=>v.replace(/[\u3041-\u3096]/g, c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+  const snip=o=>{
+    const t=o.body; let i=-1;
+    for(const v of [ws[0]].concat(findWords(ws[0]))){ if(!v) continue; i=t.indexOf(v); if(i<0) i=t.indexOf(kata(v)); if(i>=0) break; }
+    const cs=Array.from(t), ci=i<0 ? 0 : Array.from(t.slice(0, i)).length, a=Math.max(0, ci-20);
+    return (a?'…':'')+cs.slice(a, a+80).join('')+(cs.length>a+80?'…':''); };
   res.innerHTML='<div class="hb-cnt">'+hits.length+'件</div>'+hits.slice(0,40).map(({o})=>
     '<button class="hb-hit" onclick="helpGo(\''+o.key+'\')"><b>'+escHtml(o.t)+'</b>'+(o.sub?'<i>'+escHtml(o.sub)+'</i>':'')+'<small>'+escHtml(snip(o))+'</small></button>').join('');
 }
