@@ -43,7 +43,9 @@
 html{ scroll-behavior:smooth; scroll-padding-top:64px; }
 body{ margin:0; background:var(--bg); color:var(--text); line-height:1.7;
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
-  -webkit-text-size-adjust:100%; overflow-x:hidden; }
+  -webkit-text-size-adjust:100%; overflow-x:hidden; overflow-x:clip; }
+html{ overflow-x:clip; }
+nav.toc{ position:relative; }
 button,input,select{ font:inherit; color:inherit; }
 button:focus-visible,a:focus-visible,input:focus-visible{ outline:3px solid var(--acc2); outline-offset:2px; }
 a{ color:var(--acc); }
@@ -888,7 +890,9 @@ addEventListener("resize",()=>{ sizeSnow(); if(reduce) drawFlakes(); });
 // 画面の外にある節だけ少し下げておき、入ってきたら持ち上げる（見えなくはしない）
 const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.toggle("pre",false); io.unobserve(e.target);} }),{threshold:.05});
 if(!reduce) $$(".reveal").forEach(s=>{ if(s.getBoundingClientRect().top>innerHeight){ s.classList.add("pre"); io.observe(s);} });
-const navIo=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ $$("#toc a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)); const on=$("#toc a.on"); if(on) on.scrollIntoView({block:"nearest",inline:"center",behavior:smooth()});} }),{rootMargin:"-45% 0px -50% 0px"});
+const navIo=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ $$("#toc a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)); const on=$("#toc a.on"), nav=$("#toc");
+  // メニューの帯の中だけ横に動かす（scrollIntoView だと、まわりの画面ごと横に動いてしまう）
+  if(on) nav.scrollTo({left:on.offsetLeft-(nav.clientWidth-on.offsetWidth)/2,behavior:smooth()});} }),{rootMargin:"-45% 0px -50% 0px"});
 $$("main section[id]").forEach(s=>navIo.observe(s));
 
 /* ---------- コース図を描く ---------- */
