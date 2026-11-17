@@ -22772,6 +22772,58 @@ async function runFillMenu687(browser) {
   await ctx.close();
 }
 
+async function runPadLabel688(browser) {
+  const { devices } = require('playwright');
+  const errs = [];
+  console.log('\n── テンキーの 段の メニュー：大きさが 変わらない・名前は 入るときだけ（v688） ──');
+  const open = async (opts) => {
+    const ctx = await browser.newContext(opts), page = await ctx.newPage();
+    page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+    await page.goto(INDEX); await page.waitForTimeout(300);
+    await page.evaluate(() => { localStorage.clear(); ['excalc_tour_done', 'excalc_tool_hints'].forEach(k => localStorage.setItem(k, k === 'excalc_tour_done' ? '1' : '0')); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_back_ask', '0'); localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_fill_how', 'menu'); localStorage.setItem('excalc_band_where', 'pad'); });
+    await page.reload(); await page.waitForTimeout(1300);
+    await page.evaluate(() => { data[1][1] = '100'; buildSheet(); recalcAll(); sel(1, 1); showEditBar(true); }); await page.waitForTimeout(400);
+    return { ctx, page };
+  };
+  // メニューの ボタンの アイコン・名前が メニューの 枠から はみ出して いないか
+  const look = page => page.evaluate(() => {
+    const m = document.getElementById('cellMenu'), mr = m.getBoundingClientRect();
+    const out = [...m.querySelectorAll('button:not(.cm-arr)')].filter(x => x.offsetParent).filter(x => {
+      const r = x.querySelector('.pi').getBoundingClientRect(), l = x.querySelector('.pl'), lr = l && getComputedStyle(l).display !== 'none' ? l.getBoundingClientRect() : null;
+      return r.top < mr.top || r.bottom > mr.bottom || (lr && lr.height > 0 && lr.bottom > mr.bottom); }).length;
+    const np = document.querySelector('.numpad-section').getBoundingClientRect().height;
+    return { h: Math.round(mr.height), np: Math.round(np), out, lbl: !m.classList.contains('pad-icon'), pad: m.classList.contains('ui2-padrow') };
+  });
+  // スマホ（縦）：ふつう → 数字を 直す（上の 段が ◀ ( ) に 入れかわる）
+  let { ctx, page } = await open({ ...devices['Pixel 7'] });
+  const a = await look(page);
+  await page.evaluate(() => { const fi = document.getElementById('formulaInput'); fi.inputMode = 'none'; fi.focus(); syncFiUi(); showEditBar(true); }); await page.waitForTimeout(500);
+  const b = await look(page);
+  check('  スマホ：段に 名前つきで 出て、はみ出さない', [a.pad, a.lbl, a.out, a.h >= 40].join('/'), 'true/true/0/true');
+  check('  数字を 直して いる 間も 同じ 高さ（テンキーの 大きさも 変わらない）', [b.pad, b.out, b.h === a.h, b.np === a.np, await page.evaluate(() => document.body.classList.contains('bar-edit'))].join('/'), 'true/0/true/true/true');
+  await page.evaluate(() => { document.getElementById('formulaInput').blur(); syncFiUi(); }); await page.waitForTimeout(300);
+  check('  直し終えても テンキーの 大きさは 同じ', await page.evaluate(() => Math.round(document.querySelector('.numpad-section').getBoundingClientRect().height)) === a.np, true);
+  await page.evaluate(() => setBandLabel('icon')); await page.waitForTimeout(600);
+  await page.evaluate(() => { sel(1, 1); showEditBar(true); }); await page.waitForTimeout(400);
+  const c = await look(page);
+  check('  設定「アイコンだけ」：名前を 出さない・はみ出さない・覚える', [c.lbl, c.out, await page.evaluate(() => localStorage.getItem('excalc_band_label') + '/' + settingsBundle().excalc_band_label)].join('/'), 'false/0/icon/icon');
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await page.waitForTimeout(300);
+  check('  設定の 画面に「メニューの ボタンの 名前」', await page.evaluate(() => [...document.querySelectorAll('#bandLabelSeg button')].map(x => x.textContent + (x.classList.contains('on') ? '●' : '')).join('|')), '自動（入るときは 名前も）|アイコンだけ●');
+  await ctx.close();
+  // 横向き（段が 低い）：アイコンだけで はみ出さない
+  ({ ctx, page } = await open({ viewport: { width: 915, height: 412 }, hasTouch: true, isMobile: true }));
+  const d = await look(page);
+  check('  横向き：段が 低い ときは アイコンだけ・はみ出さない', [d.pad, d.h < 40 ? !d.lbl : true, d.out].join('/'), 'true/true/0');
+  await ctx.close();
+  // パソコンの 広い 画面（横の テンキー）
+  ({ ctx, page } = await open({ viewport: { width: 1280, height: 800 } }));
+  const e = await look(page);
+  check('  広い 画面（横の テンキー）でも はみ出さない', [e.pad, e.out].join('/'), 'true/0');
+  await ctx.close();
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('アイコンだけ'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v688'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+}
+
 async function runOto686(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎶 2〜3分の 名曲メドレー（v686） ──');
@@ -23168,6 +23220,7 @@ const SUITES = [
   [['oto685', 'v685'], b => runOto685(b)],
   [['oto686', 'v686'], b => runOto686(b)],
   [['fillmenu687', 'v687'], b => runFillMenu687(b)],
+  [['padlabel688', 'v688'], b => runPadLabel688(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
