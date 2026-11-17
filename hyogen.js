@@ -711,7 +711,66 @@ function layout(sp){
 const EXAMPLES=['3人で割り勘','家計簿','牛乳、卵、パン、バナナの買い物リスト','12か月の売上','4月から1年間の収支','やること（期限つき）',
   '田中、佐藤、鈴木の出欠表 4回','国語、数学、英語、理科の成績表 5人','旅行の持ち物','1か月の体重の記録','時給1100円のバイトの給料','在庫の表','貯金 目標30万','サブスクの月額','名前・電話・住所の表',
   '請求書の明細','税込の価格表','どっちがお得','光熱費の記録','燃費の記録','交通費の精算','投資の損益','お祝いのお返し','年賀状','医療費控除','薬の飲み忘れ','睡眠の記録','筋トレの記録','勉強時間','習慣チェック 早起き、運動、読書','お手伝いのがんばり表','町内会費の集金 1000円','田中、佐藤、鈴木の掃除当番','旅行の行程','結婚式の招待客','田中、佐藤、鈴木、高橋の総当たり','カレーのレシピ 2人分を5人分','賞味期限','更新日の一覧','欲しい物リスト','読書の記録','作業日報'];
+/* ── 作れる 表の 見本の 一覧（v690）──
+   作れる 表（しくみ）ごとに 1つずつ、名前と 言い方の 例。分類して 並べ、さがせる。押すと その 言い方で 見本を 出す。
+   どれも その しくみで 作れる ことを テストで 確かめて いる（HG.samples） */
+const SAMPLES=[
+  ['💴 お金・家計', [['家計簿','家計簿','kakei'],['割り勘・精算','3人で割り勘','warikan'],['予算','旅行の予算','yosan'],['貯金・積立','貯金 目標30万','chokin'],
+    ['固定費・サブスク','サブスクの月額','kotei'],['光熱費','光熱費の記録','utility'],['燃費・ガソリン','燃費の記録','car'],['交通費・経費の精算','交通費の精算','koutsuhi'],
+    ['返済・貸し借り','ローンの返済','loan'],['投資の損益','投資の損益','invest'],['医療費（控除）','医療費控除','iryohi'],['お祝い・お返し','お祝いのお返し','gift'],
+    ['会費・集金','町内会費の集金 1000円','kaihi'],['税込の価格表','税込の価格表','taxcalc'],['どっちがお得','どっちがお得','unitprice'],['くらべる表','スマホの比較','hikaku']]],
+  ['💼 仕事・お店', [['請求書・見積の明細','請求書の明細','invoice'],['売上・収支','12か月の売上','sales'],['商品別の売上','商品別の売上','salesitem'],['目標と実績','営業の達成率','kpi'],
+    ['在庫','在庫の表','zaiko'],['勤務・給料','時給1100円のバイトの給料','kintai'],['作業日報','作業日報','nippo'],['お客さま名簿','顧客リスト','customer']]],
+  ['🏠 くらし・健康', [['体重・健康','1か月の体重の記録','kenko'],['体温','体温の記録','taion'],['睡眠','睡眠の記録','sleep'],['薬の飲み忘れ','薬の飲み忘れ','medicine'],
+    ['運動・筋トレ','筋トレの記録','workout'],['育児（授乳・おむつ）','授乳の記録','baby'],['ペット・植物','犬の散歩','pet'],['献立','1週間の献立','kondate'],
+    ['レシピ（人数で 分量）','カレーのレシピ 2人分を5人分','recipe'],['賞味期限','冷蔵庫の賞味期限','food'],['掃除','大掃除の表','cleaning'],['ゴミの日','ゴミ出しの表','gomi'],
+    ['買い物リスト','牛乳、卵、パン、バナナの買い物リスト','shop'],['欲しい物','欲しい物リスト','wish'],['更新日・期限','免許や保険の更新日','kigen'],['習慣チェック','習慣チェック 早起き、運動、読書','habit'],
+    ['読書・映画','読書の記録','reading']]],
+  ['📅 予定・行事', [['予定表','1週間の予定表','sched'],['やること','やること（期限つき）','todo'],['旅行の行程','旅行の行程','trip'],['持ち物','旅行の持ち物','motimono'],
+    ['招待客','結婚式の招待客','guest'],['年賀状','年賀状','nenga'],['誕生日・記念日','誕生日の一覧','birthday'],['時間割','時間割','jikanwari']]],
+  ['👥 人・集まり', [['出欠表','田中、佐藤、鈴木の出欠表 4回','attend'],['当番','田中、佐藤、鈴木の掃除当番','touban'],['連絡先','連絡先の一覧','contact'],['席替え','席替え 30人','seat'],
+    ['総当たり（リーグ戦）','田中、佐藤、鈴木、高橋の総当たり','league'],['投票・アンケート','人気投票','vote']]],
+  ['📚 学び・子ども', [['成績表','国語、数学、英語、理科の成績表 5人','score'],['勉強時間','勉強時間','study'],['お手伝い・がんばり表','お手伝いのがんばり表','kids']]],
+];
+let sampleQ='';
+function samples(){
+  cur=null;
+  const n=SAMPLES.reduce((a,g)=>a+g[1].length,0);
+  $('hgOut').innerHTML='<div class="mk-sec">📋 作れる 表の 見本（'+n+'）</div>'
+    +'<input id="hgSq" class="mk-sq" type="search" placeholder="🔍 さがす（例：家計・出欠・在庫・体重）" autocomplete="off" value="'+esc(sampleQ)+'">'
+    +'<div id="hgSl"></div><div class="mk-acts"><button type="button" class="left" onclick="HG.back()">← 戻る</button></div>';
+  const inp=$('hgSq');
+  inp.addEventListener('keydown', e=>e.stopPropagation());
+  inp.addEventListener('input', ()=>{ sampleQ=inp.value; sampleList(); });
+  sampleList();
+}
+function sampleList(){
+  const q=norm(sampleQ).toLowerCase(), box=$('hgSl'); if(!box) return;
+  let html='', hit=0;
+  SAMPLES.forEach(([g, list])=>{
+    const rows=list.filter(([t, ph])=>{
+      if(!q) return true;
+      const sp=parse(ph), hs=sp ? sp.cols.map(c=>c.h).join(' ') : '';
+      return norm(t+' '+ph+' '+g+' '+hs).toLowerCase().includes(q);
+    });
+    if(!rows.length) return;
+    hit+=rows.length;
+    html+='<div class="mk-sg">'+g+'</div><div class="mk-sgrid">'+rows.map(([t, ph])=>{
+      const sp=parse(ph), hs=sp ? sp.cols.filter(c=>c.h).map(c=>c.h).slice(0,5).join('・')+(sp.cols.length>5?'…':'') : '';
+      return '<button type="button" class="mk-sc" data-q="'+esc(ph)+'" onclick="HG.sample(this.dataset.q)"><b>'+esc(t)+'</b><small>「'+esc(ph)+'」</small>'+(hs?'<i>'+esc(hs)+'</i>':'')+'</button>';
+    }).join('')+'</div>';
+  });
+  box.innerHTML=hit ? html : '<div class="mk-none">見つかりませんでした。ちがう 言い方でも さがして みてください</div>';
+}
+function sample(ph){ const q=$('hgQ'); q.value=ph; go(); }
 const CSS=`
+.mk-sq{ width:100%; box-sizing:border-box; min-height:42px; padding:6px 12px; margin:2px 0 6px; font-size:15px; border-radius:var(--r-btn); border:1px solid var(--save-item-border); background:var(--cell-bg); color:var(--text); }
+.mk-sg{ margin:12px 0 6px; font-size:13px; font-weight:bold; color:var(--acc-text,var(--acc)); }
+.mk-sgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:6px; }
+.mk-sc{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-height:58px; padding:7px 9px; border-radius:var(--r-card); border:1px solid var(--save-item-border); background:var(--save-item-bg, transparent); color:var(--text); text-align:left; cursor:pointer; }
+.mk-sc b{ font-size:13.5px; } .mk-sc small{ font-size:11.5px; color:var(--text-sub); } .mk-sc i{ font-style:normal; font-size:11px; color:var(--text-sub); opacity:.85; }
+.mk-sc:active{ background:var(--cell-hover); }
+.mk-allbtn{ display:block; width:100%; min-height:46px; margin:4px 0 2px; border-radius:var(--r-btn); border:1px solid var(--acc); background:var(--acc-weak, transparent); color:var(--acc-text,var(--acc)); font-size:14.5px; font-weight:bold; cursor:pointer; }
 #hgOverlay .modal.mk-modal{ max-width:520px; max-height:90vh; display:flex; flex-direction:column; }
 .mk-body{ padding:12px 14px calc(14px + var(--safe-bottom,0px)); overflow:auto; color:var(--text); font-size:14px; line-height:1.55; }
 .mk-in{ display:flex; gap:6px; }
@@ -763,7 +822,9 @@ function ensureDom(){
 }
 function exList(){
   cur=null;
-  $('hgOut').innerHTML='<div class="mk-sec">たとえば（押すと 見本が 出ます）</div><div class="mk-ex">'+EXAMPLES.map((e,i)=>`<button type="button" onclick="HG.ex(${i})">${esc(e)}</button>`).join('')+'</div>';
+  const n=SAMPLES.reduce((a,g)=>a+g[1].length,0);
+  $('hgOut').innerHTML='<button type="button" class="mk-allbtn" onclick="HG.samples()">📋 作れる 表の 見本を 一覧で 見る（'+n+'）</button>'
+    +'<div class="mk-sec">たとえば（押すと 見本が 出ます）</div><div class="mk-ex">'+EXAMPLES.map((e,i)=>`<button type="button" onclick="HG.ex(${i})">${esc(e)}</button>`).join('')+'</div>';
 }
 function open(q){
   ensureDom();
@@ -834,6 +895,7 @@ function go(quiet){
     ${sp.note?`<div class="mk-note">${esc(sp.note)}</div>`:''}
     <div class="mk-acts">
       <button type="button" class="left" onclick="HG.ex(-1)">↺ ほかの例</button>
+      <button type="button" onclick="HG.samples()">📋 見本の 一覧</button>
       <button type="button" ${empty?'':'class="pri"'} onclick="HG.make('new')">＋ 新しいシートに作る</button>
       <button type="button" ${empty?'class="pri"':''} onclick="HG.make('here')">${empty?'この表に作る':'いまの表を 入れかえる'}</button>
     </div>
@@ -913,6 +975,6 @@ function mic(){
   try{ r.start(); }catch(_){ micStop(); }
 }
 
-window.HG={ open, close, go, ex:(i)=>{ if(i<0){ const q=$('hgQ'); q.value=EXAMPLES[Math.floor(Math.random()*EXAMPLES.length)]; go(); } else ex(i); }, make, mic,
+window.HG={ open, close, go, samples, sample, back:()=>exList(), sampleData:()=>SAMPLES, ex:(i)=>{ if(i<0){ const q=$('hgQ'); q.value=EXAMPLES[Math.floor(Math.random()*EXAMPLES.length)]; go(); } else ex(i); }, make, mic,
   /* テスト用 */ parse, layout, norm, listOf, apply:(q,where)=>{ const sp=parse(q); if(!sp) return false; apply(sp, layout(sp), where||'here'); return true; }, examples:EXAMPLES, cur:()=>cur };
 })();

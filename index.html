@@ -708,6 +708,7 @@ body.fb-low:not(.np-side) .digit-hint { top: auto; bottom: 100%; border-top: 1px
 /* 表示：かんたん／ぜんぶ（v461） */
 .set-easy { padding: 6px 14px 4px; }
 body:not(.ui-easy) .set-easy .ez-only { display: none; }
+body:not(.ui-easy) #setEasy { display: none; }   /* 標準の 画面では 中身（声・画面の形）は 各タブへ 移るので 空の 帯を 出さない（v690） */
 body.ui-easy #settingsPanel:not(.show-all) .set-find,
 body.ui-easy #settingsPanel:not(.show-all) .settings-tabbar,
 body.ui-easy #settingsPanel:not(.show-all) .settings-body { display: none; }
@@ -1115,6 +1116,20 @@ body.dark .set-find { background: #141d33; }
 .set-find-hit small { display: block; font-size: 11px; color: var(--text-light); margin-top: 1px; }
 .set-find-none { padding: 12px 10px; font-size: 13px; color: var(--text-light); }
 .set-flash { animation: setFlash 1.6s ease; border-radius: 8px; }
+/* v690：よく変える 設定（横に 送る）・タブの 中身の 説明 */
+.set-quick { padding: 6px 10px 2px; background: #f0f0f0; flex-shrink: 0; }
+body.dark .set-quick { background: #141d33; }
+.set-quick-t { font-size: 12.5px; font-weight: bold; color: var(--text); margin: 0 2px 4px; }
+.set-quick-t small { margin-left: 6px; font-weight: normal; color: var(--text-light); }
+.set-quick-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.set-quick-row::-webkit-scrollbar { display: none; }
+.set-quick-row button { flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; min-width: 72px; max-width: 96px; min-height: 52px;
+  padding: 4px 6px; border-radius: 12px; border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text); font: inherit; font-size: 11.5px; font-weight: bold; line-height: 1.2; cursor: pointer; touch-action: manipulation; }
+.set-quick-row button i { font-style: normal; font-size: 18px; line-height: 1.1; }
+.set-quick-row button:active { background: var(--cell-hover); }
+.set-tabdesc { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: var(--save-item-bg); border: 1px dashed var(--save-item-border); font-size: 12.5px; line-height: 1.5; color: var(--text-light); }
+.set-tabdesc b { color: var(--text); }
+body.ui-easy #settingsPanel:not(.show-all) .set-quick, body.ui-easy #settingsPanel:not(.show-all) .set-tabdesc { display: none; }
 @keyframes setFlash { 0%, 60% { box-shadow: 0 0 0 3px var(--acc); } 100% { box-shadow: 0 0 0 0 transparent; } }
 /* 📦 端末の空き具合（v373） */
 .st-total { margin-bottom: 12px; }
@@ -1162,7 +1177,19 @@ body.dark .set-find { background: #141d33; }
 }
 .say-row:active { opacity: .7; }
 .say-ex { flex: 1; min-width: 0; word-break: break-all; }
-.say-ans { flex-shrink: 0; font-weight: bold; color: var(--acc-text); font-size: 13px; }
+.say-ans { flex-shrink: 0; font-weight: bold; color: var(--acc-text); font-size: 13px; max-width: 42%; text-align: right; overflow-wrap: anywhere; }
+/* v690：声で 計算できる 言葉の 一覧（どこで 使えるか・分類・件数） */
+.say-chips { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 6px; scrollbar-width: none; }
+.say-chips::-webkit-scrollbar { display: none; }
+.say-chip { flex: none; min-height: 34px; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--save-item-border); background: var(--save-item-bg); color: var(--text); font: inherit; font-size: 13px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+.say-chip small { margin-left: 4px; font-size: 11px; opacity: .75; }
+.say-chip.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+.say-genres .say-chip { font-weight: normal; font-size: 12.5px; min-height: 30px; }
+.say-count { margin: 4px 0; font-size: 12.5px; color: var(--text-sub); }
+.say-w { flex: none; display: flex; flex-direction: column; gap: 2px; align-items: flex-end; }
+.say-w i { font-style: normal; font-size: 10px; font-weight: bold; padding: 1px 5px; border-radius: 6px; line-height: 1.3; white-space: nowrap; }
+.say-w .sw-hyo { background: #e3f0fb; color: #1d5a8c; } .say-w .sw-dt { background: #e4f4ea; color: #1f6e43; } .say-w .sw-koe { background: #fbefd9; color: #8a5300; }
+body.dark .say-w .sw-hyo { background: #23384a; color: #9ccaf0; } body.dark .say-w .sw-dt { background: #1f3a2b; color: #9fdcb7; } body.dark .say-w .sw-koe { background: #3d3020; color: #f1c886; }
 body.dark .say-ans { color: #7fd6a3; }
 /* 「もしかして」が出ているときは押せると分かるようにする */
 .dt-voice.dt-voice-guess { cursor: pointer; box-shadow: inset 0 0 0 2px var(--acc); }
@@ -3959,6 +3986,72 @@ body.dark .help-li b { color: #8fd4ab; }
   border-radius: var(--r-btn); padding: 0 5px; font-weight: bold; font-size: 11px; color: var(--text);
 }
 .help-lead { font-size: 12px; line-height: 1.6; color: var(--text-sub); margin-bottom: 10px; }
+/* ── 新しい 説明書（v690）：目次 → 話題の ページ・道具ごとの ページ ── */
+.hb-bar { position: sticky; top: -10px; z-index: 2; display: flex; align-items: center; gap: 6px; margin: -4px -4px 10px; padding: 6px 4px; background: var(--modal-bg); border-bottom: 1px solid var(--cell-border); }
+.hb-bar:empty { display: none; }
+.hb-bar-t { flex: 1; min-width: 0; font-weight: bold; font-size: 15px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-back { flex: none; width: 40px; height: 36px; border: 1px solid var(--cell-border); border-radius: var(--r-btn); background: var(--cell-hover); color: var(--text); font-size: 20px; font-weight: bold; cursor: pointer; }
+.hb-homebtn { flex: none; height: 36px; padding: 0 10px; border: 1px solid var(--cell-border); border-radius: var(--r-btn); background: var(--cell-hover); color: var(--text); font-size: 13px; font-weight: bold; cursor: pointer; }
+.hb-hello { font-size: 14px; color: var(--text-sub); line-height: 1.6; margin: 2px 0 8px; }
+.hb-find { width: 100%; box-sizing: border-box; height: 44px; padding: 0 12px; font-size: 16px; border: 2px solid var(--acc); border-radius: var(--r-card); background: var(--cell-bg, #fff); color: var(--text); margin: 0 0 10px; }
+.hb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hb-grid[hidden] { display: none; }
+.hb-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 10px 10px 9px; min-height: 76px; border: 1px solid var(--cell-border); border-radius: var(--r-card); background: var(--modal-bg); color: var(--text); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.hb-card:active, .hb-tool:active, .hb-hit:active { background: var(--acc-weak); }
+.hb-card .hb-ic { font-size: 24px; line-height: 1.1; }
+.hb-card b { font-size: 14.5px; line-height: 1.3; }
+.hb-card small { font-size: 12px; line-height: 1.4; color: var(--text-sub); }
+.hb-card-wide { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 0; border: 2px solid var(--acc); background: var(--acc-weak); }
+.hb-card-wide small { flex-basis: 100%; padding-left: 36px; }
+.hb-foot { margin-top: 16px; }
+.hb-ttl { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: bold; color: var(--acc-text); margin: 2px 0 10px; }
+.hb-ttl span { font-size: 26px; }
+.hb-h { font-size: 15px; font-weight: bold; color: var(--acc-text); border-bottom: 2px solid var(--acc); padding-bottom: 3px; margin: 16px 0 8px; }
+.hb-p { font-size: 14px; line-height: 1.75; color: var(--text); margin: 6px 0; overflow-wrap: anywhere; }
+.hb-p b, .hb-ul b, .hb-steps b, .hb-note b, .hb-qa b { color: var(--acc-text); }
+.hb-ul { margin: 4px 0 8px; padding-left: 1.25em; }
+.hb-ul li { font-size: 14px; line-height: 1.75; color: var(--text); margin: 4px 0; overflow-wrap: anywhere; }
+.hb-steps { margin: 4px 0 10px; padding-left: 1.4em; }
+.hb-steps li { font-size: 14.5px; line-height: 1.75; color: var(--text); margin: 0 0 10px; }
+.hb-note { font-size: 13.5px; line-height: 1.7; color: var(--text); background: var(--acc-weak); border-radius: var(--r-btn); padding: 9px 11px; margin: 10px 0; overflow-wrap: anywhere; }
+.hb-page a { color: var(--acc-text); text-decoration: underline; cursor: pointer; }
+.hb-page code { font-size: 13px; background: var(--cell-hover); border-radius: 4px; padding: 0 4px; }
+.hb-links, .hb-more, .hb-qset { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.hb-links button, .hb-open { min-height: 44px; padding: 8px 14px; border: none; border-radius: var(--r-btn); background: var(--acc); color: var(--on-acc); font-size: 14px; font-weight: bold; cursor: pointer; }
+.hb-more button, .hb-mini { min-height: 34px; padding: 5px 10px; border: 1px solid var(--cell-border); border-radius: var(--r-pill); background: var(--cell-hover); color: var(--text); font-size: 13px; font-weight: bold; cursor: pointer; }
+.hb-mini { min-height: 30px; margin: 2px 0; }
+.hb-qa { border: 1px solid var(--cell-border); border-radius: var(--r-btn); padding: 9px 11px; margin: 8px 0; font-size: 14px; line-height: 1.7; color: var(--text); }
+.hb-qa > b { display: block; margin-bottom: 2px; }
+.hb-pn { display: flex; justify-content: space-between; gap: 8px; margin: 18px 0 4px; padding-top: 10px; border-top: 1px solid var(--cell-border); }
+.hb-pn button { max-width: 49%; min-height: 40px; padding: 6px 10px; border: 1px solid var(--cell-border); border-radius: var(--r-btn); background: var(--modal-bg); color: var(--text); font-size: 13px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-shot-half { max-width: 270px; }
+.hb-cat { font-size: 13px; font-weight: bold; color: var(--text-sub); margin: 14px 0 6px; }
+.hb-cat[hidden], .hb-tlist[hidden], .hb-tool[hidden], .hb-none[hidden] { display: none; }
+.hb-tlist { display: flex; flex-direction: column; gap: 6px; }
+.hb-tool { display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 10px; border: 1px solid var(--cell-border); border-radius: var(--r-card); background: var(--modal-bg); color: var(--text); cursor: pointer; }
+.hb-tool .hb-ic { flex: none; width: 32px; font-size: 24px; text-align: center; }
+.hb-tool .hb-tx { min-width: 0; display: flex; flex-direction: column; }
+.hb-tool b { font-size: 14.5px; }
+.hb-tool small { font-size: 12px; color: var(--text-sub); line-height: 1.4; }
+.hb-tool-head { display: flex; align-items: center; gap: 12px; margin: 2px 0 12px; }
+.hb-tool-ic { font-size: 40px; line-height: 1; }
+.hb-tool-head b { display: block; font-size: 19px; color: var(--acc-text); }
+.hb-tool-head small { display: block; font-size: 13px; color: var(--text-sub); line-height: 1.5; margin-top: 2px; }
+.hb-open { width: 100%; font-size: 15.5px; }
+.hb-det { margin: 12px 0; border: 1px solid var(--cell-border); border-radius: var(--r-btn); }
+.hb-det > summary { padding: 10px 12px; font-weight: bold; font-size: 14px; color: var(--text); cursor: pointer; }
+.hb-det-b { padding: 0 12px 10px; font-size: 13.5px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
+.hb-det-b img { max-width: 100%; height: auto; }
+.hb-res { display: flex; flex-direction: column; gap: 6px; }
+.hb-cnt { font-size: 12px; color: var(--text-sub); }
+.hb-hit { display: block; text-align: left; padding: 9px 11px; border: 1px solid var(--cell-border); border-radius: var(--r-btn); background: var(--modal-bg); color: var(--text); cursor: pointer; }
+.hb-hit b { font-size: 14.5px; color: var(--acc-text); }
+.hb-hit i { font-style: normal; font-size: 11.5px; color: var(--text-sub); margin-left: 6px; }
+.hb-hit small { display: block; font-size: 12.5px; line-height: 1.5; color: var(--text-sub); margin-top: 2px; overflow-wrap: anywhere; }
+.hb-none { font-size: 13.5px; color: var(--text-sub); line-height: 1.7; padding: 8px 0; }
+.hb-old[hidden], .hb-page[hidden] { display: none; }
+.hb-oldnote { margin-top: 0; }
+.hb-oldnote a { color: var(--acc-text); text-decoration: underline; cursor: pointer; font-weight: bold; }
 /* ── 説明書：クイックナビ＋アコーディオン（見やすいレイアウト） ── */
 .help-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 14px; }
 .help-nav a {
@@ -4817,6 +4910,7 @@ body.dark {
         <summary>隠している道具<small id="toolsHiddenSum"></small></summary>
         <div class="more-grid more-tools" id="toolsHiddenGrid"></div>
       </details>
+      <button class="set-act tools-pick-btn" id="toolsHelpBtn" onclick="closeToolsList(); setTimeout(()=>openHelp('tools'), 320);">📖 道具ごとの 説明（何が できる？）</button>
       <button class="set-act tools-pick-btn" onclick="openToolsBtnSettings()">⚙ 出す道具・隠す道具を選ぶ</button>
       <button class="set-act tools-pick-btn" id="appIconBtn" onclick="openAppIcons()">📱 道具をホーム画面のアイコンにする</button>
     </div>
@@ -4836,7 +4930,7 @@ body.dark {
     <!-- 言いまちがえ・聞きまちがえたときに、前に入れたセルへ戻って言い直す（v516） -->
     <button class="voice-seq voice-redo" id="voiceRedoBtn" onclick="event.stopPropagation();voiceRedo()" hidden>↩ 前のセルを言い直す</button>
     <div class="voice-hint">式は「251かける68」のように言ってください／「戻る」で前のセルを言い直す／窓の外をタップでやめる</div>
-    <button class="voice-seq voice-say-btn" onclick="event.stopPropagation();voiceCancel();setTimeout(openSayHelp,80)">📖 こう言えます</button>
+    <button class="voice-seq voice-say-btn" onclick="event.stopPropagation();voiceCancel();setTimeout(()=>openSayHelp(isDentaku()?'電卓':'表'),80)">📖 言える 言葉の 一覧</button>
   </div>
 </div>
 
@@ -4984,7 +5078,14 @@ body.dark {
     <span>⚙ 設定</span>
     <button class="modal-close" onclick="toggleSettings()">✕</button>
   </div>
-  <!-- 設定をさがす（v400）。項目が増えたので、言葉で探して飛べるようにする -->
+  <!-- 設定をさがす（v400）。項目が増えたので、言葉で探して飛べるようにする。v690：いちばん上に -->
+  <div class="set-find">
+    <input type="search" id="setFindIn" class="set-find-in" placeholder="🔍 設定をさがす（例：コピー・文字の大きさ・夜・税）"
+           autocomplete="off" oninput="setFind(this.value)" onkeydown="event.stopPropagation(); if(event.key==='Enter') setFindGo(0)">
+    <div class="set-find-res" id="setFindRes" hidden></div>
+  </div>
+  <!-- v690：よく変える 設定への 近道（押すと その 場所へ 飛んで 光る） -->
+  <div class="set-quick" id="setQuick"><div class="set-quick-t">⭐ よく変える 設定<small>押すと その 場所へ</small></div><div class="set-quick-row" id="setQuickRow"></div></div>
   <!-- かんたんモード（v461）のときは、よく使う設定だけをここに出す。
        標準モード／かんたんモードの切りかえは ☰ メニューのいちばん上へ移した（v482） -->
   <div class="set-easy" id="setEasy">
@@ -5016,11 +5117,6 @@ body.dark {
       <button class="set-act ez-all" id="ezAllBtn" onclick="toggleAllSettings()">⚙ すべての設定を見る</button>
     </div>
   </div>
-  <div class="set-find">
-    <input type="search" id="setFindIn" class="set-find-in" placeholder="🔍 設定をさがす（例：夜・色・テンキー）"
-           autocomplete="off" oninput="setFind(this.value)" onkeydown="event.stopPropagation(); if(event.key==='Enter') setFindGo(0)">
-    <div class="set-find-res" id="setFindRes" hidden></div>
-  </div>
   <div class="settings-tabbar">
     <button class="settings-tab active" onclick="setSettingsTab(0)"><i>📐</i>表の操作</button>
     <button class="settings-tab" onclick="setSettingsTab(1)"><i>🎨</i>見た目</button>
@@ -5029,6 +5125,7 @@ body.dark {
     <button class="settings-tab" onclick="setSettingsTab(4)"><i>💾</i>保存とデータ</button>
   </div>
   <div class="settings-body">
+  <div class="set-tabdesc" id="setTabDesc"></div>
 
   <div class="set-page open" id="setPage0">
     <div class="set-sec">行と列の数</div>
@@ -5070,6 +5167,8 @@ body.dark {
 
   <div class="set-page" id="setPage1">
     <!-- v411：見た目・自分好みにする設定を、4つの畳める組にまとめた。開き閉めは組ごとに覚える（saveSetGrp） -->
+    <div class="set-sec">🖥 画面の形・道具の出し方</div>
+    <div id="setUi2Slot"></div>
     <div class="set-note set-grp-lead">自分好みにする設定を<b>5つの組</b>にまとめています。押すと開きます。</div>
     <details class="set-grp" id="setGrpColor" ontoggle="saveSetGrp(this)">
       <summary><span class="set-grp-ic">🎨</span><span class="set-grp-t"><b>色と背景</b><small>着せかえの色・キーの色・背景・写真</small></span></summary>
@@ -5257,6 +5356,8 @@ body.dark {
     </div>
     <div class="set-sec">入れたときの自動の変換<small style="font-weight:normal;margin-left:6px">押すとオン／オフ</small></div>
     <div class="auto-rules" id="autoRuleList"></div>
+    <div class="set-sec">🔈 声（読み上げ・声で 入れる）</div>
+    <div id="setVoiceSlot"></div>
     <button class="set-act" id="speechAutoBtn" onclick="toggleSpeechAuto()" title="音声入力で「251かける68」のように言った式を、自動で計算式に直します（式に見えないときは文字のまま入ります）">しゃべった式を計算する</button>
     <div class="set-row">
       <span class="set-label">声の入れかた<small>「251かける68」と言ったとき</small></span>
@@ -6364,14 +6465,14 @@ body.dark {
 <div class="modal-overlay" id="sayHelpOverlay" onclick="if(event.target===this)closeSayHelp()">
   <div class="modal veg-modal modal-full">
     <div class="modal-header">
-      <span>📖 声でこう言えます</span>
+      <span>📖 声で 計算できる 言葉の 一覧</span>
       <button class="modal-close" onclick="closeSayHelp()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="mode-hint">🎤声キーを押して、下のように言うとそのまま答えが出ます。<b>行を押すとその場で試せます</b>（電卓に切り替わります）。数は自分のものに置きかえて言ってください。</div>
+      <div class="mode-hint">🎤 で 下のように 言うと 計算します（数は 自分の ものに 置きかえて）。<b>📋 表のセル</b>＝表で セルを 選んで 言うと 式で 入る・<b>🧮 電卓</b>＝電卓の 🎤 で 答え・<b>🎙 声の計算帳</b>＝🧰 道具の 声の計算帳で。<b>行を 押すと</b> 電卓で その場で 試せます。</div>
       <div class="veg-pickbar">
         <span class="veg-lb">さがす</span>
-        <input type="search" id="sayHelpFind" class="regpick-input veg-find" placeholder="円・平米・時間 など"
+        <input type="search" id="sayHelpFind" class="regpick-input veg-find" placeholder="割り勘・消費税・坪・年齢 など"
                oninput="sayHelpFind(this.value)" onkeydown="event.stopPropagation()" aria-label="言い方をさがす">
       </div>
       <div id="sayHelpBody"></div>

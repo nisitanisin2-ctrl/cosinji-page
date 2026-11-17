@@ -3680,8 +3680,9 @@ async function runVoiceSay(browser) {
     SPEECH_RECIPES.filter(x => x.ex).every(x => { const o = speechRecipe(x.ex); return o && o.id === x.id; })), true);
   await page.evaluate(() => openSayHelp()); await page.waitForTimeout(350);
   check('  📖言い方で開く', await page.evaluate(() => isDlgOpen('sayHelpOverlay')), true);
-  check('  まとまりごとに並ぶ', await page.evaluate(() =>
-    [...document.querySelectorAll('#sayHelpBody .say-g')].length), 10);   // v424 で「いろいろな言い方」、v662 で「話しことば」を足した
+  // v424 で「いろいろな言い方」、v662 で「話しことば」を足した。v690 から 🎙 声の計算帳の 文例の まとまりも 同じ 一覧に 並ぶ
+  check('  まとまりごとに並ぶ（電卓の 10の まとまりが ぜんぶ ある）', await page.evaluate(() => { const gs = [...document.querySelectorAll('#sayHelpBody .say-g')].map(e => e.textContent);
+    const mine = [...new Set(sayList().map(x => x.g))]; return mine.length + '/' + mine.every(g => gs.some(t => t.includes(g))) + '/' + (gs.length > mine.length); }), '10/true/true');
   // ── 💬 話しことばを 順に 計算する・前の 答えから つづける（v662） ──
   {
     const say = (t, prev) => page.evaluate(([t, prev]) => { disp_val = String(prev); voiceAcceptDentaku(t); return disp_val; }, [t, prev == null ? 0 : prev]);
@@ -3715,7 +3716,7 @@ async function runVoiceSay(browser) {
     [...document.querySelectorAll('#sayHelpBody .say-row')].filter(r => !r.querySelector('.say-ans')).length), 0);
   check('  さがすでしぼれる', await page.evaluate(() => { sayHelpFind('立米');
     return [...document.querySelectorAll('#sayHelpBody .say-ex')].map(e => e.textContent).join('/'); }),
-    '「12立米を4.5立米車で」/「2.5立米、比重2.3」/「50立米をほぐし率1.2で」');
+    '「12立米を4.5立米車で」/「2.5立米、比重2.3」/「50立米をほぐし率1.2で」/「1立米は何リットル」/「砂3立米12000円」');   // v690：あとの 2つは 声の計算帳の 文例
   check('  見つからないときは知らせる', await page.evaluate(() => { sayHelpFind('ねこねこ');
     return /見つかりません/.test(document.getElementById('sayHelpBody').textContent); }), true);
   await page.evaluate(() => sayHelpFind(''));
@@ -6625,7 +6626,8 @@ async function runHelpSplit(browser) {
     document.querySelectorAll('#helpBody .help-li').length > 50), true);
   // かんたん説明書（v452）：実際の画面の写真と番号。写真は help/ にある
   const hg = await page.evaluate(() => { const imgs = [...document.querySelectorAll('#helpBody .hg-shot')];
-    return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.map(i => i.getAttribute('src')), first: document.querySelector('#helpBody').firstElementChild.className,
+    // v690：新しい 説明書（目次・話題・道具ごと）が 上。これまでの 説明書は「📚 くわしい説明」（#hbOld）の 中に そのまま（はじめは 案内の 1行）
+    return { secs: document.querySelectorAll('#helpBody .hg-sec').length, imgs: imgs.filter(i => !/\/n-/.test(i.getAttribute('src'))).map(i => i.getAttribute('src')), first: document.getElementById('hbOld').children[1].className,
       marks: [...document.querySelectorAll('#g-screen .hg-list .hg-n')].map(n => n.textContent).join(','), detail: !!document.getElementById('h-detail') }; });
   check('  はじめにかんたん説明書（写真と番号）、そのあとにくわしい説明', hg.first + '/' + hg.secs + '/' + hg.detail + '/' + hg.marks, 'hg-top/19/true/1,2,3,4,5,6,7,8,9,10,11');   // v563：📊 表を強くする の節を足した
   check('  番号つきの説明はふつうの文の流れ（太字ごとに列に分かれない。v476）', await page.evaluate(() => {
@@ -15224,9 +15226,10 @@ async function runHyoVoice(browser) {
   // 表電卓：設定のいちばん上に「🔈 読み上げの声」
   await page.goto('file://' + path.join(ROOT, 'index.html')); await w(1200);
   await page.evaluate(() => toggleSettings()); await w(300);
-  check('  表電卓：設定のいちばん上に「🔈 読み上げの声」（かんたんモードでも出る所）', await page.evaluate(() => { const b = document.getElementById('setVoiceBtn'), sp = document.getElementById('settingsPanel');
-    const first = [...sp.querySelectorAll('button, input, select')].find(x => x.offsetParent && !x.classList.contains('modal-close'));
-    return [!!b && !!b.offsetParent, first === b, !b.closest('.ez-only'), b.textContent.includes('読み上げの声')].join('/'); }), 'true/true/true/true');
+  // v690：設定の いちばん上は「さがす」と「⭐ よく変える 設定」。🔈 読み上げの声は そこから 1回で 出せて、計算タブの 声の 所にも ある
+  check('  表電卓：「⭐ よく変える 設定」に 🔈 読み上げ・計算タブの 声の 所に「🔈 読み上げの声」', await page.evaluate(() => { const q = [...document.querySelectorAll('#setQuickRow button')].find(x => x.textContent.includes('読み上げ'));
+    setSettingsTab(3); const b = document.getElementById('setVoiceBtn');
+    return [!!q && !!q.offsetParent, !!b && !!b.offsetParent, b.parentElement.id, !b.closest('.ez-only'), b.textContent.includes('読み上げの声')].join('/'); }), 'true/true/setVoiceSlot/true/true');
   await page.click('#setVoiceBtn'); await w(300);
   check('  押すと声の窓：日本語の声・英語の声をえらべる（おまかせ＋端末の声）', await page.evaluate(() => [isDlgOpen('voiceSetOverlay'), ...['ja', 'en'].map(l => [...document.querySelectorAll('#voiceSetBody select[data-hv="' + l + '"] option')].map(o => o.textContent.replace(/^\d+_/, '')).join(','))].join(' | ')),
     'true | おまかせ（日本語の声）,JA-A (ja-JP),JA-B (ja-JP) ・ネット | おまかせ（英語の声）,EN-US (en-US),EN-GB (en-GB)');
@@ -16389,7 +16392,7 @@ async function runKoe(browser) {
   check('  1つだけで計算できる文例は、どれも計算できる', await page.evaluate(() => { const bad = []; for (const g of KOE_EXAMPLES) { if (/^(talk|sum|budget|book|drill|name)$/.test(g.id)) continue;
     for (const x of g.ex) { const t = Array.isArray(x) ? x[0] : x; state.entries = []; state.log = []; state.mode = 'normal'; recomputeAll(); const r = dryRun(t); if (!r || r.cls === 'err' || r.cls === 'info' && !/素数|約数|曜日/.test(t)) bad.push(t); } } return bad.join(','); }), '');
   check('  文例を押しても計算しない・この言い方でに出る', await page.evaluate(() => { state.entries = []; state.log = []; recomputeAll(); render(); openPanel('ex'); pickGenre('dilute');
-    const b = [...document.querySelectorAll('#exBody .ex')].find(x => x.textContent === '100倍で4リットル'); b.click(); closeTop();
+    const b = [...document.querySelectorAll('#exBody .ex')].find(x => x.dataset.t === '100倍で4リットル'); b.click(); closeTop();   // v29：答えの 分かる 文例は「＝ 答え」も 出すので、文は data-t で 見る
     return [state.log.length, $('guide').hidden, $('guideTx').textContent].join('/'); }), '0/false/「100倍で4リットル」');
   check('  ジャンルで絞る・さがす', await page.evaluate(() => { openPanel('ex'); pickGenre('conv'); const n1 = document.querySelectorAll('#exBody .ex-group').length;
     pickGenre('all'); $('exFind').value = '坪'; renderEx(); const t = [...document.querySelectorAll('#exBody .ex')].every(x => /坪/.test(norm(x.textContent)) || true); const n2 = document.querySelectorAll('#exBody .ex').length; $('exFind').value = ''; closeTop(); return n1 + '/' + (n2 > 0 && n2 < 20); }), '1/true');
@@ -19091,7 +19094,7 @@ async function runDtPhrase(browser) {
   check('  履歴に式と答えが残る', await page.evaluate(() => { voiceAcceptDentaku('5キロは何メートル'); return dtTape[dtTape.length - 1].e + ' ＝ ' + dtTape[dtTape.length - 1].v; }), '5キロ × 1,000 ＝ 5,000メートル');
   check('  文字の答え（余り）も出す', await page.evaluate(() => { voiceAcceptDentaku('17を5で割った商と余り'); return document.getElementById('dtVoice').textContent.includes('3 余り 2') + '/' + disp_val; }), 'true/3');
   check('  できないときは理由を出す', await page.evaluate(() => { voiceAcceptDentaku('5を0で割る'); return /割れません/.test(document.getElementById('dtVoice').textContent); }), true);
-  check('  📖言い方 に「いろいろな言い方」が並び、答えも出る', await page.evaluate(() => { openSayHelp(); const t = document.getElementById('sayHelpBody').textContent; closeSayHelp(); return t.includes('いろいろな言い方') && t.includes('30坪は何平米') && t.includes('99.17'); }), true);
+  check('  📖言い方 に「いろいろな言い方」が並び、答えも出る', await page.evaluate(async () => { openSayHelp(); await new Promise(r => setTimeout(r, 1200)); const t = document.getElementById('sayHelpBody').textContent; closeSayHelp(); return t.includes('いろいろな言い方') && t.includes('30坪は何平米') && t.includes('99.17'); }), true);   // v690：答えは あとから 少しずつ 出すので 待つ
   check('  消費税の率は電卓の設定に合わせる', await page.evaluate(() => { taxPct = 8; voiceAcceptDentaku('1000円の消費税額'); const d = disp_val; taxPct = 10; return d; }), '80');
   check('  service-worker が先に持つ', fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8').includes("'./koe/phrase.js'") && fs.readFileSync(path.join(ROOT, 'koe', 'service-worker.js'), 'utf8').includes("'./phrase.js'"), true);
   check('  JSエラーが出ていない', errs.length, 0);
@@ -22772,6 +22775,148 @@ async function runFillMenu687(browser) {
   await ctx.close();
 }
 
+/* v690：設定を 見つけやすく（さがす・よく変える 設定・タブの 説明）・説明書の 作り直し（目次・話題・道具ごとの ページ・さがす）・
+   声で 計算できる 言葉の 一覧（表・電卓・声の計算帳を 1つに。さがす・どこで 使えるか）・ことばで 表を 作るの 見本の 一覧 */
+async function runHelp690(browser) {
+  const errs = [];
+  console.log('\n── 設定の 見つけやすさ・新しい 説明書（道具ごとの ページ）・言える 言葉の 一覧・表の 見本（v690） ──');
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 780 }, hasTouch: true });
+  const page = await ctx.newPage();
+  page.on('pageerror', e => { if (!(e.stack || e.message).includes('ServiceWorker')) errs.push(e.message); });
+  page.on('console', m => { if (m.type() === 'error' && !/favicon|ServiceWorker/.test(m.text())) errs.push('console: ' + m.text()); });
+  const w = ms => page.waitForTimeout(ms);
+  await page.goto(INDEX); await w(300);
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_ui2', '1'); });
+  await page.reload(); await w(1300);
+  await page.tap('#c1_1'); await w(150);   // 一度 触れておく（端末の「戻る」の 見張りが 効くように）
+
+  // ── ⚙ 設定 ──
+  await page.evaluate(() => toggleSettings()); await w(400);
+  check('  設定：いちばん上に「さがす」、その下に「⭐ よく変える 設定」、その下に タブ', await page.evaluate(() => {
+    const f = document.querySelector('#settingsPanel .set-find').getBoundingClientRect(), q = document.getElementById('setQuick').getBoundingClientRect(), t = document.querySelector('#settingsPanel .settings-tabbar').getBoundingClientRect();
+    return [f.top < q.top, q.bottom <= t.top + 1, document.querySelectorAll('#setQuickRow button').length === SET_QUICK.length, SET_QUICK.length >= 15].join('/'); }), 'true/true/true/true');
+  check('  標準の 画面では 空の 帯（かんたん用）を 出さない・声と 画面の形は タブの 中', await page.evaluate(() => [getComputedStyle(document.getElementById('setEasy')).display, document.getElementById('setVoiceBtn').parentElement.id, document.getElementById('setUi2').parentElement.id].join('/')), 'none/setVoiceSlot/setUi2Slot');
+  check('  タブの 下に「ここで 変えられる こと」（タブで 変わる）', await page.evaluate(() => { const a = document.getElementById('setTabDesc').textContent; setSettingsTab(2); const b = document.getElementById('setTabDesc').textContent; setSettingsTab(0);
+    return [a.includes('表の操作'), b.includes('テンキー'), a !== b].join('/'); }), 'true/true/true');
+  // よく変える 設定：どれを 押しても その 設定が 見える 所へ（タブを 切りかえ、たたんだ 所も 開く）
+  const quick = await page.evaluate(async () => {
+    const bad = [];
+    for (let i = 0; i < SET_QUICK.length; i++) {
+      const q = SET_QUICK[i]; if (q[3]) continue;   // 窓を 開く もの（夜の色・読み上げ）は 別に 見る
+      toggleSettings(); await new Promise(r => setTimeout(r, 30)); if (!document.getElementById('settingsPanel').classList.contains('open')) toggleSettings();
+      setQuickGo(i); await new Promise(r => setTimeout(r, 450));
+      const el = document.getElementById(q[2]); const r = el && el.getBoundingClientRect();
+      if (!el || !el.offsetParent || r.top < 0 || r.top > innerHeight - 60) bad.push(q[1]);   // 頭が 見えて いれば よい（たたみを 開いた 大きな まとまりは 下が はみ出す）
+    }
+    return bad.join(',') || 'ok';
+  });
+  check('  ⭐ よく変える 設定：押すと その 設定の 所へ（タブ・たたみを 開いて 見える 所まで）', quick, 'ok');
+  check('  さがす：「コピー」で コピーの しかたが 出る', await page.evaluate(() => { setFind('コピー'); const t = document.getElementById('setFindRes').textContent; setFind(''); return /コピー/.test(t) && t.length > 0; }), true);
+  await page.evaluate(() => { if (document.getElementById('settingsPanel').classList.contains('open')) toggleSettings(); }); await w(400);
+  // かんたんモードでは、よく使う ものの 帯に 声と 画面の形
+  await page.evaluate(() => setUiMode('easy')); await w(200);
+  await page.evaluate(() => toggleSettings()); await w(400);
+  check('  かんたんモード：上の 帯に 読み上げの声・画面の形', await page.evaluate(() => [getComputedStyle(document.getElementById('setEasy')).display !== 'none', document.getElementById('setVoiceBtn').parentElement.id, !!document.getElementById('setVoiceBtn').offsetParent].join('/')), 'true/setEasy/true');
+  await page.evaluate(() => { toggleSettings(); setUiMode('full'); }); await w(400);
+
+  // ── 📖 言える 言葉の 一覧 ──
+  await page.evaluate(() => switchMode('dentaku')); await w(300);
+  await page.evaluate(() => openSayHelp('all')); await w(1200);
+  const say = await page.evaluate(() => { const n = w => sayAll.filter(x => w === 'all' || x.w.has(w)).length;
+    return { all: n('all'), hyo: n('表'), dt: n('電卓'), koe: n('帳'), chips: [...document.querySelectorAll('#sayHelpBody .say-chips:not(.say-genres) .say-chip')].map(b => b.textContent.replace(/\d+$/, '')).join(','), koeEx: (window.KOE_EXAMPLES || []).reduce((a, g) => a + g.ex.length, 0) }; });
+  check('  言葉の 一覧：表・電卓・声の計算帳の 言葉を 1つに（声の計算帳の 文例は ぜんぶ）', [say.all > 450, say.hyo >= 18, say.dt >= 100, say.koe === say.koeEx || say.koe >= say.koeEx - 5].join('/'), 'true/true/true/true');
+  check('  どこで 使えるかで しぼれる', say.chips, 'すべて,📋 表のセル,🧮 電卓,🎙 声の計算帳');
+  check('  ひらがなで さがせる（わりかん → 割り勘）', await page.evaluate(() => { sayHelpFind('わりかん'); const ex = [...document.querySelectorAll('#sayHelpBody .say-ex')].map(e => e.textContent); sayHelpFind(''); return ex.length > 0 && ex.every(t => /割り?勘|わりかん/.test(t) || true) && ex.some(t => /割り?勘/.test(t)); }), true);
+  check('  表の セルを 指す 言い方は「表」だけ・式が 出る', await page.evaluate(() => { saySetWhere('表'); const r = [...document.querySelectorAll('#sayHelpBody .say-row')].find(b => b.textContent.includes('エー1からエー5の合計'));
+    return !!r && r.querySelector('.say-w').textContent + '/' + /SUM|合計/.test(r.querySelector('.say-ans').textContent); }), '表/true');
+  check('  答えが 出る（電卓の 行）', await page.evaluate(async () => { saySetWhere('電卓'); await new Promise(r => setTimeout(r, 1500)); const rows = [...document.querySelectorAll('#sayHelpBody .say-row')].slice(0, 60);
+    return rows.filter(r => r.querySelector('.say-ans').textContent.trim()).length >= 50; }), true);
+  check('  行を 押すと 電卓で 計算する', await page.evaluate(async () => { saySetWhere('all'); sayHelpFind('5000円の18');
+    const r = [...document.querySelectorAll('#sayHelpBody .say-row')].find(b => b.textContent.includes('5000円の18')); r.click(); await new Promise(z => setTimeout(z, 300));
+    return isDlgOpen('sayHelpOverlay') + '/' + document.getElementById('dtMain').textContent; }), 'false/900');
+  check('  🎤 の 窓から 一覧へ（📖 言える 言葉の 一覧）', await page.evaluate(() => [...document.querySelectorAll('#voiceOverlay button')].some(b => b.textContent.includes('言える 言葉の 一覧'))), true);
+  await page.evaluate(() => switchMode('table')); await w(400);
+
+  // ── ✨ ことばで 表を 作る：見本の 一覧 ──
+  await page.evaluate(() => hgOpen('')); await w(600);
+  check('  ことばで 表：はじめの 画面に「📋 作れる 表の 見本」', await page.evaluate(() => /作れる 表の 見本/.test(document.getElementById('hgOut').textContent)), true);
+  await page.evaluate(() => HG.samples()); await w(200);
+  const smp = await page.evaluate(() => ({ cats: document.querySelectorAll('#hgOut .mk-sg').length, n: document.querySelectorAll('#hgOut .mk-sc').length, total: HG.sampleData().reduce((a, g) => a + g[1].length, 0) }));
+  check('  見本の 一覧：6つの 分野・58の 見本', smp.cats + '/' + smp.n + '/' + smp.total, '6/58/58');
+  check('  どの 見本も 表の 形に なる', await page.evaluate(() => { const bad = []; for (const [, list] of HG.sampleData()) for (const [t, ph] of list) { HG.sample(ph); if (!document.querySelector('#hgOut .mk-pv')) bad.push(t); } HG.samples(); return bad.join(',') || 'ok'; }), 'ok');
+  check('  見本を さがせる（出欠）', await page.evaluate(() => { const i = document.getElementById('hgSq'); i.value = '出欠'; i.dispatchEvent(new Event('input')); const n = document.querySelectorAll('#hgOut .mk-sc').length; i.value = ''; i.dispatchEvent(new Event('input')); return n >= 1 && n < 10; }), true);
+  check('  見本を 押すと 見本の 表（＋ 一覧へ もどれる）', await page.evaluate(() => { document.querySelector('#hgOut .mk-sc').click(); return !!document.querySelector('#hgOut .mk-pv') + '/' + [...document.querySelectorAll('#hgOut button')].some(b => b.textContent.includes('見本の 一覧')); }), 'true/true');
+  await page.evaluate(() => HG.close()); await w(400);
+
+  // ── 📖 説明書 ──
+  await page.evaluate(() => openHelp()); await w(800);
+  const home = await page.evaluate(() => ({ cards: document.querySelectorAll('#hbGrid .hb-card').length, pages: EXCALC_HELP_PAGES.length, ver: document.getElementById('hbVer').textContent, bar: document.getElementById('hbBar').textContent }));
+  check('  説明書：目次（話題の カード・さがす・バージョン）', [home.cards === home.pages, home.pages >= 15, home.ver === 'バージョン ' + await page.evaluate(() => APP_VERSION), !!(await page.$('#hbFind'))].join('/'), 'true/true/true/true');
+  check('  話題の ページ：どれも 開けて 中身が ある・写真は help/ に ある', await page.evaluate(() => { const bad = [];
+    for (const p of EXCALC_HELP_PAGES.filter(p => p.h)) { helpGo('p:' + p.id); const pg = document.getElementById('hbPage'); if (pg.hidden || pg.textContent.length < 150 || !document.getElementById('hbBar').textContent.includes(p.t)) bad.push(p.id); }
+    return bad.join(',') || 'ok'; }), 'ok');
+  check('  新しい 画面の 写真（n-*.jpg）', ['n-main', 'n-cellmenu', 'n-menu', 'n-settings', 'n-fmt'].every(n => fs.existsSync(path.join(ROOT, 'help', n + '.jpg')) && fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('help/' + n + '.jpg')), true);
+  check('  ページの ボタンの 行き先が ある（設定・関数）', await page.evaluate(() => { const ids = new Set(); EXCALC_HELP_PAGES.forEach(p => (p.h || '').replace(/helpSetGo\('([^']+)'\)/g, (_, id) => ids.add(id)));
+    const olds = new Set(); EXCALC_HELP_PAGES.forEach(p => (p.h || '').replace(/helpOld\('([^']+)'\)/g, (_, id) => olds.add(id)));
+    const bad = [...ids].filter(id => !document.getElementById(id)).concat([...olds].filter(id => !document.getElementById(id)));
+    return ids.size >= 8 && olds.size >= 10 ? (bad.join(',') || 'ok') : 'few:' + ids.size + '/' + olds.size; }), 'ok');
+  // 道具：まとまりごとの 一覧 → 道具ごとの ページ
+  await page.evaluate(() => helpGo('tools')); await w(100);
+  check('  道具の 一覧：ぜんぶの 道具が まとまりごとに 並ぶ（ひとことの 説明つき）', await page.evaluate(() => { const b = [...document.querySelectorAll('#hbPage .hb-tool')];
+    return [b.length === NP_TOOLS.length, b.every(x => x.querySelector('small').textContent.length >= 6), document.querySelectorAll('#hbPage .hb-cat').length >= TOOL_CATS.length].join('/'); }), 'true/true/true');
+  check('  道具の 一覧を さがせる（写真）', await page.evaluate(() => { helpToolFind('写真'); const v = [...document.querySelectorAll('#hbPage .hb-tool')].filter(b => !b.hidden).map(b => b.dataset.tool); helpToolFind('');
+    return v.includes('photomemo') && v.includes('trim') && v.includes('mikurabe') && v.length < 20; }), true);
+  check('  道具ごとの ページ：どの 道具も「開く」・はじめに・できること・どこに ある', await page.evaluate(() => { const bad = [];
+    for (const t of NP_TOOLS) { helpGo('tool:' + t.id); const pg = document.getElementById('hbPage'), hs = [...pg.querySelectorAll('.hb-h')].map(h => h.textContent).join(',');
+      if (!pg.querySelector('.hb-open') || !/はじめに/.test(hs) || !/できること/.test(hs) || !/どこに/.test(hs) || pg.querySelectorAll('.hb-ul li').length < 1) bad.push(t.id); }
+    return bad.join(',') || 'ok'; }), 'ok');
+  check('  道具ごとの ページ：前・次の 道具へ', await page.evaluate(() => { helpGo('tool:shimai'); const n = document.querySelectorAll('#hbPage .hb-pn button').length; return n; }), 2);
+  // さがす
+  await page.evaluate(() => helpHome()); await w(100);
+  check('  説明書を さがす：「コピー」は セルの メニューの ページが 先頭', await page.evaluate(() => { helpFind('コピー'); const f = document.querySelector('#hbFindRes .hb-hit'); return !!f && f.getAttribute('onclick'); }), "helpGo('p:cell')");
+  check('  説明書を さがす：ひらがな・道具・くわしい説明も', await page.evaluate(() => { const r = q => { helpFind(q); return [...document.querySelectorAll('#hbFindRes .hb-hit')].map(b => b.getAttribute('onclick')).join(' '); };
+    const a = r('れじ'), b = r('しまい場所'), c = r('プライバシー'), d = r('ねこねこねこ'); const none = /見つかりません/.test(document.getElementById('hbFindRes').textContent); helpFind('');
+    return [/tool:regi/.test(a), /tool:shimai/.test(b), /old:h-privacy/.test(c), d === '' && none, !document.getElementById('hbGrid').hidden].join('/'); }), 'true/true/true/true/true');
+  check('  くわしい説明（これまでの 説明書）：見出しへ 飛べる・上の 帯は いつも 出る', await page.evaluate(async () => { helpGo('old:h-privacy'); await new Promise(r => setTimeout(r, 200));
+    const el = document.getElementById('h-privacy'), bar = document.getElementById('hbBar').getBoundingClientRect(), body = document.getElementById('helpBody').getBoundingClientRect();
+    return [document.getElementById('hbPage').hidden, !document.getElementById('hbOld').hidden, el.open, bar.top >= body.top - 2 && bar.top <= body.top + 6].join('/'); }), 'true/true/true/true');
+  // 端末の 戻る：説明書の 中で 1つ 前の ページへ。目次で 押すと 閉じる
+  await page.evaluate(() => { helpHome(); helpGo('tools'); helpGo('tool:regi'); }); await w(100);
+  await page.goBack(); await w(400);
+  const b1 = await page.evaluate(() => isDlgOpen('helpOverlay') + '/' + helpCur);
+  await page.goBack(); await w(400);
+  const b2 = await page.evaluate(() => isDlgOpen('helpOverlay') + '/' + helpCur);
+  await page.goBack(); await w(500);
+  const b3 = await page.evaluate(() => isDlgOpen('helpOverlay'));
+  check('  端末の「戻る」：説明書の 前の ページへ → 目次 → 閉じる', [b1, b2, b3].join(' | '), 'true/tools | true/home | false');
+  // 説明書から 設定・道具・言葉の 一覧へ
+  await page.evaluate(() => openHelp('p:cell')); await w(700);
+  await page.evaluate(() => helpSetGo('fillHowSeg')); await w(1000);
+  check('  説明書の「⚙ その 設定へ」：設定の その 場所が 開く', await page.evaluate(() => { const r = document.getElementById('fillHowSeg').getBoundingClientRect();
+    return [isDlgOpen('helpOverlay'), document.getElementById('settingsPanel').classList.contains('open'), r.top >= 0 && r.bottom <= innerHeight].join('/'); }), 'false/true/true');
+  await page.evaluate(() => toggleSettings()); await w(400);
+  await page.evaluate(() => openHelp('tool:shimai')); await w(700);
+  await page.click('#hbPage .hb-open'); await w(1200);
+  check('  道具の ページの「▶ この 道具を 開く」', await page.evaluate(() => isDlgOpen('helpOverlay') + '/' + isDlgOpen('shimaiOverlay')), 'false/true');
+  await page.evaluate(() => closeShimai()); await w(500);
+  await page.evaluate(() => openToolsList()); await w(400);
+  await page.click('#toolsHelpBtn'); await w(1000);
+  check('  道具の 窓から「📖 道具ごとの 説明」', await page.evaluate(() => isDlgOpen('toolsListOverlay') + '/' + isDlgOpen('helpOverlay') + '/' + helpCur), 'false/true/tools');
+  check('  説明書の どの ページも 横に はみ出さない', await page.evaluate(() => { const res = [];
+    for (const k of ['home', ...EXCALC_HELP_PAGES.filter(p => p.h).map(p => 'p:' + p.id), 'tools', ...NP_TOOLS.map(t => 'tool:' + t.id)]) {
+      helpGo(k); document.querySelectorAll('#hbPage details').forEach(d => d.open = true);
+      const R = document.getElementById('helpBody').getBoundingClientRect().right;
+      if ([...document.getElementById('hbPage').querySelectorAll('*')].some(e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.right > R + 1; })) res.push(k); }
+    return res.join(',') || 'ok'; }), 'ok');
+  await page.evaluate(() => closeHelp()); await w(400);
+  // 🎙 声の計算帳：答えの 分かる 文例は 答えも
+  await page.goto('file://' + path.join(ROOT, 'koe', 'index.html')); await w(900);
+  check('  🎙 声の計算帳：文例に「＝ 答え」', await page.evaluate(() => { openPanel('ex'); const a = document.querySelectorAll('#exBody .ex .ex-a').length; closeTop(); return a > 50; }), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runPadLabel688(browser) {
   const { devices } = require('playwright');
   const errs = [];
@@ -23222,6 +23367,7 @@ const SUITES = [
   [['oto686', 'v686'], b => runOto686(b)],
   [['fillmenu687', 'v687'], b => runFillMenu687(b)],
   [['padlabel688', 'v688'], b => runPadLabel688(b)],
+  [['help690', 'v690'], b => runHelp690(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],

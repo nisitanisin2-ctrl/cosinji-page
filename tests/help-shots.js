@@ -43,6 +43,8 @@ async function mark(page, marks) {
       if (pos === 'r') { cx = r.x + r.w - 4; }
       if (pos === 'after') { cx = r.x + r.w + d / 2 + 4; }
       if (pos === 'before') { cx = r.x - d / 2 - 2; }
+      if (pos === 'b') { cy = r.y + r.h + d / 2 - 2; }            // 下（上の バーの ボタンを 隠さない。v690）
+      if (pos === 'bl') { cx = r.x + d / 2; cy = r.y + r.h + d / 2 - 2; }
       cx = Math.max(d / 2 + 1, Math.min(innerWidth - d / 2 - 1, cx)); cy = Math.max(d / 2 + 1, Math.min(innerHeight - d / 2 - 1, cy));
       const b = document.createElement('div'); b.className = 'hs-mark'; b.textContent = m.n;
       Object.assign(b.style, { position: 'fixed', left: (cx - d / 2) + 'px', top: (cy - d / 2) + 'px', width: d + 'px', height: d + 'px', lineHeight: (d - 4) + 'px',
@@ -75,6 +77,50 @@ async function mark(page, marks) {
     await page.evaluate(() => document.querySelectorAll('.hs-mark').forEach(e => e.remove()));
     console.log('撮った: ' + name);
   };
+
+  /* 新しい 画面の 写真（v690。新しい 説明書の n-*.jpg）。node tests/help-shots.js new で これだけ 撮り直す */
+  const newShots = async () => {
+    const HALF = { x: 0, y: 0, width: W, height: 470 };
+    await fresh({ excalc_ui2: '1' });
+    const row8 = await page.evaluate(() => { const r = document.getElementById('autoSumBtn').getBoundingClientRect(); return { x: 2, y: r.top - 1, w: innerWidth - 4, h: r.height + 2 }; });
+    const undo2 = await page.evaluate(() => { const a = document.getElementById('atUndo').getBoundingClientRect(), b = document.getElementById('atRedo').getBoundingClientRect(); return { x: a.left, y: a.top, w: b.right - a.left, h: a.height }; });
+    await shot('n-main', [
+      { sel: '#atTitle', n: 1, pos: 'bl' },
+      { rect: undo2, n: 2, pos: 'b' },
+      { sel: '#atFmt', n: 3, pos: 'b' },
+      { sel: '#atMore', n: 4, pos: 'b' },
+      { sel: '#c1_1', n: 5, pos: 'tr' },
+      { sel: '.formula-bar', n: 6, pos: 'tl' },
+      { sel: '#numpadPageBar', n: 7, pos: 'c' },
+      { rect: row8, n: 8, pos: 'tr' },
+      { sel: '#appNav', n: 9, pos: 'tl' },
+    ]);
+    await page.tap('#c2_1'); await page.waitForTimeout(300); await page.tap('#c2_1'); await page.waitForTimeout(300);
+    await shot('n-cellmenu', [
+      { sel: '#c2_1', n: 1, pos: 'l' },
+      { sel: '#cellMenu', n: 2, pos: 'tl' },
+    ], HALF);
+    await fresh({ excalc_ui2: '1' });
+    await page.evaluate(() => { navGo('menu'); const n = document.getElementById('moreNotes'); if (n) n.hidden = true; });
+    await shot('n-menu', [
+      { sel: '#moreReset', n: 1, pos: 'tl' },
+      { sel: '#uiModeSeg', n: 2, pos: 'tl' },
+      { sel: '#listBtn', n: 3, pos: 'tl' },
+      { sel: '#moreToolsBtn', n: 4, pos: 'tl' },
+      { sel: '#moreAccAll > summary', n: 5, pos: 'tl' },
+    ], HALF);
+    await fresh({ excalc_ui2: '1' });
+    await page.evaluate(() => toggleSettings());
+    await shot('n-settings', [
+      { sel: '#settingsPanel .set-find', n: 1, pos: 'tl' },
+      { sel: '#setQuick', n: 2, pos: 'tl' },
+      { sel: '#settingsPanel .settings-tabbar', n: 3, pos: 'tl' },
+    ], HALF);
+    await fresh({ excalc_ui2: '1' });
+    await page.tap('#atFmt');
+    await shot('n-fmt', [], { x: 0, y: H - 470, width: W, height: 470 });
+  };
+  if (process.argv[2] === 'new') { await newShots(); await b.close(); return; }
 
   // 0. ホーム（v459）
   await fresh({ excalc_uimode: 'easy', excalc_recent_tools: JSON.stringify(['shimai', 'techo', 'touban']) });
@@ -225,6 +271,8 @@ async function mark(page, marks) {
     { sel: '#tcDayModeSeg', n: 4, pos: 'tl' },
     { sel: '#tcAddIn', n: 5, pos: 'tl' },
   ]);
+
+  await newShots();
 
   await b.close();
 })();
