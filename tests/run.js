@@ -19400,7 +19400,7 @@ async function runHyo619(browser) {
   await page.evaluate(() => hideEditBar());
   await tap(0, 1); await page.waitForTimeout(400);
   check('  結合は 帯の はじめの 方（横に すべらせなくても 見える）', await page.evaluate(() => document.getElementById('cellMenuMerge').getBoundingClientRect().right <= innerWidth), true);
-  check('  範囲の 中を タップしても 帯に 結合（v624：文字だけの 範囲は 太字・中央も）', await shown(), '⤢ 範囲を広げる/𝐁 太字/↔ 中央/✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/🎨 書式/🔒 保護');
+  check('  範囲の 中を タップしても 帯に 結合（v624：文字だけの 範囲は 太字・中央も）', await shown(), '⤢ 範囲を広げる/𝐁 太字/↔ 中央/✂ 切り取り/⧉ コピー/📥 貼り付け/⊞ 結合/✏ 編集/🧹 消去/Aa 書式/🔒 保護');
   check('  　文字だけの 範囲は ⊞ 結合が 先頭（v624）', await page.evaluate(() => document.getElementById('cellMenuMerge').style.order), '0');
   await page.click('#cellMenuMerge'); await page.waitForTimeout(400);
   check('  押すと 結合（3列）', await page.evaluate(() => JSON.stringify(mergeAt(0, 0)) + '/' + cellStyles['0,0'].align), '{"rs":1,"cs":3}/center');
@@ -19817,12 +19817,12 @@ async function runBand626(browser) {
   await page.click('#setBandBtn'); await w(500);
   check('  窓が 開く（帯の 種類 7つ・はじめは 数字の セル）', await page.evaluate(() => [isDlgOpen('bandCfgOverlay'), [...document.querySelectorAll('.bcf-kind')].map(b => b.textContent.replace(/^\S+\s/, '')).join('|'), document.querySelector('.bcf-kind.on').textContent.includes('数字の セル')].join('/')),
     'true/数字の セル|文字の セル|空の セル・そのほか|範囲（数字あり）|範囲（文字だけ）|列名（A・B…）|行番号（1・2…）/true');
-  check('  見本に いまの 並び', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '¥ 円|％|1,000|.0＋|.0−|🎨 色の決まり|✂ 切り取り|⧉ コピー|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護');
+  check('  見本に いまの 並び', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '¥ 円|％|1,000|.0＋|.0−|🎨 色の決まり|✂ 切り取り|⧉ コピー|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|Aa 書式|🔒 保護');
   // ¥ を 外す・コピーを 左はしへ（▲ を 6回）・太字を 足す
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row')].find(x => x.textContent.includes('¥ 円')); r.querySelector('input').click(); }); await w(150);
   for (let i = 0; i < 6; i++) { await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row:not(.off)')].find(x => x.querySelector('b').textContent === '⧉ コピー'); r.querySelectorAll('.bcf-mv')[0].click(); }); await w(60); }
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row.off')].find(x => x.querySelector('b').textContent === '𝐁 太字'); r.querySelector('input').click(); }); await w(150);
-  check('  ☑ で 出す／出さない・▲ で 左へ・足すと 右はし（見本も すぐ 変わる）', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '⧉ コピー|％|1,000|.0＋|.0−|🎨 色の決まり|✂ 切り取り|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護|𝐁 太字');
+  check('  ☑ で 出す／出さない・▲ で 左へ・足すと 右はし（見本も すぐ 変わる）', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '⧉ コピー|％|1,000|.0＋|.0−|🎨 色の決まり|✂ 切り取り|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|Aa 書式|🔒 保護|𝐁 太字');
   check('  　いちばん 左は ▲ が 押せない', await page.evaluate(() => document.querySelector('.bcf-row:not(.off) .bcf-mv').disabled), true);
   check('  　出さない ボタンは 下に（¥ 円 も ここに）', await page.evaluate(() => [...document.querySelectorAll('.bcf-row.off b')].map(e => e.textContent).join('|')), '⇲ 広げてコピー|¥ 円|⇤ 左|↔ 中央|⇥ 右|☑ チェックに');   // v687：⇲ 広げてコピー も 置ける   // v672：☑ チェックに も 置ける
   // 列名の 帯：列を消す を 外す
@@ -22821,6 +22821,7 @@ async function runPadLabel688(browser) {
   check('  広い 画面（横の テンキー）でも はみ出さない', [e.pad, e.out].join('/'), 'true/0');
   await ctx.close();
   check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('アイコンだけ'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v688'")].join('/'), 'true/true');
+  check('  メニューの 書式は Aa（🎨 色 と 区別。v689）', await (async () => { const { ctx, page } = await open({ ...devices['Pixel 7'] }); const r = await page.evaluate(() => { const b = [...document.querySelectorAll('#cellMenu button')].filter(x => x.offsetParent); const ic = lb => { const x = b.find(y => (y.getAttribute('aria-label') || '').endsWith(lb)); return x ? x.querySelector('.pi').textContent : '-'; }; return ic('色') + '/' + ic('書式'); }); await ctx.close(); return r; })(), '🎨/Aa');
   check('  エラーなし', errs.join(' / '), '');
 }
 
