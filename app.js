@@ -6872,6 +6872,7 @@ const KEY_FUNCS={
   a_kyoshi:{g:'設定・機能',label:'🧱供試体',short:'供試体',run:()=>openKyoshi()},   // v611
   a_ggolf:{g:'設定・機能',label:'⛳グラウンドゴルフ',short:'グラゴル',run:()=>openGgolf()},   // v616
   a_oto:{g:'設定・機能',label:'🎵音の道具',short:'音',run:()=>openOto()},   // v668
+  a_tabeta:{g:'設定・機能',label:'🍽食べた物 帳',short:'食べた物',run:()=>openTabeta()},   // v693
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -9966,6 +9967,8 @@ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTime
 setTimeout(kyoshiKick, 5000);
 /* ── ⛳ グラウンドゴルフ（v616。ggolf.js。合計と ホールインワンの 数だけで 順位と 賞）── */
 sidePartOpener('openGgolf', ['ggolf.js'], 'グラウンドゴルフ');
+/* ── 🍽 食べた物 帳（v693。tabeta.js。打つか 話すだけで 食べた物を どんどん 記録）── */
+sidePartOpener('openTabeta', ['tabeta.js'], '食べた物 帳');
 /* ── 🎵 音の道具（v668。oto.js。メトロノーム・チューナー・音ゲー）── */
 sidePartOpener('openOto', ['hade-fx.js','oto.js'], '音の道具');   // 当たった ときの 演出は hade-fx.js（v675）
 window.closeOto=function(){};
@@ -10513,6 +10516,7 @@ const NP_TOOLS=[
   {id:'kyoshi',   label:'🧱供試体',     ov:'kyoshiOverlay',    run:()=>openKyoshi(),   close:()=>closeKyoshi()},   // kyoshi.js（開いたときに読む。v611）
   {id:'ggolf',    label:'⛳グラウンドゴルフ', ov:'ggolfOverlay', run:()=>openGgolf(),    close:()=>closeGgolf()},    // ggolf.js（開いたときに読む。v616）
   {id:'oto',      label:'🎵音の道具',       ov:'otoOverlay',   run:()=>openOto(),      close:()=>closeOto()},      // oto.js（開いたときに読む。v668）
+  {id:'tabeta',   label:'🍽食べた物 帳',    ov:'tabetaOverlay', run:()=>openTabeta(), close:()=>closeTabeta()},   // tabeta.js（開いたときに読む。v693）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -18580,6 +18584,7 @@ const TOOL_HINTS={
   hadecount:'画面を 押すたびに 数が ふえて はじけます。つづけて 早く押すと コンボ、10・50・100 や 目標で 花火。カウンターは 8つまで（「並べて」で いっしょに）。🎲 で はんいの 中の 数を ランダムにも。押した 音と 押した ところの 演出も えらべます。数字を 🫧 ぽよん（つぶれて 落ちて ぷるん）にも。⚔ 対戦 で 2チームの 勝負（陣地が 広がる・⏱ 時間・🏁 先に ○。縦の ときは 上の 組が 向かいの 人 向き）も。',
   seikyu:'① 品物と定価 → ② 値引き → ③ オプション → ④ 条件で値下げ → ⑤ 消費税 → ⑥ 端数を省いた 請求額 の 順に 入れると、本体価格と 消費税を 出して 請求書（見積書・納品書・領収書も）に します。',
   yatta:'エアコンの フィルター・布団干し・散髪 など、「✓ きょう やった」を 押すだけで 最後に やった日と「あれから ○日」が 出ます。目安の 日数に 近づくと 黄色、過ぎると 赤。よくある ものから 1回で 足せます。📅 で 次の日を スマホの カレンダーにも',
+  tabeta:'下の 欄に「おにぎり、みそ汁」のように 打って Enter（🎤 で 話しても）。1品ずつ 入り、時刻と 朝・昼・夕は 自動です。よく 食べる 物は ボタンに なり、押すだけで 入ります。あとから 入れる ときは「🕘 いつ：いま」を 押します。',
   shukin:'町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます（出欠だけ・集金だけ の 表も）。上に 合計と まだの 人数・金額。↕ で 順番も かえられ、印刷・コピー・💾 ファイルに 保存も できます',
   shiori:'旅行ごとに 🗓 日程・🎒 持ち物・💴 お金・🎁 お土産・🏨 宿と 連絡先・💱 外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れます。予定の 場所を 押すと 地図、🗺 その日の 道順も 開けます',
   bingo:'「🎱 まわす」で 抽選器が ガラガラ まわり、玉が コロコロ 出て「B の 12」と 大きく 出ます（読み上げも）。出た 数は 表に 色が つき、出た 順も わかります。⛶ 大きく で テレビにも。⚙ で 🔍 ズーム・🎆 演出の 強さ（ド派手 など）。🃏 カード で 手元の カード・印刷も できます。📱 の QR で 参加する 人の スマホに カードを 配れます',
@@ -18679,7 +18684,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','ggolf','oto','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','tabeta','shukin','shiori','tatekae','kuji','bingo','ggolf','oto','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','gijiroku','seikyu','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','kyoshi','dasetsu','volume','mikurabe','ruler','kakudo','veggie']],
@@ -19013,7 +19018,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v692';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v693';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22337,6 +22342,7 @@ const ST_GROUPS=[
   {k:'excalc_kyoshi',     n:'供試体（採った日・現場・材齢・試験 済み・Google カレンダーの 設定）'},
   {k:'excalc_ggolf',      n:'グラウンドゴルフ（大会・名簿・合計・ホールインワン・賞の 決め方）'},
   {k:'excalc_oto',        n:'音の道具（メトロノーム・チューナーの 設定・音ゲーの 自己ベスト）'},
+  {k:'excalc_tabeta',     n:'食べた物 帳（食べた物・時刻・食事・量や メモ）'},
   {k:'excalc_yomi',       n:'読みものの しおり・最近 見た ページ（マナー帳・会計の手引き・便利帳）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
@@ -22537,6 +22543,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_kyoshi',   // 🧱供試体（v611。Google カレンダーの 設定も）
   'excalc_ggolf',   // ⛳グラウンドゴルフ（v616）
   'excalc_oto',     // 🎵音の道具（v668）
+  'excalc_tabeta',  // 🍽食べた物 帳（v693）
   'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
   'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
   'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（メニューから／角の つまみ／帯の ボタン／長押しして なぞる。v629・v687）
