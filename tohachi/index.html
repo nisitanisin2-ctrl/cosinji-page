@@ -199,15 +199,18 @@ input[type=range]{ width:100%; accent-color:var(--acc); }
 
 .stepcard{ margin-bottom:14px; }
 .steps3{ display:grid; gap:8px; margin:10px 0; }
-@media (min-width:720px){ .steps3{ grid-template-columns:1fr auto 1fr auto 1fr; } }
+@media (min-width:720px){ .steps3{ grid-template-columns:repeat(4,1fr); } }
 .stepbtn{ text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--panel2); border-radius:14px; padding:12px; display:grid; gap:4px; align-content:start; transition:transform .15s, border-color .15s; }
 .stepbtn:hover{ transform:translateY(-2px); border-color:var(--acc); }
 .stepbtn b{ font-size:1rem; }
 .stepbtn span:last-child{ font-size:.85rem; color:var(--sub); }
 .stepno{ justify-self:start; font-size:.72rem; font-weight:800; letter-spacing:.08em; color:var(--on-acc); padding:1px 10px; border-radius:99px; }
-.stepno.s1{ background:var(--lv1); } .stepno.s3{ background:var(--lv2); }
-.steparrow{ align-self:center; justify-self:center; color:var(--faint); }
-@media (max-width:719px){ .steparrow{ transform:rotate(90deg); } }
+.stepno.s0{ background:var(--lv0); } .stepno.s1{ background:var(--lv1); } .stepno.s3{ background:var(--lv2); }
+.caution path{ fill:var(--gold); stroke:var(--mapsnow); stroke-width:1.5; stroke-linejoin:round; }
+.caution text{ fill:#1d1d1f; font-size:10px; font-weight:900; }
+.caution .cin{ transform-box:fill-box; transform-origin:center; }
+.caution .cin.pulse{ animation:cpulse .55s ease-in-out infinite alternate; }
+@keyframes cpulse{ to{ transform:scale(1.45); } }
 .subh{ margin:22px 0 8px; }
 ul.miss, ul.rest{ list-style:none; padding:0; margin:.3em 0; }
 ul.miss li{ padding:4px 0 4px 24px; position:relative; }
@@ -394,14 +397,19 @@ footer li{ margin:2px 0; word-break:break-all; }
         <!-- 施設 -->
         <g id="facilities">
           <text x="294" y="220" font-size="12" text-anchor="middle">🍴</text>
-          <text class="maplabel s" x="352" y="233" text-anchor="middle">カフェテリア</text>
-          <text class="maplabel s" x="352" y="244" text-anchor="middle">フライングフォックス</text>
+          <text class="maplabel s" x="352" y="243" text-anchor="middle">カフェテリア</text>
+          <text class="maplabel s" x="352" y="254" text-anchor="middle">フライングフォックス</text>
           <text x="44" y="372" font-size="11" text-anchor="middle">🍽</text>
           <rect x="14" y="436" width="18" height="18" rx="4" style="fill:var(--acc)"/>
           <text x="23" y="450" font-size="12" font-weight="800" text-anchor="middle" fill="#fff">P</text>
           <text x="174" y="455" font-size="11" text-anchor="middle">🚻</text>
           <text class="maplabel s" x="186" y="458">無料更衣室・パウダールーム</text>
           <text class="maplabel s" x="-6" y="482">ふもと：チケット・パトロール・レストラン</text>
+        </g>
+        <!-- 初心者ルートの急な所（おおよその場所） -->
+        <g id="cautions">
+          <g class="caution" transform="translate(132 263)"><g class="cin"><path d="M0 -8 L8 6 L-8 6 Z"></path><text y="4.5" text-anchor="middle">!</text></g></g>
+          <g class="caution" transform="translate(14 384)"><g class="cin"><path d="M0 -8 L8 6 L-8 6 Z"></path><text y="4.5" text-anchor="middle">!</text></g></g>
         </g>
         <g id="badges"></g>
         <circle id="runner" r="6.5" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
@@ -413,6 +421,7 @@ footer li{ margin:2px 0; word-break:break-all; }
         <span><i style="background:var(--lv0)"></i>初心者コース</span>
         <span><i class="box" style="background:var(--ng)"></i>立入禁止</span>
         <span>┄ リフト（番号を押す）</span>
+        <span>⚠ 急な所（おおよその場所）</span>
       </div>
     </div>
     <div class="card detail" id="detail" aria-live="polite"></div>
@@ -451,16 +460,15 @@ footer li{ margin:2px 0; word-break:break-all; }
   <h2>はじめての人へ</h2>
   <p class="lead">いちばん確実なのはスクールに入ること。コースは緑の線（初級）をたどれば、ふもとまで安心です。</p>
   <div class="card stepcard">
-    <h3>🔰 ステップアップ・ルート</h3>
-    <p class="note">押すと、コース図でそのルートを滑ってみせます。</p>
+    <h3>🔰 初心者のおすすめルート</h3>
+    <p class="note">押すと、コース図でそのルートを動かして見せます。</p>
     <div class="steps3" id="stepRoute">
-      <button class="stepbtn" data-step="1"><span class="stepno s1">STEP 1</span><b>まずはココから！ センターB</b><span>かつら1号ペアリフトで上へ。幅200mの緩斜面（最大15°）</span></button>
-      <span class="steparrow" aria-hidden="true">▶</span>
-      <button class="stepbtn" data-step="2"><span class="stepno s1">STEP 2</span><b>慣れてきたら！ センターC→D</b><span>林の中をのんびり下って ふもとへ。Dは1,100mのロングラン</span></button>
-      <span class="steparrow" aria-hidden="true">▶</span>
-      <button class="stepbtn" data-step="3"><span class="stepno s3">STEP 3</span><b>上達したらチャレンジ！ 東尾根（中級）</b><span>かつら2号で山頂へ。眺め最高の1,800mロングコース</span></button>
+      <button class="stepbtn" data-step="1"><span class="stepno s0">STEP 1</span><b>3号リフトで足ならし</b><span>3号を降りたら<b>左側</b>（オレンジの道）から滑り、3号リフトの<b>裏側</b>から乗り場へ戻る。何本かくり返して足を慣らそう。</span></button>
+      <button class="stepbtn" data-step="2"><span class="stepno s1">STEP 2</span><b>1号の方へ戻る</b><span>3号の乗り場から、1号の方へ向かう道を滑る。次の急な所は<b>大きく回り込んで</b>よけ、最後の急な所は<b>大回り</b>でゆっくり。</span></button>
+      <button class="stepbtn" data-step="3"><span class="stepno s1">STEP 3</span><b>慣れてきたら センターB</b><span>1号リフトで上へ。幅200mの緩斜面（最大15°）でターンを大きく。</span></button>
+      <button class="stepbtn" data-step="4"><span class="stepno s3">STEP 4</span><b>上達したら 東尾根（中級）</b><span>2号リフトで山頂へ。眺め最高の1,800mロングコース。</span></button>
     </div>
-    <p class="note">緑のコースで自信がついたら、青（中級）へ。無理は禁物！</p>
+    <p class="note">ふもとからは4号リフトでカフェテリアへ行くと、3号リフトはすぐそこ（1号→センターBからも行けます）。大回りのコツは下の「③ スピード調整」で。無理は禁物！</p>
   </div>
   <div class="school">
     <div class="card"><h3>🏂 スノーボード（土日祝）</h3><p>東鉢のスクールは<b>土日祝のスノーボードだけ</b>。受付は<b>かつら1号リフト横のリフト事務所1階</b>。</p><p class="note">午前：受付 9:30〜10:20／レッスン 10:30〜12:00<br>午後：受付 12:30〜13:20／レッスン 13:30〜15:00<br>東鉢ではレッスンの予約はしていません。<span class="src">（公式）</span></p></div>
@@ -680,9 +688,11 @@ const SEG={
   A:"M199 23 C 193 34, 184 50, 184 64 S 186 92, 194 103 L 201 110",
   S:"M208 23 C 212 42, 222 64, 231 85",
   E:"M204 20 C 225 25, 252 36, 268 52 S 292 84, 296 104 S 299 125, 297 133 S 280 190, 268 210 S 258 245, 260 270",
-  O:"M242 92 C 256 102, 262 112, 262 130 S 280 162, 296 177 S 322 176, 334 199",
-  B:"M233 127 C 243 138, 255 150, 256 162 S 254 180, 252 188",
-  C:"M252 188 C 249 200, 252 214, 247 222 S 210 240, 176 254",
+  // 初心者コース：3号を降りて左側から滑り、3号の乗り場へ裏側から戻る
+  O:"M242 92 C 256 102, 262 112, 262 130 S 280 162, 296 177 S 326 176, 338 190 S 346 208, 333 206",
+  B:"M233 127 C 243 138, 255 150, 256 162 S 254 180, 252 188 S 249 204, 251 212",
+  // センターC：3号の乗り場（カフェテリアのあたり）から1号の方へ
+  C:"M331 206 C 310 208, 284 203, 263 207 S 251 213, 247 222 S 210 240, 176 254",
   D:"M176 254 C 142 271, 110 296, 98 320 S 74 364, 58 380 S 32 408, 25 416",
   H:"M319 220 C 292 243, 263 268, 240 287 S 196 330, 175 354 S 142 395, 139 418 S 143 440, 148 446",
 };
@@ -690,14 +700,14 @@ const tail=s=>s.replace(/^M\s*[-\d.]+[ ,]+[-\d.]+\s*/,"");
 const LVC={"初級":"var(--lv1)","中級":"var(--lv2)","上級":"var(--lv3)","道":"var(--lv0)"};
 const lvCls=l=>({"初級":"t-1","中級":"t-2","上級":"t-3","道":"t-0"}[l]||"t-k");
 const COURSES=[
-  {id:"centerB", name:"センターBコース", short:"センターB", lv:"初級", len:700, avg:12, max:15, d:SEG.B, run:SEG.B+" "+tail(SEG.C)+" "+tail(SEG.D), w:12, lab:[242,178,"end"],
+  {id:"centerB", name:"センターBコース", short:"センターB", lv:"初級", len:700, avg:12, max:15, d:SEG.B, run:SEG.B+" S 248 218, 247 222 S 210 240, 176 254 "+tail(SEG.D), w:12, lab:[242,178,"end"],
    txt:"中腹（1号リフトを降りた先、2号リフト乗り場の近く）から下る、コース幅が最大200mの緩斜面。ビギナーから楽しめる万能型コース。", tip:"広いので、人の少ない端のほうでゆっくり練習しましょう。下はセンターC→センターDで ふもとへ。", src:"公式"},
   {id:"centerD", name:"センターDコース", short:"センターD", lv:"初級", len:1100, avg:17, max:22, d:SEG.D, w:6, lab:[104,318,"start"],
-   txt:"1号リフトに沿って ふもとまで下る、1,100mの初心者向け林間コース。力を抜いてリラックスクルージング！ レストランやパトロールセンターなどがコースの終点にあります。", tip:"最大22°の所もあるので、こわい所はハの字や横すべりでゆっくり。", src:"公式"},
-  {id:"centerC", name:"センターC", short:"センターC", lv:"道", route:true, d:SEG.C, run:SEG.C+" "+tail(SEG.D), w:5, lab:[212,256,"middle"], small:true,
-   txt:"センターBの下から、センターDのスタートへつなぐ道。ゲレンデマップにのっている道で、公式の数字（長さ・斜度）はありません。", tip:"センターB→C→Dと続けると、中腹から ふもとまで初級の道だけで下りられます。", src:"公式マップ"},
+   txt:"1号リフトに沿って ふもとまで下る、1,100mの初心者向け林間コース。力を抜いてリラックスクルージング！ レストランやパトロールセンターなどがコースの終点にあります。", tip:"急な所が2か所（図の⚠）。上の急な所は大きく回り込んでよけ、最後の急な所は大回り（ターンを大きく）でゆっくり。", src:"公式"},
+  {id:"centerC", name:"センターC", short:"センターC", lv:"初級", route:true, d:SEG.C, run:SEG.C+" "+tail(SEG.D), w:5, lab:[212,256,"middle"], small:true,
+   txt:"3号リフトの乗り場（カフェテリアのあたり）から、1号リフトの方へ向かう道。センターBの下ともつながっていて、その先はセンターDで ふもとへ。ゲレンデマップにのっている道で、公式の数字（長さ・斜度）はありません。", tip:"この先の急な所は大きく回り込んでよけ、最後の急な所は大回りでゆっくり。", src:"公式マップ"},
   {id:"beginner", name:"初心者コース", short:"初心者コース", lv:"道", route:true, d:SEG.O, w:5, lab:[318,168,"start"], small:true,
-   txt:"3号リフトを降りた所から、東尾根下の急斜面を通らずに カフェテリア（フライングフォックス）の方へ下る、オレンジの初心者用の道。ゲレンデマップにのっている道で、公式の数字はありません。", tip:"4号→3号リフトで上がって、この道で戻るループがおすすめ。", src:"公式マップ"},
+   txt:"3号リフトを降りたら左側から滑り、3号リフトの裏側から乗り場へ戻ってくるオレンジの道。何本もくり返して足を慣らすのにぴったり。ゲレンデマップにのっている道で、公式の数字はありません。", tip:"ふもとからは4号リフトでカフェテリアへ（1号→センターBからも行けます）。3号リフトは8:40〜16:20。", src:"公式マップ"},
   {id:"champion", name:"チャンピオンコース", short:"チャンピオン", lv:"中級", len:600, avg:10, max:20, d:SEG.H, w:6, lab:[240,312,"start"],
    txt:"カフェテリアの近くから、林の中を ふもとの無料更衣室の方へ下る。スノーボーダーに一番人気のロングな林間コース。", tip:"林間は先が見えにくいので、合流点ではスピードを落として。", src:"公式"},
   {id:"higashione", name:"東尾根コース", short:"東尾根", lv:"中級", len:1800, avg:20, max:25, d:SEG.E, run:SEG.E+" C 261 276, 250 282, 240 287 S 196 330, 175 354 S 142 395, 139 418 S 143 440, 148 446", w:6, lab:[304,150,"start"],
@@ -717,16 +727,16 @@ const LIFTS=[
    txt:"ふもと（駐車場の近く）から中腹へ上がる、いちばん長いリフト。降りた先にセンターBのスタートと2号リフト乗り場があります。乗り場の横のリフト事務所1階がスクールの受付です。"},
   {id:"lift2", n:2, name:"かつら2号ペアリフト", len:530, vert:144, hours:"9:00〜16:20", a:[240.5,132.7], b:[200,21], badge:[227,140],
    txt:"中腹から山頂へ。センターA・東尾根下・東尾根は、ここを降りた山頂からスタートします。朝は9:00からなので、ほかより少しおそめ。"},
-  {id:"lift3", n:3, name:"かつら3号ペアリフト", len:523, vert:94, hours:"8:40〜16:20", a:[330,200.4], b:[233.5,93.6], badge:[342,207],
-   txt:"カフェテリア（フライングフォックス）の近くから上へ。降りた所が初心者コースのスタートで、東尾根下コースの終わりのあたりです。"},
+  {id:"lift3", n:3, name:"かつら3号ペアリフト", len:523, vert:94, hours:"8:40〜16:20", a:[330,200.4], b:[233.5,93.6], badge:[350,224],
+   txt:"カフェテリア（フライングフォックス）の近くから上へ。降りたら左側から初心者コースを滑って、裏側から乗り場へ戻る。足ならしのループにいちばんのリフトです。"},
   {id:"lift4", n:4, name:"かつら4号ペアリフト", len:818, vert:170, hours:"8:30〜16:30", a:[129.6,453.6], b:[271.2,198], badge:[116,462],
    txt:"ふもと（無料更衣室の近く）からカフェテリアへ。チャンピオンコースのスタートや3号リフトに乗りつげます。近くにレンタルちさとがあります。"},
 ];
 const LEVELS=[
-  {id:"first", e:"🐣", n:"はじめて", s:"★☆☆☆", d:"雪の上に立つのも初めて", rec:["centerB","centerD","kids"],
-   steps:["スクールを確認。スノボは土日祝に東鉢（1号リフト横の事務所1階で受付）、スキーや平日はスカイバレイ第3レストハウスのスクールへ。","ふもとの平らな所で、板をつけて歩く・転ぶ・起きるを練習。","「ハの字（スキー）」「横すべり・木の葉すべり（スノボ）」で止まれるようになる。","1号リフトで上がって、幅200mの緩斜面「センターB」へ。","下りはセンターC→センターDの林間をゆっくり。疲れる前に休憩しましょう。"]},
-  {id:"beg", e:"🙂", n:"初級", s:"★★☆☆", d:"止まる・曲がるはできる", rec:["centerB","centerD","beginner","champion"],
-   steps:["朝は1号リフトでセンターBへ。ターンを大きくゆっくり。","センターC→センターDで、1,100mのロング林間クルージング。","4号→3号リフトで上がって、オレンジの「初心者コース」でカフェテリアへ戻るループ。","ランチはシルバーホルン（1号乗り場の少し上）。ランチは朝から注文できます。","慣れたら、平均10°の林間「チャンピオンコース」で ふもとまで。"]},
+  {id:"first", e:"🐣", n:"はじめて", s:"★☆☆☆", d:"雪の上に立つのも初めて", rec:["beginner","centerC","centerD","kids"],
+   steps:["スクールを確認。スノボは土日祝に東鉢（1号リフト横の事務所1階で受付）、スキーや平日はスカイバレイ第3レストハウスのスクールへ。","ふもとの平らな所で、板をつけて歩く・転ぶ・起きるを練習。「ハの字（スキー）」「横すべり（スノボ）」で止まれるように。","4号リフトでカフェテリアへ。3号リフトを降りたら左側から滑り、3号の裏側から乗り場へ戻る。何本かくり返して足ならし。","帰りは3号の乗り場から1号の方へ向かう道を滑る。次の急な所は大きく回り込んでよける。","最後に急な所が残るけど、大回り（ターンを大きく）でゆっくり滑れば大丈夫。"]},
+  {id:"beg", e:"🙂", n:"初級", s:"★★☆☆", d:"止まる・曲がるはできる", rec:["beginner","centerC","centerD","centerB","champion"],
+   steps:["4号→3号リフトへ。3号を降りたら左側から滑り、裏側から乗り場へ戻るループで足ならし。","3号の乗り場から1号の方へ。次の急な所は大きく回り込み、最後の急な所は大回りで。","1号リフトでセンターBへ。幅200mの緩斜面でターンを大きく。","ランチはシルバーホルン（1号乗り場の少し上）。ランチは朝から注文できます。","慣れたら、平均10°の林間「チャンピオンコース」で ふもとまで。"]},
   {id:"mid", e:"😎", n:"中級", s:"★★★☆", d:"中級コースなら自由に滑れる", rec:["higashione","champion","openbahn","skyvalley"],
    steps:["1号→2号リフト（9:00から）で山頂へ。超ワイドなオープンバーンで足慣らし。","東尾根コースでスカイバレイとの境を下る。雪質と眺めがいちばん。","チャンピオンコースの林間をリズムよく。スノーボーダーに一番人気。","午後はスカイバレイへ遠征（共通券）。ディアコース→下山コースで3,200m。","東鉢へ戻って、東尾根でもう1本。2号・3号リフトは16:20までです。"]},
   {id:"adv", e:"🔥", n:"上級", s:"★★★★", d:"急斜面がすき", rec:["higashioneshita","centerA","openbahn","skyvalley"],
@@ -735,8 +745,8 @@ const LEVELS=[
    steps:["駐車場は早めに。チビッコパークは駐車場のすぐ近くです。","子どもはチビッコパークで雪遊び。サンキッド（スノーエスカレーター）で登れます。","大人は交代で、1号リフト→センターBをゆっくり1本ずつ。","無料更衣室・パウダールームで休憩。子どもは冷えやすいので早めに。","子どもが疲れる前に早めに帰る。帰りの雪道は明るいうちに。"]},
 ];
 const PLANS={
-  first:[["8:00","🚗","到着。駐車場（平日1,000円・土日祝1,500円）に止めて、レンタルを借りて着がえ"],["9:30","🎓","スノボは土日祝のスクール受付（1号リフト横の事務所1階）。スキー・平日はスカイバレイのスクールへ"],["10:30","🏂","レッスン（10:30〜12:00）。立つ・止まる・リフトの乗り方"],["12:00","🍛","ランチ。シルバーホルンのハンバーグランチやビーフシチューランチ"],["13:30","🚡","1号リフトで上がって、幅200mの緩斜面センターBへ"],["14:30","🌲","センターC→センターDの林間を、ハの字や横すべりでゆっくり下る"],["15:30","🏁","早めに終了。疲れた時がいちばん危ない"]],
-  beg:[["8:30","🚡","1号リフト（8:30〜）でセンターBへ。ターンを大きくゆっくり"],["9:30","🌲","センターC→センターDで1,100mのロング林間クルージング"],["10:30","🔁","4号→3号リフトで上がり、オレンジの初心者コースでカフェテリアへ戻るループ"],["12:00","🍛","ランチ（シルバーホルンは朝から閉店までランチOK）"],["13:30","🌲","慣れたら、平均10°の林間チャンピオンコースで ふもとまで"],["15:30","🏁","早めに終了。ケガなく帰るまでがスキー"]],
+  first:[["8:00","🚗","到着。駐車場（平日1,000円・土日祝1,500円）に止めて、レンタルを借りて着がえ"],["9:30","🎓","スノボは土日祝のスクール受付（1号リフト横の事務所1階）。スキー・平日はスカイバレイのスクールへ"],["10:30","🏂","レッスン（10:30〜12:00）。立つ・止まる・リフトの乗り方"],["12:00","🍛","ランチ。シルバーホルンのハンバーグランチやビーフシチューランチ"],["13:00","🔁","4号リフトでカフェテリアへ。3号リフトを降りたら左側から滑り、3号の裏側から乗り場へ戻るループで足ならし"],["14:30","🌲","帰りは3号の乗り場から1号の方へ。次の急な所は大きく回り込んでよけ、最後の急な所は大回りでゆっくり"],["15:30","🏁","早めに終了。疲れた時がいちばん危ない"]],
+  beg:[["8:30","🚡","4号リフト（8:30〜）でカフェテリアへ。3号リフト（8:40〜）へ"],["8:45","🔁","3号を降りたら左側から滑り、3号の裏側から乗り場へ戻るループで足ならし"],["10:00","🌲","3号の乗り場から1号の方へ。次の急な所は大きく回り込み、最後の急な所は大回りで"],["10:45","🚡","1号リフトでセンターBへ。幅200mの緩斜面でターンを大きく"],["12:00","🍛","ランチ（シルバーホルンは朝から閉店までランチOK）"],["13:30","🌲","慣れたら、平均10°の林間チャンピオンコースで ふもとまで"],["15:30","🏁","早めに終了。ケガなく帰るまでがスキー"]],
   mid:[["8:30","🚡","1号リフトで中腹へ。センターBで足慣らし"],["9:00","🏔","2号リフト（9:00〜）で山頂へ。超ワイドなオープンバーン"],["9:30","➡️","東尾根コース1,800m。スカイバレイとの境、眺めがいちばん"],["10:30","🌲","チャンピオンコースの林間をリズムよく"],["12:00","🍛","ランチ"],["13:00","🗺","スカイバレイへ（共通券）。ディアコース→下山コースで3,200m"],["15:30","🏁","東鉢へ戻って東尾根でもう1本（2号・3号は16:20まで）"]],
   adv:[["8:30","🚡","1号リフト（8:30〜）で中腹へ"],["9:00","❄","2号リフト（9:00〜）で山頂へ。降雪の次の朝はオープンバーンの新雪を"],["9:30","🔴","東尾根下コース（最大43°）。トップ付近から急斜面"],["10:30","🔴","センターAコース（平均30°）。整備がよく、スピードを出しても滑りやすい"],["12:00","🍛","ランチ"],["13:00","🦅","スカイバレイのイーグルコース（最大32°・コブ）やサンダーコースへ遠征"],["15:30","🏁","東尾根のロングでカービングして〆（2号は16:20まで）"]],
   family:[["8:00","🚗","早めに到着。チビッコパークは駐車場のすぐ近く"],["9:00","⛄","チビッコパークで雪遊び。2歳以上は1日600円（小学生未満はリフト無料）"],["10:30","🎿","大人は交代で、1号リフト→センターBを1本ずつ"],["11:30","🍛","混む前にランチ"],["12:30","🚻","無料更衣室・パウダールームで休憩。子どもは冷えやすいので早めに"],["14:30","🏁","早めに帰る。雪道は明るいうちに"]],
@@ -777,7 +787,7 @@ $$("main section[id]").forEach(s=>navIo.observe(s));
 /* ---------- コース図を描く ---------- */
 const TREES=[[20,238],[38,262],[18,290],[48,300],[30,330],[62,318],[72,280],[52,250],[16,358],[44,196],[24,212],[120,226],[100,244],
   [150,300],[172,292],[195,282],[150,345],
-  [318,282],[346,268],[372,290],[308,334],[335,318],[268,352],[312,366],[352,350],[384,330],[250,392],[285,400],[325,392],[365,385],[230,430],[270,438],[312,430],[355,425],[386,440],
+  [318,282],[356,284],[376,300],[308,334],[335,318],[268,352],[312,366],[352,350],[384,330],[250,392],[285,400],[325,392],[365,385],[230,430],[270,438],[312,430],[355,425],[386,440],
   [110,38],[128,30],[100,58],[120,118],[100,132],[150,118]];
 TREES.forEach(([x,y])=>$("#trees").appendChild(el("path",{d:`M${x} ${y} l7 -18 l7 18z`})));
 const lg=$("#lifts"), cg=$("#courses"), lbg=$("#labels"), bdg=$("#badges"), runPaths=el("g",{id:"runPaths"}); $("#mapSvg").appendChild(runPaths);
@@ -857,10 +867,11 @@ function animateAlong(path,dur,color,done){
     r.setAttribute("cx",p.x); r.setAttribute("cy",p.y); if(k<1) runAnim=requestAnimationFrame(step); else done&&done(); };
   runAnim=requestAnimationFrame(step);
 }
-function runSeq(list){
+function runSeq(list,caution){
   const tok=++seqToken; let i=0;
+  $$("#cautions .cin").forEach(c=>c.classList.toggle("pulse",!!caution)); // 急な所の⚠を光らせる
   const next=()=>{ if(tok!==seqToken) return;
-    if(i>=list.length){ setTimeout(()=>{ if(tok===seqToken) $("#runner").setAttribute("opacity",0); },900); return; }
+    if(i>=list.length){ setTimeout(()=>{ if(tok===seqToken){ $("#runner").setAttribute("opacity",0); $$("#cautions .cin").forEach(c=>c.classList.toggle("pulse",false)); } },900); return; }
     const it=list[i++]; animateAlong(it.p,it.dur,it.color,next); };
   next();
 }
@@ -989,16 +1000,17 @@ function renderTech(){
 }
 $("#liftAnim").innerHTML=LIFTSVG;
 
-/* ステップアップ・ルート：コース図へ移って、リフト → コースの順に動かす */
+/* 初心者のおすすめルート：コース図へ移って、リフト → コースの順に動かす */
 const STEPS={
-  "1":{sel:"centerB", legs:()=>[liftLeg("lift1"), skiLeg("centerB","cv-centerB")]},
-  "2":{sel:"centerD", legs:()=>[skiLeg("centerC","run-centerC")]},
-  "3":{sel:"higashione", legs:()=>[liftLeg("lift1"), liftLeg("lift2"), skiLeg("higashione")]},
+  "1":{sel:"beginner", legs:()=>[liftLeg("lift3"), skiLeg("beginner","cv-beginner"), liftLeg("lift3"), skiLeg("beginner","cv-beginner")]}, // 足ならしのループを2周
+  "2":{sel:"centerC", legs:()=>[skiLeg("centerC","run-centerC")], caution:true}, // 3号の乗り場から1号の方へ → センターDで ふもとへ
+  "3":{sel:"centerB", legs:()=>[liftLeg("lift1"), skiLeg("centerB","cv-centerB")]},
+  "4":{sel:"higashione", legs:()=>[liftLeg("lift1"), liftLeg("lift2"), skiLeg("higashione")]},
 };
 $$("#stepRoute .stepbtn").forEach(b=>b.onclick=()=>{
   const S=STEPS[b.dataset.step]; select(S.sel,false);
   $("#map").scrollIntoView({behavior:smooth()});
-  setTimeout(()=>runSeq(S.legs()), reduce?0:650);
+  setTimeout(()=>runSeq(S.legs(),S.caution), reduce?0:650);
 });
 $$("#sportTabs button").forEach(b=>b.onclick=()=>{ sport=b.dataset.s; $$("#sportTabs button").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); renderTech(); });
 renderTech();
