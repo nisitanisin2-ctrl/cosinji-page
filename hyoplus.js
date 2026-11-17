@@ -107,6 +107,11 @@ const HP_CSS=`
 .hp-ch-note{ margin-top:6px; font-size:12px; color:var(--text-sub); }
 .hp-qk{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .hp-qb{ display:grid; grid-template-columns:34px 1fr; grid-template-rows:auto auto; column-gap:8px; align-items:center; min-height:54px; padding:6px 8px; border-radius:var(--r-card); border:1px solid var(--save-item-border); background:transparent; color:var(--text); text-align:left; cursor:pointer; }
+.hp-sub{ margin:10px 0 6px; font-size:12.5px; font-weight:700; color:var(--text-sub); }
+.hp-pal{ display:flex; flex-wrap:wrap; gap:6px; }
+.hp-sw{ width:34px; height:34px; border-radius:50%; border:1px solid var(--save-item-border); background:var(--c); cursor:pointer; padding:0; }
+.hp-sw.on{ box-shadow:0 0 0 2px var(--modal-bg,#fff), 0 0 0 4px var(--acc); }
+.hp-sw.none{ width:auto; padding:0 10px; border-radius:17px; background:transparent; color:var(--text); font:inherit; font-size:12.5px; font-weight:700; }
 .hp-qb .hp-qi{ grid-row:1 / span 2; width:34px; height:34px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:17px; border:1px solid var(--save-item-border); }
 .hp-qb b{ font-size:13.5px; line-height:1.25; } .hp-qb small{ font-size:11.5px; color:var(--text-sub); line-height:1.25; }
 @media (max-width:340px){ .hp-qk{ grid-template-columns:1fr; } }
@@ -596,15 +601,34 @@ const QUICK=[
   ['blank','⬜','空いているセル','黄色の背景（入れ忘れに）', {t:'blank', st:{bg:'yellow'}}],
 ];
 function quickRect(){ const g=(rangeR1>=0) ? selRect() : {r1:selR, c1:selC, r2:selR, c2:selC}; return g; }
+/* v687：1つの セルでも 出す（🎨 色）。いつも この 色に 塗る・字の 色 も ここで。1つの セルでは 意味の ない 決まり（濃さ・棒・上から3つ など）は 出さない */
+const QUICK_ONE=['neg','blank'];
+function paintRow(type, cur){
+  const P=(typeof CP_COLORS==='object' && CP_COLORS) ? CP_COLORS[type==='bg'?'bg':'fc'] : [];
+  const list=P.slice(0, type==='bg' ? 11 : 10);
+  return `<div class="hp-pal">`+list.map(c=>`<button type="button" class="hp-sw${String(cur).toLowerCase()===c.toLowerCase()?' on':''}" style="--c:${c}" onclick="HP.paint('${type}','${c}')" aria-label="${type==='bg'?'塗る':'字の色'} ${c}"></button>`).join('')
+    +`<button type="button" class="hp-sw none${cur?'':' on'}" onclick="HP.paint('${type}','')">${type==='bg'?'塗らない':'自動'}</button></div>`;
+}
+function paint(type, c){
+  close();
+  if(typeof kfmtColor!=='function') return;
+  if(c && typeof kfCur==='object'){ kfCur[type==='bg'?'bg':'fc']=c; if(typeof kfSaveCur==='function') kfSaveCur(); }
+  kfmtColor(type==='bg' ? 'bg' : 'color', c);
+  toast((type==='bg' ? (c ? '塗りました' : '塗りを 消しました') : (c ? '字の 色を 変えました' : '字の 色を 元に 戻しました'))+'（↶戻る で 元に 戻せます）');
+}
 function cfQuick(){
-  const g=quickRect(), a1=ALPHA[g.c1]+(g.r1+1)+':'+ALPHA[g.c2]+(g.r2+1);
+  const g=quickRect(), one=(g.r1===g.r2 && g.c1===g.c2), a1=one ? ALPHA[g.c1]+(g.r1+1) : ALPHA[g.c1]+(g.r1+1)+':'+ALPHA[g.c2]+(g.r2+1);
   st={c:g.c1, mode:'quick', g};
   const rules=hpRules()||[];
   const hit=rules.filter(ru=>!(ru.r1>g.r2 || (ru.r2==null?MAXROWS-1:ru.r2)<g.r1 || ru.c1>g.c2 || (ru.c2==null?MAXCOLS-1:ru.c2)<g.c1)).length;
-  let html=`<p class="hp-lead">えらんだ範囲 <b>${esc(a1)}</b> に付けます。中身を直すと すぐ 色も変わります。</p><div class="hp-qk">`
-    +QUICK.map(([k,ic,t,sub],i)=>`<button type="button" class="hp-qb" onclick="HP.cfQuickSet(${i})"><span class="hp-qi" style="${k==='scale'||k==='bar'?swatchStyle(QUICK[i][4].st,k):swatchStyle(QUICK[i][4].st)}">${ic}</span><b>${esc(t)}</b><small>${esc(sub)}</small></button>`).join('')+'</div>';
+  const cs=(typeof cellStyles==='object' && cellStyles[g.r1+','+g.c1]) || {};
+  let html=`<p class="hp-lead">えらんだ${one?'セル':'範囲'} <b>${esc(a1)}</b> の 色です。</p>`
+    +`<div class="hp-sub">🖌 いつも この 色に 塗る</div>`+paintRow('bg', cs.bg||'')
+    +`<div class="hp-sub">✒ 字の 色</div>`+paintRow('fc', cs.color||'')
+    +`<div class="hp-sub">🎨 中身で 色が 変わる 決まり（中身を 直すと すぐ 色も 変わる）</div><div class="hp-qk">`
+    +QUICK.map(([k,ic,t,sub],i)=>(one && !QUICK_ONE.includes(k)) ? '' : `<button type="button" class="hp-qb" onclick="HP.cfQuickSet(${i})"><span class="hp-qi" style="${k==='scale'||k==='bar'?swatchStyle(QUICK[i][4].st,k):swatchStyle(QUICK[i][4].st)}">${ic}</span><b>${esc(t)}</b><small>${esc(sub)}</small></button>`).join('')+'</div>';
   html+=`<div class="hp-acts">${hit?`<button type="button" class="hp-b del left" onclick="HP.cfQuickClear()">🗑 この範囲の決まりを消す（${hit}）</button>`:''}<button type="button" class="hp-b" onclick="HP.cfQuickMore()">✏ 自分で決める…</button><button type="button" class="hp-b" onclick="HP.close()">とじる</button></div>`;
-  show('cf','🎨 色の決まり', html);
+  show('cf', one ? '🎨 色' : '🎨 色の決まり', html);
 }
 function cfQuickSet(i){
   const q=QUICK[i]; if(!q) return;
@@ -1444,7 +1468,7 @@ function chPrint(){
 }
 window.addEventListener('resize', ()=>{ if(view==='chart') { clearTimeout(chartDraw.t); chartDraw.t=setTimeout(chartDraw,150); } });
 
-window.HP={ close, menu, go, kind, kSet, kPreset, kSum, kOk, kSumPut, cf, cfNew, cfEdit, cfQuick, cfQuickSet, cfQuickClear, cfQuickMore, ckMake, ckUnmake, cfWhere, cfRow, cfType, cfSt, cfNock, cfPrev, cfSave, cfBack, cfMove, cfDel, cfClearAll,
+window.HP={ close, menu, go, kind, kSet, kPreset, kSum, kOk, kSumPut, cf, cfNew, cfEdit, cfQuick, paint, cfQuickSet, cfQuickClear, cfQuickMore, ckMake, ckUnmake, cfWhere, cfRow, cfType, cfSt, cfNock, cfPrev, cfSave, cfBack, cfMove, cfDel, cfClearAll,
   filter, fTab, fAll, fOne, fFind, fOk, fClear, fOff, quick, sortBy, pivot, pv, pvCopy, pvChart, pvMake,
   chart, chartOpen, chType, chFlip, chSer, chLc, chPie, chTitle, chTable, chSave, chPrint,
   /* テスト用 */ region, chartSource, chartBuild, chartModel:()=>chartModel(), chartSvg, pieParts, niceTicks, parseOpts, pivotRows:()=>pivotRows(), state:()=>st, view:()=>view };

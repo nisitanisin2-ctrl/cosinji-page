@@ -2569,6 +2569,16 @@ body.dark #cellMenu.edit-bar.ui2-pop.show { --pop-cx: #8fd9b0; }
 #cellMenu.edit-bar.ui2-pop .cm-cx.on .pl { color: #fff; }
 #cellMenu.edit-bar.ui2-pop .cm-more2 { display: inline-flex; order: 10000; color: var(--pop-ink); }
 #cellMenu.edit-bar.ui2-pop .cm-arr { background: var(--pop-bg); color: var(--pop-ink); }
+/* v687：メニューを テンキーの 合計・＝ の 段に 出す とき。段を 高く して（テンキーが 少し 高く なる）、段の 幅いっぱいに アイコン＋名前 */
+body.ui2.band-pad #numpadPage1 .btn.kp-half { height: calc(33px * var(--key-scale, 1.3)); font-size: calc(12.5px * var(--key-scale, 1.3)); }
+#cellMenu.edit-bar.ui2-pop.ui2-padrow.show { --pop-bg: #2b3238; --pop-ink: #f4f7f5; --pop-sub: #c3cec8; --pop-press: rgba(255,255,255,.14); --pop-line: var(--acc); --pop-cx: #8fd9b0;
+  max-width: none; padding: 2px 4px; border: 2px solid var(--acc); border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.35); box-sizing: border-box;
+  -webkit-backdrop-filter: none; backdrop-filter: none; align-items: stretch; }
+#cellMenu.edit-bar.ui2-pop.ui2-padrow button:not(.cm-arr) { min-width: 52px; padding: 2px 4px; }
+#cellMenu.edit-bar.ui2-pop.ui2-padrow button .pi { font-size: 19px; }
+#cellMenu.edit-bar.ui2-pop.ui2-padrow button .pl { font-size: 10.5px; }
+/* v687：⇲ 広げてコピー を 押した あとの 元の セル（範囲）。点線の オレンジ */
+#sheet .cell.fill-pick-src { outline: 2px dashed #f57c00; outline-offset: -2px; background-color: rgba(245,124,0,.10); }
 .bm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .bm-item { min-height: 54px; padding: 8px 6px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn); background: var(--save-item-bg); color: var(--text);
   font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
@@ -5025,7 +5035,7 @@ body.dark {
       <button class="skin-seg-btn" data-cg="excel" onclick="setCellGesture('excel')">Excel と同じ</button>
       <button class="skin-seg-btn" data-cg="old" onclick="setCellGesture('old')">以前の表電卓</button>
     </div>
-    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け など</b>の帯が出ます。選んだ セルを もう一度 押すと、テンキーの いちばん上の 列に 帯が 出て、数字なら ¥・%、文字なら 太字・寄せ、範囲なら 合計・並べかえ と、選んだ ものに 合わせた ボタンが 並びます）、選んだセルの<b>角の つまみ</b>を引っぱると<b>フィル</b>（下の「範囲選択と コピー（フィル）」で、帯の ボタン・長押しして なぞる にも 変えられます。v629）。<br><b>以前の表電卓</b>：ダブルタップで<b>中身を直す</b>（Excel と同じ）、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
+    <div class="set-note"><b>Excel と同じ</b>：ダブルタップで<b>中身を直す</b>（スマホではテンキーの場所にキーボードが出て、その上に<b>切り取り・コピー・貼り付け など</b>の帯が出ます。選んだ セルを もう一度 押すと、テンキーの いちばん上の 列に 帯が 出て、数字なら ¥・%、文字なら 太字・寄せ、範囲なら 合計・並べかえ と、選んだ ものに 合わせた ボタンが 並びます）、コピー（<b>フィル</b>）は メニューの「⇲ 広げてコピー」から（下の「範囲選択と コピー（フィル）」で、前の やり方〈角の つまみ〉・帯の ボタン・長押しして なぞる にも 変えられます。v629・v687）。<br><b>以前の表電卓</b>：ダブルタップで<b>中身を直す</b>（Excel と同じ）、長押ししてから動かすと<b>フィル</b>、約1秒の長押しで<b>メニュー</b>。</div>
     <div class="set-sec">範囲選択と コピー（フィル）</div>
     <div class="skin-seg" id="fillHowSeg"></div>
     <div class="set-note" id="fillHowNote"></div>
@@ -5035,6 +5045,9 @@ body.dark {
     <div class="set-sec">帯の ボタン</div>
     <div class="set-note">セルを 押すと テンキーの 上に 出る <b>帯</b>に、どの ボタンを どの 順で 出すかを、帯の 種類（数字の セル・文字の セル・範囲・列名・行番号 など）ごとに 決められます。押しても 並びは 変わりません。</div>
     <button class="set-act" id="setBandBtn" onclick="toggleSettings();openBandCfg()" title="帯に 出す ボタンと 並びを 決める">🎛 帯の ボタン（出す ボタン・並び）</button>
+    <div class="set-sec">セルを 選んだ ときの メニューの 場所</div>
+    <div class="skin-seg" id="bandWhereSeg"></div>
+    <div class="set-note" id="bandWhereNote"></div>
     <div class="set-sec">使いかた</div>
     <button class="set-act" id="setTourBtn" onclick="toggleSettings(); setTimeout(openTour, 320);">🚀 はじめての案内をもう一度見る</button>
     <button class="set-act" onclick="toggleSettings(); setTimeout(openQrShare, 320);">📱 アプリを共有（QRコード）</button>
