@@ -34,10 +34,6 @@ function okDate(s){
 const dayStart=d=>new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const dayNo=d=>Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())/86400000);
 const WD='日月火水木金土';
-function dayLabel(d){
-  const n=dayNo(now())-dayNo(d), base=(d.getFullYear()!==now().getFullYear() ? d.getFullYear()+'年' : '')+(d.getMonth()+1)+'月'+d.getDate()+'日（'+WD[d.getDay()]+'）';
-  return base+(n===0 ? '・きょう' : n===1 ? '・きのう' : n===2 ? '・おととい' : '');
-}
 function agoText(d){ const n=dayNo(now())-dayNo(d); return n<=0 ? 'きょう' : n===1 ? 'きのう' : n===2 ? 'おととい' : n<60 ? n+'日前' : '約'+Math.round(n/30.44)+'か月前'; }
 
 /* ───────── 食事（時刻から 自動） ───────── */
@@ -50,7 +46,8 @@ const mealName=k=>{ const x=mealDef(k); return x[1]+' '+x[2]; };
 let st=null;          // {e:[{i,t,n,m,q}] 古い 順, split:true}
 let when=null;        // あとから 入れる ときの「いつ」 {day:'YYYY-MM-DD', meal:'asa'|null, time:'HH:MM'|null}（null＝いま）
 let q='';             // さがす
-let shownDays=7;      // 出して いる 日数（上の「もっと 前」で ふやす）
+const SHOW_N=200;     // はじめに 出す 品数（新しい ほうから）
+let shown=SHOW_N;     // 出して いる 品数（上の「もっと 前」で ふやす）
 function cleanE(x){
   if(!x || typeof x!=='object') return null;
   const n=oneLine(x.n, NAME_N), t=+x.t; if(!n || !isFinite(t) || t<0) return null;
@@ -141,15 +138,15 @@ function whenText(){
   const dt=n===0 ? 'きょう' : n===1 ? 'きのう' : n===2 ? 'おととい' : (d.getMonth()+1)+'/'+d.getDate();
   return dt+(when.meal ? 'の '+mealName(when.meal) : '')+(when.time ? ' '+when.time : '');
 }
-function groups(list){   // 日 → 食事の まとまり（続けて 同じ 食事の ものを 1つに）
-  const days=[]; let cd=null, cg=null;
-  for(const x of list){
-    const d=new Date(x.t), k=ymd(d);
-    if(!cd || cd.k!==k){ cd={k, d:dayStart(d), g:[], n:0}; days.push(cd); cg=null; }
-    if(!cg || cg.m!==x.m){ cg={m:x.m, t:x.t, its:[]}; cd.g.push(cg); }
-    cg.its.push(x); cd.n++;
-  }
-  return days;
+function dateText(d){   // 11/17（火）・年が ちがえば 2025/11/17（月）
+  return (d.getFullYear()!==now().getFullYear() ? d.getFullYear()+'/' : '')+(d.getMonth()+1)+'/'+d.getDate()+'（'+WD[d.getDay()]+'）';
+}
+function rowsHtml(list){   // 食べた物を 1行ずつ（入れた 日付・時刻つき）。日が かわる 所に 線
+  const tk=ymd(now()); let prev='';
+  return '<div class="tb-list">'+list.map(x=>{
+    const d=new Date(x.t), k=ymd(d), nd=k!==prev; prev=k;
+    return '<button type="button" class="tb-row'+(nd ? ' nd' : '')+(k===tk ? ' td' : '')+'" onclick="TABETA.open(\''+x.i+'\')"><span class="tb-dt">'+dateText(d)+'<b>'+hm(d)+'</b></span><span class="tb-nm">'+esc(x.n)+(x.q ? '<small>'+esc(x.q)+'</small>' : '')+'</span></button>';
+  }).join('')+'</div>';
 }
 function render(toBottom){
   const b=$('tbBody'); if(!b) return;
@@ -162,24 +159,18 @@ function render(toBottom){
     else {
       const names=new Map(); hit.forEach(x=>{ const o=names.get(x.n)||{n:0, last:0}; o.n++; o.last=Math.max(o.last, x.t); names.set(x.n, o); });
       html='<div class="tb-sum">'+[...names.entries()].sort((a,b)=>b[1].n-a[1].n).slice(0,8).map(([n,o])=>'<div><b>'+esc(n)+'</b> '+o.n+'回・最後 '+(new Date(o.last).getMonth()+1)+'月'+new Date(o.last).getDate()+'日（'+agoText(new Date(o.last))+'）</div>').join('')+'</div>'
-        +daysHtml(groups(hit.slice(-300)), true)+(hit.length>300 ? '<p class="tb-note">新しい 300件を 出して います（ぜんぶで '+hit.length+'件）</p>' : '');
+        +rowsHtml(hit.slice(-300))+(hit.length>300 ? '<p class="tb-note">新しい 300件を 出して います（ぜんぶで '+hit.length+'件）</p>' : '');
     }
   } else if(!st.e.length){
-    html='<div class="tb-empty"><div class="e" aria-hidden="true">🍽</div><p>食べた物を 下の 欄に 打つか 🎤 で 話して ください。<br>「おにぎり、みそ汁、卵焼き」のように まとめて 入れると 1品ずつ 入ります。</p><p>時刻と 朝・昼・夕は 自動です。あとから 入れる ときは「いつ：いま」を 押して 日や 食事を えらびます。</p></div>';
+    html='<div class="tb-empty"><div class="e" aria-hidden="true">🍽</div><p>食べた物を 下の 欄に 打つか 🎤 で 話して ください。<br>入れた 物が 1行ずつ ずっと 並んで いきます。<br>「おにぎり、みそ汁、卵焼き」のように まとめて 入れると 1品ずつ 入ります。</p><p>入れた <b>日付と 時刻は 自動で</b> つきます。あとから 入れる ときは「いつ：いま」を 押して 日を えらびます。</p></div>';
   } else {
-    const from=dayStart(now()).getTime()-(shownDays-1)*86400000, list=st.e.filter(x=>x.t>=from), older=st.e.length-list.length;
-    html=(older ? '<button type="button" class="tb-more" onclick="TABETA.more()">▲ もっと 前を 見る（あと '+older+'品）</button>' : '')
-      +(list.length ? daysHtml(groups(list), false) : '<p class="tb-note">この '+shownDays+'日は まだ ありません。</p>');
+    const list=st.e.slice(-shown), older=st.e.length-list.length;
+    html=(older ? '<button type="button" class="tb-more" onclick="TABETA.more()">▲ もっと 前を 見る（あと '+older.toLocaleString()+'品）</button>' : '')
+      +rowsHtml(list)+'<p class="tb-count">ぜんぶで '+st.e.length.toLocaleString()+'品</p>';
   }
   b.innerHTML='<div class="tb-wrap">'+html+'</div>';
   renderDock();
   if(keepBottom && !qq) b.scrollTop=b.scrollHeight;
-}
-function daysHtml(days, find){
-  return days.map(d=>'<section class="tb-day"><h4>'+esc(dayLabel(d.d))+'<small>'+d.n+'品</small></h4>'
-    +d.g.map(g=>'<div class="tb-meal m-'+g.m+'"><div class="tb-mh">'+mealName(g.m)+'<small>'+hm(new Date(g.t))+'</small></div><div class="tb-its">'
-      +g.its.map(x=>'<button type="button" class="tb-it" onclick="TABETA.open(\''+x.i+'\')">'+esc(x.n)+(x.q ? '<small>'+esc(x.q)+'</small>' : '')+'</button>').join('')+'</div></div>').join('')
-    +'</section>').join('');
 }
 function renderDock(){
   const w=$('tbWhen'), c=$('tbChips'); if(!w || !c) return;
@@ -278,7 +269,7 @@ function rangeOf(k){
 function text(k){
   const r=rangeOf(k||'today'), list=st.e.filter(x=>x.t>=r.from && x.t<r.to);
   if(!list.length) return '';
-  return '🍽 食べた物（'+r.title+'）\n'+groups(list).map(d=>'■ '+dayLabel(d.d)+'（'+d.n+'品）\n'+d.g.map(g=>mealName(g.m)+' '+hm(new Date(g.t))+'：'+g.its.map(x=>x.n+(x.q ? '（'+x.q+'）' : '')).join('、')).join('\n')).join('\n\n');
+  return '🍽 食べた物（'+r.title+'・'+list.length+'品）\n'+list.map(x=>{ const d=new Date(x.t); return dateText(d)+' '+hm(d)+'　'+x.n+(x.q ? '（'+x.q+'）' : ''); }).join('\n');
 }
 function rows(k){
   const r=rangeOf(k||'week'), list=st.e.filter(x=>x.t>=r.from && x.t<r.to);
@@ -308,7 +299,7 @@ async function wipe(){
   const keep=st.e; st.e=[]; save(); popClose(); render();
   showUndo('ぜんぶ 消しました', ()=>{ st.e=keep; save(); render(true); });
 }
-function more(){ const b=$('tbBody'), h=b ? b.scrollHeight : 0; shownDays+=14; render(); if(b) b.scrollTop=b.scrollHeight-h; }
+function more(){ const b=$('tbBody'), h=b ? b.scrollHeight : 0; shown+=300; render(); if(b) b.scrollTop=b.scrollHeight-h; }
 function find(v){ q=String(v||''); render(!q); }
 
 /* ───────── 🎤 声 ───────── */
@@ -336,14 +327,14 @@ const CSS=`
 .tb-top button{ min-width:46px; min-height:42px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:18px; cursor:pointer; }
 .tb-body{ flex:1; min-height:0; overflow:auto; padding:6px 10px 10px; color:var(--text,#222); font-size:15px; overscroll-behavior:contain; }
 .tb-wrap{ max-width:760px; margin:0 auto; }
-.tb-day h4{ position:sticky; top:-6px; z-index:1; display:flex; align-items:baseline; gap:8px; margin:10px -4px 6px; padding:6px 4px; background:var(--modal-bg,#fff); font-size:15px; color:var(--acc-text,var(--acc)); border-bottom:2px solid var(--acc); }
-.tb-day h4 small{ font-size:12.5px; color:var(--text-light,#666); font-weight:normal; }
-.tb-meal{ display:flex; gap:8px; align-items:flex-start; margin:0 0 6px; padding:6px 8px; border-radius:12px; background:rgba(120,132,156,.07); border-left:5px solid #90a4ae; }
-.tb-meal.m-asa{ border-left-color:#ffb300; } .tb-meal.m-hiru{ border-left-color:#43a047; } .tb-meal.m-oya{ border-left-color:#ec407a; } .tb-meal.m-yuu{ border-left-color:#e64a19; } .tb-meal.m-yoru{ border-left-color:#5c6bc0; }
-.tb-mh{ flex:none; width:4.6em; font-size:13px; font-weight:bold; line-height:1.3; padding-top:6px; } .tb-mh small{ display:block; font-weight:normal; color:var(--text-light,#666); }
-.tb-its{ flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:5px; }
-.tb-it{ min-height:38px; padding:4px 12px; border-radius:19px; border:1px solid rgba(120,132,156,.4); background:var(--modal-bg,#fff); color:var(--text,#222); font-size:15px; text-align:left; cursor:pointer; overflow-wrap:anywhere; }
-.tb-it small{ display:block; font-size:11.5px; color:var(--text-light,#666); }
+.tb-list{ display:flex; flex-direction:column; }
+#tabetaOverlay .tb-row{ display:flex; justify-content:flex-start; align-items:baseline; gap:10px; width:100%; min-height:44px; padding:11px 6px; border:0; border-bottom:1px solid rgba(120,132,156,.22); background:transparent; color:var(--text,#222); text-align:left; cursor:pointer; font:inherit; }
+#tabetaOverlay .tb-row.nd{ border-top:2px solid rgba(120,132,156,.55); } #tabetaOverlay .tb-row.nd:first-child{ border-top:0; }
+.tb-row:active{ background:rgba(120,132,156,.12); }
+.tb-dt{ flex:none; min-width:8.3em; font-size:13px; color:var(--text-light,#666); white-space:nowrap; font-variant-numeric:tabular-nums; } .tb-dt b{ display:inline-block; min-width:2.9em; margin-left:4px; text-align:right; font-weight:normal; }
+.tb-row.td .tb-dt{ color:var(--acc-text,var(--acc)); font-weight:bold; } .tb-row.td .tb-dt b{ font-weight:bold; }
+.tb-nm{ flex:1; min-width:0; text-align:left; font-size:16px; overflow-wrap:anywhere; } .tb-nm small{ margin-left:8px; font-size:12.5px; color:var(--text-light,#666); }
+.tb-count{ margin:8px 0 2px; text-align:right; font-size:12.5px; color:var(--text-light,#666); }
 .tb-more{ display:block; width:100%; min-height:42px; margin:4px 0 6px; border-radius:12px; border:1px dashed rgba(120,132,156,.6); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
 .tb-note{ font-size:13px; color:var(--text-light,#666); line-height:1.6; margin:8px 0; }
 .tb-sum{ margin:6px 0 8px; padding:8px 10px; border-radius:12px; background:var(--acc-weak,rgba(33,115,70,.12)); font-size:14px; line-height:1.7; }
@@ -407,7 +398,7 @@ function ensureDom(){
   if(typeof applyNpToolFull==='function') applyNpToolFull();
 }
 function cleanup(){ popClose(); micStop(); clearTimeout(undoT); undo=null; const u=$('tbUndo'); if(u) u.classList.remove('on'); }
-function openTabeta(){ ensureDom(); load(); q=''; shownDays=7; const f=$('tbFind'); if(f) f.value=''; openDlg('tabetaOverlay', cleanup); render(true); }
+function openTabeta(){ ensureDom(); load(); q=''; shown=SHOW_N; const f=$('tbFind'); if(f) f.value=''; openDlg('tabetaOverlay', cleanup); render(true); }
 function closeTabeta(){ if(!$('tabetaOverlay') || !isDlgOpen('tabetaOverlay')) return; closeDlg('tabetaOverlay', cleanup); }
 
 window.TABETA={ go:addGo, chip, undo:undoDo, open:openItem, close:popClose, pickMeal, saveItem, del:delItem, again, whenTap, setWhen, openWhen, menu:openMenu, out, csv, wipe, setSplit, more, find, mic,

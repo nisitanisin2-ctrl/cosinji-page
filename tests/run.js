@@ -23077,7 +23077,7 @@ async function runTabeta693(browser) {
   check('  はじめは 案内・← もどる・入れる 欄・🎤・いつ：いま（朝）', await page.evaluate(() => [!!document.querySelector('#tbBody .tb-empty'), !!document.querySelector('#tabetaOverlay .tool-back'), !!document.getElementById('tbIn'), !!document.getElementById('tbMic'), document.getElementById('tbWhen').textContent].join('/')), 'true/true/true/true/🕘 いつ：いま（🌅 朝）');
   // 打って Enter → 1品ずつ・欄は 空・続けて 入れられる
   await page.fill('#tbIn', 'おにぎり、みそ汁・卵焼き'); await page.press('#tbIn', 'Enter'); await w(150);
-  check('  「、」「・」で 分けて 1品ずつ・欄は 空に なり 入力を 続けられる・朝に まとまる', await page.evaluate(() => { const s = TABETA.state(); return [s.e.map(x => x.n).join(','), s.e.every(x => x.m === 'asa'), document.getElementById('tbIn').value === '', document.activeElement && document.activeElement.id, document.querySelectorAll('#tbBody .tb-meal').length, document.querySelector('#tbBody .tb-mh').textContent].join('/'); }), 'おにぎり,みそ汁,卵焼き/true/true/tbIn/1/🌅 朝7:20');
+  check('  「、」「・」で 分けて 1品ずつ・欄は 空に なり 入力を 続けられる・朝に なる・1行ずつ 日付つき（v694）', await page.evaluate(() => { const s = TABETA.state(); return [s.e.map(x => x.n).join(','), s.e.every(x => x.m === 'asa'), document.getElementById('tbIn').value === '', document.activeElement && document.activeElement.id, [...document.querySelectorAll('#tbBody .tb-row')].map(r => r.textContent).join('|')].join('/'); }), 'おにぎり,みそ汁,卵焼き/true/true/tbIn/11/17（火）7:20おにぎり|11/17（火）7:20みそ汁|11/17（火）7:20卵焼き');
   check('  ↶ 取り消せる', await page.evaluate(() => { const on = document.getElementById('tbUndo').classList.contains('on'); TABETA.undo(); const n = TABETA.state().e.length; TABETA.add('おにぎり、みそ汁、卵焼き'); return on + '/' + n + '/' + TABETA.state().e.length; }), 'true/0/3');
   check('  時刻で 食事が 決まる（朝・昼・間食・夕・夜食）', await page.evaluate(() => ['2026-11-17T04:00', '2026-11-17T10:29', '2026-11-17T10:30', '2026-11-17T15:00', '2026-11-17T17:00', '2026-11-17T22:00', '2026-11-17T03:59'].map(s => TABETA.mealOf(s)).join(',')), 'asa,asa,hiru,oya,yuu,yoru,yoru');
   check('  声は「と」でも 分ける（さとう・おべんとう・とうふ は 分けない）・「食べた」を 落とす', await page.evaluate(() => [TABETA.split('おにぎりとみそ汁と卵焼き').join('|'), TABETA.split('おべんとうとお茶').join('|'), TABETA.split('さとうととうふ').join('|'), TABETA.split('焼きとり').join('|'), TABETA.split('カレーを食べた').join('|'), TABETA.split('ハムとチーズ', false).join('|')].join(' / ')), 'おにぎり|みそ汁|卵焼き / おべんとう|お茶 / さとう|とうふ / 焼きとり / カレー / ハムとチーズ');
@@ -23086,7 +23086,7 @@ async function runTabeta693(browser) {
   // よく 食べる 物の ボタン
   await page.evaluate(() => { TABETA.now('2026-11-16T07:30'); TABETA.add('おにぎり、みそ汁'); TABETA.now('2026-11-15T07:30'); TABETA.add('おにぎり'); TABETA.now('2026-11-17T19:00'); }); await w(100);
   check('  よく 食べる・さっき 入れた 物は ボタン（押すと 入る・夕）', await page.evaluate(() => { const c = TABETA.chips(); const b = [...document.querySelectorAll('#tbChips button')].find(x => x.textContent.includes('おにぎり')); b.click(); const e = TABETA.state().e.slice(-1)[0]; return [c.includes('おにぎり'), c.includes('ギョーザ'), e.n, e.m].join('/'); }), 'true/true/おにぎり/yuu');
-  check('  日ごとに 並ぶ（下が 新しい）・品数', await page.evaluate(() => [...document.querySelectorAll('#tbBody .tb-day h4')].map(h => h.textContent).join(' | ')), '11月15日（日）・おととい1品 | 11月16日（月）・きのう2品 | 11月17日（火）・きょう6品');
+  check('  1行ずつ ずっと 並ぶ（下が 新しい・日が かわる 所に 線・きょうは 色・ぜんぶの 品数）', await page.evaluate(() => { const r = [...document.querySelectorAll('#tbBody .tb-row')]; return [r.length, r.slice(0, 4).map(x => x.querySelector('.tb-dt').textContent + (x.classList.contains('nd') ? '!' : '') + (x.classList.contains('td') ? '*' : '')).join(','), r[r.length - 1].querySelector('.tb-nm').textContent, document.querySelector('#tbBody .tb-count').textContent].join(' / '); }), '9 / 11/15（日）7:30!,11/16（月）7:30!,11/16（月）7:30,11/17（火）7:20!* / おにぎり / ぜんぶで 9品');
   // あとから 入れる（いつ）
   await page.evaluate(() => { TABETA.openWhen(); TABETA.setWhen('day', '2026-11-16'); TABETA.setWhen('meal', 'yuu'); TABETA.close(); }); await w(100);
   await page.fill('#tbIn', '焼き魚、ごはん'); await page.press('#tbIn', 'Enter'); await w(150);
@@ -23099,15 +23099,37 @@ async function runTabeta693(browser) {
   check('  消す・↶ で もどす・🔁 もう一度 食べた', await page.evaluate(id => { const n0 = TABETA.state().e.length; TABETA.del(id); const n1 = TABETA.state().e.length; TABETA.undo(); const n2 = TABETA.state().e.length; TABETA.again(id); const l = TABETA.state().e.slice(-1)[0]; return [n0 - n1, n2 === n0, l.n, l.m].join('/'); }, id), '1/true/ギョーザ/yuu');
   // さがす
   await page.fill('#tbFind', 'おにぎり'); await w(150);
-  check('  🔍 さがす：何回・最後に いつ', await page.evaluate(() => document.querySelector('#tbBody .tb-sum').textContent + '|' + document.querySelectorAll('#tbBody .tb-it').length), 'おにぎり 4回・最後 11月17日（きょう）|4');
+  check('  🔍 さがす：何回・最後に いつ', await page.evaluate(() => document.querySelector('#tbBody .tb-sum').textContent + '|' + document.querySelectorAll('#tbBody .tb-row').length), 'おにぎり 4回・最後 11月17日（きょう）|4');
   await page.fill('#tbFind', ''); await w(100);
   // コピー・表・CSV
-  check('  📋 コピーの 文（きょう）・表に 入れる 形', await page.evaluate(() => [TABETA.text('today').split('\n').slice(0, 3).join(' / '), TABETA.rows('all')[0].join(',')].join(' || ')), '🍽 食べた物（きょう） / ■ 11月17日（火）・きょう（7品） / 🌅 朝 7:20：おにぎり、みそ汁、卵焼き || 日付,時刻,食事,食べた物,量・メモ');
+  check('  📋 コピーの 文（きょう）・表に 入れる 形', await page.evaluate(() => [TABETA.text('today').split('\n').slice(0, 3).join(' / '), TABETA.rows('all')[0].join(',')].join(' || ')), '🍽 食べた物（きょう・7品） / 11/17（火） 7:20　おにぎり / 11/17（火） 7:20　みそ汁 || 日付,時刻,食事,食べた物,量・メモ');
   check('  ⬇ CSV は 英数字の ファイル名', await page.evaluate(async () => { let name = ''; const orig = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { name = this.download; }; TABETA.csv(); HTMLAnchorElement.prototype.click = orig; return name; }), 'tabeta_20261117.csv');
   check('  ▦ この7日を 表に 入れる', await page.evaluate(async () => { TABETA.out('table', 'week'); await new Promise(r => setTimeout(r, 900)); return isDlgOpen('tabetaOverlay') + '/' + data[0].slice(0, 5).join(',') + '/' + (data[1][3] !== ''); }), 'false/日付,時刻,食事,食べた物,量・メモ/true');
   // 開き直しても 残る・こわれた 保存
   check('  開き直しても 残る・こわれた 保存は 捨てる', await page.evaluate(async () => { await openTabeta(); const n = TABETA.state().e.length; closeTabeta(); localStorage.setItem('excalc_tabeta', JSON.stringify({ e: [{ i: 'x', t: 'abc', n: 'a' }, { t: 1e12, n: '  りんご ' }, { t: 1e12, n: '' }, 5] })); await openTabeta(); const s = TABETA.state(); closeTabeta(); return n + '/' + s.e.length + '/' + s.e[0].n; }), '12/1/りんご');
   check('  たくさん 入れても 速い（5000品）', await page.evaluate(async () => { const e = []; for (let i = 0; i < 5000; i++) e.push({ i: 'a' + i.toString(36).padStart(5, '0'), t: Date.UTC(2026, 0, 1) + i * 3 * 3600000, n: ['ごはん', 'パン', 'みそ汁', 'カレー'][i % 4], m: 'hiru', q: '' }); localStorage.setItem('excalc_tabeta', JSON.stringify({ e })); const t0 = performance.now(); await openTabeta(); TABETA.add('りんご'); const ms = performance.now() - t0; const n = TABETA.state().e.length; closeTabeta(); return (ms < 1500) + '/' + n; }), 'true/5001');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v694：🍽 食べた物 帳を 1行ずつ ずっと 並ぶ 形に（どの 行にも 入れた 日付と 時刻） */
+async function runTabeta694(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🍽 食べた物 帳：1行ずつ 日付つきで ずっと 並ぶ（v694） ──');
+  await page.evaluate(async () => {
+    const e = []; for (let i = 0; i < 650; i++) e.push({ i: 'b' + i.toString(36).padStart(4, '0'), t: new Date(2026, 10, 17, 21, 0).getTime() - (649 - i) * 5 * 3600000, n: '品' + i, m: 'hiru', q: i === 649 ? '半分' : '' });
+    e.unshift({ i: 'y2025a', t: new Date(2025, 0, 5, 8, 3).getTime(), n: 'おぞうに', m: 'asa', q: '' });
+    localStorage.setItem('excalc_tabeta', JSON.stringify({ e })); await openTabeta(); TABETA.now('2026-11-17T21:30');
+  });
+  await page.waitForTimeout(300);
+  check('  はじめは 新しい 200品・上に「▲ もっと 前」・下に ぜんぶの 品数・いちばん 下まで 送って ある', await page.evaluate(() => { const b = document.getElementById('tbBody'), r = b.querySelectorAll('.tb-row'); return [r.length, b.querySelector('.tb-more').textContent, b.querySelector('.tb-count').textContent, b.scrollHeight - b.scrollTop - b.clientHeight < 4].join(' / '); }), '200 / ▲ もっと 前を 見る（あと 451品） / ぜんぶで 651品 / true');
+  check('  どの 行にも 日付・時刻と 食べた物（量・メモも）', await page.evaluate(() => { const r = [...document.querySelectorAll('#tbBody .tb-row')].pop(); return r.querySelector('.tb-dt').textContent + '|' + r.querySelector('.tb-nm').textContent; }), '11/17（火）21:00|品649半分');
+  check('  ▲ もっと 前 で 300品 ふえ、見て いた 所は そのまま', await page.evaluate(() => { const b = document.getElementById('tbBody'); b.scrollTop = 0; TABETA.more(); return b.querySelectorAll('.tb-row').length + '/' + (b.scrollTop > 0); }), '500/true');
+  check('  ぜんぶ 出すと 年が ちがう 日は 年も', await page.evaluate(() => { TABETA.more(); const r = document.querySelector('#tbBody .tb-row'); return document.querySelectorAll('#tbBody .tb-row').length + '/' + !!document.querySelector('#tbBody .tb-more') + '/' + r.querySelector('.tb-dt').textContent + '/' + r.classList.contains('nd'); }), '651/false/2025/1/5（日）8:03/true');
+  await page.evaluate(() => { closeTabeta(); localStorage.setItem('excalc_tabeta', JSON.stringify({ e: [] })); }); await page.evaluate(() => openTabeta()); await page.waitForTimeout(200);
+  check('  はじめの 案内に「日付と 時刻は 自動」', await page.evaluate(() => document.querySelector('#tbBody .tb-empty').textContent.includes('日付と 時刻は 自動で')), true);
+  await page.fill('#tbIn', 'トースト、牛乳'); await page.press('#tbIn', 'Enter'); await page.waitForTimeout(150);
+  check('  入れると すぐ 下に 日付つきで 並ぶ・コピーも 1行ずつ', await page.evaluate(() => [[...document.querySelectorAll('#tbBody .tb-row')].map(r => r.textContent).join(','), TABETA.text('today').replace(/\n/g, ' / ')].join(' || ')), '11/17（火）21:30トースト,11/17（火）21:30牛乳 || 🍽 食べた物（きょう・2品） / 11/17（火） 21:30　トースト / 11/17（火） 21:30　牛乳');
+  check('  名前は 左に そろう（時刻の 桁で ずれない）', await page.evaluate(() => { TABETA.now('2026-11-17T07:05'); TABETA.add('ごはん'); const xs = [...document.querySelectorAll('#tbBody .tb-nm')].map(n => Math.round(n.getBoundingClientRect().left)); return new Set(xs).size + '/' + getComputedStyle(document.querySelector('#tbBody .tb-nm')).textAlign; }), '1/left');
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
@@ -23512,6 +23534,7 @@ const SUITES = [
   [['voicefx691', 'v691'], b => runVoiceFx691(b)],
   [['oto692', 'v692'], b => runOto692(b)],
   [['tabeta693', 'v693'], b => runTabeta693(b)],
+  [['tabeta694', 'v694'], b => runTabeta694(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
