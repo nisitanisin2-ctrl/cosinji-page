@@ -40,7 +40,7 @@ async function newPage(browser) {
   // はじめての案内（v384）は初回だけ全画面で出る。ふつうの組では
   // 「もう見た人」として開き、画面をふさがないようにする
   // （案内そのものは onboard の組で、まっさらな端末から確かめている）。
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); localStorage.setItem('excalc_fill_how', 'handle'); });   // v687：はじめは「メニューから」に なったが、ふつうの 組は 角の つまみ（前の やり方）で 確かめる（メニューから は fillmenu687 の 組で）。上のバーを出した画面で確かめる（たたむのは tbfold の組で）。道具は「戻る」で すぐ閉じる（v553 の「表電卓に戻りますか？」は backask の組で）
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });   // 上のバーを出した画面で確かめる（たたむのは tbfold の組で）。道具は「戻る」で すぐ閉じる（v553 の「表電卓に戻りますか？」は backask の組で）
   await page.reload(); await page.waitForTimeout(900);
   return { ctx, page, errs, dialogs };
 }
@@ -19184,7 +19184,7 @@ async function runCellXl(browser) {
   check('  スマホではテンキーを隠す（キーボードがその場所に出る）', await page.evaluate(() => document.body.classList.contains('kb-edit') === isTouchUI()
     && (!isTouchUI() || getComputedStyle(document.getElementById('numpadSection')).display === 'none')), true);
   check('  帯には切り取り・コピー・貼り付け（編集は出さない）', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).map(b => b.textContent.trim().split(' ').pop()).join('/')),
-    '切り取り/コピー/貼り付け/消去/書式/保護');   // 行・列の挿入は 帯から 外した（v621。行番号・列名の 長押しで）
+    '色/切り取り/コピー/貼り付け/消去/書式/保護');   // v687：1つの セルでも 🎨 色   // 行・列の挿入は 帯から 外した（v621。行番号・列名の 長押しで）
   await page.keyboard.type('たまご');
   await page.evaluate(() => cellMenuAct('copy')); await page.waitForTimeout(450);
   check('  帯のボタンを押すと、打ちかけの中身を確定してから働く', await page.evaluate(() => data[3][1] + '|' + clipData.val), 'たまご|たまご');
@@ -19502,7 +19502,7 @@ async function runHyo624(browser) {
   await page.evaluate(() => { window.appConfirm = async () => true; ['品名,数,金額', 'りんご,3,1200', 'みかん,10,500', 'ぶどう,2,2400'].forEach((l, r) => l.split(',').forEach((v, c) => setCellVal(r, c, v))); recalcAll(); sel(1, 2); });
   // ── 2. 選んだものに 合わせた 帯 ──
   await tap(1, 2); await w(600);
-  check('  数字の セル：¥・%・桁区切り・小数＋−', await ctxBtns(), '¥ 円/％/1,000/.0＋/.0−');
+  check('  数字の セル：¥・%・桁区切り・小数＋−', await ctxBtns(), '¥ 円/％/1,000/.0＋/.0−/🎨 色');
   await page.evaluate(() => [...document.querySelectorAll('#cellMenuCtx button')].find(b => b.dataset.act === 'nf_yen').click()); await w(250);
   check('  ¥ を押すと ¥1,200（中身は 1200 の まま）・帯は 出たまま・押した 印', await page.evaluate(() => [document.getElementById('c1_2').textContent, data[1][2], document.getElementById('cellMenu').classList.contains('show'), document.querySelector('#cellMenuCtx [data-act=nf_yen]').classList.contains('on')].join('/')), '¥1,200/1200/true/true');
   check('  合計は そのまま 数で 計算', await page.evaluate(() => { setCellVal(5, 2, '=C2*2'); recalcAll(); const v = getCellDisplay(5, 2); setCellVal(5, 2, ''); return v; }), '2400');
@@ -19511,7 +19511,7 @@ async function runHyo624(browser) {
   check('  % は 25.6%・小数＋−で 25.60%→26%', await page.evaluate(() => { const a = document.getElementById('c2_1').textContent; bandDec(1); const b = document.getElementById('c2_1').textContent; bandDec(-1); bandDec(-1); bandDec(-1); const c = document.getElementById('c2_1').textContent; return [a, b, c].join('/'); }), '25.6%/25.60%/26%');
   await page.evaluate(() => { kfmtApply(s => { delete s.nf; delete s.dec; }); setCellVal(2, 1, '10'); hideEditBar(); }); await w(500);
   await tap(1, 0); await w(600); await tap(1, 0); await w(600);
-  check('  文字の セル：太字・寄せ', await ctxBtns(), '𝐁 太字/⇤ 左/↔ 中央/⇥ 右');
+  check('  文字の セル：太字・寄せ', await ctxBtns(), '𝐁 太字/⇤ 左/↔ 中央/⇥ 右/🎨 色');
   await page.evaluate(() => { hideEditBar(); clearRangeSelection(); sel(1, 1); }); await w(500);
   let a = await ctr(1, 1), b = await ctr(3, 2);
   await page.mouse.move(a.x, a.y); await page.mouse.down(); await w(80); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await w(600);
@@ -19804,11 +19804,11 @@ async function runBand626(browser) {
   await page.evaluate(() => { window.appConfirm = async () => true; [['品名', '数', '金額'], ['りんご', '3', '1200'], ['みかん', '10', '500']].forEach((row, r) => row.forEach((v, c) => setCellVal(r, c, v))); recalcAll(); sel(1, 2); });
 
   check('  セルの バーに 表の 名前は 出さない（入力欄を 広く）', await page.evaluate(() => { document.body.classList.add('tb-fold'); const r = !document.getElementById('fbRec') && !document.querySelector('.formula-bar .fb-rec'); document.body.classList.remove('tb-fold'); return r; }), true);
-  check('  はじめの 並び：数字の セル', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cut,copy,paste,edit,clear,fmt,lock');
-  check('  はじめの 並び：文字の セル', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cut,copy,paste,edit,clear,fmt,lock');
-  check('  はじめの 並び：空の セル', await bandAt(5, 1), 'ck_mk,cut,copy,paste,edit,clear,fmt,lock');   // v672：☑ チェックに
+  check('  はじめの 並び：数字の セル', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cf_q,cut,copy,paste,edit,clear,fmt,lock');
+  check('  はじめの 並び：文字の セル', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cf_q,cut,copy,paste,edit,clear,fmt,lock');
+  check('  はじめの 並び：空の セル', await bandAt(5, 1), 'ck_mk,cf_q,cut,copy,paste,edit,clear,fmt,lock');   // v672：☑ チェックに
   check('  押しても 並びは 変わらない（v624 の よく押す順は やめた）', await page.evaluate(() => { for (let i = 0; i < 5; i++) { sel(1, 2); showEditBar(true); cellMenuAct('paste'); } hideEditBar(); return localStorage.getItem('excalc_band_use') + '/' + localStorage.getItem('excalc_band_cfg'); }), 'null/null');
-  check('  　5回 貼り付けを 押した あとも 同じ 並び', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cut,copy,paste,edit,clear,fmt,lock');
+  check('  　5回 貼り付けを 押した あとも 同じ 並び', await bandAt(1, 2), 'nf_yen,nf_pct,nf_comma,dec_up,dec_dn,cf_q,cut,copy,paste,edit,clear,fmt,lock');
 
   // ⚙ 設定 → 📐 表の操作 →「🎛 帯の ボタン」
   await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
@@ -19817,14 +19817,14 @@ async function runBand626(browser) {
   await page.click('#setBandBtn'); await w(500);
   check('  窓が 開く（帯の 種類 7つ・はじめは 数字の セル）', await page.evaluate(() => [isDlgOpen('bandCfgOverlay'), [...document.querySelectorAll('.bcf-kind')].map(b => b.textContent.replace(/^\S+\s/, '')).join('|'), document.querySelector('.bcf-kind.on').textContent.includes('数字の セル')].join('/')),
     'true/数字の セル|文字の セル|空の セル・そのほか|範囲（数字あり）|範囲（文字だけ）|列名（A・B…）|行番号（1・2…）/true');
-  check('  見本に いまの 並び', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '¥ 円|％|1,000|.0＋|.0−|✂ 切り取り|⧉ コピー|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護');
+  check('  見本に いまの 並び', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '¥ 円|％|1,000|.0＋|.0−|🎨 色の決まり|✂ 切り取り|⧉ コピー|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護');
   // ¥ を 外す・コピーを 左はしへ（▲ を 6回）・太字を 足す
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row')].find(x => x.textContent.includes('¥ 円')); r.querySelector('input').click(); }); await w(150);
   for (let i = 0; i < 6; i++) { await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row:not(.off)')].find(x => x.querySelector('b').textContent === '⧉ コピー'); r.querySelectorAll('.bcf-mv')[0].click(); }); await w(60); }
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row.off')].find(x => x.querySelector('b').textContent === '𝐁 太字'); r.querySelector('input').click(); }); await w(150);
-  check('  ☑ で 出す／出さない・▲ で 左へ・足すと 右はし（見本も すぐ 変わる）', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '⧉ コピー|％|1,000|.0＋|.0−|✂ 切り取り|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護|𝐁 太字');
+  check('  ☑ で 出す／出さない・▲ で 左へ・足すと 右はし（見本も すぐ 変わる）', await page.evaluate(() => [...document.querySelectorAll('.bcf-prev span')].map(e => e.textContent).join('|')), '⧉ コピー|％|1,000|.0＋|.0−|🎨 色の決まり|✂ 切り取り|📥 貼り付け|⊞ 結合|✏ 編集|🧹 消去|🎨 書式|🔒 保護|𝐁 太字');
   check('  　いちばん 左は ▲ が 押せない', await page.evaluate(() => document.querySelector('.bcf-row:not(.off) .bcf-mv').disabled), true);
-  check('  　出さない ボタンは 下に（¥ 円 も ここに）', await page.evaluate(() => [...document.querySelectorAll('.bcf-row.off b')].map(e => e.textContent).join('|')), '¥ 円|⇤ 左|↔ 中央|⇥ 右|☑ チェックに');   // v672：☑ チェックに も 置ける
+  check('  　出さない ボタンは 下に（¥ 円 も ここに）', await page.evaluate(() => [...document.querySelectorAll('.bcf-row.off b')].map(e => e.textContent).join('|')), '⇲ 広げてコピー|¥ 円|⇤ 左|↔ 中央|⇥ 右|☑ チェックに');   // v687：⇲ 広げてコピー も 置ける   // v672：☑ チェックに も 置ける
   // 列名の 帯：列を消す を 外す
   await page.evaluate(() => { [...document.querySelectorAll('.bcf-kind')].find(b => b.textContent.includes('列名')).click(); }); await w(150);
   check('  列名の 帯は 列の ボタンだけ', await page.evaluate(() => [...document.querySelectorAll('.bcf-row b')].map(e => e.textContent).join('|')), '↔ 幅を中身に|⬅ 左に列|➡ 右に列|🗑 列を消す|🔎 しぼり込み|🙈 隠す|👁 隠した列を出す|📌 ここまで固定');
@@ -19833,25 +19833,25 @@ async function runBand626(browser) {
   await page.evaluate(() => { [...document.querySelectorAll('.bcf-kind')].find(b => b.textContent.includes('空の セル')).click(); }); await w(150);
   await page.evaluate(() => { const r = [...document.querySelectorAll('.bcf-row')].find(x => x.querySelector('b').textContent === '🔒 保護'); r.querySelector('input').click(); }); await w(150);
   check('  決めた ものは 覚える（excalc_band_cfg）', await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('excalc_band_cfg')))),
-    JSON.stringify({ num: ['copy', 'nf_pct', 'nf_comma', 'dec_up', 'dec_dn', 'cut', 'paste', 'merge', 'edit', 'clear', 'fmt', 'lock', 'bold'], col: ['col_fit', 'col_insL', 'col_insR', 'col_flt', 'col_hide', 'col_show', 'col_frz'], empty: ['ck_mk', 'cut', 'copy', 'paste', 'merge', 'edit', 'clear', 'fmt'] }));
+    JSON.stringify({ num: ['copy', 'nf_pct', 'nf_comma', 'dec_up', 'dec_dn', 'cf_q', 'cut', 'paste', 'merge', 'edit', 'clear', 'fmt', 'lock', 'bold'], col: ['col_fit', 'col_insL', 'col_insR', 'col_flt', 'col_hide', 'col_show', 'col_frz'], empty: ['ck_mk', 'cf_q', 'cut', 'copy', 'paste', 'merge', 'edit', 'clear', 'fmt'] }));
   await page.evaluate(() => closeBandCfg()); await w(300);
-  check('  帯に 効く：数字の セル（コピーが 左はし・¥ なし・太字が 右はし）', await bandAt(1, 2), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cut,paste,edit,clear,fmt,lock,bold');
-  check('  　文字の セルは そのまま', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cut,copy,paste,edit,clear,fmt,lock');
-  check('  　空の セルは 保護なし', await bandAt(5, 1), 'ck_mk,cut,copy,paste,edit,clear,fmt');
+  check('  帯に 効く：数字の セル（コピーが 左はし・¥ なし・太字が 右はし）', await bandAt(1, 2), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cf_q,cut,paste,edit,clear,fmt,lock,bold');
+  check('  　文字の セルは そのまま', await bandAt(1, 0), 'bold,al_l,al_c,al_r,cf_q,cut,copy,paste,edit,clear,fmt,lock');
+  check('  　空の セルは 保護なし', await bandAt(5, 1), 'ck_mk,cf_q,cut,copy,paste,edit,clear,fmt');
   await page.tap('#ch1'); await w(500);
   check('  　列名の 帯は 列を消す なし', await band(), 'col_fit,col_insL,col_insR,col_flt,col_hide,col_frz');
   await page.evaluate(() => hideEditBar()); await w(200);
   // 実際に タップして 出しても 同じ
   await tap(1, 2); await w(500); await tap(1, 2); await w(600);
-  check('  タップで 出した 帯も 決めた 並び', await band(), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cut,paste,edit,clear,fmt,lock,bold');
+  check('  タップで 出した 帯も 決めた 並び', await band(), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cf_q,cut,paste,edit,clear,fmt,lock,bold');
   await page.evaluate(() => hideEditBar()); await w(200);
   // 開き直しても 同じ
   await page.reload(); await w(1000);
-  check('  開き直しても 同じ', await bandAt(1, 2), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cut,paste,edit,clear,fmt,lock,bold');
+  check('  開き直しても 同じ', await bandAt(1, 2), 'copy,nf_pct,nf_comma,dec_up,dec_dn,cf_q,cut,paste,edit,clear,fmt,lock,bold');
   check('  設定の 書き出し（機種変え）に 帯の 並びも 入る', await page.evaluate(() => typeof settingsBundle().excalc_band_cfg === 'string'), true);
   check('  こわれた 中身・知らない ボタン・重なりは 捨てる', await page.evaluate(() => { const o = localStorage.getItem('excalc_band_cfg'); localStorage.setItem('excalc_band_cfg', JSON.stringify({ num: ['zzz', 'copy', 'copy', 'col_del', 'nf_yen'], text: 'abc' })); const r = bandCfgFor('num').join(',') + '|' + bandCfgFor('text').slice(0, 2).join(','); localStorage.setItem('excalc_band_cfg', o); return r; }), 'copy,nf_yen|bold,al_l');
   // 範囲（文字だけ）は ⊞ 結合が 先頭のまま
-  check('  範囲（文字だけ）の はじめの 並びは ⊞ 結合が 先頭', await page.evaluate(() => { clearRangeSelection(); sel(0, 0); rangeR1 = 0; rangeC1 = 0; extendRange(0, 2); showEditBar(true); const v = [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((a, b) => +a.style.order - +b.style.order).map(b => b.dataset.act).join(','); hideEditBar(); clearRangeSelection(); return v; }), 'merge,bold,al_c,cut,copy,paste,edit,clear,fmt,lock');
+  check('  範囲（文字だけ）の はじめの 並びは ⊞ 結合が 先頭', await page.evaluate(() => { clearRangeSelection(); sel(0, 0); rangeR1 = 0; rangeC1 = 0; extendRange(0, 2); showEditBar(true); const v = [...document.querySelectorAll('#cellMenu button[data-act]')].filter(b => b.offsetParent).sort((a, b) => +a.style.order - +b.style.order).map(b => b.dataset.act).join(','); hideEditBar(); clearRangeSelection(); return v; }), 'merge,rng_ext,bold,al_c,cut,copy,paste,edit,clear,fmt,lock');   // v680：⤢ 範囲を広げる
   // もどす
   await page.evaluate(() => openBandCfg('num')); await w(300);
   await page.evaluate(() => { [...document.querySelectorAll('.bcf-reset')][0].click(); }); await w(200);
@@ -20610,7 +20610,7 @@ async function runInput672(browser) {
   await boot();
   await page.evaluate(() => { setCellVal(1, 0, '牛乳'); setCellVal(4, 0, 'パン'); });
   await tapAt('#c1_1'); await tapAt('#c1_1');
-  check('  空の セルの 帯に「☑ チェックに」', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).map(b => b.dataset.act)[0]), 'ck_mk');
+  check('  空の セルの 帯に「☑ チェックに」', await page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent).map(b => b.dataset.act).slice(0, 2).join(',')), 'fill_to,ck_mk');   // v687：はじめは ⇲ 広げてコピー（メニューから コピー）が 先頭
   await page.evaluate(() => document.querySelector('#cellMenu button[data-act="ck_mk"]').click()); await w(600);
   await tapAt('#c4_1'); await tapAt('#c4_1'); await page.evaluate(() => document.querySelector('#cellMenu button[data-act="ck_mk"]').click()); await w(600);
   check('  1つずつ ☑（間の セルは ふつうの まま）', await page.evaluate(() => [1, 2, 3, 4].map(r => document.getElementById('c' + r + '_1').classList.contains('hp-ck') ? 'v' : '-').join('') + '|' + (cellStyles._ct ? 'ct' : '-')), 'v--v|-');
@@ -22714,13 +22714,13 @@ async function runFillMenu687(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ⇲ メニューから コピー・1つの セルの 🎨 色・メニューの 場所（v687） ──');
   const w = ms => page.waitForTimeout(ms);
-  await page.evaluate(() => { localStorage.removeItem('excalc_fill_how'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await page.reload();   // 新しい 画面で await w(900);
+  await page.evaluate(() => { localStorage.setItem('excalc_fill_how', 'menu'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await page.reload();   // 新しい 画面で await w(900);
   const box = async id => (await (await page.$(id)).boundingBox());
   const tap = async id => { const b = await box(id); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await w(450); };
   const band = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent && b.getBoundingClientRect().width > 0).map(b => b.getAttribute('aria-label') || b.textContent.trim()).join('|'));
   const press = lb => page.evaluate(lb => { const b = [...document.querySelectorAll('#cellMenu button')].find(x => (x.getAttribute('aria-label') || x.textContent.trim()) === lb); if (b) b.click(); return !!b; }, lb);
   await page.evaluate(() => { data[1][1] = '5'; data[1][2] = 'あ'; data[1][0] = '1'; data[2][0] = '2'; buildSheet(); recalcAll(); }); await w(300);
-  check('  はじめは「メニューから」（右下の 丸は 出ない）', await page.evaluate(() => fillHow + '/' + document.getElementById('fillHandle').classList.contains('on') + '/' + String(localStorage.getItem('excalc_fill_how'))), 'menu/false/null');
+  check('  はじめは「メニューから」（右下の 丸は 出ない）', await page.evaluate(() => fillHow + '/' + document.getElementById('fillHandle').classList.contains('on') + '/' + String(localStorage.getItem('excalc_fill_how'))), 'menu/false/menu');   // 'menu' は 決めて いない のと 同じ（テストの 決まりで 入れた）
   await tap('#c1_1'); await w(300); await tap('#c1_1');
   const b1 = await band();
   check('  1つの セルの メニュー：⇲ 広げてコピー と 🎨 色', b1.startsWith('⇲ 広げてコピー|') && b1.includes('|🎨 色|'), true);
@@ -23218,6 +23218,8 @@ if (only === '--list') {
   browser.newContext = async (...args) => {
     const c = await _newCtx(...args);
     await c.addInitScript(() => { try { if (localStorage.getItem('excalc_ui2') === null) localStorage.setItem('excalc_ui2', '0'); } catch (e) {} });
+    // v687：コピーは はじめ「メニューから」に なった。これまでの 組は 角の つまみ（前の やり方）を 確かめて いるので、決めて いない ときは 角の つまみ（メニューから を 確かめる 組は 'menu' に する）
+    await c.addInitScript(() => { try { if (localStorage.getItem('excalc_fill_how') === null) localStorage.setItem('excalc_fill_how', 'handle'); } catch (e) {} });
     return c;
   };
   try {
