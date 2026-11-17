@@ -1561,6 +1561,20 @@ const BAND_WHERES=[
 let bandWhere='pop';
 try{ if(localStorage.getItem(BAND_WHERE_KEY)==='pad') bandWhere='pad'; }catch(_){}
 function bandPadOn(){ return ui2On && bandWhere==='pad'; }
+/* メニューの ボタンの 名前（v688）：auto＝入る 高さが あれば アイコンの 下に 名前・なければ アイコンだけ／icon＝いつも アイコンだけ。
+   どちらでも アイコンは 段の 高さに 合わせて 小さく して、見切れない ように する */
+const BAND_LBL_KEY='excalc_band_label';
+const BAND_LBLS=[{id:'auto', n:'自動（入るときは 名前も）'}, {id:'icon', n:'アイコンだけ'}];
+let bandLbl='auto';
+try{ if(localStorage.getItem(BAND_LBL_KEY)==='icon') bandLbl='icon'; }catch(_){}
+const BAND_LBL_MIN=40;   // 名前も 出す 段の 高さ（px）。これより 低い ときは アイコンだけ
+function setBandLabel(v){
+  if(!BAND_LBLS.some(x=>x.id===v)) return;
+  bandLbl=v; try{ if(v==='auto') localStorage.removeItem(BAND_LBL_KEY); else localStorage.setItem(BAND_LBL_KEY, v); }catch(_){}
+  renderBandWhere();
+  const m=document.getElementById('cellMenu'); if(m && m.classList.contains('edit-bar') && m.classList.contains('show')) placeEditBar();
+  toast(v==='icon' ? 'メニューは アイコンだけに します' : 'メニューは 入るときは アイコンの 下に 名前も 出します');
+}
 function applyBandWhere(){
   const on=bandPadOn(), was=document.body.classList.contains('band-pad');
   document.body.classList.toggle('band-pad', on);
@@ -1579,6 +1593,11 @@ function renderBandWhere(){
   Array.from(seg.children).forEach(el=>{ const on=el.dataset.bw===bandWhere; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
   const nt=document.getElementById('bandWhereNote'), m=BAND_WHERES.find(x=>x.id===bandWhere);
   if(nt && m) nt.innerHTML=m.note+(ui2On ? '' : '<br>（前の 画面では、メニューは いつも テンキーの いちばん上の 列に 出ます）');
+  const ls=document.getElementById('bandLabelSeg');
+  if(ls){
+    if(ls.children.length!==BAND_LBLS.length) ls.innerHTML=BAND_LBLS.map(x=>'<button class="skin-seg-btn" data-bl="'+x.id+'" onclick="setBandLabel(\''+x.id+'\')">'+x.n+'</button>').join('');
+    Array.from(ls.children).forEach(el=>{ const on=el.dataset.bl===bandLbl; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+  }
 }
 /* その場の メニューの ボタンを「アイコン＋下に 小さい 名前」に する（v663）。
    名前は ほかの ところで textContent ごと 書きかわる（保護・結合）ので、出す たびに 作り直す */
@@ -1604,7 +1623,11 @@ function placeEditBar(){
   // v687：テンキーの 合計・＝ の 段に 出す 設定（新しい 画面）。アイコン＋名前の まま 段の 幅いっぱいに
   const padRow=(bandPadOn() && !document.body.classList.contains('kb-edit')) ? padTopRow() : null;
   menu.classList.toggle('ui2-padrow', !!padRow);
+  menu.classList.toggle('lbl-icon', bandLbl==='icon');   // v688：アイコンだけ（設定）
   if(padRow){
+    // v688：段の 高さで 名前を 出すか 決める（数字を 直して いる 間・横向き・横の テンキー などで 段が 低く なっても 見切れない）
+    menu.classList.toggle('pad-icon', bandLbl==='icon' || padRow.height<BAND_LBL_MIN);
+    menu.style.setProperty('--pad-h', Math.round(padRow.height)+'px');
     menu.classList.add('ui2-pop'); popIconize(menu);
     menu.classList.remove('on-pad');
     menu.style.right='auto'; menu.style.bottom='auto';
@@ -1679,7 +1702,7 @@ function placeEditBar(){
 }
 function hideEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
-  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r','ui2-pop','ui2-padrow'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height=''; menu.style.right='';
+  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r','ui2-pop','ui2-padrow','pad-icon','lbl-icon'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height=''; menu.style.right='';
   bandHdrKind='';
 }
 /* 帯は 横に だけ 送り、スクロールバーは 出さない（v633。パソコン〈Windows〉では 太い バーが ボタンの 字に かぶって 隠れて いた）。
@@ -1705,6 +1728,7 @@ function bandScrollInit(){
     e.preventDefault(); m.scrollLeft+=e.deltaY; bandScrollSync();
   }, {passive:false});
   window.addEventListener('resize', bandScrollSync);
+  window.addEventListener('resize', ()=>{ if(m.classList.contains('ui2-padrow') && m.classList.contains('show')) requestAnimationFrame(placeEditBar); });   // v688：向きや テンキーの 高さが 変わったら 置き直す
 }
 if(document.getElementById('cellMenu')) bandScrollInit(); else document.addEventListener('DOMContentLoaded', bandScrollInit);
 function endKbEdit(){ document.body.classList.remove('kb-edit'); hideEditBar(); }
@@ -13374,6 +13398,7 @@ function syncFiUi(){
   const foc=document.activeElement===fi;
   b.classList.toggle('bar-edit', foc && padBarOn() && fi.inputMode==='none');
   b.classList.toggle('fi-edit', !!ui2On && (foc || formulaEditMode));
+  { const m=document.getElementById('cellMenu'); if(m && m.classList.contains('ui2-padrow') && m.classList.contains('show') && typeof placeEditBar==='function') requestAnimationFrame(placeEditBar); }   // v688：テンキーの 上の 段が 入れかわったら メニューも 置き直す
   const k=document.getElementById('fbKb');
   if(k){ const kb=foc && fi.inputMode!=='none'; k.classList.toggle('on', kb); k.textContent = kb ? '123' : 'あ'; k.title = kb ? 'テンキーで打つ' : '本体のキーボードで文字を打つ'; }
 }
@@ -18787,7 +18812,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v687';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v688';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22137,6 +22162,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（メニューから／角の つまみ／帯の ボタン／長押しして なぞる。v629・v687）
   'excalc_fill_size',   // 右下の 丸（角の つまみ）の 大きさ（v633）
   'excalc_band_where',   // セルを 選んだ ときの メニューの 場所（セルの そば／テンキーの 合計・＝ の 段。v687）
+  'excalc_band_label',   // メニューの 名前（自動／アイコンだけ。v688）
   'excalc_merge_sep',   // 結合で 2つ 以上 残す ときの 区切り（v631）
   'excalc_kantab_whist',   // 🧪 カンタブの 前に 入れた 単位水量（v632）
 ];
