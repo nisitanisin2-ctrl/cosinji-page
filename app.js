@@ -881,6 +881,7 @@ function applyRhWidth(){
   if(typeof autoFitSheet==='function') autoFitSheet();
 }
 function buildSheet() {
+  if (typeof fillPickEnd==='function' && fillPick) fillPickEnd();   // v687：表を 作り直したら ⇲ 広げてコピー は 終わり
   copySrcR=copySrcC=-1;
   hpCfMap=hpCfCompute();   // 🎨 条件で付く色（v563。下の applyCellStyle で重ねる）
   updateEnterArrow();
@@ -961,6 +962,7 @@ function buildSheet() {
         if (fillJustCommitted) { fillJustCommitted=false; return; }   // フィル確定直後のクリックは無視
         if (sumSuppressClick) { sumSuppressClick=false; return; }   // スライド直後のクリックは無視
         if (sumSelectMode) { applySumRangeFromCells(r,c,r,c); sumSelectMode=false; toCell(); return; } // Σ指定中：タップ=1セル範囲（指定後はEnterと同様に確定して通常モードに戻る）
+        if (fillPick) { fillPickTap(r,c); return; }   // v687：⇲ 広げてコピー の あと、タップした セルまで コピー
         if (isStructLocked(r,c)) return;   // 見出し・自動計算列は選択不可（ユーザーロックは選択可＝解除のため）
         const fi=document.getElementById('formulaInput');
         if (formulaEditMode && fi.value.startsWith('=')) {
@@ -1379,16 +1381,19 @@ try{ if(localStorage.getItem(CELL_GESTURE_KEY)==='old') cellGesture='old'; }catc
    v628 までは 選んだ セルの 右半分（指で 押しやすく 広げた ■ の 場所）が コピーで、範囲選択と 紙一重だった（利用者の 声） */
 const FILL_HOW_KEY='excalc_fill_how';
 const FILL_HOWS=[
-  {id:'handle', n:'角の つまみ',       note:'選んだ セルの <b>角の 丸い つまみ</b>を 引っぱると コピー（フィル）。セルの 中は <b>どこから なぞっても 範囲選択</b>です（Excel・スプレッドシートと 同じ）。範囲を 選ぶと 丸は 範囲の 右下に 出て、引っぱると <b>範囲ごと</b> コピー（1,2,3 は 4,5,6 と 続ける。v635）。'},
+  {id:'menu',   n:'メニューから',     note:'選んだ セルの <b>右下を なぞっても コピーしません</b>（丸も 出しません）。セルを もう一度 押すと 出る <b>メニューの「⇲ 広げてコピー」</b>を 押して、コピーしたい 向きに <b>なぞる</b>か、コピー先の セルを <b>タップ</b> すると、そこまで コピー（フィル）します。範囲を 選んだ ときは <b>↓ 下へコピー・→ 右へコピー・1,2,3 連番</b> も メニューに 出ます（v687）。'},
+  {id:'handle', n:'角の つまみ（前の やり方）',       note:'選んだ セルの <b>角の 丸い つまみ</b>を 引っぱると コピー（フィル）。セルの 中は <b>どこから なぞっても 範囲選択</b>です（Excel・スプレッドシートと 同じ）。範囲を 選ぶと 丸は 範囲の 右下に 出て、引っぱると <b>範囲ごと</b> コピー（1,2,3 は 4,5,6 と 続ける。v635）。'},
   {id:'band',   n:'帯の ボタン',       note:'つまみは 出しません。なぞると いつも <b>範囲選択</b>。コピー したい 範囲（いちばん上〈左〉に 元の セル）を 選んで、帯の <b>↓ 下へコピー・→ 右へコピー・1,2,3 連番</b> を 押します（Excel の Ctrl+D／Ctrl+R）。範囲を <b>⧉ コピー</b> して、貼りたい 所を 広く 選んで <b>📥 貼り付け</b> すると、くり返して 埋めます（v635）。'},
   {id:'hold',   n:'長押しして なぞる', note:'すぐ なぞると <b>範囲選択</b>。選んだ セルを <b>0.5秒 押して ブルッと してから</b> なぞると コピー（フィル）です。範囲を 選んで いるときは 範囲の 中を 長押し して なぞると <b>範囲ごと</b> コピー（v635）。'},
 ];
-let fillHow='handle';
-try{ const v=localStorage.getItem(FILL_HOW_KEY); if(v==='band' || v==='hold') fillHow=v; }catch(_){}
+let fillHow='menu';   // v687：はじめは メニューから（右下を なぞっても コピーしない。利用者の 声）。前の やり方（角の つまみ）は 設定で
+try{ const v=localStorage.getItem(FILL_HOW_KEY); if(v==='band' || v==='hold' || v==='handle') fillHow=v; }catch(_){}
 const BAND_FILL=['fill_down','fill_right','fill_series'];
+let fillPick=null;   // v687：⇲ 広げてコピー を 押した あとの 元の 範囲 {r1,c1,r2,c2}（下の fillPickStart）
 function setFillHow(v){
   if(!FILL_HOWS.some(m=>m.id===v)) return;
-  fillHow=v; try{ if(v==='handle') localStorage.removeItem(FILL_HOW_KEY); else localStorage.setItem(FILL_HOW_KEY, v); }catch(_){}
+  fillHow=v; try{ if(v==='menu') localStorage.removeItem(FILL_HOW_KEY); else localStorage.setItem(FILL_HOW_KEY, v); }catch(_){}
+  if(v!=='menu' && typeof fillPickEnd==='function') fillPickEnd();
   // 帯の ボタンで コピー する ときは、自分で 決めた 範囲の 帯にも コピーの ボタンを 足す（ないと コピー できない）
   if(v==='band' && typeof bandCfgAll==='function'){
     const all=bandCfgAll();
@@ -1397,8 +1402,10 @@ function setFillHow(v){
       const x=all[k].slice(); x.splice(x[0]==='merge' ? 1 : 0, 0, ...BAND_FILL); bandCfgSet(k, x);
     });
   }
+  if(v==='menu' && typeof bandCfgAll==='function') bandMenuFillInject();   // v687：自分で 決めた 帯にも ⇲ 広げてコピー を 足す
   updateFillHandle(); renderFillHow();
-  toast(v==='handle' ? '角の つまみを 引っぱると コピー（セルの 中を なぞると 範囲選択）'
+  toast(v==='menu' ? 'セルを もう一度 押して 出る メニューの「⇲ 広げてコピー」で コピー（右下を なぞっても コピーしない）'
+      : v==='handle' ? '角の つまみを 引っぱると コピー（セルの 中を なぞると 範囲選択）'
       : v==='band' ? '範囲を 選んで 帯の「↓ 下へコピー」などで コピー（なぞると いつも 範囲選択）'
       : '選んだ セルを 長押し して ブルッと してから なぞると コピー');
 }
@@ -1542,9 +1549,40 @@ function padTopRow(){
   if(!isFinite(top) || !isFinite(bot) || bot-top<16) return null;
   return { left:v.left, width:v.width, top, height:bot-top };
 }
+/* ── セルを 選んだ ときの メニューの 場所（v687。新しい 画面）──
+   pop＝セルの そば（v641〜。いまの 形）／pad＝テンキーの いちばん上の 段（Σ合計・＝数式 の 段）に かさねる。
+   pad の ときは その 段を 高く して（テンキーが 少し 高く なる）、アイコン＋名前の ボタンが 押しやすい 大きさで 入る。
+   メニューを 出して いない ときは 元の ボタン（Σ合計・＝数式…）。キーボードの 間・テンキーを 閉じた ときは セルの そばに */
+const BAND_WHERE_KEY='excalc_band_where';
+const BAND_WHERES=[
+  {id:'pop', n:'セルの そば（いまの 形）', note:'選んだ セルの 少し 右上に 小さく 出します。表が 広く 見えます。'},
+  {id:'pad', n:'テンキーの 合計・＝ の 段', note:'テンキーの いちばん上（<b>Σ合計・＝数式</b> の 段）に 出します。その 段を 少し 高く して、ボタンを 押しやすく します（テンキーが 少し 高く なります）。メニューを 閉じると 元の ボタンに 戻ります。'},
+];
+let bandWhere='pop';
+try{ if(localStorage.getItem(BAND_WHERE_KEY)==='pad') bandWhere='pad'; }catch(_){}
+function bandPadOn(){ return ui2On && bandWhere==='pad'; }
+function applyBandWhere(){
+  const on=bandPadOn(), was=document.body.classList.contains('band-pad');
+  document.body.classList.toggle('band-pad', on);
+  if(on!==was){ try{ window.dispatchEvent(new Event('resize')); }catch(_){} }
+}
+function setBandWhere(v){
+  if(!BAND_WHERES.some(x=>x.id===v)) return;
+  bandWhere=v; try{ if(v==='pop') localStorage.removeItem(BAND_WHERE_KEY); else localStorage.setItem(BAND_WHERE_KEY, v); }catch(_){}
+  applyBandWhere(); renderBandWhere();
+  const m=document.getElementById('cellMenu'); if(m && m.classList.contains('edit-bar') && m.classList.contains('show')) setTimeout(placeEditBar, 60);   // 段の 高さが 変わってから 置き直す
+  toast(v==='pad' ? 'セルを 選んだ ときの メニューを テンキーの 合計・＝ の 段に 出します' : 'セルを 選んだ ときの メニューを セルの そばに 出します'+(ui2On ? '' : '（新しい 画面の とき）'));
+}
+function renderBandWhere(){
+  const seg=document.getElementById('bandWhereSeg'); if(!seg) return;
+  if(seg.children.length!==BAND_WHERES.length) seg.innerHTML=BAND_WHERES.map(m=>'<button class="skin-seg-btn" data-bw="'+m.id+'" onclick="setBandWhere(\''+m.id+'\')">'+m.n+'</button>').join('');
+  Array.from(seg.children).forEach(el=>{ const on=el.dataset.bw===bandWhere; el.classList.toggle('on', on); el.setAttribute('aria-pressed', String(on)); });
+  const nt=document.getElementById('bandWhereNote'), m=BAND_WHERES.find(x=>x.id===bandWhere);
+  if(nt && m) nt.innerHTML=m.note+(ui2On ? '' : '<br>（前の 画面では、メニューは いつも テンキーの いちばん上の 列に 出ます）');
+}
 /* その場の メニューの ボタンを「アイコン＋下に 小さい 名前」に する（v663）。
    名前は ほかの ところで textContent ごと 書きかわる（保護・結合）ので、出す たびに 作り直す */
-const POP_SHORT={'色の決まり':'色ルール','チェックをやめる':'チェック解除','チェックに':'チェック','グラフ・色・しぼる':'グラフ他','結合を解除':'結合解除','保護をやめる':'保護解除','幅を中身に':'幅合わせ','隠した列を出す':'列を出す',
+const POP_SHORT={'色の決まり':'色ルール','広げてコピー':'広げてコピー','コピーをやめる':'やめる','チェックをやめる':'チェック解除','チェックに':'チェック','グラフ・色・しぼる':'グラフ他','結合を解除':'結合解除','保護をやめる':'保護解除','幅を中身に':'幅合わせ','隠した列を出す':'列を出す',
   '隠した行を出す':'行を出す','ここまで固定':'固定','下へコピー':'下へ','右へコピー':'右へ','あいうえお順':'あいうえお','しぼり込み':'しぼる','ロック中':'ロック中'};
 const POP_ACT={nf_comma:['1,000','桁区切り'], dec_up:['.0','小数＋'], dec_dn:['.0','小数−'], nf_pct:['%','パーセント'], nf_yen:['¥','円'], fill_series:['123','連番'], more2:['⋯','もっと']};
 function popIconize(menu){
@@ -1563,6 +1601,18 @@ function popIconize(menu){
 }
 function placeEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
+  // v687：テンキーの 合計・＝ の 段に 出す 設定（新しい 画面）。アイコン＋名前の まま 段の 幅いっぱいに
+  const padRow=(bandPadOn() && !document.body.classList.contains('kb-edit')) ? padTopRow() : null;
+  menu.classList.toggle('ui2-padrow', !!padRow);
+  if(padRow){
+    menu.classList.add('ui2-pop'); popIconize(menu);
+    menu.classList.remove('on-pad');
+    menu.style.right='auto'; menu.style.bottom='auto';
+    menu.style.left=Math.round(padRow.left)+'px'; menu.style.width=Math.round(padRow.width)+'px';
+    menu.style.height=Math.round(padRow.height)+'px'; menu.style.top=Math.round(padRow.top)+'px';
+    bandScrollSync();
+    return;
+  }
   // 新しい 画面（v641）：テンキーには 重ねず、選んだ セルの そばに 小さく 出す（その場の メニュー）
   menu.classList.toggle('ui2-pop', ui2On && !document.body.classList.contains('kb-edit'));
   if(menu.classList.contains('ui2-pop')){
@@ -1629,7 +1679,7 @@ function placeEditBar(){
 }
 function hideEditBar(){
   const menu=document.getElementById('cellMenu'); if(!menu || !menu.classList.contains('edit-bar')) return;
-  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r','ui2-pop'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height=''; menu.style.right='';
+  menu.classList.remove('edit-bar','show','bar-nokb','on-pad','ctx-hdr','can-l','can-r','ui2-pop','ui2-padrow'); menu.style.bottom=''; menu.style.top=''; menu.style.left=''; menu.style.width=''; menu.style.height=''; menu.style.right='';
   bandHdrKind='';
 }
 /* 帯は 横に だけ 送り、スクロールバーは 出さない（v633。パソコン〈Windows〉では 太い バーが ボタンの 字に かぶって 隠れて いた）。
@@ -1711,14 +1761,14 @@ const BAND_RANGE=['rng_ext','autosum','sort_up','sort_dn','chart','cf_q','ck_mk'
 function bandPool(k){
   if(k==='col') return ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'];
   if(k==='row') return ['row_insA','row_insB','row_del','row_hide','row_show','row_frz'];
-  if(k==='range' || k==='rtext') return BAND_FILL.concat(BAND_RANGE, BAND_FMT, BAND_COMMON);
-  return BAND_FMT.concat(['ck_mk'], BAND_COMMON);   // ☑ チェックに は 1つの セルでも（v672）
+  if(k==='range' || k==='rtext') return ['fill_to'].concat(BAND_FILL, BAND_RANGE, BAND_FMT, BAND_COMMON);
+  return ['fill_to'].concat(BAND_FMT, ['ck_mk','cf_q'], BAND_COMMON);   // ☑ チェックに は 1つの セルでも（v672）・🎨 色 も 1つの セルで（v687）
 }
 /* はじめの 並び（v624 と 同じ 見え方） */
 const BAND_DEF={
-  num:  ['nf_yen','nf_pct','nf_comma','dec_up','dec_dn'].concat(BAND_COMMON),
-  text: ['bold','al_l','al_c','al_r'].concat(BAND_COMMON),
-  empty: ['ck_mk'].concat(BAND_COMMON),   // 空の セル：☑ チェックに（v672）
+  num:  ['nf_yen','nf_pct','nf_comma','dec_up','dec_dn','cf_q'].concat(BAND_COMMON),   // 🎨 色（v687：1つの セルでも）
+  text: ['bold','al_l','al_c','al_r','cf_q'].concat(BAND_COMMON),
+  empty: ['ck_mk','cf_q'].concat(BAND_COMMON),   // 空の セル：☑ チェックに（v672）
   range:['rng_ext','autosum','sort_up','sort_dn','chart','cf_q','ck_mk'].concat(BAND_COMMON),
   rtext:['merge','rng_ext','bold','al_c','sort_up','ck_mk','cut','copy','paste','edit','clear','fmt','lock'],
   col:  ['col_fit','col_insL','col_insR','col_del','col_flt','col_hide','col_show','col_frz'],
@@ -1731,8 +1781,29 @@ function bandCfgFor(k){
   const d=BAND_DEF[kk] ? BAND_DEF[kk].slice() : [];
   // 帯の ボタンで コピー する とき（v629）は、範囲の 帯の はじめに ↓ 下へコピー・→ 右へコピー・1,2,3 連番（文字の 範囲は ⊞ 結合の 次）
   if(fillHow==='band' && (kk==='range' || kk==='rtext')) d.splice(d[0]==='merge' ? 1 : 0, 0, ...BAND_FILL);
+  // メニューから コピー する とき（v687）は、はじめに ⇲ 広げてコピー（範囲なら ↓ 下へ・→ 右へ・1,2,3 連番 も）
+  if(fillHow==='menu' && pool.includes('fill_to')) d.splice(d[0]==='merge' ? 1 : 0, 0, ...((kk==='range' || kk==='rtext') ? ['fill_to'].concat(BAND_FILL) : ['fill_to']));
   return d;
 }
+/* 自分で 決めた 帯（⚙ 🎛 帯の ボタン）にも ⇲ 広げてコピー を 足す（v687。ないと メニューから コピー できない） */
+function bandMenuFillInject(){
+  const all=bandCfgAll();
+  ['num','text','empty','range','rtext'].forEach(k=>{
+    if(!Array.isArray(all[k]) || all[k].includes('fill_to')) return;
+    const x=all[k].slice(), add=(k==='range' || k==='rtext') ? ['fill_to'].concat(BAND_FILL.filter(id=>!x.includes(id))) : ['fill_to'];
+    x.splice(x[0]==='merge' ? 1 : 0, 0, ...add); bandCfgSet(k, x);
+  });
+}
+/* v687：前から 自分で 帯を 決めて いた 人にも 1回だけ（🎨 色 を 1つの セルの 帯に・メニューから コピー なら ⇲ 広げてコピー） */
+(function bandMig687(){
+  try{
+    if(localStorage.getItem('excalc_band_mig687')) return;
+    localStorage.setItem('excalc_band_mig687','1');
+    const all=bandCfgAll(); if(!Object.keys(all).length) return;
+    ['num','text','empty'].forEach(k=>{ if(Array.isArray(all[k]) && !all[k].includes('cf_q')){ const x=all[k].slice(), i=x.indexOf('cut'); x.splice(i<0 ? x.length : i, 0, 'cf_q'); bandCfgSet(k, x); } });
+    if(fillHow==='menu') bandMenuFillInject();
+  }catch(_){}
+})();
 function bandCfgSet(k, list){
   const o=bandCfgAll();
   if(list) o[k]=list; else delete o[k];
@@ -1749,6 +1820,7 @@ const BAND_LABEL={
   chart:['📊 グラフ','選んだ範囲を 棒・折れ線・円グラフに する'],
   cf_q:['🎨 色の決まり','選んだ範囲に「大きさを色の濃さで」「棒で」「マイナスは赤」などを ワンタップで 付ける'],
   ck_mk:['☑ チェックに','選んだ範囲を、押すたびに ☑⇄☐ の チェックボックスに する'],
+  fill_to:['⇲ 広げてコピー','押したあと、コピーしたい 向きに なぞるか、コピー先の セルを タップ すると、そこまで コピー（数式は ずらす。範囲の 1,2,3 は 4,5,6 と 続ける）。もう一度 押すと やめる'],
   fill_down:['↓ 下へコピー','選んだ範囲の いちばん上の 行を、下の 行に コピーする（数式は ずらして。Excel の Ctrl+D）'],
   fill_right:['→ 右へコピー','選んだ範囲の いちばん左の 列を、右の 列に コピーする（数式は ずらして。Excel の Ctrl+R）'],
   fill_series:['1,2,3 連番','はじめの セルから 1つずつ 増やして 入れる（日付・「第1回」なども。縦長なら 下へ、横1行なら 右へ）'],
@@ -1784,7 +1856,9 @@ function bandDef(id, kind){
       it.run=()=>bandSort(id==='sort_up' ? 1 : -1); return it;
     }
     case 'chart':   if(!rng) return null; it.run=()=>hpRun('chart'); return it;
-    case 'cf_q':    if(!rng || !hpOk()) return null; it.run=()=>hpRun('cfQuick'); return it;
+    case 'cf_q':    if(!hpOk()) return null;
+      if(!rng){ it.t='🎨 色'; it.tip='この セルを 塗る 色・字の 色と、条件で 色を 付ける 決まり（マイナスは 赤 など）'; }   // v687：1つの セルでも
+      it.run=()=>hpRun('cfQuick'); return it;
     case 'ck_mk': {
       if(!hpOk() || document.body.classList.contains('kb-edit') || document.activeElement===document.getElementById('formulaInput')) return null;   // 打って いる 間は 出さない
       const g=rng ? selRect() : {r1:selR, c1:selC, r2:selR, c2:selC};   // 1つの セルでも（v672）
@@ -1796,6 +1870,11 @@ function bandDef(id, kind){
       if(hpCkAllIn(selRect())){ it.t='☐ チェックをやめる'; it.tip='選んだ範囲の チェックボックスを ふつうの セルに もどす'; it.run=()=>hpRun('ckUnmake'); return it; }
       if(!hpCkFits(selRect())) return null;   // 字で 埋まった 範囲（見出しの 行 など）には 出さない
       it.run=()=>hpRun('ckMake'); return it;
+    }
+    case 'fill_to': {   // v687：メニューから コピー（なぞるか タップした 所まで）
+      if(cellGesture!=='excel' || document.body.classList.contains('kb-edit')) return null;   // キーボードで 打って いる 間は 出さない
+      it.on=!!fillPick; if(fillPick){ it.t='✓ コピーをやめる'; it.tip='広げてコピーを やめる'; }
+      it.run=()=>{ if(fillPick){ fillPickEnd(); toast('コピーを やめました'); } else fillPickStart(); }; return it;
     }
     case 'fill_down': case 'fill_right': case 'fill_series': {
       if(!rng) return null;
@@ -18708,7 +18787,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v686';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v687';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -20476,6 +20555,7 @@ function startCellPress(r,c,x,y){
   lpFromActive=(r===selR && c===selC) || (rangeR1>=0 && r===rangeR2 && c===rangeC2); rangeDragging=false;   // v680：範囲の 先の 端（指を 離した ところ）から なぞると 続きを 広げられる
   lpClearTimers();
   if(cellGesture==='excel'){
+    if(fillPick){ fillPickPress(x,y); return; }   // v687：⇲ 広げてコピー の あとは どこから なぞっても コピー
     // Excel と同じ：選んだセルの右下の ■ から引っぱるとフィル
     // メニューは長押しでは出さず、ダブルタップで直すときにキーボード（テンキー）の上に出す
     if(fillHow==='handle' && rangeR1>=0 && fillHandleHit(x,y)){ blockFillStart(x,y,false); }   // 範囲の 右下の 丸＝範囲ごと コピー（v635）
@@ -20573,8 +20653,8 @@ function endCellPress(){
   lpR=lpC=-1; lpStage=0; lpMoved=false;
   if(fillScrollRaf){ cancelAnimationFrame(fillScrollRaf); fillScrollRaf=0; }
   fillProbe=null;
-  if(fillMode && moved){ fillJustCommitted=true; commitFill(); return; }   // ドラッグ＝フィル確定
-  if(fillBlock){ blockFillClear(); fillJustCommitted=true; }   // 範囲ごと コピーの 用意だけで 離した：選んだ 範囲は そのまま（v635）
+  if(fillMode && moved){ fillJustCommitted=true; commitFill(); fillPickEnd(); return; }   // ドラッグ＝フィル確定（v687：⇲ 広げてコピー も ここで 終わり）
+  if(fillBlock){ blockFillClear(); if(!fillPick) fillJustCommitted=true; }   // 範囲ごと コピーの 用意だけで 離した：選んだ 範囲は そのまま（v635）。⇲ の あとの タップは クリックで そこまで コピー（v687）
   fillGrabOff();   // 丸を 押しただけで 離した（v630）
   rangeDragStop();
   if(rangeDragging && moved){ rangeDragging=false; fillJustCommitted=true; if(cellGesture==='excel') showEditBar(true); return; }   // スライド＝範囲選択を確定（次のclickを1回無効化）。v418：帯を出す
@@ -20641,6 +20721,51 @@ function adjustFormula(formula,dr,dc) {
    ・それ 以外（1つだけ・文字・数式）→ 元の 並びを くり返す（数式は ずらす。$ は ずらさない）
    ¥・%・小数・日付の 形も いっしょに。しぼり込みで 隠した 行・保護した セルには 入れない。何セルでも ↶戻す 1回で 戻る */
 let fillBlock=null;   // {r1,c1,r2,c2,hold,dir,steps,tlx,tly}
+/* ══ メニューから コピー（v687）══
+   右下を なぞっても コピーしない 代わりに、メニューの「⇲ 広げてコピー」を 押してから
+   ・どこからでも なぞる → 元の セル（範囲）を 指が 動いた ぶん 広げて コピー（角の つまみと 同じ 決まり）
+   ・コピー先の セルを タップ → そこまで コピー（たて・よこ の 長い ほうへ）
+   ・元の セル（範囲）を タップ → やめる */
+function fillPickMark(on){ const g=fillPick; if(!g) return; for(let r=g.r1;r<=g.r2;r++) for(let c=g.c1;c<=g.c2;c++){ const el=document.getElementById(`c${r}_${c}`); if(el) el.classList.toggle('fill-pick-src', on); } }
+function fillPickStart(){
+  if(!(selR>=0 && selC>=0)) return;
+  fillPickEnd();
+  const g=selRect(); fillPick={r1:g.r1, c1:g.c1, r2:g.r2, c2:g.c2};
+  fillPickMark(true); document.body.classList.add('fill-pick');
+  hideEditBar();
+  toast('⇲ コピーしたい 向きに なぞるか、コピー先の セルを タップ（元の セルを タップで やめる）', 4200);
+}
+function fillPickEnd(){
+  if(!fillPick) return;
+  fillPickMark(false); fillPick=null; document.body.classList.remove('fill-pick');
+}
+/* 押し始め：どこから なぞっても 元の セル（範囲）から 広げる */
+function fillPickPress(x,y){
+  const g=fillPick; if(!g) return;
+  if(g.r1===g.r2 && g.c1===g.c2){ fillMode=true; fillSrcR=g.r1; fillSrcC=g.c1; fillEndR=g.r1; fillEndC=g.c1; fillProbeStart(g.r1,g.c1,x,y); fillGrabOn(g.r1,g.c1); }
+  else blockFillStart(x,y,false);
+}
+/* タップ：そこまで コピー */
+function fillPickTap(r,c){
+  const g=fillPick; if(!g) return;
+  if(r>=g.r1 && r<=g.r2 && c>=g.c1 && c<=g.c2){ fillPickEnd(); toast('コピーを やめました'); return; }
+  const down=r-g.r2, up=g.r1-r, right=c-g.c2, left=g.c1-c, v=Math.max(down,up,0), h=Math.max(right,left,0);
+  const dir=v>=h ? (down>0 ? 'down' : 'up') : (right>0 ? 'right' : 'left'), steps=v>=h ? v : h;
+  fillPickEnd();
+  if(steps<=0) return;
+  if(g.r1===g.r2 && g.c1===g.c2){
+    fillSrcR=g.r1; fillSrcC=g.c1;
+    fillEndR=dir==='down' ? g.r1+steps : dir==='up' ? g.r1-steps : g.r1;
+    fillEndC=dir==='right' ? g.c1+steps : dir==='left' ? g.c1-steps : g.c1;
+    fillEndR=Math.max(0, Math.min(ROWS-1, fillEndR)); fillEndC=Math.max(0, Math.min(COLS-1, fillEndC));
+    const eR=fillEndR, eC=fillEndC, A=(rr,cc)=>ALPHA[cc]+(rr+1);
+    commitFill();
+    toast('コピー：'+A(g.r1,g.c1)+' → '+A(eR,eC)+' まで（↶戻す で 戻せます）', 2600);
+    return;
+  }
+  fillBlock={r1:g.r1, c1:g.c1, r2:g.r2, c2:g.c2, hold:false, dir, steps, tlx:0, tly:0};
+  blockFillCommit();
+}
 function blockHas(g,r,c){ return !!g && r>=g.r1 && r<=g.r2 && c>=g.c1 && c<=g.c2; }
 function blockMark(b, cls, on){
   if(!b) return;
@@ -22009,8 +22134,9 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_oto',     // 🎵音の道具（v668）
   'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
   'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
-  'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（角の つまみ／帯の ボタン／長押しして なぞる。v629）
+  'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（メニューから／角の つまみ／帯の ボタン／長押しして なぞる。v629・v687）
   'excalc_fill_size',   // 右下の 丸（角の つまみ）の 大きさ（v633）
+  'excalc_band_where',   // セルを 選んだ ときの メニューの 場所（セルの そば／テンキーの 合計・＝ の 段。v687）
   'excalc_merge_sep',   // 結合で 2つ 以上 残す ときの 区切り（v631）
   'excalc_kantab_whist',   // 🧪 カンタブの 前に 入れた 単位水量（v632）
 ];
@@ -22952,6 +23078,7 @@ applyNpPlace(true);                        // テンキーの置き場所（v399
 applyFbPlace();                            // セルのバーの置き場所（v619）
 syncSumPlace(); renderSumPlace();          // 合計の置き場所（v628）
 renderFillHow();                           // 範囲選択と コピー（フィル）の しかた（v629）
+renderBandWhere(); applyBandWhere();       // セルを 選んだ ときの メニューの 場所（v687）
 snapDaily();                               // 毎日 はじめの 表を 控える（v624）
 try{ const fd=sessionStorage.getItem('excalc_full_done'); if(fd){ sessionStorage.removeItem('excalc_full_done'); const o=JSON.parse(fd)||{}; setTimeout(()=>toast('⬆ インポートしました（'+(o.when||'')+' の 状態）'+(o.skip ? '（写真など '+o.skip+'か所は 戻せませんでした）' : ''), 5600), 700); } }catch(_){}
 try{ const sd=sessionStorage.getItem('excalc_snap_done'); if(sd){ sessionStorage.removeItem('excalc_snap_done'); setTimeout(()=>toast('「'+sd+'」の 表に 戻しました（☰ → 🕘 前の状態に戻す で また 戻せます）', 4800), 600); } }catch(_){}
@@ -23117,6 +23244,7 @@ function applyUi2(){
   if(fi){ if(!fi.dataset.ph0) fi.dataset.ph0=fi.placeholder; fi.placeholder=ui2On ? '数字・文字・式を入れる' : fi.dataset.ph0; }
   if(typeof applyFbPlace==='function') applyFbPlace();
   if(typeof applyKeypadLayout==='function') applyKeypadLayout();
+  if(typeof applyBandWhere==='function') applyBandWhere();   // v687：メニューを テンキーの 段に 出す ときは 段を 高く
   renderUi2Seg(); uiTopSync(); navSync();
   { const tb=document.getElementById('textBtn');   // あ文字 → キーボードの 絵＋あ（見本と 同じ。v643）
     if(tb){ const t=tb.textContent.trim();

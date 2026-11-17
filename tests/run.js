@@ -40,7 +40,7 @@ async function newPage(browser) {
   // はじめての案内（v384）は初回だけ全画面で出る。ふつうの組では
   // 「もう見た人」として開き、画面をふさがないようにする
   // （案内そのものは onboard の組で、まっさらな端末から確かめている）。
-  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); });   // 上のバーを出した画面で確かめる（たたむのは tbfold の組で）。道具は「戻る」で すぐ閉じる（v553 の「表電卓に戻りますか？」は backask の組で）
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('excalc_tour_done', '1'); localStorage.setItem('excalc_tbfold', '0'); localStorage.setItem('excalc_startpage', 'last'); localStorage.setItem('excalc_tool_hints', '0'); localStorage.setItem('excalc_back_ask', '0'); localStorage.setItem('excalc_fill_how', 'handle'); });   // v687：はじめは「メニューから」に なったが、ふつうの 組は 角の つまみ（前の やり方）で 確かめる（メニューから は fillmenu687 の 組で）。上のバーを出した画面で確かめる（たたむのは tbfold の組で）。道具は「戻る」で すぐ閉じる（v553 の「表電卓に戻りますか？」は backask の組で）
   await page.reload(); await page.waitForTimeout(900);
   return { ctx, page, errs, dialogs };
 }
@@ -20076,7 +20076,7 @@ async function runFill629(browser) {
   // ── はじめは「角の つまみ」 ──
   await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
   check('  設定：表の操作に「範囲選択と コピー（フィル）」3つ（はじめは 角の つまみ）', await page.evaluate(() => [fillHow, [...document.querySelectorAll('#fillHowSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('|'), document.getElementById('fillHowSeg').closest('.set-page').id, /角の 丸い つまみ/.test(document.getElementById('fillHowNote').textContent)].join('/')),
-    'handle/角の つまみ●|帯の ボタン|長押しして なぞる/setPage0/true');
+    'handle/メニューから|角の つまみ（前の やり方）●|帯の ボタン|長押しして なぞる/setPage0/true');   // v687：メニューから（はじめ）を 足した
   await page.evaluate(() => toggleSettings()); await w(300);
   await reset();
   check('  つまみは 角に 丸く（指の 画面は 16px）', await page.evaluate(() => { const h = document.getElementById('fillHandle'), s = getComputedStyle(h), hb = h.getBoundingClientRect(), tb = document.getElementById('c0_1').getBoundingClientRect();
@@ -20148,7 +20148,7 @@ async function runFill629(browser) {
   check('  覚える・設定の 書き出し（全保存）にも 入る', await page.evaluate(() => localStorage.getItem('excalc_fill_how') + '/' + settingsBundle().excalc_fill_how), 'band/band');
   await page.reload(); await w(1000);
   check('  開き直しても 帯の ボタン', await page.evaluate(() => fillHow + '/' + document.querySelector('#fillHowSeg .on').dataset.fh), 'band/band');
-  check('  角の つまみに もどすと 覚えた 中身を 消す（はじめの まま）', await page.evaluate(() => { setFillHow('handle'); return String(localStorage.getItem('excalc_fill_how')) + '/' + getComputedStyle(document.getElementById('fillHandle')).display; }), 'null/block');
+  check('  角の つまみに もどすと 覚えた 中身を 消す（はじめの まま）', await page.evaluate(() => { setFillHow('handle'); return String(localStorage.getItem('excalc_fill_how')) + '/' + getComputedStyle(document.getElementById('fillHandle')).display; }), 'handle/block');   // v687：はじめは メニューから なので 角の つまみは 覚える
   check('  「以前の表電卓」の ときは 説明に 長押し と 出す', await page.evaluate(() => { setCellGesture('old'); const t = document.getElementById('fillHowNote').textContent; setCellGesture('excel'); return /以前の表電卓/.test(t); }), true);
   check('  設定を さがす：「フィル」「コピー」', await page.evaluate(() => { toggleSettings(); const r = ['フィル', '範囲選択'].map(q => { setFind(q); return document.getElementById('setFindRes').textContent.includes('範囲選択と コピー'); }); setFind(''); toggleSettings(); return r.join('/'); }), 'true/true');
   check('  JSエラーが出ていない', errs.length, 0);
@@ -22710,6 +22710,68 @@ async function runOto685(browser) {
   await ctx.close();
 }
 
+async function runFillMenu687(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ⇲ メニューから コピー・1つの セルの 🎨 色・メニューの 場所（v687） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.removeItem('excalc_fill_how'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await page.reload();   // 新しい 画面で await w(900);
+  const box = async id => (await (await page.$(id)).boundingBox());
+  const tap = async id => { const b = await box(id); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await w(450); };
+  const band = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent && b.getBoundingClientRect().width > 0).map(b => b.getAttribute('aria-label') || b.textContent.trim()).join('|'));
+  const press = lb => page.evaluate(lb => { const b = [...document.querySelectorAll('#cellMenu button')].find(x => (x.getAttribute('aria-label') || x.textContent.trim()) === lb); if (b) b.click(); return !!b; }, lb);
+  await page.evaluate(() => { data[1][1] = '5'; data[1][2] = 'あ'; data[1][0] = '1'; data[2][0] = '2'; buildSheet(); recalcAll(); }); await w(300);
+  check('  はじめは「メニューから」（右下の 丸は 出ない）', await page.evaluate(() => fillHow + '/' + document.getElementById('fillHandle').classList.contains('on') + '/' + String(localStorage.getItem('excalc_fill_how'))), 'menu/false/null');
+  await tap('#c1_1'); await w(300); await tap('#c1_1');
+  const b1 = await band();
+  check('  1つの セルの メニュー：⇲ 広げてコピー と 🎨 色', b1.startsWith('⇲ 広げてコピー|') && b1.includes('|🎨 色|'), true);
+  check('  右下を なぞっても コピーしない（範囲選択に なる）', await page.evaluate(async () => { const td = document.getElementById('c1_1').getBoundingClientRect(); startCellPress(1, 1, td.right - 3, td.bottom - 3); moveCellPress(td.right - 3, td.bottom + 60); moveCellPress(td.right - 3, td.bottom + 90); endCellPress(); return String(data[2][1] || '') + '/' + fillMode; }), '/false');
+  await page.evaluate(() => { clearRangeSelection(); sel(1, 1); }); await w(200);
+  await tap('#c1_1'); await w(300); await tap('#c1_1');
+  check('  ⇲ を 押すと 元の セルに 点線・メニューは 閉じる', [await press('⇲ 広げてコピー'), await page.evaluate(() => document.querySelectorAll('#sheet .fill-pick-src').length + '/' + document.body.classList.contains('fill-pick') + '/' + document.getElementById('cellMenu').classList.contains('show'))].join('/'), 'true/1/true/false');
+  await tap('#c4_1');
+  check('  コピー先を タップ → そこまで コピー', await page.evaluate(() => [1, 2, 3, 4, 5].map(r => data[r][1] || '空').join(',') + '/' + !!fillPick), '5,5,5,5,空/false');
+  // なぞる：元の セルを 押さなくても 動いた ぶん
+  await tap('#c1_2'); await w(300); await tap('#c1_2'); await press('⇲ 広げてコピー'); await w(200);
+  const a = await box('#c6_1'), z = await box('#c8_1'), cdp = await ctx.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: a.x + a.width / 2, y: a.y + a.height / 2 }] });
+  for (let i = 1; i <= 6; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: a.x + a.width / 2, y: a.y + a.height / 2 + (z.y - a.y) * i / 6 }] }); await w(30); }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(400);
+  check('  どこからでも なぞると 動いた ぶん コピー', await page.evaluate(() => [1, 2, 3, 4].map(r => data[r][2] || '空').join(',') + '/' + !!fillPick), 'あ,あ,あ,空/false');
+  // 元の セルを タップで やめる
+  await tap('#c1_1'); await w(300); await tap('#c1_1'); await press('⇲ 広げてコピー'); await w(200); await tap('#c1_1');
+  check('  元の セルを タップ ＝ やめる（何も 変わらない）', await page.evaluate(() => !!fillPick + '/' + (data[0][1] || '空')), 'false/空');
+  // 範囲：↓ 下へ・連番 も 出る・⇲ で 1,2 → 3,4
+  await page.evaluate(() => { clearRangeSelection(); sel(1, 0); rangeR1 = 1; rangeC1 = 0; extendRange(2, 0); showEditBar(true); }); await w(300);
+  const b2 = await band();
+  check('  範囲の メニュー：⇲・↓ 下へコピー・1,2,3 連番・🎨 色の決まり', ['⇲ 広げてコピー', '↓ 下へコピー', '1,2,3 連番', '🎨 色の決まり'].every(x => b2.includes(x)), true);
+  await press('⇲ 広げてコピー'); await w(200); await tap('#c4_0');
+  check('  範囲は 範囲ごと（1,2 → 3,4 と 続ける）', await page.evaluate(() => [1, 2, 3, 4].map(r => data[r][0]).join(',')), '1,2,3,4');
+  // 🎨 色（1つの セル）
+  await page.evaluate(() => { clearRangeSelection(); sel(1, 1); showEditBar(true); }); await w(300);
+  await press('🎨 色'); await w(900);
+  check('  1つの セルの 🎨 色：塗る色・字の色・マイナスは赤・空いているセル（濃さ・棒は 出さない）', await page.evaluate(() => { const o = document.getElementById('hpOverlay'), t = o ? o.textContent : ''; return [o && o.classList.contains('open'), o.querySelectorAll('.hp-sw').length >= 20, t.includes('マイナスは赤い字'), t.includes('空いているセル'), t.includes('大きさを棒で')].join('/'); }), 'true/true/true/true/false');
+  await page.evaluate(() => HP.paint('bg', '#c8e6c9')); await w(300);
+  check('  色を 押すと その セルを 塗る（↶戻すで 戻る）', await page.evaluate(() => { const a = (cellStyles['1,1'] || {}).bg; undoLast(); return a + '/' + ((cellStyles['1,1'] || {}).bg || 'なし'); }), '#c8e6c9/なし');
+  // メニューの 場所
+  await page.evaluate(() => { toggleSettings(); setSettingsTab(0); }); await w(300);
+  check('  設定：メニューの 場所（はじめは セルの そば）', await page.evaluate(() => [...document.querySelectorAll('#bandWhereSeg button')].map(b => b.textContent + (b.classList.contains('on') ? '●' : '')).join('|')), 'セルの そば（いまの 形）●|テンキーの 合計・＝ の 段');
+  const h0 = await page.evaluate(() => document.querySelector('#numpadPage1 .btn.kp-half[data-key="sum"]').getBoundingClientRect().height);
+  await page.evaluate(() => { setBandWhere('pad'); toggleSettings(); }); await w(500);
+  const h1 = await page.evaluate(() => document.querySelector('#numpadPage1 .btn.kp-half[data-key="sum"]').getBoundingClientRect().height);
+  check('  テンキーの 段に すると その 段が 高く なる', h1 > h0 + 8, true);
+  await page.evaluate(() => { clearRangeSelection(); sel(1, 1); showEditBar(true); }); await w(400);
+  check('  メニューは Σ合計・＝数式 の 段に かさなる（アイコン＋名前）', await page.evaluate(() => { const m = document.getElementById('cellMenu').getBoundingClientRect(), s = document.querySelector('#numpadPage1 .btn.kp-half[data-key="sum"]').getBoundingClientRect(); return [document.getElementById('cellMenu').classList.contains('ui2-padrow'), Math.abs(m.top - s.top) < 3, Math.abs(m.height - s.height) < 3, !!document.querySelector('#cellMenu .pi')].join('/'); }), 'true/true/true/true');
+  check('  覚える・全保存にも 入る', await page.evaluate(() => localStorage.getItem('excalc_band_where') + '/' + settingsBundle().excalc_band_where), 'pad/pad');
+  await page.evaluate(() => { hideEditBar(); setBandWhere('pop'); }); await w(300);
+  check('  セルの そばに 戻すと 段も 元の 高さ', Math.abs(await page.evaluate(() => document.querySelector('#numpadPage1 .btn.kp-half[data-key="sum"]').getBoundingClientRect().height) - h0) < 2, true);
+  // 前の やり方
+  await page.evaluate(() => setFillHow('handle')); await w(300);
+  check('  前の やり方（角の つまみ）に 戻せる', await page.evaluate(() => { sel(1, 1); updateFillHandle(); return fillHow + '/' + localStorage.getItem('excalc_fill_how') + '/' + document.getElementById('fillHandle').classList.contains('on'); }), 'handle/handle/true');
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('⇲ 広げてコピー'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v687'")].join('/'), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runOto686(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎶 2〜3分の 名曲メドレー（v686） ──');
@@ -23105,6 +23167,7 @@ const SUITES = [
   [['oto684', 'v684'], b => runOto684(b)],
   [['oto685', 'v685'], b => runOto685(b)],
   [['oto686', 'v686'], b => runOto686(b)],
+  [['fillmenu687', 'v687'], b => runFillMenu687(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
