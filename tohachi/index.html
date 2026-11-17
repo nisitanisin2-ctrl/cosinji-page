@@ -206,6 +206,10 @@ input[type=range]{ width:100%; accent-color:var(--acc); }
 .stepbtn span:last-child{ font-size:.85rem; color:var(--sub); }
 .stepno{ justify-self:start; font-size:.72rem; font-weight:800; letter-spacing:.08em; color:var(--on-acc); padding:1px 10px; border-radius:99px; }
 .stepno.s0{ background:var(--lv0); } .stepno.s1{ background:var(--lv1); } .stepno.s3{ background:var(--lv2); }
+.jumpmk circle{ fill:var(--acc2); stroke:var(--mapsnow); stroke-width:1.5; }
+.jumpmk path{ fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+ul.svlist{ list-style:none; padding:0; margin:8px 0; }
+ul.svlist li{ padding:6px 0; border-bottom:1px dashed var(--line); font-size:.9rem; }
 .caution path{ fill:var(--gold); stroke:var(--mapsnow); stroke-width:1.5; stroke-linejoin:round; }
 .caution text{ fill:#1d1d1f; font-size:10px; font-weight:900; }
 .caution .cin{ transform-box:fill-box; transform-origin:center; }
@@ -343,7 +347,7 @@ footer li{ margin:2px 0; word-break:break-all; }
   <p class="lead">兵庫県北部、鉢伏山（はちぶせやま）の東側にあるスキー場です。読みは「<b>とうはち</b>」。となりの <b>スカイバレイ</b> とつながっていて、リフト券は共通で使えます。</p>
   <div class="grid g3">
     <div class="card"><h3>⛰ 山頂は超ワイド</h3><p>山頂は「一度味わうとやみつきになる」と評判の<b>超ワイドなオープンバーン</b>。中腹からは、さわやかな<b>林間コース</b>をクルージング。<span class="src">（公式の紹介より）</span></p></div>
-    <div class="card"><h3>🎫 スカイバレイと共通券</h3><p>リフト券もシーズン券も、となりのスカイバレイと共通。2つ合わせて「<b>西日本最大級のBIGゲレンデ</b>」。ただし<b>営業時間はそれぞれちがう</b>ので注意。<span class="src">（公式マップより）</span></p></div>
+    <div class="card"><h3>🎫 共通券で、尾根の向こうも</h3><p>東鉢のリフト券（シーズン券も）で、尾根の向こうのスカイバレイ側のコースも滑れます。2つ合わせて「<b>西日本最大級のBIGゲレンデ</b>」。<b>営業時間はそれぞれちがう</b>ので、帰りのリフトの時間に注意。<span class="src">（公式マップより）</span></p></div>
     <div class="card"><h3>👶 独立したチビッコパーク</h3><p>駐車場のすぐ近くに 3,000㎡。<b>サンキッド（スノーエスカレーター）</b>つき。小学生未満はリフト無料。口コミでは「比較的すいていて滑りやすい」という声も。</p></div>
   </div>
 </section>
@@ -411,6 +415,8 @@ footer li{ margin:2px 0; word-break:break-all; }
           <g class="caution" transform="translate(132 263)"><g class="cin"><path d="M0 -8 L8 6 L-8 6 Z"></path><text y="4.5" text-anchor="middle">!</text></g></g>
           <g class="caution" transform="translate(14 384)"><g class="cin"><path d="M0 -8 L8 6 L-8 6 Z"></path><text y="4.5" text-anchor="middle">!</text></g></g>
         </g>
+        <!-- 自然の段差（ジャンプ）：1号を降りて左側（センターB）が、3号の乗り場からの道と合流する所 -->
+        <g class="jumpmk" data-area="jump" transform="translate(236 203)"><circle r="7.5"></circle><path d="M-4.5 3.5 L-1 3.5 L3.5 -3.2 M1 -3.6 L3.5 -3.2 L3.4 -0.6"></path></g>
         <g id="badges"></g>
         <circle id="runner" r="6.5" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
       </svg>
@@ -422,6 +428,8 @@ footer li{ margin:2px 0; word-break:break-all; }
         <span><i class="box" style="background:var(--ng)"></i>立入禁止</span>
         <span>┄ リフト（番号を押す）</span>
         <span>⚠ 急な所（おおよその場所）</span>
+        <span><i style="background:var(--acc2)"></i>自然の段差（ジャンプ）</span>
+        <span><i style="background:repeating-linear-gradient(90deg,var(--lv3) 0 7px,transparent 7px 12px)"></i>おすすめライン</span>
       </div>
     </div>
     <div class="card detail" id="detail" aria-live="polite"></div>
@@ -465,14 +473,14 @@ footer li{ margin:2px 0; word-break:break-all; }
     <div class="steps3" id="stepRoute">
       <button class="stepbtn" data-step="1"><span class="stepno s0">STEP 1</span><b>3号リフトで足ならし</b><span>3号を降りたら<b>左側</b>（オレンジの道）から滑り、3号リフトの<b>裏側</b>から乗り場へ戻る。何本かくり返して足を慣らそう。</span></button>
       <button class="stepbtn" data-step="2"><span class="stepno s1">STEP 2</span><b>1号の方へ戻る</b><span>3号の乗り場から、1号の方へ向かう道を滑る。次の急な所は<b>大きく回り込んで</b>よけ、最後の急な所は<b>大回り</b>でゆっくり。</span></button>
-      <button class="stepbtn" data-step="3"><span class="stepno s1">STEP 3</span><b>慣れてきたら センターB</b><span>1号リフトで上へ。幅200mの緩斜面（最大15°）でターンを大きく。</span></button>
+      <button class="stepbtn" data-step="3"><span class="stepno s1">STEP 3</span><b>慣れてきたら センターB</b><span>1号リフトを降りて左側へ。幅200mの緩斜面（最大15°）でターンを大きく。下の合流する所には自然の段差があるので、周りの人に注意。</span></button>
       <button class="stepbtn" data-step="4"><span class="stepno s3">STEP 4</span><b>上達したら 東尾根（中級）</b><span>2号リフトで山頂へ。眺め最高の1,800mロングコース。</span></button>
     </div>
     <p class="note">ふもとからは4号リフトでカフェテリアへ行くと、3号リフトはすぐそこ（1号→センターBからも行けます）。大回りのコツは下の「③ スピード調整」で。無理は禁物！</p>
   </div>
   <div class="school">
     <div class="card"><h3>🏂 スノーボード（土日祝）</h3><p>東鉢のスクールは<b>土日祝のスノーボードだけ</b>。受付は<b>かつら1号リフト横のリフト事務所1階</b>。</p><p class="note">午前：受付 9:30〜10:20／レッスン 10:30〜12:00<br>午後：受付 12:30〜13:20／レッスン 13:30〜15:00<br>東鉢ではレッスンの予約はしていません。<span class="src">（公式）</span></p></div>
-    <div class="card"><h3>⛷ スキー・平日は スカイバレイで</h3><p>となりのスカイバレイの<b>第3レストハウス</b>のスクールなら、平日もふくめて、無料レッスンからボード・スキー・ショートスキーまで受けられます。<span class="src">（公式）</span></p></div>
+    <div class="card"><h3>⛷ スキーのレッスン・平日のレッスン</h3><p>スキーのレッスンや平日のレッスンは、公式サイトのスクールのページに案内があります。行く前に確認しておくと安心です。</p><p><a href="https://tohachi.jp/school" target="_blank" rel="noopener">公式のスクール案内を開く</a></p></div>
   </div>
   <h3 class="subh">覚えたい3つの基本 ＋ 転び方</h3>
   <div class="seg tabs" id="sportTabs">
@@ -624,7 +632,7 @@ footer li{ margin:2px 0; word-break:break-all; }
   <div class="grid g3">
     <div class="card"><h3>🍛 ランチ</h3><p>「<b>シルバーホルン</b>」は1号リフト乗り場の少し上。テーブルサービスのお店で、営業は9:00〜17:00。ハンバーグランチ・ビーフシチューランチ・カレー・パスタ・ショコラケーキ、生クリームたっぷりのココアも人気。<b>ランチは朝イチから閉店まで</b>注文OK。中腹にはカフェテリア「フライングフォックス」も。<span class="src">（公式）</span></p></div>
     <div class="card"><h3>👩 金曜はレディースデイ</h3><p>毎週金曜は、女性の<b>1日リフト券が1,000円引き</b>。平日に行けるならねらい目です。<span class="src">（公式）</span></p></div>
-    <div class="card"><h3>🎫 スカイバレイへ遠征</h3><p>山頂から尾根づたいの<b>ディアコース→下山コース</b>で3,200mのクルージング。ボードパークや入口に80mのハーフパイプがあるフォックスコースも。下山コースは夕方混むので午前中がねらい目。<span class="src">（スカイバレイ公式）</span></p></div>
+    <div class="card"><h3>🎫 共通券で、尾根の向こうへ</h3><p>東鉢の山頂から尾根の向こうはスカイバレイ側。山頂ペアリフトまわりの<b>ディア</b>（眺め最高）・<b>フォックス</b>（入口に80mのハーフパイプ）・<b>イーグル</b>（最大32°）・<b>サンダー</b>も、同じリフト券で滑れます。帰りは<b>ディアコースの途中を右に下ると東鉢</b>へ。<span class="src">（スカイバレイ公式）</span></p></div>
     <div class="card"><h3>🛷 ニューギアに挑戦</h3><p>スキーとスノボだけじゃない。<b>スノーモト・スノーレーサー・スノースクート</b>などのレンタルもあります（ロイヤルハジメ・レンタルちさと など）。<span class="src">（公式）</span></p></div>
     <div class="card"><h3>🏠 泊まるなら</h3><p>ゲレンデから歩いて5分以内に、ロッジ・ペンション・民宿が並びます。1泊2食 7,000円から（ロッヂ鉢・清和荘）、「ゲレンデまで0分」の翠山荘など。<span class="src">（公式の施設案内）</span></p></div>
     <div class="card"><h3>📷 先にコースを見ておく</h3><p>公式のゲレンデ案内から、<b>Googleストリートビュー</b>でコースを見られます（2019年2月撮影）。はじめての人は、行く前に雰囲気をつかんでおくと安心。</p><p><a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデ案内を開く</a></p></div>
@@ -687,9 +695,11 @@ $("#themeBtn").onclick=()=>{
 const SEG={
   A:"M199 23 C 193 34, 184 50, 184 64 S 186 92, 194 103 L 201 110",
   S:"M208 23 C 212 42, 222 64, 231 85",
-  E:"M204 20 C 225 25, 252 36, 268 52 S 292 84, 296 104 S 299 125, 297 133 S 280 190, 268 210 S 258 245, 260 270",
+  E:"M204 20 C 225 25, 252 36, 268 52 S 292 84, 296 104 S 300 126, 308 142 S 338 174, 352 194",
+  // 東尾根を降りてすぐ左（公式マップの青い分かれ道）→ 3号の右手の急斜面 → 3号の乗り場
+  T:"M206 20 C 216 26, 230 40, 234 58 S 238 80, 239 90 C 252 96, 270 104, 278 116 S 290 136, 300 152 S 318 176, 328 196",
   // 初心者コース：3号を降りて左側から滑り、3号の乗り場へ裏側から戻る
-  O:"M242 92 C 256 102, 262 112, 262 130 S 280 162, 296 177 S 326 176, 338 190 S 346 208, 333 206",
+  O:"M242 92 C 256 102, 262 112, 262 130 S 280 162, 296 177 S 324 176, 335 188 S 341 204, 332 206",
   B:"M233 127 C 243 138, 255 150, 256 162 S 254 180, 252 188 S 249 204, 251 212",
   // センターC：3号の乗り場（カフェテリアのあたり）から1号の方へ
   C:"M331 206 C 310 208, 284 203, 263 207 S 251 213, 247 222 S 210 240, 176 254",
@@ -699,6 +709,7 @@ const SEG={
 const tail=s=>s.replace(/^M\s*[-\d.]+[ ,]+[-\d.]+\s*/,"");
 const LVC={"初級":"var(--lv1)","中級":"var(--lv2)","上級":"var(--lv3)","道":"var(--lv0)"};
 const lvCls=l=>({"初級":"t-1","中級":"t-2","上級":"t-3","道":"t-0"}[l]||"t-k");
+const tagOf=c=>c.tag||(c.route?"マップの道":c.lv);
 const COURSES=[
   {id:"centerB", name:"センターBコース", short:"センターB", lv:"初級", len:700, avg:12, max:15, d:SEG.B, run:SEG.B+" S 248 218, 247 222 S 210 240, 176 254 "+tail(SEG.D), w:12, lab:[242,178,"end"],
    txt:"中腹（1号リフトを降りた先、2号リフト乗り場の近く）から下る、コース幅が最大200mの緩斜面。ビギナーから楽しめる万能型コース。", tip:"広いので、人の少ない端のほうでゆっくり練習しましょう。下はセンターC→センターDで ふもとへ。", src:"公式"},
@@ -710,17 +721,22 @@ const COURSES=[
    txt:"3号リフトを降りたら左側から滑り、3号リフトの裏側から乗り場へ戻ってくるオレンジの道。何本もくり返して足を慣らすのにぴったり。ゲレンデマップにのっている道で、公式の数字はありません。", tip:"ふもとからは4号リフトでカフェテリアへ（1号→センターBからも行けます）。3号リフトは8:40〜16:20。", src:"公式マップ"},
   {id:"champion", name:"チャンピオンコース", short:"チャンピオン", lv:"中級", len:600, avg:10, max:20, d:SEG.H, w:6, lab:[240,312,"start"],
    txt:"カフェテリアの近くから、林の中を ふもとの無料更衣室の方へ下る。スノーボーダーに一番人気のロングな林間コース。", tip:"林間は先が見えにくいので、合流点ではスピードを落として。", src:"公式"},
-  {id:"higashione", name:"東尾根コース", short:"東尾根", lv:"中級", len:1800, avg:20, max:25, d:SEG.E, run:SEG.E+" C 261 276, 250 282, 240 287 S 196 330, 175 354 S 142 395, 139 418 S 143 440, 148 446", w:6, lab:[304,150,"start"],
-   txt:"山頂から、スカイバレイとの境（赤い点線）にそって下る、エリアでいちばん長いコース。雪質がよく、眺めも最高の「1番ホットなコース」。マップでは、カフェテリアの横を下ってチャンピオンコースにつながっています。", tip:"長いので途中で脚を休めながら。点線の向こうはスカイバレイです。", src:"公式"},
+  {id:"higashione", name:"東尾根コース", short:"東尾根", lv:"中級", len:1800, avg:20, max:25, d:SEG.E, run:SEG.E+" S 340 214, 319 220 "+tail(SEG.H), w:6, lab:[330,121,"middle"],
+   txt:"山頂から、スカイバレイとの境（赤い点線）にそって下る、エリアでいちばん長いコース。雪質がよく、眺めも最高の「1番ホットなコース」。下りた先はカフェテリアのあたりで、そのままチャンピオンコースへ続けて ふもとまで滑れます。", tip:"長いので途中で脚を休めながら。点線の向こうはスカイバレイです。", src:"公式"},
   {id:"centerA", name:"センターAコース", short:"センターA", lv:"上級", len:500, avg:30, max:35, d:SEG.A, w:6, lab:[150,72,"end"],
    txt:"山頂から2号リフトの左を下る上級コース。平均30°と ずっと急だけど、整備に力を入れているので滑りやすい。中級者以上は必ずGO！", tip:"スピードが出やすいので、ターンを細かく。左のピンクは立入禁止です。", src:"公式"},
-  {id:"higashioneshita", name:"東尾根下コース", short:"東尾根下", lv:"上級", len:600, avg:20, max:43, d:SEG.S, w:6, lab:[233,66,"start"], fs:10,
+  {id:"higashioneshita", name:"東尾根下コース", short:"東尾根下", lv:"上級", len:600, avg:20, max:43, d:SEG.S, w:6, lab:[210,54.5,"middle"], fs:9.5, rot:69.6,
    txt:"山頂から2号リフトの右を下る、東鉢屈指の難関コース。コースのトップ付近から急斜面で、最大43°。上級者のメインコースとして人気。", tip:"上から下をのぞいてラインを決めてから。横すべりで下りるのも立派な技術です。", src:"公式"},
+  {id:"steep3", name:"東尾根 → 3号わきの急斜面", short:"3号わき急斜面", lv:"上級", tag:"おすすめライン", route:true, dash:true, d:SEG.T, w:4, lab:null, avg:25,
+   txt:"東尾根を降りてすぐ左に曲がって滑り、3号リフトの右手の急斜面を一気に下りるルート。下りた所は3号リフトの乗り場（カフェテリアのあたり）。", tip:"急斜面なので、上から下をよく見てから。図の線はおおよそです。", note:"公式のコースではありません（おすすめの滑り方）。", src:"おすすめ"},
 ];
 const AREAS={
   openbahn:{name:"山頂オープンバーン", lv:"中〜上級", txt:"山頂は「一度味わうとやみつきになる」と評判の超ワイドなオープンバーン。自由自在な滑りは痛快そのもの。センターA・東尾根下・東尾根は、ここからスタートします。", tip:"ピンクの立入禁止エリアには入らないこと。山頂へ行く2号リフトは9:00から。", stats:[["行き方","2号リフト"],["2号の時間","9:00〜16:20"],["広さ","超ワイド"]], src:"公式"},
   kids:{name:"チビッコパーク", lv:"キッズ", txt:"駐車場のすぐ近くにある3,000㎡の子ども用エリア。サンキッド（スノーエスカレーター）があるので、歩いて登らなくても大丈夫。マップでは、チャンピオンコースの途中から「チビッコゲレンデ」がここへつながっています。", tip:"2歳以上は1日600円（リフト1日券・半日券でも使える）。小学生未満は保護者といっしょに。", stats:[["広さ","3,000㎡"],["2歳以上","600円/日"],["場所","駐車場の近く"]], src:"公式"},
-  skyvalley:{name:"スカイバレイ", lv:"共通券", txt:"となりのスキー場。東鉢のリフト券でそのまま滑れます。山頂から尾根づたいのディアコース→下山コースで3,200mのクルージング。ボードパーク、80mのハーフパイプがあるフォックスコース、上級者向けのイーグルコース（最大32°・手ごわいコブ）も。", tip:"東鉢とは営業時間がちがいます。ディアコースの途中を右に下ると東鉢に入ります。", stats:[["ロング","3,200m"],["リフト券","共通"],["パーク","あり"]], src:"スカイバレイ公式"},
+  skyvalley:{name:"スカイバレイ側（共通券）", lv:"共通券", txt:"東鉢のリフト券で、尾根（赤い点線）の向こうのスカイバレイ側のコースも滑れます。東鉢の山頂から近いのは、山頂ペアリフトまわりの4コース。", tip:"営業時間は東鉢とちがいます。帰りは山頂ペアリフトで上がり、ディアコースの途中を右に下ると東鉢へ戻れます。", stats:[["山頂から近い","4コース"],["リフト券","共通"],["東鉢へ","ディア→右へ"]], src:"スカイバレイ公式",
+   list:[["ディアコース","中級","710m","眺めは最高。山頂から尾根づたい。途中を右に下ると東鉢へ。"],["フォックスコース","中級","580m","入口に80mのハーフパイプ。ゆるめで幅広の片斜面。"],["イーグルコース","上級","620m","最大32°。手ごわいコブと急斜面。滑り出してすぐ右に迂回コースあり。"],["サンダーコース","上級","560m","ギャップの連続で始まり、後半はなだらか。ゴールド検定バーン。"]]},
+  jump:{name:"自然の段差（ジャンプ）", lv:"おすすめ", txt:"1号リフトを降りて左側（センターB）を滑ると、もう一つのコース（3号の乗り場からの道）と合流する所に自然の段差があって、ジャンプも楽しめます。", tip:"合流する所なので、周りの人に十分注意。横や下から来る人がいないか、見てから飛ぼう。", stats:[["行き方","1号→センターB"],["場所","合流する所"],["注意","周りの人"]], src:"おすすめ",
+   legs:()=>[liftLeg("lift1"), skiLeg("centerB","cv-centerB"), {hop:true}]},
 };
 const LIFTS=[
   {id:"lift1", n:1, name:"かつら1号ペアリフト", len:879, vert:210, hours:"8:30〜16:40", a:[10,431], b:[200,131], badge:[22,417],
@@ -734,21 +750,21 @@ const LIFTS=[
 ];
 const LEVELS=[
   {id:"first", e:"🐣", n:"はじめて", s:"★☆☆☆", d:"雪の上に立つのも初めて", rec:["beginner","centerC","centerD","kids"],
-   steps:["スクールを確認。スノボは土日祝に東鉢（1号リフト横の事務所1階で受付）、スキーや平日はスカイバレイ第3レストハウスのスクールへ。","ふもとの平らな所で、板をつけて歩く・転ぶ・起きるを練習。「ハの字（スキー）」「横すべり（スノボ）」で止まれるように。","4号リフトでカフェテリアへ。3号リフトを降りたら左側から滑り、3号の裏側から乗り場へ戻る。何本かくり返して足ならし。","帰りは3号の乗り場から1号の方へ向かう道を滑る。次の急な所は大きく回り込んでよける。","最後に急な所が残るけど、大回り（ターンを大きく）でゆっくり滑れば大丈夫。"]},
-  {id:"beg", e:"🙂", n:"初級", s:"★★☆☆", d:"止まる・曲がるはできる", rec:["beginner","centerC","centerD","centerB","champion"],
-   steps:["4号→3号リフトへ。3号を降りたら左側から滑り、裏側から乗り場へ戻るループで足ならし。","3号の乗り場から1号の方へ。次の急な所は大きく回り込み、最後の急な所は大回りで。","1号リフトでセンターBへ。幅200mの緩斜面でターンを大きく。","ランチはシルバーホルン（1号乗り場の少し上）。ランチは朝から注文できます。","慣れたら、平均10°の林間「チャンピオンコース」で ふもとまで。"]},
-  {id:"mid", e:"😎", n:"中級", s:"★★★☆", d:"中級コースなら自由に滑れる", rec:["higashione","champion","openbahn","skyvalley"],
-   steps:["1号→2号リフト（9:00から）で山頂へ。超ワイドなオープンバーンで足慣らし。","東尾根コースでスカイバレイとの境を下る。雪質と眺めがいちばん。","チャンピオンコースの林間をリズムよく。スノーボーダーに一番人気。","午後はスカイバレイへ遠征（共通券）。ディアコース→下山コースで3,200m。","東鉢へ戻って、東尾根でもう1本。2号・3号リフトは16:20までです。"]},
-  {id:"adv", e:"🔥", n:"上級", s:"★★★★", d:"急斜面がすき", rec:["higashioneshita","centerA","openbahn","skyvalley"],
-   steps:["1号→2号リフト（9:00から）で山頂へ。降雪の次の朝はオープンバーンの新雪を。","東尾根下コース（最大43°）。トップ付近から急斜面。上からラインを読んでから。","センターAコース（平均30°）。整備がよいので、スピードを出しても滑りやすい。","スカイバレイのイーグルコース（最大32°・手ごわいコブ）やサンダーコースへ遠征。","最後は東尾根の1,800mロングでカービングして〆。"]},
+   steps:["スクールを確認。スノボは土日祝に東鉢（1号リフト横の事務所1階で受付）。スキーや平日のレッスンは公式サイトで確認を。","ふもとの平らな所で、板をつけて歩く・転ぶ・起きるを練習。「ハの字（スキー）」「横すべり（スノボ）」で止まれるように。","4号リフトでカフェテリアへ。3号リフトを降りたら左側から滑り、3号の裏側から乗り場へ戻る。何本かくり返して足ならし。","帰りは3号の乗り場から1号の方へ向かう道を滑る。次の急な所は大きく回り込んでよける。","最後に急な所が残るけど、大回り（ターンを大きく）でゆっくり滑れば大丈夫。"]},
+  {id:"beg", e:"🙂", n:"初級", s:"★★☆☆", d:"止まる・曲がるはできる", rec:["beginner","centerC","centerD","centerB","jump","champion"],
+   steps:["4号→3号リフトへ。3号を降りたら左側から滑り、裏側から乗り場へ戻るループで足ならし。","3号の乗り場から1号の方へ。次の急な所は大きく回り込み、最後の急な所は大回りで。","1号リフトを降りて左側（センターB）へ。幅200mの緩斜面でターンを大きく。合流する所の自然の段差は、周りの人に注意。","ランチはシルバーホルン（1号乗り場の少し上）。ランチは朝から注文できます。","慣れたら、平均10°の林間「チャンピオンコース」で ふもとまで。"]},
+  {id:"mid", e:"😎", n:"中級", s:"★★★☆", d:"中級コースなら自由に滑れる", rec:["higashione","steep3","jump","champion","openbahn","skyvalley"],
+   steps:["1号を降りて左側（センターB）へ。合流する所に自然の段差があって、ジャンプも楽しい（周りの人に注意）。","2号リフト（9:00から）で山頂へ。超ワイドなオープンバーンで足慣らし。","東尾根コースでスカイバレイとの境を下る。雪質と眺めがいちばん。","東尾根を降りてすぐ左に曲がり、3号の右手の急斜面を一気に下りるルートも楽しい。","共通券で、尾根の向こうのディアコースへ。途中を右に下ると東鉢に戻れる。"]},
+  {id:"adv", e:"🔥", n:"上級", s:"★★★★", d:"急斜面がすき", rec:["higashioneshita","steep3","centerA","openbahn","skyvalley"],
+   steps:["1号→2号リフト（9:00から）で山頂へ。降雪の次の朝はオープンバーンの新雪を。","東尾根下コース（最大43°）。トップ付近から急斜面。上からラインを読んでから。","東尾根を降りてすぐ左へ。3号の右手の急斜面を一気に下りる。","センターAコース（平均30°）。整備がよいので、スピードを出しても滑りやすい。","共通券で、尾根の向こうのイーグル（最大32°・コブ）も。山頂ペアリフトで上がり、ディアコースの途中から東鉢へ戻る。"]},
   {id:"family", e:"👨‍👩‍👧", n:"家族", s:"♡", d:"子どもといっしょ", rec:["kids","centerB"],
    steps:["駐車場は早めに。チビッコパークは駐車場のすぐ近くです。","子どもはチビッコパークで雪遊び。サンキッド（スノーエスカレーター）で登れます。","大人は交代で、1号リフト→センターBをゆっくり1本ずつ。","無料更衣室・パウダールームで休憩。子どもは冷えやすいので早めに。","子どもが疲れる前に早めに帰る。帰りの雪道は明るいうちに。"]},
 ];
 const PLANS={
-  first:[["8:00","🚗","到着。駐車場（平日1,000円・土日祝1,500円）に止めて、レンタルを借りて着がえ"],["9:30","🎓","スノボは土日祝のスクール受付（1号リフト横の事務所1階）。スキー・平日はスカイバレイのスクールへ"],["10:30","🏂","レッスン（10:30〜12:00）。立つ・止まる・リフトの乗り方"],["12:00","🍛","ランチ。シルバーホルンのハンバーグランチやビーフシチューランチ"],["13:00","🔁","4号リフトでカフェテリアへ。3号リフトを降りたら左側から滑り、3号の裏側から乗り場へ戻るループで足ならし"],["14:30","🌲","帰りは3号の乗り場から1号の方へ。次の急な所は大きく回り込んでよけ、最後の急な所は大回りでゆっくり"],["15:30","🏁","早めに終了。疲れた時がいちばん危ない"]],
+  first:[["8:00","🚗","到着。駐車場（平日1,000円・土日祝1,500円）に止めて、レンタルを借りて着がえ"],["9:30","🎓","スノボは土日祝のスクール受付（1号リフト横の事務所1階）。スキーや平日のレッスンは公式サイトで確認"],["10:30","🏂","レッスン（10:30〜12:00）。立つ・止まる・リフトの乗り方"],["12:00","🍛","ランチ。シルバーホルンのハンバーグランチやビーフシチューランチ"],["13:00","🔁","4号リフトでカフェテリアへ。3号リフトを降りたら左側から滑り、3号の裏側から乗り場へ戻るループで足ならし"],["14:30","🌲","帰りは3号の乗り場から1号の方へ。次の急な所は大きく回り込んでよけ、最後の急な所は大回りでゆっくり"],["15:30","🏁","早めに終了。疲れた時がいちばん危ない"]],
   beg:[["8:30","🚡","4号リフト（8:30〜）でカフェテリアへ。3号リフト（8:40〜）へ"],["8:45","🔁","3号を降りたら左側から滑り、3号の裏側から乗り場へ戻るループで足ならし"],["10:00","🌲","3号の乗り場から1号の方へ。次の急な所は大きく回り込み、最後の急な所は大回りで"],["10:45","🚡","1号リフトでセンターBへ。幅200mの緩斜面でターンを大きく"],["12:00","🍛","ランチ（シルバーホルンは朝から閉店までランチOK）"],["13:30","🌲","慣れたら、平均10°の林間チャンピオンコースで ふもとまで"],["15:30","🏁","早めに終了。ケガなく帰るまでがスキー"]],
-  mid:[["8:30","🚡","1号リフトで中腹へ。センターBで足慣らし"],["9:00","🏔","2号リフト（9:00〜）で山頂へ。超ワイドなオープンバーン"],["9:30","➡️","東尾根コース1,800m。スカイバレイとの境、眺めがいちばん"],["10:30","🌲","チャンピオンコースの林間をリズムよく"],["12:00","🍛","ランチ"],["13:00","🗺","スカイバレイへ（共通券）。ディアコース→下山コースで3,200m"],["15:30","🏁","東鉢へ戻って東尾根でもう1本（2号・3号は16:20まで）"]],
-  adv:[["8:30","🚡","1号リフト（8:30〜）で中腹へ"],["9:00","❄","2号リフト（9:00〜）で山頂へ。降雪の次の朝はオープンバーンの新雪を"],["9:30","🔴","東尾根下コース（最大43°）。トップ付近から急斜面"],["10:30","🔴","センターAコース（平均30°）。整備がよく、スピードを出しても滑りやすい"],["12:00","🍛","ランチ"],["13:00","🦅","スカイバレイのイーグルコース（最大32°・コブ）やサンダーコースへ遠征"],["15:30","🏁","東尾根のロングでカービングして〆（2号は16:20まで）"]],
+  mid:[["8:30","🚡","1号リフトで中腹へ。降りて左側（センターB）を滑り、合流する所の自然の段差でジャンプ（周りの人に注意）"],["9:00","🏔","2号リフト（9:00〜）で山頂へ。超ワイドなオープンバーン"],["9:30","➡️","東尾根コース1,800m。スカイバレイとの境、眺めがいちばん"],["10:30","⚡","東尾根を降りてすぐ左へ。3号の右手の急斜面を一気に下りる"],["12:00","🍛","ランチ"],["13:00","🗺","共通券で、尾根の向こうのディアコースへ。途中を右に下って東鉢へ戻る"],["15:30","🏁","チャンピオンコースの林間を流して終了（2号・3号は16:20まで）"]],
+  adv:[["8:30","🚡","1号リフト（8:30〜）で中腹へ"],["9:00","❄","2号リフト（9:00〜）で山頂へ。降雪の次の朝はオープンバーンの新雪を"],["9:30","🔴","東尾根下コース（最大43°）。トップ付近から急斜面"],["10:30","⚡","東尾根を降りてすぐ左へ。3号の右手の急斜面を一気に"],["11:15","🔴","センターAコース（平均30°）。整備がよく、スピードを出しても滑りやすい"],["12:00","🍛","ランチ"],["13:00","🦅","共通券で、尾根の向こうのイーグル（最大32°・コブ）やサンダーも。山頂ペアリフトで上がり、ディアコースの途中から東鉢へ戻る"],["15:30","🏁","東尾根のロングでカービングして〆（2号は16:20まで）"]],
   family:[["8:00","🚗","早めに到着。チビッコパークは駐車場のすぐ近く"],["9:00","⛄","チビッコパークで雪遊び。2歳以上は1日600円（小学生未満はリフト無料）"],["10:30","🎿","大人は交代で、1号リフト→センターBを1本ずつ"],["11:30","🍛","混む前にランチ"],["12:30","🚻","無料更衣室・パウダールームで休憩。子どもは冷えやすいので早めに"],["14:30","🏁","早めに帰る。雪道は明るいうちに"]],
 };
 const REFS=[[2,"ふつうの道の坂（約3%）"],[6,"車道のきつい坂（約10%）"],[12,"センターB（平均）"],[15,"センターB（最大）"],[22,"センターD（最大）"],[25,"東尾根（最大）"],[30,"センターA（平均）"],[33,"ふつうの階段（約30〜35°）"],[35,"センターA（最大）"],[43,"東尾根下（最大）"]];
@@ -801,12 +817,15 @@ LIFTS.forEach(L=>{
   b.addEventListener("click",()=>select(L.id,true)); bdg.appendChild(b);
 });
 COURSES.forEach(c=>{
-  cg.appendChild(el("path",{class:"course vis",id:"cv-"+c.id,"data-id":c.id,d:c.d,"stroke-width":c.w,style:`stroke:${LVC[c.lv]}`+(c.id==="centerB"?";stroke-opacity:.8":"")}));
+  cg.appendChild(el("path",{class:"course vis",id:"cv-"+c.id,"data-id":c.id,d:c.d,"stroke-width":c.w,style:`stroke:${LVC[c.lv]}`+(c.id==="centerB"?";stroke-opacity:.8":"")+(c.dash?";stroke-dasharray:7 5":"")}));
   if(c.run) runPaths.appendChild(el("path",{id:"run-"+c.id,d:c.run,fill:"none",stroke:"none"}));
-  const [x,y,a]=c.lab;
-  const t=el("text",{class:"maplabel"+(c.small?" s":""),x,y,"text-anchor":a},esc(c.short));
-  if(c.fs) t.style.fontSize=c.fs+"px";
-  lbg.appendChild(t);
+  if(c.lab){
+    const [x,y,a]=c.lab;
+    const t=el("text",{class:"maplabel"+(c.small?" s":""),x,y,"text-anchor":a},esc(c.short));
+    if(c.fs) t.style.fontSize=c.fs+"px";
+    if(c.rot) t.setAttribute("transform",`rotate(${c.rot} ${x} ${y})`); // 線にそって斜めに
+    lbg.appendChild(t);
+  }
 });
 // クリック用の太い線は、見える線の上にまとめて置く
 COURSES.forEach(c=>{ const hit=el("path",{class:"course hit","data-id":c.id,d:c.d}); hit.addEventListener("click",()=>select(c.id,true)); cg.appendChild(hit); });
@@ -817,7 +836,7 @@ $$("[data-area]").forEach(a=>a.addEventListener("click",()=>select(a.dataset.are
 /* チップ（ボタン） */
 const mkChip=(box,id,label,lv,cls)=>{ const b=document.createElement("button"); b.className="chip"; b.dataset.id=id; b.setAttribute("aria-pressed","false");
   b.innerHTML=`${esc(label)}${lv?` <span class="tag ${cls}">${esc(lv)}</span>`:""}`; b.onclick=()=>select(id,false); box.appendChild(b); };
-COURSES.forEach(c=>mkChip($("#chipsCourse"),c.id,c.short,c.route?"マップの道":c.lv,lvCls(c.lv)));
+COURSES.forEach(c=>mkChip($("#chipsCourse"),c.id,c.short,tagOf(c),lvCls(c.lv)));
 Object.entries(AREAS).forEach(([id,a])=>mkChip($("#chipsOther"),id,a.name,"",""));
 LIFTS.forEach(L=>mkChip($("#chipsOther"),L.id,`${L.n}号リフト`,"",""));
 
@@ -833,9 +852,9 @@ function select(id,fromMap){
   const who=LEVELS.filter(v=>v.rec.includes(id)).map(v=>v.e+" "+v.n).join("・");
   const whoLine=who?`<p class="note">こんな人に：${esc(who)}</p>`:"";
   if(c){
-    const stats=c.route?`<p class="note" style="margin:10px 0">長さ・斜度：公式の数字はありません（マップ上の道）</p>`
+    const stats=c.route?`<p class="note" style="margin:10px 0">${esc(c.note||"長さ・斜度：公式の数字はありません（マップ上の道）")}</p>`
       :`<div class="stats"><div class="stat"><b>${c.len.toLocaleString()}m</b><span>長さ</span></div><div class="stat"><b>${c.avg}°</b><span>平均斜度</span></div><div class="stat"><b>${c.max}°</b><span>最大斜度</span></div></div>`;
-    box.innerHTML=`<div class="fade"><h3>${esc(c.name)} <span class="tag ${lvCls(c.lv)}">${c.route?"マップの道":c.lv}</span></h3>${stats}
+    box.innerHTML=`<div class="fade"><h3>${esc(c.name)} <span class="tag ${lvCls(c.lv)}">${esc(tagOf(c))}</span></h3>${stats}
       <p>${esc(c.txt)} <span class="src">（${esc(c.src)}）</span></p><p class="note">💡 ${esc(c.tip)}</p>${whoLine}
       <div class="btnrow"><button class="btn" id="runBtn">▶ 滑ってみる</button>${c.route?"":'<button class="btn ghost" id="feelBtn">📐 この斜度を体感</button>'}</div></div>`;
     $("#runBtn").onclick=()=>runCourse(c);
@@ -849,10 +868,13 @@ function select(id,fromMap){
     $("#rideBtn").onclick=()=>rideLift(L);
     if(fromMap) rideLift(L);
   } else if(a){
+    const list=a.list?`<ul class="svlist">${a.list.map(([n,l,len,t])=>`<li><b>${esc(n)}</b> <span class="tag ${lvCls(l)}">${esc(l)}</span><span class="km">${esc(len)}</span><br><span class="note">${esc(t)}</span></li>`).join("")}</ul>`:"";
     box.innerHTML=`<div class="fade"><h3>${esc(a.name)} <span class="tag t-k">${esc(a.lv)}</span></h3>
       <div class="stats">${a.stats.map(([k,v])=>`<div class="stat"><b class="sm">${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div>
-      <p>${esc(a.txt)} <span class="src">（${esc(a.src)}）</span></p><p class="note">💡 ${esc(a.tip)}</p>${whoLine}</div>`;
-    $("#runner").setAttribute("opacity",0);
+      <p>${esc(a.txt)} <span class="src">（${esc(a.src)}）</span></p>${list}<p class="note">💡 ${esc(a.tip)}</p>${whoLine}
+      ${a.legs?'<div class="btnrow"><button class="btn" id="goBtn">▶ 行ってみる</button></div>':""}</div>`;
+    if(a.legs){ $("#goBtn").onclick=()=>runSeq(a.legs()); if(fromMap) runSeq(a.legs()); }
+    else $("#runner").setAttribute("opacity",0);
   }
 }
 // 赤い点（滑る人）・青い点（リフト）を線にそって動かす。いくつかを続けて動かせる（リフト → コース）
@@ -860,7 +882,7 @@ let seqToken=0;
 function animateAlong(path,dur,color,done){
   const r=$("#runner"), L=path.getTotalLength();
   if(runAnim) cancelAnimationFrame(runAnim);
-  r.style.fill=color; r.setAttribute("opacity",1);
+  r.style.fill=color; r.setAttribute("opacity",1); r.setAttribute("r",6.5);
   if(reduce){ const p=path.getPointAtLength(L); r.setAttribute("cx",p.x); r.setAttribute("cy",p.y); done&&done(); return; }
   const t0=performance.now();
   const step=t=>{ const k=Math.min(1,(t-t0)/dur), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2, p=path.getPointAtLength(e*L);
@@ -872,8 +894,17 @@ function runSeq(list,caution){
   $$("#cautions .cin").forEach(c=>c.classList.toggle("pulse",!!caution)); // 急な所の⚠を光らせる
   const next=()=>{ if(tok!==seqToken) return;
     if(i>=list.length){ setTimeout(()=>{ if(tok===seqToken){ $("#runner").setAttribute("opacity",0); $$("#cautions .cin").forEach(c=>c.classList.toggle("pulse",false)); } },900); return; }
-    const it=list[i++]; animateAlong(it.p,it.dur,it.color,next); };
+    const it=list[i++]; if(it.hop) hopRunner(next); else animateAlong(it.p,it.dur,it.color,next); };
   next();
+}
+// その場でぴょんと跳ねる（自然の段差のジャンプ）
+function hopRunner(done){
+  const r=$("#runner"); if(reduce){ done&&done(); return; }
+  const cy0=+r.getAttribute("cy"), t0=performance.now();
+  const step=t=>{ const k=Math.min(1,(t-t0)/700), s=Math.sin(k*Math.PI);
+    r.setAttribute("cy",cy0-s*9); r.setAttribute("r",6.5+s*2.5);
+    if(k<1) runAnim=requestAnimationFrame(step); else { r.setAttribute("cy",cy0); r.setAttribute("r",6.5); done&&done(); } };
+  runAnim=requestAnimationFrame(step);
 }
 const skiLeg=(id,pathId)=>{ const c=COURSES.find(x=>x.id===id), p=$("#"+(pathId||("run-"+id)))||$("#cv-"+id);
   return {p, dur:Math.max(1800,p.getTotalLength()/(40+(c.avg||10)*7)*1000), color:"#ff5a5f"}; }; // 斜度が急なほど速く（見た目の目安）
