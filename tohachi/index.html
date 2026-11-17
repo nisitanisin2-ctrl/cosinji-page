@@ -113,15 +113,27 @@ nav.toc a.on{ background:var(--acc); color:var(--on-acc); }
 @media (min-width:860px){ .mapwrap{ grid-template-columns:1.15fr .85fr; align-items:start; } }
 .map{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; position:relative; box-shadow:var(--shadow); }
 .map svg{ display:block; width:100%; height:auto; }
-.course{ fill:none; stroke-linecap:round; stroke-linejoin:round; cursor:pointer; transition:opacity .25s, stroke-width .2s; }
-.course.hit{ stroke:transparent; stroke-width:22; }
+/* コースは選んだときだけ出す（.on） */
+.course{ fill:none; stroke-linecap:round; stroke-linejoin:round; cursor:pointer; transition:opacity .35s, stroke-width .2s; }
+.course.hit{ stroke:transparent; stroke-width:22; pointer-events:none; }
+.course.hit.on{ pointer-events:stroke; }
+.course.vis{ opacity:0; pointer-events:none; }
+.course.vis.on{ opacity:1; }
 .course.vis.sel{ filter:drop-shadow(0 0 4px var(--acc2)); }
-.dimmed .course.vis{ opacity:.2; }
-.dimmed .course.vis.rec, .dimmed .course.vis.sel{ opacity:1; }
-[data-area]{ cursor:pointer; transition:opacity .25s; }
-.dimmed [data-area]{ opacity:.35; }
-.dimmed [data-area].rec, .dimmed [data-area].sel{ opacity:1; }
+.clabel{ opacity:0; transition:opacity .35s; }
+.clabel.on{ opacity:1; }
+#cautions{ opacity:0; transition:opacity .35s; }
+#cautions.on{ opacity:1; }
+[data-area]{ cursor:pointer; }
 [data-area].sel{ filter:drop-shadow(0 0 4px var(--acc2)); }
+.map svg[hidden]{ display:none; }
+.map svg.mapin{ animation:mapin .45s ease both; }
+@keyframes mapin{ from{ opacity:0; transform:translateY(8px); } }
+.maptabs{ display:inline-flex; margin-bottom:10px; }
+.chip.rec::before{ content:"★"; color:var(--gold); margin-right:3px; }
+.chip[aria-pressed="true"].rec::before{ color:var(--on-acc); }
+.svsign rect{ fill:var(--gold); stroke:var(--mapsnow); stroke-width:1.5; }
+.svsign text{ fill:#1d1d1f; font-size:8px; font-weight:800; pointer-events:none; }
 .ng{ fill:var(--ng); stroke:var(--ng); stroke-width:3; stroke-linejoin:round; opacity:.8; pointer-events:none; }
 .lift{ stroke:var(--sub); stroke-width:1.8; stroke-dasharray:2 7; animation:chairs 1.6s linear infinite; fill:none; }
 .lift.sel{ stroke:var(--acc); stroke-width:3; }
@@ -363,12 +375,13 @@ footer li{ margin:2px 0; word-break:break-all; }
 <!-- ============ MAP ============ -->
 <section id="map" class="reveal">
   <h2>動くコース図</h2>
-  <p class="lead">公式ゲレンデマップ（2027シーズン版）の位置関係をもとに描いた略図です。コースやリフトの番号を押すと、くわしい情報と「滑ってみる／乗ってみる」が出ます。</p>
+  <p class="lead">コースは、選んだときだけ線が出ます。下のボタンでコースやリフトを選ぶと、くわしい情報と「滑ってみる／乗ってみる」が出ます。東鉢側とスカイバレイ側（共通券）の図を切りかえられます。</p>
+  <div class="seg maptabs" id="mapTabs" role="group" aria-label="図の切りかえ"><button aria-pressed="true" data-m="tohachi">東鉢側</button><button aria-pressed="false" data-m="sv">スカイバレイ側（共通券）</button></div>
   <div class="chiprow" id="chipsCourse"><span>コース</span></div>
   <div class="chiprow" id="chipsOther"><span>エリア・リフト</span></div>
   <div class="mapwrap">
     <div class="map">
-      <svg id="mapSvg" viewBox="-14 -30 414 516" role="img" aria-label="ハイパーボウル東鉢のコースの略図。上が山頂、左下がふもとの駐車場、右がスカイバレイ。">
+      <svg id="mapSvg" viewBox="-14 -30 414 516" role="img" aria-label="ハイパーボウル東鉢のコースの略図。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
         <defs>
           <linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mapsnow)"/><stop offset="1" style="stop-color:var(--panel2)"/></linearGradient>
           <pattern id="kidsHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--mapsnow)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--gold)" stroke-width="2.6"/></pattern>
@@ -395,9 +408,9 @@ footer li{ margin:2px 0; word-break:break-all; }
           <path d="M168 358 C 150 362, 122 368, 104 375 S 85 388, 81 393" fill="none" style="stroke:var(--kids)" stroke-width="5" stroke-linecap="round"/>
           <path d="M168 358 C 150 362, 122 368, 104 375 S 85 388, 81 393" fill="none" stroke="transparent" stroke-width="18"/>
         </g>
-        <g id="lifts"></g>
-        <g id="courses"></g>
-        <g id="labels"></g>
+        <g class="g-lifts"></g>
+        <g class="g-courses"></g>
+        <g class="g-labels"></g>
         <!-- 施設 -->
         <g id="facilities">
           <text x="294" y="220" font-size="12" text-anchor="middle">🍴</text>
@@ -417,24 +430,53 @@ footer li{ margin:2px 0; word-break:break-all; }
         </g>
         <!-- 自然の段差（ジャンプ）：1号を降りて左側（センターB）が、3号の乗り場からの道と合流する所 -->
         <g class="jumpmk" data-area="jump" transform="translate(236 203)"><circle r="7.5"></circle><path d="M-4.5 3.5 L-1 3.5 L3.5 -3.2 M1 -3.6 L3.5 -3.2 L3.4 -0.6"></path></g>
-        <g id="badges"></g>
-        <circle id="runner" r="6.5" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
+        <g class="g-badges"></g>
+        <circle id="runner" class="runner" r="6.5" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
+      </svg>
+      <!-- スカイバレイ側：スカイバレイの公式マップ（見る向きが東鉢の図とちがう）の位置関係をもとにした略図。左上が東鉢側 -->
+      <svg id="svSvg" viewBox="-10 -16 430 312" role="img" aria-label="スカイバレイ側のコースの略図。左上が東鉢側、下がスカイバレイのふもと。選んだコースだけ線が出ます。">
+        <defs>
+          <linearGradient id="mapbg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mapsnow)"/><stop offset="1" style="stop-color:var(--panel2)"/></linearGradient>
+        </defs>
+        <rect x="-10" y="-16" width="430" height="312" fill="url(#mapbg2)"/>
+        <!-- 境の向こう（東鉢側） -->
+        <path d="M-10 -16 L333.9 -16 L333.9 5.0 L317.5 13.9 L295.3 26.0 L277.6 37.8 L260.0 49.1 L243.6 54.2 L233.1 61.3 L222.6 73.9 L207.9 83.2 L189.4 92.8 L169.3 100.4 L151.2 111.3 L132.7 121.0 L116.8 127.3 L100.4 129.4 L83.2 129.8 L80.2 135.2 L80.2 137 L-10 137 Z" style="fill:var(--sv)"/>
+        <path d="M333.9 5.0 L317.5 13.9 L295.3 26.0 L277.6 37.8 L260.0 49.1 L243.6 54.2 L233.1 61.3 L222.6 73.9 L207.9 83.2 L189.4 92.8 L169.3 100.4 L151.2 111.3 L132.7 121.0 L116.8 127.3 L100.4 129.4 L83.2 129.8 L80.2 135.2" fill="none" style="stroke:var(--lv3)" stroke-width="1.6" stroke-dasharray="4 4" opacity=".75" pointer-events="none"/>
+        <path d="M294.0 14.7 L283.9 25.2 L269.6 33.6 L250.7 47.0 L221.8 64.7 L192.4 83.2 L160.0 99.1 L126.8 113.0 L91.6 115.5" fill="none" style="stroke:var(--lv2)" stroke-width="3" stroke-linecap="round" opacity=".28" pointer-events="none"/>
+        <text class="maplabel s" x="150" y="28" text-anchor="middle">← ハイパーボウル東鉢側</text>
+        <text class="maplabel s" x="178" y="72" text-anchor="middle" style="font-size:8.5px">東鉢の東尾根</text>
+        <circle cx="284.8" cy="8" r="3" class="lift-end"/>
+        <text class="maplabel s" x="278" y="10" text-anchor="end">東鉢の山頂</text>
+        <text x="93" y="122" font-size="11" text-anchor="middle">🍴</text>
+        <text class="maplabel s" x="84" y="108" text-anchor="end">東鉢のカフェテリア</text>
+        <text class="maplabel s" x="408" y="290" text-anchor="end">スカイバレイ側（リフト券共通）</text>
+        <g class="g-lifts"></g>
+        <g class="g-courses"></g>
+        <g class="g-labels"></g>
+        <!-- 東鉢｜スカイバレイ の看板（2つのゲレンデの境目） -->
+        <g class="svsign" data-area="sv_signTop" transform="translate(334 3)"><rect x="-8" y="-6.5" width="16" height="13" rx="2.5"></rect><text y="3.2" text-anchor="middle">境</text></g>
+        <g class="svsign" data-area="sv_signHub" transform="translate(80 137)"><rect x="-8" y="-6.5" width="16" height="13" rx="2.5"></rect><text y="3.2" text-anchor="middle">境</text></g>
+        <g class="g-badges"></g>
+        <circle id="svRunner" class="runner" r="6" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
       </svg>
       <div class="legend">
         <span><i style="background:var(--lv1)"></i>初級</span>
         <span><i style="background:var(--lv2)"></i>中級</span>
         <span><i style="background:var(--lv3)"></i>上級</span>
-        <span><i style="background:var(--lv0)"></i>初心者コース</span>
-        <span><i class="box" style="background:var(--ng)"></i>立入禁止</span>
-        <span>┄ リフト（番号を押す）</span>
-        <span>⚠ 急な所（おおよその場所）</span>
-        <span><i style="background:var(--acc2)"></i>自然の段差（ジャンプ）</span>
-        <span><i style="background:repeating-linear-gradient(90deg,var(--lv3) 0 7px,transparent 7px 12px)"></i>おすすめライン</span>
+        <span data-only="tohachi"><i style="background:var(--lv0)"></i>初心者コース</span>
+        <span data-only="tohachi"><i class="box" style="background:var(--ng)"></i>立入禁止</span>
+        <span>┄ リフト（記号を押す）</span>
+        <span data-only="tohachi">⚠ 急な所（おおよその場所）</span>
+        <span data-only="tohachi"><i style="background:var(--acc2)"></i>自然の段差（ジャンプ）</span>
+        <span data-only="tohachi"><i style="background:repeating-linear-gradient(90deg,var(--lv3) 0 7px,transparent 7px 12px)"></i>おすすめライン</span>
+        <span data-only="sv" hidden><i class="box" style="background:var(--gold)"></i>境の看板（東鉢とつながる所）</span>
+        <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
     </div>
     <div class="card detail" id="detail" aria-live="polite"></div>
   </div>
-  <p class="note">※ 公式マップの位置関係をもとにした<b>略図</b>で、距離や角度は実際とはちがいます。リフトの長さは公式サイトのリフト案内の数字です。正確なマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデ案内</a>で。</p>
+  <p class="note" data-note="tohachi">※ 東鉢側の図は、公式ゲレンデマップ（2027シーズン版）の位置関係をもとにした<b>略図</b>で、距離や角度は実際とはちがいます。リフトの長さは公式サイトのリフト案内の数字です。正確なマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデ案内</a>で。</p>
+  <p class="note" data-note="sv" hidden>※ スカイバレイ側の図は、スカイバレイの公式マップの位置関係をもとにした<b>略図</b>です。東鉢側の図とは見る向きがちがいます（左上が東鉢側）。コースの長さ・斜度はスカイバレイの公式マップより。</p>
 </section>
 
 <!-- ============ SLOPE ============ -->
@@ -727,35 +769,84 @@ const COURSES=[
    txt:"山頂から2号リフトの左を下る上級コース。平均30°と ずっと急だけど、整備に力を入れているので滑りやすい。中級者以上は必ずGO！", tip:"スピードが出やすいので、ターンを細かく。左のピンクは立入禁止です。", src:"公式"},
   {id:"higashioneshita", name:"東尾根下コース", short:"東尾根下", lv:"上級", len:600, avg:20, max:43, d:SEG.S, w:6, lab:[210,54.5,"middle"], fs:9.5, rot:69.6,
    txt:"山頂から2号リフトの右を下る、東鉢屈指の難関コース。コースのトップ付近から急斜面で、最大43°。上級者のメインコースとして人気。", tip:"上から下をのぞいてラインを決めてから。横すべりで下りるのも立派な技術です。", src:"公式"},
-  {id:"steep3", name:"東尾根 → 3号わきの急斜面", short:"3号わき急斜面", lv:"上級", tag:"おすすめライン", route:true, dash:true, d:SEG.T, w:4, lab:null, avg:25,
+  {id:"steep3", name:"東尾根 → 3号わきの急斜面", short:"3号わき急斜面", lv:"上級", tag:"おすすめライン", route:true, dash:"7 5", d:SEG.T, w:4, lab:null, avg:25,
    txt:"東尾根を降りてすぐ左に曲がって滑り、3号リフトの右手の急斜面を一気に下りるルート。下りた所は3号リフトの乗り場（カフェテリアのあたり）。", tip:"急斜面なので、上から下をよく見てから。図の線はおおよそです。", note:"公式のコースではありません（おすすめの滑り方）。", src:"おすすめ"},
 ];
 const AREAS={
-  openbahn:{name:"山頂オープンバーン", lv:"中〜上級", txt:"山頂は「一度味わうとやみつきになる」と評判の超ワイドなオープンバーン。自由自在な滑りは痛快そのもの。センターA・東尾根下・東尾根は、ここからスタートします。", tip:"ピンクの立入禁止エリアには入らないこと。山頂へ行く2号リフトは9:00から。", stats:[["行き方","2号リフト"],["2号の時間","9:00〜16:20"],["広さ","超ワイド"]], src:"公式"},
+  openbahn:{name:"山頂オープンバーン", lv:"中〜上級", show:["centerA","higashioneshita","higashione"], txt:"山頂は「一度味わうとやみつきになる」と評判の超ワイドなオープンバーン。自由自在な滑りは痛快そのもの。センターA・東尾根下・東尾根は、ここからスタートします。", tip:"ピンクの立入禁止エリアには入らないこと。山頂へ行く2号リフトは9:00から。", stats:[["行き方","2号リフト"],["2号の時間","9:00〜16:20"],["広さ","超ワイド"]], src:"公式"},
   kids:{name:"チビッコパーク", lv:"キッズ", txt:"駐車場のすぐ近くにある3,000㎡の子ども用エリア。サンキッド（スノーエスカレーター）があるので、歩いて登らなくても大丈夫。マップでは、チャンピオンコースの途中から「チビッコゲレンデ」がここへつながっています。", tip:"2歳以上は1日600円（リフト1日券・半日券でも使える）。小学生未満は保護者といっしょに。", stats:[["広さ","3,000㎡"],["2歳以上","600円/日"],["場所","駐車場の近く"]], src:"公式"},
-  skyvalley:{name:"スカイバレイ側（共通券）", lv:"共通券", txt:"東鉢のリフト券で、尾根（赤い点線）の向こうのスカイバレイ側のコースも滑れます。東鉢の山頂から近いのは、山頂ペアリフトまわりの4コース。", tip:"営業時間は東鉢とちがいます。帰りは山頂ペアリフトで上がり、ディアコースの途中を右に下ると東鉢へ戻れます。", stats:[["山頂から近い","4コース"],["リフト券","共通"],["東鉢へ","ディア→右へ"]], src:"スカイバレイ公式",
+  skyvalley:{name:"スカイバレイ側（共通券）", lv:"共通券", goMap:"sv_signHub", goLabel:"スカイバレイ側の図を見る", txt:"東鉢のリフト券で、尾根（赤い点線）の向こうのスカイバレイ側のコースも滑れます。東鉢の山頂から近いのは、山頂ペアリフトまわりの4コース。", tip:"営業時間は東鉢とちがいます。帰りは山頂ペアリフトで上がり、ディアコースの途中を右に下ると東鉢へ戻れます。", stats:[["山頂から近い","4コース"],["リフト券","共通"],["東鉢へ","ディア→右へ"]], src:"スカイバレイ公式",
    list:[["ディアコース","中級","710m","眺めは最高。山頂から尾根づたい。途中を右に下ると東鉢へ。"],["フォックスコース","中級","580m","入口に80mのハーフパイプ。ゆるめで幅広の片斜面。"],["イーグルコース","上級","620m","最大32°。手ごわいコブと急斜面。滑り出してすぐ右に迂回コースあり。"],["サンダーコース","上級","560m","ギャップの連続で始まり、後半はなだらか。ゴールド検定バーン。"]]},
-  jump:{name:"自然の段差（ジャンプ）", lv:"おすすめ", txt:"1号リフトを降りて左側（センターB）を滑ると、もう一つのコース（3号の乗り場からの道）と合流する所に自然の段差があって、ジャンプも楽しめます。", tip:"合流する所なので、周りの人に十分注意。横や下から来る人がいないか、見てから飛ぼう。", stats:[["行き方","1号→センターB"],["場所","合流する所"],["注意","周りの人"]], src:"おすすめ",
+  jump:{name:"自然の段差（ジャンプ）", lv:"おすすめ", show:["centerB"], txt:"1号リフトを降りて左側（センターB）を滑ると、もう一つのコース（3号の乗り場からの道）と合流する所に自然の段差があって、ジャンプも楽しめます。", tip:"合流する所なので、周りの人に十分注意。横や下から来る人がいないか、見てから飛ぼう。", stats:[["行き方","1号→センターB"],["場所","合流する所"],["注意","周りの人"]], src:"おすすめ",
    legs:()=>[liftLeg("lift1"), skiLeg("centerB","cv-centerB"), {hop:true}]},
 };
 const LIFTS=[
-  {id:"lift1", n:1, name:"かつら1号ペアリフト", len:879, vert:210, hours:"8:30〜16:40", a:[10,431], b:[200,131], badge:[22,417],
+  {id:"lift1", n:1, name:"かつら1号ペアリフト", len:879, vert:210, hours:"8:30〜16:40", a:[10,431], b:[200,131], badge:[22,417], serves:["centerB"],
    txt:"ふもと（駐車場の近く）から中腹へ上がる、いちばん長いリフト。降りた先にセンターBのスタートと2号リフト乗り場があります。乗り場の横のリフト事務所1階がスクールの受付です。"},
-  {id:"lift2", n:2, name:"かつら2号ペアリフト", len:530, vert:144, hours:"9:00〜16:20", a:[240.5,132.7], b:[200,21], badge:[227,140],
+  {id:"lift2", n:2, name:"かつら2号ペアリフト", len:530, vert:144, hours:"9:00〜16:20", a:[240.5,132.7], b:[200,21], badge:[227,140], serves:["centerA","higashioneshita","higashione","steep3"],
    txt:"中腹から山頂へ。センターA・東尾根下・東尾根は、ここを降りた山頂からスタートします。朝は9:00からなので、ほかより少しおそめ。"},
-  {id:"lift3", n:3, name:"かつら3号ペアリフト", len:523, vert:94, hours:"8:40〜16:20", a:[330,200.4], b:[233.5,93.6], badge:[350,224],
+  {id:"lift3", n:3, name:"かつら3号ペアリフト", len:523, vert:94, hours:"8:40〜16:20", a:[330,200.4], b:[233.5,93.6], badge:[350,224], serves:["beginner"],
    txt:"カフェテリア（フライングフォックス）の近くから上へ。降りたら左側から初心者コースを滑って、裏側から乗り場へ戻る。足ならしのループにいちばんのリフトです。"},
-  {id:"lift4", n:4, name:"かつら4号ペアリフト", len:818, vert:170, hours:"8:30〜16:30", a:[129.6,453.6], b:[271.2,198], badge:[116,462],
+  {id:"lift4", n:4, name:"かつら4号ペアリフト", len:818, vert:170, hours:"8:30〜16:30", a:[129.6,453.6], b:[271.2,198], badge:[116,462], serves:["champion","centerC"],
    txt:"ふもと（無料更衣室の近く）からカフェテリアへ。チャンピオンコースのスタートや3号リフトに乗りつげます。近くにレンタルちさとがあります。"},
 ];
+/* ---------- スカイバレイ側（スカイバレイの公式マップの位置関係をもとにした略図の座標） ---------- */
+const SVSEG={
+  dia:"M367.9 8.4 L352.4 11.8 L336.8 15.1 L321.3 20.6 L307.9 29.8 L295.7 40.7 L283.5 51.2 L270.5 61.3 L257.0 70.6",
+  bear:"M255.4 71.4 L239.4 86.5 L223.4 101.2 L210.0 113.4 L194.5 125.6 L180.6 134.4 L168.0 141.5 L155.4 146.2 L147.8 149.5",
+  thunder:"M371.7 11.3 L358.3 18.1 L350.3 28.6 L340.6 39.9 L332.6 49.6 L323.4 61.3 L317.1 73.5 L310.4 87.4 L311.2 102.5 L316.7 109.6 L321.7 117.2 L325.1 125.6 L328.4 134.0 L331.0 142.8 L332.6 152.0 L332.6 161.3 L336.8 169.3",
+  eagle:"M385.1 6.3 L393.1 15.1 L393.1 28.6 L397.7 41.6 L401.9 55.0 L404.0 69.3 L399.4 81.9 L390.2 89.5 L378.0 96.6",
+  fox:"M376.7 96.2 L373.8 105.4 L370.4 115.5 L369.2 126.0 L366.7 136.1 L365.4 146.2 L363.7 155.8 L358.7 165.9 L352.4 172.2",
+  rabbit:"M144.9 155.4 L158.3 173.5 L172.2 185.6 L186.5 197.8 L201.6 212.1 L215.0 225.1",
+  wakaba:"M107.9 147.4 L105.0 158.3 L109.2 170.1 L115.1 178.5 L129.8 187.3 L137.3 204.1 L150.8 215.5 L163.4 228.9 L178.9 231.8 L195.7 225.1",
+  gezan:"M104.2 151.2 L100.0 159.6 L95.3 165.1 L97.4 169.7 L107.1 173.0 L96.6 176.0 L84.0 177.7 L67.2 179.8 L50.4 183.1 L33.6 188.6 L21.0 195.3 L11.8 202.4 L14.7 207.9 L25.2 210.0 L35.7 212.5 L39.1 216.7 L31.5 221.3 L23.9 225.5 L25.2 230.2 L37.8 234.4 L50.4 238.6 L59.2 242.8 L52.5 247.8 L35.7 255.4 L18.9 262.1 L12.6 267.1 L17.6 270.9 L33.6 271.3 L50.4 270.5 L65.1 269.2 L70.1 272.6 L76.4 277.2 L84.0 278.0 L96.6 275.9 L109.2 273.8 L121.8 271.3 L134.4 269.2 L153.7 264.6",
+  // ディアの途中を右に下って、東鉢の東尾根へ（線はおおよそ）
+  back:"M367.9 8.4 L352.4 11.8 L336.8 15.1 L321.3 20.6 L307.9 29.8 C 300 33, 286 31, 272 34 L250.7 47.0 L221.8 64.7 L192.4 83.2 L160.0 99.1 L126.8 113.0 L91.6 115.5",
+};
+const SV_COURSES=[
+  {id:"sv_wakaba", name:"ワカバコース", short:"ワカバ", lv:"初級", len:550, avg:10, max:12, d:SVSEG.wakaba, w:5, labAt:[.5,-8,0,"end"],
+   txt:"ゆるやかな林間コース。滑る楽しさがわかり始めた人におすすめ。", tip:"スタートは、東鉢のカフェテリアのあたり（境の看板）のすぐ先。下りたらラビットペアリフトで戻れます。", src:"スカイバレイ公式"},
+  {id:"sv_rabbit", name:"ラビットコース", short:"ラビット", lv:"中級", len:460, avg:13, max:16, d:SVSEG.rabbit, w:5, labAt:[.3,-10,-2,"end"],
+   txt:"ラビットペアリフトにそって下るコース。", tip:"下りたらラビットペアリフトで、東鉢との境（カフェテリアのあたり）の近くまで戻れます。", src:"スカイバレイ公式"},
+  {id:"sv_gezan", name:"下山コース", short:"下山", lv:"中級", len:2000, avg:10, max:12, d:SVSEG.gezan, w:5, labAt:[.32,4,-9,"start"],
+   txt:"全長2,000m、平均10°のロングコース。スカイバレイのふもと（スキーセンター）まで下りる。", tip:"東鉢へ戻るには、ふもとから登降リフト → ラビットペアリフトで上がって、境の看板のあたりへ。夕方は混むので早めに。", src:"スカイバレイ公式"},
+  {id:"sv_bear", name:"ベアコース", short:"ベア", lv:"中級", len:770, avg:13, max:22, d:SVSEG.bear, w:5, labAt:[.45,8,6,"start"],
+   txt:"スカイバレイのメインコース。中級を中心に、幅広いレベル向けのコース。", tip:"下りた先は、東鉢との境（カフェテリアのあたり）の近く。", src:"スカイバレイ公式"},
+  {id:"sv_dia", name:"ディアコース", short:"ディア", lv:"中級", len:710, avg:14, max:23, d:SVSEG.dia, w:5, labAt:[.75,-6,12,"end"],
+   txt:"眺めは最高。山頂から尾根づたいのコース。途中を右に下ると東鉢に入ります。", tip:"東鉢へ戻るときの道。そのまま続けるとベアコースへ。", src:"スカイバレイ公式"},
+  {id:"sv_fox", name:"フォックスコース", short:"フォックス", lv:"中級", len:580, avg:12, max:20, d:SVSEG.fox, w:5, labAt:[.95,6,12,"start"],
+   txt:"入口に全長80mのハーフパイプ。斜度はゆるめで、大きく幅広の片斜面コース。", tip:"下りたら山頂ペアリフトで山頂へ戻れます。", src:"スカイバレイ公式"},
+  {id:"sv_thunder", name:"サンダーコース", short:"サンダー", lv:"上級", len:560, avg:18, max:31, d:SVSEG.thunder, w:5, labAt:[.6,-8,0,"end"],
+   txt:"ギャップの連続で始まり、後半は比較的なだらか。地形がハーフパイプ状で楽しめる。バッジテストのゴールド検定バーン。", tip:"下りたら山頂ペアリフトで山頂へ戻れます。", src:"スカイバレイ公式"},
+  {id:"sv_eagle", name:"イーグルコース", short:"イーグル", lv:"上級", len:620, avg:20, max:32, d:SVSEG.eagle, w:5, labAt:[.45,-8,0,"end"],
+   txt:"手ごわいコブと絶句の急斜面が待つ、スカイバレイきってのエキスパートゾーン。滑り出してすぐ右に迂回コースあり。", tip:"下はフォックスコースにつながります。", src:"スカイバレイ公式"},
+  {id:"sv_back", name:"ディアの途中から東鉢へ", short:"東鉢へ戻る道", lv:"中級", tag:"東鉢へ戻る", route:true, dash:"5 4", d:SVSEG.back, w:4, labAt:[.45,8,12,"start"], small:true, avg:14,
+   txt:"山頂ペアリフトで上がってディアコースを滑り、途中を右に下ると東鉢の東尾根へ。そのまま東鉢のカフェテリアのあたりまで下りられます。", tip:"どこで右に下るかは、現地の表示を見て。図の線はおおよそです。", note:"ディアコースの途中から東鉢へ（スカイバレイ公式の案内をもとにした おおよその線）。", src:"スカイバレイ公式"},
+];
+const SV_LIFTS=[
+  {id:"svl_sanchou", ch:"山", chip:"山頂ペアリフト", name:"山頂ペアリフト", len:849, seats:2, a:[346.5,164.2], b:[373,13], badge:[345,126], serves:["sv_dia","sv_fox","sv_eagle","sv_thunder"],
+   txt:"スカイバレイ側の山頂へ上がるペアリフト。ディア・フォックス・イーグル・サンダーへ行けます。東鉢へ戻るときも、これで上がってディアコースへ。", src:"スカイバレイ公式"},
+  {id:"svl_bear", ch:"ベ", chip:"ベアトリプルリフト", name:"ベアトリプルリフト", len:676, seats:3, a:[231.4,219.2], b:[258.7,115.5], badge:[230,188], serves:["sv_bear","sv_fox"],
+   txt:"3人乗りのリフト。ベア・フォックスへ行けます。", src:"スカイバレイ公式"},
+  {id:"svl_rabbit", ch:"ラ", chip:"ラビットペアリフト", name:"ラビットペアリフト", len:420, seats:2, a:[206.2,226.8], b:[100.8,136.9], badge:[146,190], serves:["sv_wakaba","sv_rabbit","sv_gezan"],
+   txt:"東鉢との境（カフェテリアのあたり）の近くへ上がるリフト。ワカバ・ラビット・下山へ行けます。", src:"スカイバレイ公式"},
+  {id:"svl_touko", ch:"登", chip:"登降リフト", name:"登降ペアパラレルリフト（A・B線）", len:640, seats:2, a:[137.8,280.6], b:[210,231.8], badge:[182,264], serves:[],
+   txt:"スカイバレイのふもと（スキーセンター）とゲレンデを結ぶリフト。下山コースを下りたあと、これとラビットペアリフトで上へ戻れます。", src:"スカイバレイ公式"},
+];
+const SV_AREAS={
+  sv_signHub:{name:"境の看板（カフェテリアのあたり）", lv:"東鉢とつながる所", show:["sv_wakaba","sv_rabbit","sv_gezan"], goMap:"tohachi", goLabel:"東鉢側の図にもどる",
+   txt:"スカイバレイの公式マップで「東鉢｜スカイバレイ」の看板がある所。東鉢のカフェテリア（フライングフォックス）のあたりが、スカイバレイ側との境目です。すぐ先に、ワカバ・ラビット・下山コースのスタートがあります。", tip:"営業時間は東鉢とちがうので、帰りのリフトの時間に注意。", stats:[["東鉢側","カフェテリア"],["近いコース","3本"],["リフト券","共通"]], src:"スカイバレイ公式マップ"},
+  sv_signTop:{name:"境の看板（山頂のあたり）", lv:"東鉢とつながる所", show:["sv_dia","sv_back"], goMap:"tohachi", goLabel:"東鉢側の図にもどる",
+   txt:"山頂のあたりにも「東鉢｜スカイバレイ」の看板があります。スカイバレイ側の山頂からは、ディア・サンダー・イーグルなどがスタート。", tip:"ディアコースの途中を右に下ると東鉢に入ります（スカイバレイ公式）。", stats:[["近いコース","ディアなど"],["東鉢へ","ディア→右へ"],["リフト券","共通"]], src:"スカイバレイ公式マップ"},
+};
 const LEVELS=[
   {id:"first", e:"🐣", n:"はじめて", s:"★☆☆☆", d:"雪の上に立つのも初めて", rec:["beginner","centerC","centerD","kids"],
    steps:["スクールを確認。スノボは土日祝に東鉢（1号リフト横の事務所1階で受付）。スキーや平日のレッスンは公式サイトで確認を。","ふもとの平らな所で、板をつけて歩く・転ぶ・起きるを練習。「ハの字（スキー）」「横すべり（スノボ）」で止まれるように。","4号リフトでカフェテリアへ。3号リフトを降りたら左側から滑り、3号の裏側から乗り場へ戻る。何本かくり返して足ならし。","帰りは3号の乗り場から1号の方へ向かう道を滑る。次の急な所は大きく回り込んでよける。","最後に急な所が残るけど、大回り（ターンを大きく）でゆっくり滑れば大丈夫。"]},
-  {id:"beg", e:"🙂", n:"初級", s:"★★☆☆", d:"止まる・曲がるはできる", rec:["beginner","centerC","centerD","centerB","jump","champion"],
+  {id:"beg", e:"🙂", n:"初級", s:"★★☆☆", d:"止まる・曲がるはできる", rec:["beginner","centerC","centerD","centerB","jump","champion"], svrec:["sv_wakaba"],
    steps:["4号→3号リフトへ。3号を降りたら左側から滑り、裏側から乗り場へ戻るループで足ならし。","3号の乗り場から1号の方へ。次の急な所は大きく回り込み、最後の急な所は大回りで。","1号リフトを降りて左側（センターB）へ。幅200mの緩斜面でターンを大きく。合流する所の自然の段差は、周りの人に注意。","ランチはシルバーホルン（1号乗り場の少し上）。ランチは朝から注文できます。","慣れたら、平均10°の林間「チャンピオンコース」で ふもとまで。"]},
-  {id:"mid", e:"😎", n:"中級", s:"★★★☆", d:"中級コースなら自由に滑れる", rec:["higashione","steep3","jump","champion","openbahn","skyvalley"],
+  {id:"mid", e:"😎", n:"中級", s:"★★★☆", d:"中級コースなら自由に滑れる", rec:["higashione","steep3","jump","champion","openbahn","skyvalley"], svrec:["sv_dia","sv_bear","sv_fox","sv_back"],
    steps:["1号を降りて左側（センターB）へ。合流する所に自然の段差があって、ジャンプも楽しい（周りの人に注意）。","2号リフト（9:00から）で山頂へ。超ワイドなオープンバーンで足慣らし。","東尾根コースでスカイバレイとの境を下る。雪質と眺めがいちばん。","東尾根を降りてすぐ左に曲がり、3号の右手の急斜面を一気に下りるルートも楽しい。","共通券で、尾根の向こうのディアコースへ。途中を右に下ると東鉢に戻れる。"]},
-  {id:"adv", e:"🔥", n:"上級", s:"★★★★", d:"急斜面がすき", rec:["higashioneshita","steep3","centerA","openbahn","skyvalley"],
+  {id:"adv", e:"🔥", n:"上級", s:"★★★★", d:"急斜面がすき", rec:["higashioneshita","steep3","centerA","openbahn","skyvalley"], svrec:["sv_eagle","sv_thunder","sv_back"],
    steps:["1号→2号リフト（9:00から）で山頂へ。降雪の次の朝はオープンバーンの新雪を。","東尾根下コース（最大43°）。トップ付近から急斜面。上からラインを読んでから。","東尾根を降りてすぐ左へ。3号の右手の急斜面を一気に下りる。","センターAコース（平均30°）。整備がよいので、スピードを出しても滑りやすい。","共通券で、尾根の向こうのイーグル（最大32°・コブ）も。山頂ペアリフトで上がり、ディアコースの途中から東鉢へ戻る。"]},
   {id:"family", e:"👨‍👩‍👧", n:"家族", s:"♡", d:"子どもといっしょ", rec:["kids","centerB"],
    steps:["駐車場は早めに。チビッコパークは駐車場のすぐ近くです。","子どもはチビッコパークで雪遊び。サンキッド（スノーエスカレーター）で登れます。","大人は交代で、1号リフト→センターBをゆっくり1本ずつ。","無料更衣室・パウダールームで休憩。子どもは冷えやすいので早めに。","子どもが疲れる前に早めに帰る。帰りの雪道は明るいうちに。"]},
@@ -768,7 +859,7 @@ const PLANS={
   family:[["8:00","🚗","早めに到着。チビッコパークは駐車場のすぐ近く"],["9:00","⛄","チビッコパークで雪遊び。2歳以上は1日600円（小学生未満はリフト無料）"],["10:30","🎿","大人は交代で、1号リフト→センターBを1本ずつ"],["11:30","🍛","混む前にランチ"],["12:30","🚻","無料更衣室・パウダールームで休憩。子どもは冷えやすいので早めに"],["14:30","🏁","早めに帰る。雪道は明るいうちに"]],
 };
 const REFS=[[2,"ふつうの道の坂（約3%）"],[6,"車道のきつい坂（約10%）"],[12,"センターB（平均）"],[15,"センターB（最大）"],[22,"センターD（最大）"],[25,"東尾根（最大）"],[30,"センターA（平均）"],[33,"ふつうの階段（約30〜35°）"],[35,"センターA（最大）"],[43,"東尾根下（最大）"]];
-const itemName=id=>{ const c=COURSES.find(x=>x.id===id); if(c) return c.name; if(AREAS[id]) return AREAS[id].name; const l=LIFTS.find(x=>x.id===id); return l?l.name:id; };
+const itemName=id=>{ const f=findItem(id); return f?f.item.name:id; };
 
 /* ---------- ヒーロー：雪と滑る人 ---------- */
 const cv=$("#snow"), cx=cv.getContext("2d"); let flakes=[], W=0, H=0;
@@ -806,50 +897,120 @@ const TREES=[[20,238],[38,262],[18,290],[48,300],[30,330],[62,318],[72,280],[52,
   [318,282],[356,284],[376,300],[308,334],[335,318],[268,352],[312,366],[352,350],[384,330],[250,392],[285,400],[325,392],[365,385],[230,430],[270,438],[312,430],[355,425],[386,440],
   [110,38],[128,30],[100,58],[120,118],[100,132],[150,118]];
 TREES.forEach(([x,y])=>$("#trees").appendChild(el("path",{d:`M${x} ${y} l7 -18 l7 18z`})));
-const lg=$("#lifts"), cg=$("#courses"), lbg=$("#labels"), bdg=$("#badges"), runPaths=el("g",{id:"runPaths"}); $("#mapSvg").appendChild(runPaths);
-LIFTS.forEach(L=>{
-  const d=`M${L.a[0]} ${L.a[1]} L${L.b[0]} ${L.b[1]}`;
-  lg.appendChild(el("path",{class:"lift",d,id:"lp-"+L.id,"data-id":L.id}));
-  lg.appendChild(el("circle",{class:"lift-end",cx:L.a[0],cy:L.a[1],r:3}));
-  lg.appendChild(el("circle",{class:"lift-end",cx:L.b[0],cy:L.b[1],r:3}));
-  const hit=el("path",{class:"lift-hit",d,"data-id":L.id}); hit.addEventListener("click",()=>select(L.id,true)); lg.appendChild(hit);
-  const b=el("g",{class:"badge","data-id":L.id,transform:`translate(${L.badge[0]} ${L.badge[1]})`},`<circle r="7"></circle><text y="3.4" text-anchor="middle">${L.n}</text>`);
-  b.addEventListener("click",()=>select(L.id,true)); bdg.appendChild(b);
-});
-COURSES.forEach(c=>{
-  cg.appendChild(el("path",{class:"course vis",id:"cv-"+c.id,"data-id":c.id,d:c.d,"stroke-width":c.w,style:`stroke:${LVC[c.lv]}`+(c.id==="centerB"?";stroke-opacity:.8":"")+(c.dash?";stroke-dasharray:7 5":"")}));
-  if(c.run) runPaths.appendChild(el("path",{id:"run-"+c.id,d:c.run,fill:"none",stroke:"none"}));
-  if(c.lab){
-    const [x,y,a]=c.lab;
-    const t=el("text",{class:"maplabel"+(c.small?" s":""),x,y,"text-anchor":a},esc(c.short));
-    if(c.fs) t.style.fontSize=c.fs+"px";
-    if(c.rot) t.setAttribute("transform",`rotate(${c.rot} ${x} ${y})`); // 線にそって斜めに
-    lbg.appendChild(t);
+/* 2つの図（東鉢側・スカイバレイ側）をまとめてあつかう */
+const MAPS={
+  tohachi:{svg:$("#mapSvg"), courses:COURSES, lifts:LIFTS, areas:AREAS},
+  sv:{svg:$("#svSvg"), courses:SV_COURSES, lifts:SV_LIFTS, areas:SV_AREAS},
+};
+function findItem(id){
+  for(const [key,M] of Object.entries(MAPS)){
+    let it=M.courses.find(x=>x.id===id); if(it) return {map:key,kind:"course",item:it};
+    it=M.lifts.find(x=>x.id===id); if(it) return {map:key,kind:"lift",item:it};
+    if(M.areas[id]) return {map:key,kind:"area",item:M.areas[id]};
   }
-});
-// クリック用の太い線は、見える線の上にまとめて置く
-COURSES.forEach(c=>{ const hit=el("path",{class:"course hit","data-id":c.id,d:c.d}); hit.addEventListener("click",()=>select(c.id,true)); cg.appendChild(hit); });
+  return null;
+}
+function buildMap(key){
+  const M=MAPS[key], svg=M.svg, q=s=>svg.querySelector(s);
+  const lg=q(".g-lifts"), cg=q(".g-courses"), lbg=q(".g-labels"), bdg=q(".g-badges"), rp=el("g",{class:"g-run"}); svg.appendChild(rp);
+  M.lifts.forEach(L=>{
+    const d=`M${L.a[0]} ${L.a[1]} L${L.b[0]} ${L.b[1]}`;
+    lg.appendChild(el("path",{class:"lift",d,id:"lp-"+L.id,"data-id":L.id}));
+    lg.appendChild(el("circle",{class:"lift-end",cx:L.a[0],cy:L.a[1],r:3}));
+    lg.appendChild(el("circle",{class:"lift-end",cx:L.b[0],cy:L.b[1],r:3}));
+    const hit=el("path",{class:"lift-hit",d,"data-id":L.id}); hit.addEventListener("click",()=>select(L.id,true)); lg.appendChild(hit);
+    const b=el("g",{class:"badge","data-id":L.id,transform:`translate(${L.badge[0]} ${L.badge[1]})`},`<circle r="7"></circle><text y="3.4" text-anchor="middle">${esc(L.n||L.ch)}</text>`);
+    b.addEventListener("click",()=>select(L.id,true)); bdg.appendChild(b);
+  });
+  M.courses.forEach(c=>{
+    const vis=el("path",{class:"course vis",id:"cv-"+c.id,"data-id":c.id,d:c.d,"stroke-width":c.w,style:`stroke:${LVC[c.lv]}`+(c.dash?";stroke-dasharray:"+c.dash:"")});
+    cg.appendChild(vis);
+    if(c.run) rp.appendChild(el("path",{id:"run-"+c.id,d:c.run,fill:"none",stroke:"none"}));
+    let x=null,y,a;
+    if(c.lab){ [x,y,a]=c.lab; }
+    else if(c.labAt){ const [f,dx,dy,an]=c.labAt, p=vis.getPointAtLength(vis.getTotalLength()*f); x=Math.round(p.x+dx); y=Math.round(p.y+dy); a=an; }
+    if(x!=null){
+      const t=el("text",{class:"maplabel clabel"+(c.small?" s":""),id:"cl-"+c.id,x,y,"text-anchor":a},esc(c.short));
+      if(c.fs) t.style.fontSize=c.fs+"px";
+      if(c.rot) t.setAttribute("transform",`rotate(${c.rot} ${x} ${y})`); // 線にそって斜めに
+      lbg.appendChild(t);
+    }
+  });
+  // クリック用の太い線（出ているコースだけ押せる）
+  M.courses.forEach(c=>{ const hit=el("path",{class:"course hit",id:"ch-"+c.id,"data-id":c.id,d:c.d}); hit.addEventListener("click",()=>select(c.id,true)); cg.appendChild(hit); });
+  svg.querySelectorAll("[data-area]").forEach(a=>a.addEventListener("click",()=>select(a.dataset.area,true)));
+}
+buildMap("tohachi"); buildMap("sv");
 [["山頂（オープンバーン）",186,7,"end",""],["チビッコゲレンデ",126,355,"middle"," s"],["チビッコパーク",94,433,"middle"," s"],["スカイバレイ（リフト券共通）",300,3,"middle"," s"]]
-  .forEach(([t,x,y,a,s])=>lbg.appendChild(el("text",{class:"maplabel"+s,x,y,"text-anchor":a},esc(t))));
-$$("[data-area]").forEach(a=>a.addEventListener("click",()=>select(a.dataset.area,true)));
+  .forEach(([t,x,y,a,s])=>$("#mapSvg .g-labels").appendChild(el("text",{class:"maplabel"+s,x,y,"text-anchor":a},esc(t))));
 
-/* チップ（ボタン） */
+/* 図の切りかえ（東鉢側／スカイバレイ側） */
+let curMap="tohachi";
+function setMap(key){
+  curMap=key;
+  $$("#mapTabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===key)));
+  Object.entries(MAPS).forEach(([k,M])=>{ M.svg.toggleAttribute("hidden",k!==key);
+    if(k===key){ M.svg.classList.toggle("mapin",false); void M.svg.getBoundingClientRect(); M.svg.classList.toggle("mapin",true); } });
+  $$(".legend [data-only]").forEach(s=>{ s.hidden=s.dataset.only!==key; });
+  $$("[data-note]").forEach(n=>{ n.hidden=n.dataset.note!==key; });
+  buildChips();
+}
+$$("#mapTabs button").forEach(b=>b.onclick=()=>{ if(b.dataset.m===curMap) return;
+  select(b.dataset.m==="sv"?"sv_signHub":(LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0],false); });
+
+/* チップ（ボタン）：いま見ている図のコース・エリア・リフト。★はいまのレベルのおすすめ */
 const mkChip=(box,id,label,lv,cls)=>{ const b=document.createElement("button"); b.className="chip"; b.dataset.id=id; b.setAttribute("aria-pressed","false");
   b.innerHTML=`${esc(label)}${lv?` <span class="tag ${cls}">${esc(lv)}</span>`:""}`; b.onclick=()=>select(id,false); box.appendChild(b); };
-COURSES.forEach(c=>mkChip($("#chipsCourse"),c.id,c.short,tagOf(c),lvCls(c.lv)));
-Object.entries(AREAS).forEach(([id,a])=>mkChip($("#chipsOther"),id,a.name,"",""));
-LIFTS.forEach(L=>mkChip($("#chipsOther"),L.id,`${L.n}号リフト`,"",""));
+function buildChips(){
+  const M=MAPS[curMap], c1=$("#chipsCourse"), c2=$("#chipsOther");
+  [c1,c2].forEach(box=>box.querySelectorAll(".chip").forEach(b=>b.remove()));
+  M.courses.forEach(c=>mkChip(c1,c.id,c.short,tagOf(c),lvCls(c.lv)));
+  Object.entries(M.areas).forEach(([id,a])=>mkChip(c2,id,a.name,"",""));
+  M.lifts.forEach(L=>mkChip(c2,L.id,L.chip||`${L.n}号リフト`,"",""));
+  markChips();
+}
+function markChips(){
+  const L=LEVELS.find(x=>x.id===level)||LEVELS[0], rec=L.rec.concat(L.svrec||[]);
+  $$(".chiprow .chip").forEach(b=>{ b.classList.toggle("rec",rec.includes(b.dataset.id)); b.setAttribute("aria-pressed",String(b.dataset.id===selected)); });
+}
+
+/* 選んだコースだけ線を出す（出るときは、線をなぞるように描く） */
+function drawIn(p,dashed){
+  if(reduce||dashed) return;
+  const L=p.getTotalLength();
+  p.style.transition="none"; p.style.strokeDasharray=L; p.style.strokeDashoffset=L;
+  p.getBoundingClientRect();
+  p.style.transition="stroke-dashoffset .8s ease, opacity .35s"; p.style.strokeDashoffset="0";
+  setTimeout(()=>{ p.style.strokeDasharray=""; p.style.strokeDashoffset=""; p.style.transition=""; },850);
+}
+function showCourses(key,ids){
+  MAPS[key].courses.forEach(c=>{
+    const p=document.getElementById("cv-"+c.id), on=ids.includes(c.id), was=p.classList.contains("on");
+    p.classList.toggle("on",on);
+    document.getElementById("ch-"+c.id).classList.toggle("on",on);
+    const lab=document.getElementById("cl-"+c.id); if(lab) lab.classList.toggle("on",on);
+    if(on&&!was) drawIn(p,!!c.dash);
+  });
+  if(key==="tohachi") $("#cautions").classList.toggle("on",ids.some(i=>i==="centerC"||i==="centerD"));
+}
 
 let selected=null, runAnim=null;
-function select(id,fromMap){
+function select(id,fromMap,extra){
+  const f=findItem(id); if(!f) return;
+  if(f.map!==curMap) setMap(f.map);
   selected=id;
-  $$("#courses .course.vis").forEach(p=>{ const c=COURSES.find(x=>x.id===p.dataset.id), on=p.dataset.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w+3:c.w); });
-  $$("#lifts .lift").forEach(p=>p.classList.toggle("sel",p.dataset.id===id));
-  $$("#badges .badge").forEach(b=>b.classList.toggle("sel",b.dataset.id===id));
-  $$("[data-area]").forEach(a=>a.classList.toggle("sel",a.dataset.area===id));
-  $$(".chiprow .chip").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.id===id)));
-  const c=COURSES.find(x=>x.id===id), a=AREAS[id], L=LIFTS.find(x=>x.id===id), box=$("#detail");
-  const who=LEVELS.filter(v=>v.rec.includes(id)).map(v=>v.e+" "+v.n).join("・");
+  const M=MAPS[f.map], svg=M.svg;
+  // コースならそのコース、リフトなら そのリフトで行けるコース、エリアなら関係するコースだけ線を出す
+  let show= f.kind==="course"?[id] : (f.kind==="lift"?(f.item.serves||[]):(f.item.show||[]));
+  if(extra) show=show.concat(extra);
+  showCourses(f.map,show);
+  M.courses.forEach(c=>{ const p=document.getElementById("cv-"+c.id), on=c.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w+3:c.w); });
+  svg.querySelectorAll(".lift").forEach(p=>p.classList.toggle("sel",p.dataset.id===id));
+  svg.querySelectorAll(".badge").forEach(b=>b.classList.toggle("sel",b.dataset.id===id));
+  svg.querySelectorAll("[data-area]").forEach(a=>a.classList.toggle("sel",a.dataset.area===id));
+  markChips();
+  const c=f.kind==="course"?f.item:null, L=f.kind==="lift"?f.item:null, a=f.kind==="area"?f.item:null, box=$("#detail");
+  const who=LEVELS.filter(v=>v.rec.includes(id)||(v.svrec||[]).includes(id)).map(v=>v.e+" "+v.n).join("・");
   const whoLine=who?`<p class="note">こんな人に：${esc(who)}</p>`:"";
   if(c){
     const stats=c.route?`<p class="note" style="margin:10px 0">${esc(c.note||"長さ・斜度：公式の数字はありません（マップ上の道）")}</p>`
@@ -861,28 +1022,34 @@ function select(id,fromMap){
     if(!c.route) $("#feelBtn").onclick=()=>{ setAngle(c.max); $("#slope").scrollIntoView({behavior:smooth()}); };
     if(fromMap) runCourse(c);
   } else if(L){
-    box.innerHTML=`<div class="fade"><h3>${esc(L.name)} <span class="tag t-s">リフト ${L.n}</span></h3>
-      <div class="stats"><div class="stat"><b>${L.len}m</b><span>長さ</span></div><div class="stat"><b>${L.vert}m</b><span>標高差</span></div><div class="stat"><b class="sm">${L.hours}</b><span>運行時間</span></div></div>
-      <p>${esc(L.txt)} <span class="src">（公式）</span></p><p class="note">2人乗り（ペアリフト）。東鉢の4基はぜんぶペアリフトで、輸送能力は4基で1時間に4,000人。</p>
+    const stats=L.hours
+      ?`<div class="stats"><div class="stat"><b>${L.len}m</b><span>長さ</span></div><div class="stat"><b>${L.vert}m</b><span>標高差</span></div><div class="stat"><b class="sm">${L.hours}</b><span>運行時間</span></div></div>`
+      :`<div class="stats"><div class="stat"><b>${L.len}m</b><span>長さ</span></div><div class="stat"><b>${L.seats}人</b><span>乗り</span></div><div class="stat"><b>${(L.serves||[]).length}本</b><span>行けるコース</span></div></div>`;
+    const serves=(L.serves||[]).length?`<p class="note">このリフトで行けるコース（図に出しています）：${L.serves.map(s=>esc(itemName(s))).join("・")}</p>`:"";
+    box.innerHTML=`<div class="fade"><h3>${esc(L.name)} <span class="tag t-s">リフト ${esc(L.n||L.ch)}</span></h3>${stats}
+      <p>${esc(L.txt)} <span class="src">（${esc(L.src||"公式")}）</span></p>${L.hours?'<p class="note">2人乗り（ペアリフト）。東鉢の4基はぜんぶペアリフトで、輸送能力は4基で1時間に4,000人。</p>':""}${serves}
       <div class="btnrow"><button class="btn" id="rideBtn">▶ 乗ってみる</button></div></div>`;
     $("#rideBtn").onclick=()=>rideLift(L);
     if(fromMap) rideLift(L);
   } else if(a){
     const list=a.list?`<ul class="svlist">${a.list.map(([n,l,len,t])=>`<li><b>${esc(n)}</b> <span class="tag ${lvCls(l)}">${esc(l)}</span><span class="km">${esc(len)}</span><br><span class="note">${esc(t)}</span></li>`).join("")}</ul>`:"";
+    const btns=(a.legs?'<button class="btn" id="goBtn">▶ 行ってみる</button>':"")+(a.goMap?`<button class="btn ghost" id="mapBtn">🗺 ${esc(a.goLabel)}</button>`:"");
     box.innerHTML=`<div class="fade"><h3>${esc(a.name)} <span class="tag t-k">${esc(a.lv)}</span></h3>
       <div class="stats">${a.stats.map(([k,v])=>`<div class="stat"><b class="sm">${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div>
       <p>${esc(a.txt)} <span class="src">（${esc(a.src)}）</span></p>${list}<p class="note">💡 ${esc(a.tip)}</p>${whoLine}
-      ${a.legs?'<div class="btnrow"><button class="btn" id="goBtn">▶ 行ってみる</button></div>':""}</div>`;
+      ${btns?`<div class="btnrow">${btns}</div>`:""}</div>`;
+    if(a.goMap) $("#mapBtn").onclick=()=>select(a.goMap==="tohachi"?(LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0]:a.goMap,false);
     if(a.legs){ $("#goBtn").onclick=()=>runSeq(a.legs()); if(fromMap) runSeq(a.legs()); }
-    else $("#runner").setAttribute("opacity",0);
+    else $$(".runner").forEach(r=>r.setAttribute("opacity",0));
   }
 }
 // 赤い点（滑る人）・青い点（リフト）を線にそって動かす。いくつかを続けて動かせる（リフト → コース）
-let seqToken=0;
+let seqToken=0, curRunner=$("#runner");
 function animateAlong(path,dur,color,done){
-  const r=$("#runner"), L=path.getTotalLength();
+  const r=path.ownerSVGElement.querySelector(".runner"), L=path.getTotalLength(); // その線がある図の点を動かす
+  curRunner=r;
   if(runAnim) cancelAnimationFrame(runAnim);
-  r.style.fill=color; r.setAttribute("opacity",1); r.setAttribute("r",6.5);
+  r.style.fill=color; r.setAttribute("opacity",1); r.setAttribute("r",r.id==="svRunner"?6:6.5);
   if(reduce){ const p=path.getPointAtLength(L); r.setAttribute("cx",p.x); r.setAttribute("cy",p.y); done&&done(); return; }
   const t0=performance.now();
   const step=t=>{ const k=Math.min(1,(t-t0)/dur), e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2, p=path.getPointAtLength(e*L);
@@ -891,29 +1058,31 @@ function animateAlong(path,dur,color,done){
 }
 function runSeq(list,caution){
   const tok=++seqToken; let i=0;
+  $$(".runner").forEach(r=>r.setAttribute("opacity",0));
   $$("#cautions .cin").forEach(c=>c.classList.toggle("pulse",!!caution)); // 急な所の⚠を光らせる
   const next=()=>{ if(tok!==seqToken) return;
-    if(i>=list.length){ setTimeout(()=>{ if(tok===seqToken){ $("#runner").setAttribute("opacity",0); $$("#cautions .cin").forEach(c=>c.classList.toggle("pulse",false)); } },900); return; }
+    if(i>=list.length){ setTimeout(()=>{ if(tok===seqToken){ $$(".runner").forEach(r=>r.setAttribute("opacity",0)); $$("#cautions .cin").forEach(c=>c.classList.toggle("pulse",false)); } },900); return; }
     const it=list[i++]; if(it.hop) hopRunner(next); else animateAlong(it.p,it.dur,it.color,next); };
   next();
 }
 // その場でぴょんと跳ねる（自然の段差のジャンプ）
 function hopRunner(done){
-  const r=$("#runner"); if(reduce){ done&&done(); return; }
+  const r=curRunner; if(reduce){ done&&done(); return; }
   const cy0=+r.getAttribute("cy"), t0=performance.now();
   const step=t=>{ const k=Math.min(1,(t-t0)/700), s=Math.sin(k*Math.PI);
     r.setAttribute("cy",cy0-s*9); r.setAttribute("r",6.5+s*2.5);
     if(k<1) runAnim=requestAnimationFrame(step); else { r.setAttribute("cy",cy0); r.setAttribute("r",6.5); done&&done(); } };
   runAnim=requestAnimationFrame(step);
 }
-const skiLeg=(id,pathId)=>{ const c=COURSES.find(x=>x.id===id), p=$("#"+(pathId||("run-"+id)))||$("#cv-"+id);
+const skiLeg=(id,pathId)=>{ const c=findItem(id).item, p=document.getElementById(pathId||("run-"+id))||document.getElementById("cv-"+id);
   return {p, dur:Math.max(1800,p.getTotalLength()/(40+(c.avg||10)*7)*1000), color:"#ff5a5f"}; }; // 斜度が急なほど速く（見た目の目安）
-const liftLeg=id=>{ const p=$("#lp-"+id); return {p, dur:Math.max(2200,p.getTotalLength()/60*1000), color:"var(--acc)"}; };
+const liftLeg=id=>{ const p=document.getElementById("lp-"+id); return {p, dur:Math.max(2200,p.getTotalLength()/60*1000), color:"var(--acc)"}; };
 function runCourse(c){ runSeq([skiLeg(c.id)]); }
 function rideLift(L){ runSeq([liftLeg(L.id)]); }
 
 /* ---------- レベル ---------- */
 let level=store.get("level","first");
+setMap("tohachi"); // はじめは東鉢側の図（スカイバレイ側はかくす）
 LEVELS.forEach(L=>{
   const b=document.createElement("button"); b.className="lv"; b.dataset.id=L.id;
   b.innerHTML=`<span class="e">${L.e}</span><b>${L.n}</b><span class="stars">${L.s}</span><br><span class="d">${esc(L.d)}</span>`;
@@ -924,10 +1093,7 @@ function setLevel(id){
   const L=LEVELS.find(x=>x.id===id);
   $$("#levels .lv").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.id===id)));
   $("#lvpanel").innerHTML=`<h3>${L.e} ${L.n}の楽しみ方</h3><p class="note">おすすめ：${L.rec.map(r=>esc(itemName(r))).join("・")}</p><div class="steps">${L.steps.map((s,i)=>`<div class="step" style="animation-delay:${i*.09}s"><div>${esc(s)}</div></div>`).join("")}</div>`;
-  $("#mapSvg").classList.add("dimmed");
-  $$("#courses .course.vis").forEach(p=>p.classList.toggle("rec",L.rec.includes(p.dataset.id)));
-  $$("[data-area]").forEach(a=>a.classList.toggle("rec",L.rec.includes(a.dataset.area)));
-  select(L.rec[0],false);
+  select(L.rec[0],false); // いちばんのおすすめを選ぶ（その線だけ出る）。チップの★もここで付けかえ
   renderPlan();
 }
 
@@ -1034,12 +1200,12 @@ $("#liftAnim").innerHTML=LIFTSVG;
 /* 初心者のおすすめルート：コース図へ移って、リフト → コースの順に動かす */
 const STEPS={
   "1":{sel:"beginner", legs:()=>[liftLeg("lift3"), skiLeg("beginner","cv-beginner"), liftLeg("lift3"), skiLeg("beginner","cv-beginner")]}, // 足ならしのループを2周
-  "2":{sel:"centerC", legs:()=>[skiLeg("centerC","run-centerC")], caution:true}, // 3号の乗り場から1号の方へ → センターDで ふもとへ
+  "2":{sel:"centerC", show:["centerD"], legs:()=>[skiLeg("centerC","run-centerC")], caution:true}, // 3号の乗り場から1号の方へ → センターDで ふもとへ
   "3":{sel:"centerB", legs:()=>[liftLeg("lift1"), skiLeg("centerB","cv-centerB")]},
   "4":{sel:"higashione", legs:()=>[liftLeg("lift1"), liftLeg("lift2"), skiLeg("higashione")]},
 };
 $$("#stepRoute .stepbtn").forEach(b=>b.onclick=()=>{
-  const S=STEPS[b.dataset.step]; select(S.sel,false);
+  const S=STEPS[b.dataset.step]; select(S.sel,false,S.show);
   $("#map").scrollIntoView({behavior:smooth()});
   setTimeout(()=>runSeq(S.legs(),S.caution), reduce?0:650);
 });
