@@ -15,188 +15,240 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e3a66'/%3E%3Cpath d='M6 50 26 18l8 12 6-8 18 28z' fill='%23fff'/%3E%3C/svg%3E">
 <style>
-/* 雪山の朝：空の青と雪の白、コースの色は公式マップと同じ（初級=緑・中級=青・上級=赤・初心者コース=オレンジ） */
+@import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Outfit:wght@300;500;700;800&display=swap');
+/* 雪山の朝：インクの紺・雪の白・氷河の青をひとつ。コースの色は公式マップと同じ（初級=緑・中級=青・上級=赤・初心者コース=オレンジ）
+   レイアウト：左寄せの編集デザイン。コース図は画面に止めて、選んだらその場で動く */
 :root{
-  --bg:#f3f7fb; --panel:#ffffff; --panel2:#eaf1f8; --text:#13263b; --sub:#4d6075; --faint:#73849a;
-  --line:#d4dfea; --acc:#0e5aa7; --acc2:#16a3d9; --on-acc:#fff; --gold:#d99a00;
-  --lv1:#1f9d55; --lv2:#2a8fd6; --lv3:#d63b3b; --lv0:#e08a00; --ng:#f3b4d0; --kids:#b0568a; --tree:#2f6b4f;
-  --sky1:#bfe3ff; --sky2:#eef8ff; --mtn1:#9fb8d1; --mtn2:#c9d9e8; --snow:#ffffff; --mapsnow:#ffffff; --sv:#e3ebf3;
-  --shadow:0 6px 24px rgba(16,40,70,.10); --r:16px;
+  --bg:#f4f6f9; --panel:#ffffff; --panel2:#eef2f7; --text:#0f1d2e; --sub:#4d5d71; --faint:#738297;
+  --line:#dde4ec; --acc:#1d5fbf; --acc2:#2a9fd8; --on-acc:#fff; --gold:#c98a06;
+  --lv1:#1f9d55; --lv2:#2a8fd6; --lv3:#d63b3b; --lv0:#e08a00; --ng:#f3b4d0; --kids:#b0568a; --tree:#3d7a5d;
+  --sky1:#cfe6fb; --sky2:#f4f8fc; --mtn1:#9db3ca; --mtn2:#d3dfeb; --snow:#ffffff; --mapsnow:#ffffff; --sv:#e7edf4;
+  --shadow:0 1px 2px rgba(15,29,46,.04), 0 8px 24px -12px rgba(15,29,46,.18); --r:14px;
+  --f-body:"Zen Kaku Gothic New",-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
+  --f-num:"Outfit","Zen Kaku Gothic New",system-ui,sans-serif;
+  --head:54px;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0b1522; --panel:#122236; --panel2:#18304a; --text:#e6eef7; --sub:#a9bbcd; --faint:#8a9cb0;
-    --line:#24405e; --acc:#5cb4ff; --acc2:#49d0ff; --on-acc:#04121f; --gold:#ffc53d;
+    --bg:#0a121c; --panel:#101b29; --panel2:#162436; --text:#e8eef5; --sub:#a3b3c5; --faint:#8292a6;
+    --line:#22344a; --acc:#6aa8ff; --acc2:#56c8ff; --on-acc:#06111f; --gold:#f2b33d;
     --lv1:#47c97c; --lv2:#62b8ff; --lv3:#ff6b6b; --lv0:#ffad3b; --ng:#7a3a5c; --kids:#e08bbd; --tree:#4f9a76;
-    --sky1:#0f2a4a; --sky2:#081626; --mtn1:#29486a; --mtn2:#1c3552; --snow:#dfe9f3; --mapsnow:#1a3150; --sv:#142a44;
-    --shadow:0 6px 24px rgba(0,0,0,.45); color-scheme:dark;
+    --sky1:#0f2742; --sky2:#0a121c; --mtn1:#29486a; --mtn2:#1c3552; --snow:#dfe9f3; --mapsnow:#14263b; --sv:#12233a;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.7); color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#0b1522; --panel:#122236; --panel2:#18304a; --text:#e6eef7; --sub:#a9bbcd; --faint:#8a9cb0;
-  --line:#24405e; --acc:#5cb4ff; --acc2:#49d0ff; --on-acc:#04121f; --gold:#ffc53d;
+  --bg:#0a121c; --panel:#101b29; --panel2:#162436; --text:#e8eef5; --sub:#a3b3c5; --faint:#8292a6;
+  --line:#22344a; --acc:#6aa8ff; --acc2:#56c8ff; --on-acc:#06111f; --gold:#f2b33d;
   --lv1:#47c97c; --lv2:#62b8ff; --lv3:#ff6b6b; --lv0:#ffad3b; --ng:#7a3a5c; --kids:#e08bbd; --tree:#4f9a76;
-  --sky1:#0f2a4a; --sky2:#081626; --mtn1:#29486a; --mtn2:#1c3552; --snow:#dfe9f3; --mapsnow:#1a3150; --sv:#142a44;
-  --shadow:0 6px 24px rgba(0,0,0,.45); color-scheme:dark;
+  --sky1:#0f2742; --sky2:#0a121c; --mtn1:#29486a; --mtn2:#1c3552; --snow:#dfe9f3; --mapsnow:#14263b; --sv:#12233a;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.7); color-scheme:dark;
 }
 *{ box-sizing:border-box; }
-html{ scroll-behavior:smooth; scroll-padding-top:64px; }
-body{ margin:0; background:var(--bg); color:var(--text); line-height:1.7;
-  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif;
-  -webkit-text-size-adjust:100%; overflow-x:hidden; overflow-x:clip; }
-html{ overflow-x:clip; }
-nav.toc{ position:relative; }
+html{ scroll-behavior:smooth; scroll-padding-top:calc(var(--head) + 12px); overflow-x:clip; }
+body{ margin:0; background:var(--bg); color:var(--text); line-height:1.75; font-family:var(--f-body); font-weight:400;
+  -webkit-text-size-adjust:100%; overflow-x:hidden; overflow-x:clip; -webkit-font-smoothing:antialiased; }
 button,input,select{ font:inherit; color:inherit; }
-button:focus-visible,a:focus-visible,input:focus-visible{ outline:3px solid var(--acc2); outline-offset:2px; }
-a{ color:var(--acc); }
-h2{ font-size:1.45rem; margin:0 0 .3em; letter-spacing:.02em; text-wrap:balance; }
-h3{ font-size:1.08rem; margin:0 0 .3em; text-wrap:balance; }
-p{ margin:.4em 0; }
-.wrap{ max-width:1040px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
-section{ padding-block:44px 12px; }
-.lead{ color:var(--sub); margin-bottom:18px; }
-.card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:18px; box-shadow:var(--shadow); min-width:0; }
+button:focus-visible,a:focus-visible,input:focus-visible{ outline:2px solid var(--acc2); outline-offset:2px; }
+a{ color:var(--acc); text-underline-offset:3px; }
+h2{ font-size:clamp(1.45rem,3.6vw,1.9rem); line-height:1.35; margin:0 0 .35em; font-weight:700; letter-spacing:.01em; text-wrap:balance; }
+h3{ font-size:1.02rem; line-height:1.5; margin:0 0 .35em; font-weight:700; text-wrap:balance; }
+p{ margin:.45em 0; }
+.num{ font-family:var(--f-num); font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+.wrap{ max-width:1080px; margin:0 auto; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+section{ padding-block:72px 8px; }
+.eyebrow{ font-family:var(--f-num); font-size:.72rem; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--acc); margin:0 0 .4em; display:flex; align-items:center; gap:10px; }
+.eyebrow::after{ content:""; height:1px; width:40px; background:currentColor; opacity:.5; }
+.lead{ color:var(--sub); margin:0 0 22px; max-width:42em; }
+.card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); padding:20px; min-width:0; }
 .grid{ display:grid; gap:14px; }
 .grid > *{ min-width:0; }
 @media (min-width:720px){ .g2{ grid-template-columns:1fr 1fr; } .g3{ grid-template-columns:repeat(3,1fr);} .g4{ grid-template-columns:repeat(4,1fr);} }
 .note{ font-size:.82rem; color:var(--faint); }
-.tag{ display:inline-block; font-size:.74rem; font-weight:700; padding:1px 8px; border-radius:99px; border:1px solid currentColor; line-height:1.6; white-space:nowrap; }
+.tag{ display:inline-block; font-size:.7rem; font-weight:700; padding:1px 8px; border-radius:99px; border:1px solid currentColor; line-height:1.6; white-space:nowrap; vertical-align:middle; }
 .t-1{ color:var(--lv1); } .t-2{ color:var(--lv2); } .t-3{ color:var(--lv3); } .t-0{ color:var(--lv0); } .t-k{ color:var(--gold); } .t-s{ color:var(--sub); }
-.warn{ background:color-mix(in srgb, var(--gold) 14%, transparent); border-left:4px solid var(--gold); padding:8px 12px; border-radius:8px; font-size:.88rem; }
+.warn{ background:color-mix(in srgb, var(--gold) 10%, transparent); border-left:3px solid var(--gold); padding:10px 14px; border-radius:0 10px 10px 0; font-size:.88rem; }
 .src{ font-size:.72rem; color:var(--faint); white-space:nowrap; }
+.mk{ display:inline-grid; place-items:center; width:1.5em; font-weight:900; }
+.mk-first{ color:var(--lv0); } .mk-beg{ color:var(--lv1); } .mk-mid{ color:var(--lv2); } .mk-adv{ color:var(--lv3); } .mk-family{ color:var(--kids); }
 
 /* ===== ヘッダー ===== */
 body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); z-index:60; background:var(--bg); }
-header.top{ position:sticky; top:env(safe-area-inset-top, 0px); z-index:50; background:color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-bottom:1px solid var(--line); }
-header.top .wrap{ display:flex; align-items:center; gap:10px; height:54px; }
-.brand{ font-weight:800; white-space:nowrap; font-size:.98rem; }
-.brand small{ color:var(--faint); font-weight:600; margin-left:4px; }
-nav.toc{ display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; flex:1; }
+header.top{ position:sticky; top:env(safe-area-inset-top, 0px); z-index:50; background:color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter:saturate(1.4) blur(12px); -webkit-backdrop-filter:saturate(1.4) blur(12px); border-bottom:1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+header.top .wrap{ display:flex; align-items:center; gap:12px; height:var(--head); }
+.brand{ white-space:nowrap; display:flex; align-items:baseline; gap:6px; }
+.brand b{ font-weight:900; font-size:1rem; letter-spacing:.04em; }
+.brand small{ font-family:var(--f-num); font-size:.62rem; font-weight:700; letter-spacing:.18em; color:var(--faint); }
+nav.toc{ display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; flex:1; position:relative; }
 nav.toc::-webkit-scrollbar{ display:none; }
-nav.toc a{ text-decoration:none; color:var(--sub); font-size:.84rem; padding:6px 10px; border-radius:99px; white-space:nowrap; }
-nav.toc a.on{ background:var(--acc); color:var(--on-acc); }
-.iconbtn{ border:1px solid var(--line); background:var(--panel); border-radius:10px; width:36px; height:36px; cursor:pointer; flex:none; }
+nav.toc a{ text-decoration:none; color:var(--sub); font-size:.82rem; padding:6px 10px; border-radius:99px; white-space:nowrap; transition:color .2s, background .2s; }
+nav.toc a:hover{ color:var(--text); }
+nav.toc a.on{ background:var(--text); color:var(--bg); }
+.iconbtn{ border:1px solid var(--line); background:transparent; border-radius:99px; width:34px; height:34px; cursor:pointer; flex:none; display:grid; place-items:center; color:var(--sub); }
+.iconbtn svg{ width:16px; height:16px; }
 
 /* ===== ヒーロー ===== */
-.hero{ position:relative; height:clamp(440px, 60vh, 540px); overflow:hidden; background:linear-gradient(var(--sky1),var(--sky2)); }
+.hero{ position:relative; height:clamp(500px, 72vh, 640px); overflow:hidden; background:linear-gradient(var(--sky1),var(--sky2) 78%); }
 .hero svg.scene{ position:absolute; inset:0; width:100%; height:100%; }
 .hero canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
-.hero .copy{ position:absolute; left:0; right:0; top:6%; text-align:center; padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); }
-.hero h1{ font-size:clamp(1.9rem,6.4vw,3.4rem); margin:0; line-height:1.2; letter-spacing:.04em; text-shadow:0 2px 0 var(--sky2); }
-.hero h1 .sub{ display:block; font-size:.42em; letter-spacing:.2em; color:var(--sub); font-weight:700; }
-.hero .copy p{ color:var(--sub); font-weight:600; margin-top:10px; }
-.facts{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:14px; }
-.fact{ background:color-mix(in srgb, var(--panel) 82%, transparent); border:1px solid var(--line); border-radius:12px; padding:6px 12px; font-size:.82rem; }
-.fact b{ font-size:1.08rem; display:block; line-height:1.2; }
-.scroll-hint{ position:absolute; bottom:12px; left:50%; translate:-50% 0; font-size:.78rem; color:var(--sub); animation:bob 1.8s ease-in-out infinite; }
-@keyframes bob{ 50%{ transform:translateY(6px);} }
-.cloud{ animation:drift 60s linear infinite; }
-.cloud.c2{ animation-duration:85s; animation-delay:-30s; }
+.hero .copy{ position:absolute; inset:0; padding-top:clamp(36px,8vh,80px); }
+.hero h1{ font-size:clamp(2.3rem,7.4vw,4.6rem); margin:.1em 0 0; line-height:1.08; font-weight:900; letter-spacing:.02em; }
+.hero .tagline{ color:var(--sub); font-size:clamp(.95rem,2.4vw,1.15rem); margin:.6em 0 0; font-weight:500; }
+.facts{ display:grid; grid-template-columns:repeat(3,auto); justify-content:start; gap:14px 26px; margin:26px 0 0; padding:0; }
+@media (min-width:720px){ .facts{ grid-template-columns:repeat(5,auto); } }
+.facts div{ border-left:1px solid color-mix(in srgb, var(--text) 25%, transparent); padding-left:12px; }
+.facts dt{ font-size:.72rem; color:var(--sub); line-height:1.3; }
+.facts dd{ margin:0; font-family:var(--f-num); font-weight:800; font-size:clamp(1.5rem,4vw,2.1rem); line-height:1.1; letter-spacing:-.02em; }
+.facts dd small{ font-size:.5em; font-weight:500; margin-left:2px; letter-spacing:0; }
+.cloud{ animation:drift 70s linear infinite; }
+.cloud.c2{ animation-duration:95s; animation-delay:-40s; }
 @keyframes drift{ from{ transform:translateX(-260px);} to{ transform:translateX(1500px);} }
+#heroRun{ stroke-dasharray:6 10; animation:trail 2.4s linear infinite; }
+@keyframes trail{ to{ stroke-dashoffset:-32; } }
 
 /* ===== レベル選択 ===== */
-.levels{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.levels{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
 @media (min-width:720px){ .levels{ grid-template-columns:repeat(5,1fr);} }
-.lv{ text-align:left; cursor:pointer; background:var(--panel); border:2px solid var(--line); border-radius:14px; padding:12px; transition:transform .15s, border-color .15s, box-shadow .15s; }
-.lv:hover{ transform:translateY(-2px); }
-.lv[aria-pressed="true"]{ border-color:var(--acc); box-shadow:0 0 0 3px color-mix(in srgb, var(--acc) 25%, transparent); }
-.lv .e{ font-size:1.7rem; display:block; }
-.lv b{ display:block; }
-.lv span.d{ font-size:.78rem; color:var(--sub); }
-.stars{ color:var(--gold); letter-spacing:1px; font-size:.8rem; }
-.lvpanel{ margin-top:14px; }
-.lvpanel .steps{ display:grid; gap:10px; counter-reset:s; }
+.lv{ text-align:left; cursor:pointer; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px; transition:border-color .2s, box-shadow .2s, transform .2s; }
+.lv:hover{ border-color:color-mix(in srgb, var(--acc) 50%, var(--line)); }
+.lv[aria-pressed="true"]{ border-color:var(--text); box-shadow:inset 0 0 0 1px var(--text); }
+.lv .e{ font-size:1.2rem; display:block; line-height:1; margin-bottom:8px; }
+.lv b{ display:block; font-size:1rem; }
+.lv span.d{ font-size:.76rem; color:var(--sub); line-height:1.5; display:block; margin-top:2px; }
+.stars{ display:none; }
+.lvpanel{ margin-top:12px; }
+.lvpanel .steps{ display:grid; gap:10px; counter-reset:s; margin-top:10px; }
 .lvpanel .step{ display:flex; gap:12px; align-items:flex-start; animation:slidein .45s both; }
-.lvpanel .step::before{ counter-increment:s; content:counter(s); flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; background:var(--acc); color:var(--on-acc); font-weight:800; font-size:.85rem; }
-@keyframes slidein{ from{ opacity:0; transform:translateX(-14px); } }
+.lvpanel .step::before{ counter-increment:s; content:counter(s); flex:none; width:24px; height:24px; border-radius:50%; display:grid; place-items:center; border:1px solid var(--text); font-family:var(--f-num); font-weight:700; font-size:.75rem; margin-top:2px; }
+@keyframes slidein{ from{ opacity:0; transform:translateX(-10px); } }
 
-/* ===== マップ ===== */
-.mapwrap{ display:grid; gap:14px; }
-@media (min-width:860px){ .mapwrap{ grid-template-columns:1.15fr .85fr; align-items:start; } }
-.map{ background:var(--panel); border:1px solid var(--line); border-radius:var(--r); overflow:hidden; position:relative; box-shadow:var(--shadow); }
-.map svg{ display:block; width:100%; height:auto; }
+/* ===== コース図（ステージ：図を画面に止めて、選んだらその場で動く） ===== */
+.stage{ display:grid; gap:16px; align-items:start; }
+.stage-map{ position:sticky; top:calc(var(--head) + env(safe-area-inset-top, 0px)); z-index:6; background:var(--bg); padding-block:8px 10px; margin-inline:-4px; padding-inline:4px; }
+.stage-map::after{ content:""; position:absolute; left:0; right:0; bottom:-14px; height:14px; background:linear-gradient(var(--bg),transparent); pointer-events:none; }
+.stage-side{ min-width:0; }
+@media (min-width:900px){
+  .stage{ grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:28px; }
+  .stage-map{ top:calc(var(--head) + 16px); padding:0; margin:0; }
+  .stage-map::after{ display:none; }
+}
+.map{ background:var(--panel); border:1px solid var(--line); border-radius:18px; overflow:hidden; position:relative; box-shadow:var(--shadow); }
+.map svg{ display:block; width:100%; height:auto; max-height:46vh; }
+@media (min-width:900px){ .map svg{ max-height:min(640px, calc(100vh - var(--head) - 72px)); } }
+.map svg[hidden]{ display:none; }
+.map svg.mapin{ animation:mapin .45s ease both; }
+@keyframes mapin{ from{ opacity:0; transform:scale(.985); } }
+.nowbar{ position:absolute; left:10px; right:10px; top:10px; display:flex; pointer-events:none; z-index:2; }
+.nowbar .pill{ pointer-events:auto; display:flex; align-items:center; gap:8px; max-width:100%; background:color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:99px; padding:4px 4px 4px 12px; font-size:.82rem; box-shadow:var(--shadow); animation:fadeup .35s both; }
+.nowbar .pill .dot{ flex:none; width:9px; height:9px; border-radius:50%; }
+.nowbar .pill b{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.nowbar .pill .meta{ color:var(--sub); white-space:nowrap; font-family:var(--f-num); }
+.nowbar .pill button{ flex:none; border:none; background:var(--text); color:var(--bg); border-radius:99px; height:28px; padding:0 12px; cursor:pointer; font-size:.76rem; font-weight:700; }
 /* コースは選んだときだけ出す（.on） */
 .course{ fill:none; stroke-linecap:round; stroke-linejoin:round; cursor:pointer; transition:opacity .35s, stroke-width .2s; }
 .course.hit{ stroke:transparent; stroke-width:22; pointer-events:none; }
 .course.hit.on{ pointer-events:stroke; }
-.course.vis{ opacity:0; pointer-events:none; }
-.course.vis.on{ opacity:1; }
-.course.vis.sel{ filter:drop-shadow(0 0 4px var(--acc2)); }
+.course.vis, .course.case{ opacity:0; pointer-events:none; }
+.course.vis.on, .course.case.on{ opacity:1; }
+.course.case{ stroke:var(--mapsnow); }
+.course.vis.sel{ filter:drop-shadow(0 1px 3px rgba(0,0,0,.25)); }
+.flow{ fill:none; stroke:#fff; stroke-width:2; stroke-linecap:round; stroke-dasharray:1 9; opacity:0; pointer-events:none; animation:flow .9s linear infinite; }
+.flow.on{ opacity:.95; }
+@keyframes flow{ to{ stroke-dashoffset:-20; } }
+.sg circle{ stroke:#fff; stroke-width:1.5; }
+.sg text{ fill:#fff; font-family:var(--f-num); font-size:7.5px; font-weight:800; pointer-events:none; }
+.sg g{ opacity:0; transition:opacity .3s; }
+.sg g.on{ opacity:1; }
 .clabel{ opacity:0; transition:opacity .35s; }
 .clabel.on{ opacity:1; }
 #cautions{ opacity:0; transition:opacity .35s; }
 #cautions.on{ opacity:1; }
 [data-area]{ cursor:pointer; }
 [data-area].sel{ filter:drop-shadow(0 0 4px var(--acc2)); }
-.map svg[hidden]{ display:none; }
-.map svg.mapin{ animation:mapin .45s ease both; }
-@keyframes mapin{ from{ opacity:0; transform:translateY(8px); } }
-.maptabs{ display:inline-flex; margin-bottom:10px; }
-.chip.rec::before{ content:"★"; color:var(--gold); margin-right:3px; }
-.chip[aria-pressed="true"].rec::before{ color:var(--on-acc); }
+.maptabs{ display:inline-flex; margin-bottom:14px; }
 .svsign rect{ fill:var(--gold); stroke:var(--mapsnow); stroke-width:1.5; }
 .svsign text{ fill:#1d1d1f; font-size:8px; font-weight:800; pointer-events:none; }
-.ng{ fill:var(--ng); stroke:var(--ng); stroke-width:3; stroke-linejoin:round; opacity:.8; pointer-events:none; }
-.lift{ stroke:var(--sub); stroke-width:1.8; stroke-dasharray:2 7; animation:chairs 1.6s linear infinite; fill:none; }
-.lift.sel{ stroke:var(--acc); stroke-width:3; }
-.lift.sv{ opacity:.45; }
+.ng{ fill:var(--ng); stroke:var(--ng); stroke-width:3; stroke-linejoin:round; opacity:.7; pointer-events:none; }
+.lift{ stroke:var(--sub); stroke-width:1.6; stroke-dasharray:2 7; animation:chairs 1.6s linear infinite; fill:none; opacity:.8; }
+.lift.sel{ stroke:var(--acc); stroke-width:3; opacity:1; }
+.lift.sv{ opacity:.4; }
 @keyframes chairs{ to{ stroke-dashoffset:-18; } }
 .lift-hit{ stroke:transparent; stroke-width:16; fill:none; cursor:pointer; }
 .lift-end{ fill:var(--panel); stroke:var(--sub); stroke-width:1.5; }
 .badge{ cursor:pointer; }
 .badge circle{ fill:var(--text); stroke:var(--panel); stroke-width:1.5; }
-.badge text{ fill:var(--panel); font-size:9.5px; font-weight:800; pointer-events:none; }
+.badge text{ fill:var(--panel); font-size:9px; font-weight:800; pointer-events:none; font-family:var(--f-num); }
 .badge.sel circle{ fill:var(--acc); }
 .maplabel{ font-size:11px; font-weight:700; fill:var(--text); paint-order:stroke; stroke:var(--mapsnow); stroke-width:3px; stroke-linejoin:round; pointer-events:none; }
-.maplabel.s{ font-size:9.5px; font-weight:600; fill:var(--sub); }
-.legend{ display:flex; flex-wrap:wrap; gap:6px 12px; padding:10px 14px; border-top:1px solid var(--line); font-size:.8rem; color:var(--sub); }
-.legend i{ display:inline-block; width:18px; height:5px; border-radius:3px; vertical-align:middle; margin-right:4px; }
-.legend i.box{ height:10px; width:14px; border-radius:3px; }
-.chiprow{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px; }
-.chiprow > span{ font-size:.78rem; color:var(--faint); margin-right:2px; }
-.chip{ cursor:pointer; border:1px solid var(--line); background:var(--panel); border-radius:99px; padding:4px 12px; font-size:.84rem; }
-.chip[aria-pressed="true"]{ background:var(--acc); border-color:var(--acc); color:var(--on-acc); }
-.chip[aria-pressed="true"] .tag{ color:var(--on-acc); }
-.detail h3{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:10px 0; }
-.stat{ background:var(--panel2); border-radius:10px; padding:8px; text-align:center; }
-.stat b{ display:block; font-size:1.2rem; line-height:1.3; font-variant-numeric:tabular-nums; }
-.stat b.sm{ font-size:.95rem; }
-.stat span{ font-size:.72rem; color:var(--sub); }
-.btn{ cursor:pointer; border:none; background:var(--acc); color:var(--on-acc); border-radius:10px; padding:8px 14px; font-weight:700; }
-.btn.ghost{ background:transparent; color:var(--acc); border:1px solid var(--acc); }
-.btnrow{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.maplabel.s{ font-size:9.5px; font-weight:500; fill:var(--sub); }
+.legend{ display:flex; flex-wrap:wrap; gap:6px 14px; padding:12px 14px; border:1px solid var(--line); border-radius:12px; font-size:.76rem; color:var(--sub); margin-top:14px; }
+.legend i{ display:inline-block; width:16px; height:4px; border-radius:3px; vertical-align:middle; margin-right:5px; }
+.legend i.box{ height:10px; width:12px; border-radius:3px; }
+.chiprow{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
+.chiprow > span{ width:100%; font-family:var(--f-num); font-size:.68rem; font-weight:700; letter-spacing:.16em; color:var(--faint); text-transform:uppercase; }
+.chip{ cursor:pointer; border:1px solid var(--line); background:var(--panel); border-radius:99px; padding:5px 12px; font-size:.84rem; transition:border-color .15s, background .15s; display:inline-flex; align-items:center; gap:6px; }
+.chip:hover{ border-color:color-mix(in srgb, var(--text) 40%, var(--line)); }
+.chip .cdot{ width:8px; height:8px; border-radius:50%; flex:none; }
+.chip[aria-pressed="true"]{ background:var(--text); border-color:var(--text); color:var(--bg); }
+.chip[aria-pressed="true"] .tag{ color:var(--bg); }
+.chip.rec::after{ content:"おすすめ"; font-size:.62rem; font-weight:700; color:var(--gold); }
+.chip[aria-pressed="true"].rec::after{ color:var(--bg); opacity:.8; }
+.detail{ margin-top:4px; }
+.detail h3{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:1.15rem; }
+.stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; margin:12px 0; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.stat{ background:var(--panel); padding:10px 8px; text-align:center; }
+.stat b{ display:block; font-family:var(--f-num); font-size:1.25rem; font-weight:700; line-height:1.3; font-variant-numeric:tabular-nums; }
+.stat b.sm{ font-family:var(--f-body); font-size:.9rem; }
+.stat span{ font-size:.7rem; color:var(--sub); }
+/* コースの数字を絵で：長さのバーと、斜度の角度 */
+.cviz{ display:grid; gap:12px; margin:14px 0; padding:14px; border:1px solid var(--line); border-radius:12px; }
+.cv-row{ display:grid; grid-template-columns:3em 1fr auto; align-items:center; gap:10px; }
+.cv-k{ font-size:.74rem; color:var(--sub); }
+.lenbar{ height:8px; background:var(--panel2); border-radius:99px; overflow:hidden; }
+.lenbar i{ display:block; height:100%; width:var(--w); border-radius:99px; background:var(--c, var(--acc)); animation:grow .9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes grow{ from{ width:0; } }
+.cv-v{ font-family:var(--f-num); font-weight:700; font-size:1.05rem; white-space:nowrap; }
+.cv-v small{ font-family:var(--f-body); font-size:.68rem; font-weight:500; color:var(--sub); margin-left:2px; }
+.angles{ width:100%; max-width:150px; height:52px; display:block; }
+.angles .ag-base{ stroke:var(--line); stroke-width:2; }
+.angles .ag-avg{ fill:color-mix(in srgb, var(--c, var(--acc)) 25%, transparent); stroke:var(--c, var(--acc)); stroke-width:1.5; stroke-linejoin:round; }
+.angles .ag-max{ stroke:var(--lv3); stroke-width:2; stroke-dasharray:3 3; fill:none; }
+.btn{ cursor:pointer; border:1px solid var(--text); background:var(--text); color:var(--bg); border-radius:99px; padding:9px 18px; font-weight:700; font-size:.88rem; transition:opacity .15s; }
+.btn:hover{ opacity:.88; }
+.btn.ghost{ background:transparent; color:var(--text); border-color:var(--line); }
+.btnrow{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
 
 /* ===== 斜度 ===== */
 .slopebox{ display:grid; gap:14px; }
 @media (min-width:860px){ .slopebox{ grid-template-columns:1.2fr .8fr; } }
-.slopesvg{ width:100%; height:auto; display:block; background:linear-gradient(var(--sky1),var(--sky2)); border-radius:12px; }
-input[type=range]{ width:100%; accent-color:var(--acc); }
-.angle-big{ font-size:2.6rem; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
-.refs{ display:grid; gap:6px; margin-top:8px; }
-.ref{ display:flex; justify-content:space-between; gap:8px; font-size:.85rem; padding:6px 10px; border-radius:8px; background:var(--panel2); cursor:pointer; border:1px solid transparent; text-align:left; width:100%; }
-.ref.on{ border-color:var(--acc); }
-.meter{ height:10px; border-radius:99px; background:linear-gradient(90deg,var(--lv1),var(--gold),var(--lv3),#7a1fa2); position:relative; margin:10px 0 4px; }
-.meter i{ position:absolute; top:-4px; width:4px; height:18px; background:var(--text); border-radius:2px; transition:left .3s; }
+.slopesvg{ width:100%; height:auto; display:block; background:linear-gradient(var(--sky1),var(--sky2)); border-radius:10px; }
+input[type=range]{ width:100%; accent-color:var(--text); }
+.angle-big{ font-family:var(--f-num); font-size:3.4rem; font-weight:800; line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.refs{ display:grid; gap:4px; margin-top:12px; }
+.ref{ display:flex; justify-content:space-between; gap:8px; font-size:.84rem; padding:7px 10px; border-radius:8px; background:transparent; cursor:pointer; border:1px solid var(--line); text-align:left; width:100%; }
+.ref b{ font-family:var(--f-num); }
+.ref.on{ border-color:var(--text); background:var(--panel2); }
+.meter{ height:6px; border-radius:99px; background:linear-gradient(90deg,var(--lv1),var(--gold),var(--lv3),#7a1fa2); position:relative; margin:12px 0 4px; }
+.meter i{ position:absolute; top:-5px; width:3px; height:16px; background:var(--text); border-radius:2px; transition:left .3s; }
 
 /* ===== 診断 ===== */
-.quiz .q{ font-weight:700; margin-bottom:10px; font-size:1.05rem; }
+.quiz .q{ font-weight:700; margin-bottom:12px; font-size:1.1rem; }
 .quiz .opts{ display:grid; gap:8px; }
-.quiz .opt{ text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--panel2); border-radius:12px; padding:10px 14px; transition:transform .12s, background .12s; }
-.quiz .opt:hover{ transform:translateX(4px); background:color-mix(in srgb, var(--acc) 12%, var(--panel2)); }
-.progress{ height:6px; background:var(--panel2); border-radius:99px; overflow:hidden; margin-bottom:14px; }
-.progress i{ display:block; height:100%; width:0; background:linear-gradient(90deg,var(--acc),var(--acc2)); transition:width .35s; }
+.quiz .opt{ text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--panel); border-radius:10px; padding:12px 14px; transition:border-color .15s, transform .15s; }
+.quiz .opt:hover{ border-color:var(--text); transform:translateX(3px); }
+.progress{ height:3px; background:var(--panel2); border-radius:99px; overflow:hidden; margin-bottom:16px; }
+.progress i{ display:block; height:100%; width:0; background:var(--text); transition:width .35s; }
 .result{ text-align:center; }
 .result .big{ font-size:3rem; animation:pop .6s cubic-bezier(.2,1.6,.4,1); display:inline-block; }
-@keyframes pop{ from{ transform:scale(.2) rotate(-30deg); opacity:0; } }
+@keyframes pop{ from{ transform:scale(.2); opacity:0; } }
 .fade{ animation:fadeup .35s both; }
-@keyframes fadeup{ from{ opacity:0; transform:translateY(8px); } }
+@keyframes fadeup{ from{ opacity:0; transform:translateY(6px); } }
 
 /* ===== 技術アニメ ===== */
 .tabs{ display:inline-flex; }
 .tech{ text-align:center; }
-.tech svg{ width:100%; max-width:220px; height:150px; display:block; margin:0 auto 6px; }
-.tech p{ text-align:left; font-size:.9rem; }
+.tech svg{ width:100%; max-width:220px; height:150px; display:block; margin:0 auto 8px; }
+.tech p{ text-align:left; font-size:.9rem; color:var(--sub); }
 .ski-l{ transform-origin:110px 120px; animation:plowL 3s ease-in-out infinite; }
 .ski-r{ transform-origin:110px 120px; animation:plowR 3s ease-in-out infinite; }
 @keyframes plowL{ 0%,20%{ transform:translateX(-14px) rotate(0);} 50%,80%{ transform:translateX(-14px) rotate(16deg);} 100%{ transform:translateX(-14px) rotate(0);} }
@@ -207,100 +259,103 @@ input[type=range]{ width:100%; accent-color:var(--acc); }
 @keyframes riderSit{ 0%,40%{ transform:translate(0,0);} 50%,60%{ transform:translate(0,-6px);} 100%{ transform:translate(120px,-46px);} }
 .fallperson{ transform-origin:110px 128px; animation:fall 3.4s ease-in-out infinite; }
 @keyframes fall{ 0%,20%{ transform:rotate(0);} 45%,70%{ transform:rotate(-62deg) translate(-6px,6px);} 100%{ transform:rotate(0);} }
-.school{ display:grid; gap:10px; margin-bottom:14px; }
+.school{ display:grid; gap:12px; margin-bottom:14px; }
 @media (min-width:720px){ .school{ grid-template-columns:1fr 1fr; } }
-.school .card{ box-shadow:none; }
 
 .stepcard{ margin-bottom:14px; }
-.steps3{ display:grid; gap:8px; margin:10px 0; }
+.steps3{ display:grid; gap:8px; margin:12px 0; }
 @media (min-width:720px){ .steps3{ grid-template-columns:repeat(4,1fr); } }
-.stepbtn{ text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--panel2); border-radius:14px; padding:12px; display:grid; gap:4px; align-content:start; transition:transform .15s, border-color .15s; }
-.stepbtn:hover{ transform:translateY(-2px); border-color:var(--acc); }
-.stepbtn b{ font-size:1rem; }
-.stepbtn span:last-child{ font-size:.85rem; color:var(--sub); }
-.stepno{ justify-self:start; font-size:.72rem; font-weight:800; letter-spacing:.08em; color:var(--on-acc); padding:1px 10px; border-radius:99px; }
+.stepbtn{ text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:14px; display:grid; gap:6px; align-content:start; transition:border-color .2s, transform .2s; }
+.stepbtn:hover{ border-color:var(--text); transform:translateY(-2px); }
+.stepbtn b{ font-size:.98rem; }
+.stepbtn span:last-child{ font-size:.84rem; color:var(--sub); }
+.stepno{ justify-self:start; font-family:var(--f-num); font-size:.68rem; font-weight:800; letter-spacing:.12em; color:var(--on-acc); padding:1px 10px; border-radius:99px; }
 .stepno.s0{ background:var(--lv0); } .stepno.s1{ background:var(--lv1); } .stepno.s3{ background:var(--lv2); }
 .jumpmk circle{ fill:var(--acc2); stroke:var(--mapsnow); stroke-width:1.5; }
 .jumpmk path{ fill:none; stroke:#fff; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 ul.svlist{ list-style:none; padding:0; margin:8px 0; }
-ul.svlist li{ padding:6px 0; border-bottom:1px dashed var(--line); font-size:.9rem; }
+ul.svlist li{ padding:7px 0; border-bottom:1px solid var(--line); font-size:.9rem; }
 .caution path{ fill:var(--gold); stroke:var(--mapsnow); stroke-width:1.5; stroke-linejoin:round; }
 .caution text{ fill:#1d1d1f; font-size:10px; font-weight:900; }
 .caution .cin{ transform-box:fill-box; transform-origin:center; }
 .caution .cin.pulse{ animation:cpulse .55s ease-in-out infinite alternate; }
 @keyframes cpulse{ to{ transform:scale(1.45); } }
-.subh{ margin:22px 0 8px; }
+.subh{ margin:28px 0 10px; }
 ul.miss, ul.rest{ list-style:none; padding:0; margin:.3em 0; }
-ul.miss li{ padding:4px 0 4px 24px; position:relative; }
-ul.miss li::before{ content:"✕"; position:absolute; left:2px; color:var(--lv3); font-weight:800; }
-ul.rest li{ padding:5px 0; border-bottom:1px dashed var(--line); font-size:.9rem; }
+ul.miss li{ padding:5px 0 5px 22px; position:relative; }
+ul.miss li::before{ content:""; position:absolute; left:2px; top:.95em; width:10px; height:2px; background:var(--lv3); transform:rotate(45deg); box-shadow:0 0 0 0 var(--lv3); }
+ul.miss li::after{ content:""; position:absolute; left:2px; top:.95em; width:10px; height:2px; background:var(--lv3); transform:rotate(-45deg); }
+ul.rest li{ padding:7px 0; border-bottom:1px solid var(--line); font-size:.9rem; }
 ol.liftsteps{ padding-left:1.4em; margin:.3em 0; text-align:left; font-size:.9rem; }
 
 /* ===== タイムライン ===== */
-.tl{ position:relative; padding-left:34px; }
-.tl::before{ content:""; position:absolute; left:13px; top:6px; bottom:6px; width:3px; background:linear-gradient(var(--gold),var(--acc),#5b3fa8); border-radius:2px; }
-.tl .it{ position:relative; margin-bottom:10px; padding:2px 8px; border-radius:10px; transition:background .4s; cursor:pointer; }
-.tl .it.now{ background:color-mix(in srgb, var(--acc) 12%, transparent); }
-.tl .it::before{ content:attr(data-ico); position:absolute; left:-34px; top:2px; width:29px; height:29px; display:grid; place-items:center; background:var(--panel); border:2px solid var(--acc); border-radius:50%; font-size:.9rem; }
-.tl .time{ font-weight:800; color:var(--acc); font-variant-numeric:tabular-nums; }
-.sunbar{ height:56px; position:relative; border-radius:12px; overflow:hidden; background:linear-gradient(90deg,#26305e,#f6a35c 12%,#8fd0ff 30%,#8fd0ff 70%,#f6a35c 90%,#3a2a5e); margin-bottom:16px; }
-.sunbar .sun{ position:absolute; top:12px; width:30px; height:30px; margin-left:-15px; border-radius:50%; background:radial-gradient(#fff6c2,#ffc53d); box-shadow:0 0 18px #ffd35c; transition:left .6s cubic-bezier(.3,.9,.4,1), top .6s; }
-.sunbar .hrs{ position:absolute; bottom:2px; left:0; right:0; display:flex; justify-content:space-between; padding:0 8px; font-size:.68rem; color:#fff; text-shadow:0 1px 2px #0008; }
+.tl{ position:relative; padding-left:28px; }
+.tl::before{ content:""; position:absolute; left:8px; top:8px; bottom:8px; width:1px; background:var(--line); }
+.tl .it{ position:relative; margin-bottom:6px; padding:6px 10px; border-radius:10px; transition:background .4s; cursor:pointer; color:var(--sub); }
+.tl .it.now{ background:var(--panel2); color:var(--text); }
+.tl .it::before{ content:""; position:absolute; left:-24px; top:14px; width:9px; height:9px; background:var(--panel); border:2px solid var(--faint); border-radius:50%; transition:border-color .3s, background .3s; }
+.tl .it.now::before{ border-color:var(--acc); background:var(--acc); }
+.tl .time{ font-family:var(--f-num); font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; display:inline-block; min-width:3.2em; }
+.sunbar{ height:48px; position:relative; border-radius:10px; overflow:hidden; background:linear-gradient(90deg,#2a3463,#f2a46a 12%,#9fd3f7 30%,#9fd3f7 70%,#f2a46a 90%,#3a2c60); margin-bottom:16px; }
+.sunbar .sun{ position:absolute; top:10px; width:24px; height:24px; margin-left:-12px; border-radius:50%; background:radial-gradient(#fff8d6,#ffcb4d); box-shadow:0 0 16px #ffd35c; transition:left .6s cubic-bezier(.3,.9,.4,1), top .6s; }
+.sunbar .hrs{ position:absolute; bottom:2px; left:0; right:0; display:flex; justify-content:space-between; padding:0 8px; font-size:.66rem; font-family:var(--f-num); color:#fff; text-shadow:0 1px 2px #0008; }
 
 /* ===== 費用 ===== */
-.calc label, .calc .row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 0; border-bottom:1px dashed var(--line); font-size:.92rem; flex-wrap:wrap; }
+.calc label, .calc .row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--line); font-size:.9rem; flex-wrap:wrap; }
 .stepper{ display:flex; align-items:center; gap:6px; }
-.stepper button{ width:30px; height:30px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); cursor:pointer; font-weight:800; }
-.stepper output{ min-width:22px; text-align:center; font-weight:800; font-variant-numeric:tabular-nums; }
-.seg{ display:flex; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-.seg button{ border:none; background:transparent; padding:5px 10px; cursor:pointer; font-size:.84rem; }
-.seg button[aria-pressed="true"]{ background:var(--acc); color:var(--on-acc); }
-.total{ font-size:2.2rem; font-weight:800; font-variant-numeric:tabular-nums; }
-.breakdown div{ display:flex; justify-content:space-between; gap:8px; font-size:.85rem; color:var(--sub); padding:2px 0; font-variant-numeric:tabular-nums; }
+.stepper button{ width:30px; height:30px; border-radius:99px; border:1px solid var(--line); background:var(--panel); cursor:pointer; font-weight:700; }
+.stepper output{ min-width:22px; text-align:center; font-weight:700; font-family:var(--f-num); font-variant-numeric:tabular-nums; }
+.seg{ display:flex; border:1px solid var(--line); border-radius:99px; overflow:hidden; padding:2px; gap:2px; background:var(--panel); }
+.seg button{ border:none; background:transparent; padding:5px 12px; cursor:pointer; font-size:.82rem; border-radius:99px; }
+.seg button[aria-pressed="true"]{ background:var(--text); color:var(--bg); }
+.total{ font-family:var(--f-num); font-size:2.8rem; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1; }
+.breakdown div{ display:flex; justify-content:space-between; gap:8px; font-size:.85rem; color:var(--sub); padding:3px 0; font-variant-numeric:tabular-nums; }
 .tablewrap{ overflow-x:auto; }
 table.price{ width:100%; border-collapse:collapse; font-size:.9rem; min-width:480px; }
-table.price th,table.price td{ padding:7px 8px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
-table.price td.n{ text-align:right; font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+table.price th,table.price td{ padding:9px 8px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+table.price tr:first-child th{ font-size:.75rem; color:var(--sub); font-weight:500; }
+table.price td.n{ text-align:right; font-family:var(--f-num); font-variant-numeric:tabular-nums; font-weight:700; white-space:nowrap; }
+table.price td.n small{ font-family:var(--f-body); font-weight:400; color:var(--sub); }
 
 /* ===== アクセス ===== */
 .route{ width:100%; max-width:560px; height:auto; display:block; margin:0 auto; }
 .route .road{ fill:none; stroke:var(--line); stroke-width:7; stroke-linecap:round; stroke-linejoin:round; }
 .route .path{ fill:none; stroke:var(--acc); stroke-width:2.6; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:5 6; animation:roadmv 1s linear infinite; }
-.rmk circle{ fill:var(--acc); stroke:var(--panel2); stroke-width:2; }
-.rmk text{ fill:var(--on-acc); font-size:10px; font-weight:800; }
+.rmk circle{ fill:var(--text); stroke:var(--panel2); stroke-width:2; }
+.rmk text{ fill:var(--bg); font-size:10px; font-weight:800; font-family:var(--f-num); }
 .rmk.goal circle{ fill:var(--lv3); }
 .rlabel{ font-size:11px; font-weight:700; fill:var(--text); paint-order:stroke; stroke:var(--panel2); stroke-width:3px; stroke-linejoin:round; }
-.rlabel.s{ font-size:9.5px; font-weight:600; fill:var(--sub); }
-.hwy{ font-size:.9rem; margin:0 0 10px; }
-ol.routesteps{ list-style:none; padding:0; margin:10px 0 0; display:grid; gap:4px; }
-ol.routesteps li{ display:flex; gap:10px; align-items:flex-start; font-size:.92rem; padding:4px 6px; border-radius:8px; transition:background .3s; }
-ol.routesteps li.now{ background:color-mix(in srgb, var(--acc) 14%, transparent); }
-.rn{ flex:none; width:24px; height:24px; border-radius:50%; display:grid; place-items:center; background:var(--acc); color:var(--on-acc); font-weight:800; font-size:.8rem; }
-.rn.goal{ background:var(--lv3); }
-.km{ display:inline-block; margin-left:6px; font-size:.8rem; color:var(--sub); white-space:nowrap; }
+.rlabel.s{ font-size:9.5px; font-weight:500; fill:var(--sub); }
+.hwy{ font-size:.88rem; margin:0 0 12px; color:var(--sub); }
+ol.routesteps{ list-style:none; padding:0; margin:12px 0 0; display:grid; gap:2px; }
+ol.routesteps li{ display:flex; gap:10px; align-items:flex-start; font-size:.9rem; padding:6px 8px; border-radius:8px; transition:background .3s; }
+ol.routesteps li.now{ background:var(--panel2); }
+.rn{ flex:none; width:22px; height:22px; border-radius:50%; display:grid; place-items:center; background:var(--text); color:var(--bg); font-weight:700; font-size:.72rem; font-family:var(--f-num); margin-top:1px; }
+.rn.goal{ background:var(--lv3); color:#fff; }
+.km{ display:inline-block; margin-left:6px; font-size:.78rem; color:var(--sub); white-space:nowrap; font-family:var(--f-num); }
 a.btn{ text-decoration:none; display:inline-block; }
 @keyframes roadmv{ to{ stroke-dashoffset:-14; } }
-dl.info{ display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0; font-size:.92rem; }
-dl.info dt{ color:var(--sub); font-weight:700; white-space:nowrap; }
+dl.info{ display:grid; grid-template-columns:auto 1fr; gap:10px 16px; margin:0; font-size:.9rem; }
+dl.info dt{ color:var(--sub); font-size:.8rem; white-space:nowrap; padding-top:2px; }
 dl.info dd{ margin:0; min-width:0; }
 
 /* ===== 持ち物・約束 ===== */
-.check label{ display:flex; gap:10px; align-items:center; padding:7px 4px; border-bottom:1px dashed var(--line); cursor:pointer; }
-.check input{ width:20px; height:20px; accent-color:var(--lv1); flex:none; }
+.check label{ display:flex; gap:10px; align-items:center; padding:8px 4px; border-bottom:1px solid var(--line); cursor:pointer; font-size:.92rem; }
+.check input{ width:18px; height:18px; accent-color:var(--text); flex:none; }
 .check input:checked + span{ text-decoration:line-through; color:var(--faint); }
 ol.rules{ margin:.3em 0; padding-left:1.4em; }
-ol.rules li{ margin:4px 0; }
-ol.rules small{ color:var(--sub); }
+ol.rules li{ margin:6px 0; }
+ol.rules small{ color:var(--sub); display:block; }
 
-.reveal{ transition:transform .6s; }
-.reveal.pre{ transform:translateY(14px); }
-footer{ padding-block:30px 60px; color:var(--sub); font-size:.85rem; }
+.reveal{ transition:transform .6s, opacity .6s; }
+.reveal.pre{ transform:translateY(16px); opacity:.6; }
+footer{ padding-block:56px 72px; color:var(--sub); font-size:.84rem; border-top:1px solid var(--line); margin-top:72px; }
 footer ol{ padding-left:1.3em; }
 footer li{ margin:2px 0; word-break:break-all; }
 
 @media (prefers-reduced-motion: reduce){
   *,*::before,*::after{ animation:none !important; transition:none !important; }
-  .reveal{ transform:none !important; }
+  .reveal{ transform:none !important; opacity:1 !important; }
 }
 </style>
 </head>
@@ -308,11 +363,11 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <header class="top">
   <div class="wrap">
-    <div class="brand">🏂 東鉢ガイド<small>非公式</small></div>
+    <div class="brand"><b>東鉢ガイド</b><small>UNOFFICIAL</small></div>
     <nav class="toc" id="toc">
       <a href="#level">レベル</a><a href="#map">コース</a><a href="#slope">斜度</a><a href="#quiz">診断</a><a href="#basic">はじめて</a><a href="#plan">1日</a><a href="#cost">料金</a><a href="#access">アクセス</a><a href="#tips">知っ得</a>
     </nav>
-    <button class="iconbtn" id="themeBtn" aria-label="明るさを切りかえる" title="明るさを切りかえる">🌓</button>
+    <button class="iconbtn" id="themeBtn" aria-label="明るさを切りかえる" title="明るさを切りかえる"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
   </div>
 </header>
 
@@ -321,53 +376,58 @@ footer li{ margin:2px 0; word-break:break-all; }
   <svg class="scene" viewBox="0 0 1200 620" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
     <defs>
       <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--snow)"/><stop offset="1" style="stop-color:var(--mtn2)"/></linearGradient>
+      <linearGradient id="mfar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mtn1)"/><stop offset="1" style="stop-color:var(--sky2)"/></linearGradient>
     </defs>
-    <g class="cloud"><ellipse cx="120" cy="110" rx="70" ry="20" style="fill:var(--snow)" opacity=".8"/><ellipse cx="160" cy="98" rx="46" ry="22" style="fill:var(--snow)" opacity=".8"/></g>
-    <g class="cloud c2"><ellipse cx="80" cy="170" rx="56" ry="15" style="fill:var(--snow)" opacity=".6"/><ellipse cx="112" cy="160" rx="34" ry="16" style="fill:var(--snow)" opacity=".6"/></g>
-    <path d="M0 420 L170 300 L300 360 L470 250 L620 330 L760 270 L900 340 L1050 260 L1200 330 L1200 620 L0 620Z" style="fill:var(--mtn1)" opacity=".55"/>
-    <path d="M0 470 L260 380 L420 300 L560 210 L640 230 L760 300 L900 380 L1200 450 L1200 620 L0 620Z" fill="url(#mg)"/>
-    <g style="fill:var(--tree)" opacity=".85">
-      <path d="M300 420 l14 -40 l14 40z"/><path d="M330 430 l12 -34 l12 34z"/><path d="M820 400 l14 -40 l14 40z"/><path d="M850 412 l12 -34 l12 34z"/><path d="M880 420 l12 -32 l12 32z"/><path d="M270 440 l12 -32 l12 32z"/>
+    <g class="cloud"><ellipse cx="140" cy="150" rx="120" ry="10" style="fill:var(--snow)" opacity=".55"/></g>
+    <g class="cloud c2"><ellipse cx="80" cy="210" rx="90" ry="7" style="fill:var(--snow)" opacity=".4"/></g>
+    <path d="M0 400 L90 352 L160 372 L250 318 L330 345 L420 292 L500 322 L600 268 L690 300 L780 262 L880 306 L980 272 L1080 312 L1200 286 L1200 620 L0 620Z" fill="url(#mfar)" opacity=".55"/>
+    <path d="M0 452 L140 410 L250 428 L360 372 L450 392 L560 330 L640 352 L720 330 L830 378 L960 352 L1080 396 L1200 380 L1200 620 L0 620Z" style="fill:var(--mtn1)" opacity=".38"/>
+    <path d="M0 500 L240 420 L400 336 L540 236 L600 222 L660 238 L780 304 L940 384 L1200 456 L1200 620 L0 620Z" fill="url(#mg)"/>
+    <path d="M540 236 L600 222 L660 238 L700 262 L640 252 L600 246 L560 256Z" style="fill:var(--snow)" opacity=".9"/>
+    <g style="fill:var(--tree)" opacity=".55">
+      <path d="M300 438 l9 -26 l9 26z"/><path d="M318 444 l8 -22 l8 22z"/><path d="M336 450 l7 -20 l7 20z"/><path d="M842 404 l9 -26 l9 26z"/><path d="M862 412 l8 -22 l8 22z"/><path d="M880 420 l7 -20 l7 20z"/>
     </g>
-    <path d="M700 560 L590 240" style="stroke:var(--sub)" stroke-width="2" fill="none"/>
+    <path d="M700 560 L606 248" style="stroke:var(--sub)" stroke-width="1.5" fill="none" opacity=".6"/>
     <g id="heroChairs"></g>
-    <path id="heroRun" d="M575 222 C 520 290, 640 320, 580 380 S 470 450, 560 520 S 640 580, 520 640" fill="none" style="stroke:var(--acc2)" stroke-width="3" stroke-dasharray="1 9" stroke-linecap="round" opacity=".55"/>
+    <path id="heroRun" d="M592 238 C 540 300, 650 330, 590 388 S 480 456, 566 524 S 646 584, 528 640" fill="none" style="stroke:var(--acc2)" stroke-width="2" stroke-linecap="round" opacity=".7"/>
     <g id="heroSkier">
-      <circle r="7" cy="-22" fill="#ff5a5f"/>
-      <path d="M0 -15 L-2 -2 M-2 -2 L-8 6 M-2 -2 L6 6 M0 -12 L10 -6 M0 -12 L-9 -8" style="stroke:var(--text)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
-      <path d="M-18 8 L20 8" stroke="#0e5aa7" stroke-width="3.5" stroke-linecap="round"/>
+      <circle r="5" cy="-20" style="fill:var(--lv3)"/>
+      <path d="M0 -14 L-2 -2 M-2 -2 L-7 6 M-2 -2 L5 6 M0 -11 L9 -5 M0 -11 L-8 -7" style="stroke:var(--text)" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+      <path d="M-15 8 L17 8" style="stroke:var(--acc)" stroke-width="3" stroke-linecap="round"/>
     </g>
   </svg>
   <canvas id="snow" aria-hidden="true"></canvas>
-  <div class="copy">
-    <h1><span class="sub">兵庫県 養父市</span>ハイパーボウル東鉢<span class="sub">たのしみ方ガイド</span></h1>
-    <p>はじめての1本から、43°の急斜面まで。</p>
-    <div class="facts">
-      <div class="fact"><b>1,800m</b>東尾根コース</div>
-      <div class="fact"><b>43°</b>最大斜度（東尾根下）</div>
-      <div class="fact"><b>6本</b>コース</div>
-      <div class="fact"><b>4基</b>ペアリフト</div>
-      <div class="fact"><b>約120分</b>大阪・神戸から</div>
-    </div>
+  <div class="copy wrap">
+    <p class="eyebrow">Hyogo · Yabu — Ski area guide</p>
+    <h1>ハイパーボウル<br>東鉢</h1>
+    <p class="tagline">はじめての1本から、43°の急斜面まで。<br>たのしみ方を、動く図で。</p>
+    <dl class="facts">
+      <div><dt>東尾根コース</dt><dd>1,800<small>m</small></dd></div>
+      <div><dt>最大斜度</dt><dd>43<small>°</small></dd></div>
+      <div><dt>コース</dt><dd>6<small>本</small></dd></div>
+      <div><dt>ペアリフト</dt><dd>4<small>基</small></dd></div>
+      <div><dt>大阪・神戸から</dt><dd>120<small>分</small></dd></div>
+    </dl>
   </div>
-  <div class="scroll-hint">▼ 下へ</div>
 </div>
 
 <main class="wrap">
 
 <!-- ============ ABOUT ============ -->
 <section id="about" class="reveal">
+  <p class="eyebrow">About</p>
   <h2>どんなスキー場？</h2>
   <p class="lead">兵庫県北部、鉢伏山（はちぶせやま）の東側にあるスキー場です。読みは「<b>とうはち</b>」。となりの <b>スカイバレイ</b> とつながっていて、リフト券は共通で使えます。</p>
   <div class="grid g3">
-    <div class="card"><h3>⛰ 山頂は超ワイド</h3><p>山頂は「一度味わうとやみつきになる」と評判の<b>超ワイドなオープンバーン</b>。中腹からは、さわやかな<b>林間コース</b>をクルージング。<span class="src">（公式の紹介より）</span></p></div>
-    <div class="card"><h3>🎫 共通券で、尾根の向こうも</h3><p>東鉢のリフト券（シーズン券も）で、尾根の向こうのスカイバレイ側のコースも滑れます。2つ合わせて「<b>西日本最大級のBIGゲレンデ</b>」。<b>営業時間はそれぞれちがう</b>ので、帰りのリフトの時間に注意。<span class="src">（公式マップより）</span></p></div>
-    <div class="card"><h3>👶 独立したチビッコパーク</h3><p>駐車場のすぐ近くに 3,000㎡。<b>サンキッド（スノーエスカレーター）</b>つき。小学生未満はリフト無料。口コミでは「比較的すいていて滑りやすい」という声も。</p></div>
+    <div class="card"><h3>山頂は超ワイド</h3><p>山頂は「一度味わうとやみつきになる」と評判の<b>超ワイドなオープンバーン</b>。中腹からは、さわやかな<b>林間コース</b>をクルージング。<span class="src">（公式の紹介より）</span></p></div>
+    <div class="card"><h3>共通券で、尾根の向こうも</h3><p>東鉢のリフト券（シーズン券も）で、尾根の向こうのスカイバレイ側のコースも滑れます。2つ合わせて「<b>西日本最大級のBIGゲレンデ</b>」。<b>営業時間はそれぞれちがう</b>ので、帰りのリフトの時間に注意。<span class="src">（公式マップより）</span></p></div>
+    <div class="card"><h3>独立したチビッコパーク</h3><p>駐車場のすぐ近くに 3,000㎡。<b>サンキッド（スノーエスカレーター）</b>つき。小学生未満はリフト無料。口コミでは「比較的すいていて滑りやすい」という声も。</p></div>
   </div>
 </section>
 
 <!-- ============ LEVEL ============ -->
 <section id="level" class="reveal">
+  <p class="eyebrow">Your level</p>
   <h2>あなたはどのレベル？</h2>
   <p class="lead">えらぶと、下のコース図・1日のプランが、そのレベル向けに変わります。</p>
   <div class="levels" id="levels"></div>
@@ -375,22 +435,22 @@ footer li{ margin:2px 0; word-break:break-all; }
 </section>
 
 <!-- ============ MAP ============ -->
-<section id="map" class="reveal">
+<section id="map">
+  <p class="eyebrow">Course map</p>
   <h2>動くコース図</h2>
-  <p class="lead">コースは、選んだときだけ線が出ます。下のボタンでコースやリフトを選ぶと、くわしい情報と「滑ってみる／乗ってみる」が出ます。東鉢側とスカイバレイ側（共通券）の図を切りかえられます。</p>
-  <div class="seg maptabs" id="mapTabs" role="group" aria-label="図の切りかえ"><button aria-pressed="true" data-m="tohachi">東鉢側</button><button aria-pressed="false" data-m="sv">スカイバレイ側（共通券）</button></div>
-  <div class="chiprow" id="chipsCourse"><span>コース</span></div>
-  <div class="chiprow" id="chipsOther"><span>エリア・リフト</span></div>
-  <div class="mapwrap">
+  <p class="lead">コースを選ぶと、図の上でそのコースが描かれ、滑る人が走ります。図は画面に止まったままなので、下のボタンを押しながら見くらべられます。</p>
+  <div class="stage">
+  <div class="stage-map">
     <div class="map">
-      <svg id="mapSvg" viewBox="-14 -30 414 516" role="img" aria-label="ハイパーボウル東鉢のコースの略図。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
+      <div class="nowbar" id="nowbar" aria-live="polite"></div>
+      <svg id="mapSvg" viewBox="-14 -54 414 540" role="img" aria-label="ハイパーボウル東鉢のコースの略図。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
         <defs>
           <linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mapsnow)"/><stop offset="1" style="stop-color:var(--panel2)"/></linearGradient>
           <pattern id="kidsHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--mapsnow)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--gold)" stroke-width="2.6"/></pattern>
         </defs>
-        <rect x="-14" y="-30" width="414" height="516" fill="url(#mapbg)"/>
+        <rect x="-14" y="-54" width="414" height="540" fill="url(#mapbg)"/>
         <!-- スカイバレイ側（赤い点線が境界） -->
-        <path id="svArea" data-area="skyvalley" d="M209 17 L245 26 L271 34 L305 46 L314 62 L316 77 L319 96 L326 108 L336 125 L348 142 L362 163 L373 182 L379 199 L382 223 L400 236 L400 -30 L209 -30 Z" style="fill:var(--sv)"/>
+        <path id="svArea" data-area="skyvalley" d="M209 17 L245 26 L271 34 L305 46 L314 62 L316 77 L319 96 L326 108 L336 125 L348 142 L362 163 L373 182 L379 199 L382 223 L400 236 L400 -54 L209 -54 Z" style="fill:var(--sv)"/>
         <path class="lift sv" d="M327 40 L400 112"/>
         <path d="M209 17 L245 26 L271 34 L305 46 L314 62 L316 77 L319 96 L326 108 L336 125 L348 142 L362 163 L373 182 L379 199 L382 223" fill="none" style="stroke:var(--lv3)" stroke-width="1.6" stroke-dasharray="4 4" opacity=".75" pointer-events="none"/>
         <!-- 山頂のオープンバーン -->
@@ -436,13 +496,13 @@ footer li{ margin:2px 0; word-break:break-all; }
         <circle id="runner" class="runner" r="6.5" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
       </svg>
       <!-- スカイバレイ側：スカイバレイの公式マップ（見る向きが東鉢の図とちがう）の位置関係をもとにした略図。左上が東鉢側 -->
-      <svg id="svSvg" viewBox="-10 -16 430 312" role="img" aria-label="スカイバレイ側のコースの略図。左上が東鉢側、下がスカイバレイのふもと。選んだコースだけ線が出ます。">
+      <svg id="svSvg" viewBox="-10 -44 430 340" role="img" aria-label="スカイバレイ側のコースの略図。左上が東鉢側、下がスカイバレイのふもと。選んだコースだけ線が出ます。">
         <defs>
           <linearGradient id="mapbg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mapsnow)"/><stop offset="1" style="stop-color:var(--panel2)"/></linearGradient>
         </defs>
-        <rect x="-10" y="-16" width="430" height="312" fill="url(#mapbg2)"/>
+        <rect x="-10" y="-44" width="430" height="340" fill="url(#mapbg2)"/>
         <!-- 境の向こう（東鉢側） -->
-        <path d="M-10 -16 L333.9 -16 L333.9 5.0 L317.5 13.9 L295.3 26.0 L277.6 37.8 L260.0 49.1 L243.6 54.2 L233.1 61.3 L222.6 73.9 L207.9 83.2 L189.4 92.8 L169.3 100.4 L151.2 111.3 L132.7 121.0 L116.8 127.3 L100.4 129.4 L83.2 129.8 L80.2 135.2 L80.2 137 L-10 137 Z" style="fill:var(--sv)"/>
+        <path d="M-10 -44 L333.9 -44 L333.9 5.0 L317.5 13.9 L295.3 26.0 L277.6 37.8 L260.0 49.1 L243.6 54.2 L233.1 61.3 L222.6 73.9 L207.9 83.2 L189.4 92.8 L169.3 100.4 L151.2 111.3 L132.7 121.0 L116.8 127.3 L100.4 129.4 L83.2 129.8 L80.2 135.2 L80.2 137 L-10 137 Z" style="fill:var(--sv)"/>
         <path d="M333.9 5.0 L317.5 13.9 L295.3 26.0 L277.6 37.8 L260.0 49.1 L243.6 54.2 L233.1 61.3 L222.6 73.9 L207.9 83.2 L189.4 92.8 L169.3 100.4 L151.2 111.3 L132.7 121.0 L116.8 127.3 L100.4 129.4 L83.2 129.8 L80.2 135.2" fill="none" style="stroke:var(--lv3)" stroke-width="1.6" stroke-dasharray="4 4" opacity=".75" pointer-events="none"/>
         <path d="M294.0 14.7 L283.9 25.2 L269.6 33.6 L250.7 47.0 L221.8 64.7 L192.4 83.2 L160.0 99.1 L126.8 113.0 L91.6 115.5" fill="none" style="stroke:var(--lv2)" stroke-width="3" stroke-linecap="round" opacity=".28" pointer-events="none"/>
         <text class="maplabel s" x="150" y="28" text-anchor="middle">← ハイパーボウル東鉢側</text>
@@ -461,6 +521,13 @@ footer li{ margin:2px 0; word-break:break-all; }
         <g class="g-badges"></g>
         <circle id="svRunner" class="runner" r="6" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
       </svg>
+    </div>
+  </div>
+  <div class="stage-side">
+      <div class="seg maptabs" id="mapTabs" role="group" aria-label="図の切りかえ"><button aria-pressed="true" data-m="tohachi">東鉢側</button><button aria-pressed="false" data-m="sv">スカイバレイ側（共通券）</button></div>
+      <div class="chiprow" id="chipsCourse"><span>Courses</span></div>
+      <div class="chiprow" id="chipsOther"><span>Areas & Lifts</span></div>
+      <div class="detail" id="detail" aria-live="polite"></div>
       <div class="legend">
         <span><i style="background:var(--lv1)"></i>初級</span>
         <span><i style="background:var(--lv2)"></i>中級</span>
@@ -474,15 +541,15 @@ footer li{ margin:2px 0; word-break:break-all; }
         <span data-only="sv" hidden><i class="box" style="background:var(--gold)"></i>境の看板（東鉢とつながる所）</span>
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
-    </div>
-    <div class="card detail" id="detail" aria-live="polite"></div>
-  </div>
   <p class="note" data-note="tohachi">※ 東鉢側の図は、公式ゲレンデマップ（2027シーズン版）の位置関係をもとにした<b>略図</b>で、距離や角度は実際とはちがいます。リフトの長さは公式サイトのリフト案内の数字です。正確なマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデ案内</a>で。</p>
   <p class="note" data-note="sv" hidden>※ スカイバレイ側の図は、スカイバレイの公式マップの位置関係をもとにした<b>略図</b>です。東鉢側の図とは見る向きがちがいます（左上が東鉢側）。コースの長さ・斜度はスカイバレイの公式マップより。</p>
+  </div>
+  </div>
 </section>
 
 <!-- ============ SLOPE ============ -->
 <section id="slope" class="reveal">
+  <p class="eyebrow">Slope</p>
   <h2>斜度ってどのくらい？</h2>
   <p class="lead">「最大43°」と言われてもピンとこないもの。スライダーやコース名を押して、坂の角度と滑る速さを体感してください。</p>
   <div class="slopebox">
@@ -502,6 +569,7 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <!-- ============ QUIZ ============ -->
 <section id="quiz" class="reveal">
+  <p class="eyebrow">Course finder</p>
   <h2>30秒 コース診断</h2>
   <p class="lead">4つの質問に答えると、あなたに合うコースと回り方をおすすめします。</p>
   <div class="card quiz" id="quizBox"></div>
@@ -509,10 +577,11 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <!-- ============ BASIC ============ -->
 <section id="basic" class="reveal">
+  <p class="eyebrow">Basics</p>
   <h2>はじめての人へ</h2>
   <p class="lead">いちばん確実なのはスクールに入ること。コースは緑の線（初級）をたどれば、ふもとまで安心です。</p>
   <div class="card stepcard">
-    <h3>🔰 初心者のおすすめルート</h3>
+    <h3>初心者のおすすめルート</h3>
     <p class="note">押すと、コース図でそのルートを動かして見せます。</p>
     <div class="steps3" id="stepRoute">
       <button class="stepbtn" data-step="1"><span class="stepno s0">STEP 1</span><b>3号リフトで足ならし</b><span>3号を降りたら<b>左側</b>（オレンジの道）から滑り、3号リフトの<b>裏側</b>から乗り場へ戻る。何本かくり返して足を慣らそう。</span></button>
@@ -523,18 +592,18 @@ footer li{ margin:2px 0; word-break:break-all; }
     <p class="note">ふもとからは4号リフトでカフェテリアへ行くと、3号リフトはすぐそこ（1号→センターBからも行けます）。大回りのコツは下の「③ スピード調整」で。無理は禁物！</p>
   </div>
   <div class="school">
-    <div class="card"><h3>🏂 スノーボード（土日祝）</h3><p>東鉢のスクールは<b>土日祝のスノーボードだけ</b>。受付は<b>かつら1号リフト横のリフト事務所1階</b>。</p><p class="note">午前：受付 9:30〜10:20／レッスン 10:30〜12:00<br>午後：受付 12:30〜13:20／レッスン 13:30〜15:00<br>東鉢ではレッスンの予約はしていません。<span class="src">（公式）</span></p></div>
-    <div class="card"><h3>⛷ スキーのレッスン・平日のレッスン</h3><p>スキーのレッスンや平日のレッスンは、公式サイトのスクールのページに案内があります。行く前に確認しておくと安心です。</p><p><a href="https://tohachi.jp/school" target="_blank" rel="noopener">公式のスクール案内を開く</a></p></div>
+    <div class="card"><h3>スノーボード（土日祝）</h3><p>東鉢のスクールは<b>土日祝のスノーボードだけ</b>。受付は<b>かつら1号リフト横のリフト事務所1階</b>。</p><p class="note">午前：受付 9:30〜10:20／レッスン 10:30〜12:00<br>午後：受付 12:30〜13:20／レッスン 13:30〜15:00<br>東鉢ではレッスンの予約はしていません。<span class="src">（公式）</span></p></div>
+    <div class="card"><h3>スキーのレッスン・平日のレッスン</h3><p>スキーのレッスンや平日のレッスンは、公式サイトのスクールのページに案内があります。行く前に確認しておくと安心です。</p><p><a href="https://tohachi.jp/school" target="_blank" rel="noopener">公式のスクール案内を開く</a></p></div>
   </div>
   <h3 class="subh">覚えたい3つの基本 ＋ 転び方</h3>
   <div class="seg tabs" id="sportTabs">
-    <button aria-pressed="true" data-s="ski">⛷ スキー</button><button aria-pressed="false" data-s="board">🏂 スノーボード</button>
+    <button aria-pressed="true" data-s="ski">スキー</button><button aria-pressed="false" data-s="board">スノーボード</button>
   </div>
   <div class="grid g4" id="techs" style="margin-top:12px"></div>
   <p class="warn" style="margin-top:14px"><b>ポイント</b>：速さより、ゆっくり安全に。それが上達のいちばんの近道です。</p>
   <div class="grid g3" style="margin-top:14px">
     <div class="card">
-      <h3>❌ やりがちな失敗</h3>
+      <h3>やりがちな失敗</h3>
       <ul class="miss">
         <li><b>スピードの出しすぎ</b> → 止まれなくなる</li>
         <li><b>後ろ重心</b> → 板が暴れて転びやすい</li>
@@ -544,7 +613,7 @@ footer li{ margin:2px 0; word-break:break-all; }
       <p class="note">周りをよく見て、早めの判断を！</p>
     </div>
     <div class="card tech">
-      <h3>🚡 リフトの乗り方</h3>
+      <h3>リフトの乗り方</h3>
       <svg viewBox="0 0 220 150" aria-hidden="true" id="liftAnim"></svg>
       <ol class="liftsteps">
         <li><b>振り返る</b>：乗り場の線で待ち、うしろを見てイスを確認</li>
@@ -554,7 +623,7 @@ footer li{ margin:2px 0; word-break:break-all; }
       <p class="note">東鉢の4基はすべて2人乗り（ペアリフト）。</p>
     </div>
     <div class="card">
-      <h3>☕ ひと休みスポット</h3>
+      <h3>ひと休みスポット</h3>
       <ul class="rest">
         <li><b>ふもとのレストラン</b><br>センターDの終点、駐車場のすぐ前。シルバーホルンは1号リフト乗り場の少し上。</li>
         <li><b>カフェテリア フライングフォックス</b><br>ゲレンデの中腹（3号・4号リフトのあいだ）。滑る途中のひと休みに。</li>
@@ -567,6 +636,7 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <!-- ============ PLAN ============ -->
 <section id="plan" class="reveal">
+  <p class="eyebrow">One day</p>
   <h2>1日のモデルプラン</h2>
   <p class="lead">いま選んでいるレベル：<b id="planLv"></b>（上の「レベル」で変えられます）</p>
   <div class="sunbar" id="sunbar"><div class="sun" id="sun"></div><div class="hrs"><span>6時</span><span>9時</span><span>12時</span><span>15時</span><span>18時</span></div></div>
@@ -575,6 +645,7 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <!-- ============ COST ============ -->
 <section id="cost" class="reveal">
+  <p class="eyebrow">Lift tickets</p>
   <h2>料金と1日の費用</h2>
   <p class="lead">人数とレンタルを入れると、だいたいの合計を出します。リフト券と駐車場は公式サイトの料金（2026年11月確認）です。</p>
   <div class="grid g2">
@@ -612,6 +683,7 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <!-- ============ ACCESS ============ -->
 <section id="access" class="reveal">
+  <p class="eyebrow">Access</p>
   <h2>アクセス</h2>
   <p class="lead">大阪・神戸から車で約120分。出発地が晴れていても、スキー場の近くは雪道です。スタッドレスタイヤとチェーンを必ず用意しましょう。</p>
   <div class="grid g2">
@@ -652,8 +724,8 @@ footer li{ margin:2px 0; word-break:break-all; }
         <li><span class="rn goal">7</span><span><b>ハイパーボウル東鉢</b>に到着<span class="km">ICから約21km・30分ほど</span></span></li>
       </ol>
       <div class="btnrow">
-        <a class="btn" href="https://maps.app.goo.gl/9vT1CJFomBiG9H4M7" target="_blank" rel="noopener">🗺 Googleマップでこのルートを開く</a>
-        <a class="btn ghost" href="https://www.google.com/maps/dir/?api=1&amp;destination=%E3%83%8F%E3%82%A4%E3%83%91%E3%83%BC%E3%83%9C%E3%82%A6%E3%83%AB%E6%9D%B1%E9%89%A2%E3%82%B9%E3%82%AD%E3%83%BC%E5%A0%B4&amp;waypoints=35.3650683%2C134.5875862&amp;travelmode=driving" target="_blank" rel="noopener">📍 今いる場所からナビ（同じ経由地）</a>
+        <a class="btn" href="https://maps.app.goo.gl/9vT1CJFomBiG9H4M7" target="_blank" rel="noopener">Googleマップでこのルートを開く</a>
+        <a class="btn ghost" href="https://www.google.com/maps/dir/?api=1&amp;destination=%E3%83%8F%E3%82%A4%E3%83%91%E3%83%BC%E3%83%9C%E3%82%A6%E3%83%AB%E6%9D%B1%E9%89%A2%E3%82%B9%E3%82%AD%E3%83%BC%E5%A0%B4&amp;waypoints=35.3650683%2C134.5875862&amp;travelmode=driving" target="_blank" rel="noopener">今いる場所からナビ（同じ経由地）</a>
       </div>
       <p class="note">図は国道9号の部分を縮めて描いています。道の名前と距離は、Googleマップのルートと同じ経由地を通るように OpenStreetMap のデータで計算した目安です。冬は雪道なので、時間に余裕をもって。</p>
     </div>
@@ -672,19 +744,20 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <!-- ============ TIPS ============ -->
 <section id="tips" class="reveal">
+  <p class="eyebrow">Good to know</p>
   <h2>知っておくと得すること</h2>
   <div class="grid g3">
-    <div class="card"><h3>🍛 ランチ</h3><p>「<b>シルバーホルン</b>」は1号リフト乗り場の少し上。テーブルサービスのお店で、営業は9:00〜17:00。ハンバーグランチ・ビーフシチューランチ・カレー・パスタ・ショコラケーキ、生クリームたっぷりのココアも人気。<b>ランチは朝イチから閉店まで</b>注文OK。中腹にはカフェテリア「フライングフォックス」も。<span class="src">（公式）</span></p></div>
-    <div class="card"><h3>👩 金曜はレディースデイ</h3><p>毎週金曜は、女性の<b>1日リフト券が1,000円引き</b>。平日に行けるならねらい目です。<span class="src">（公式）</span></p></div>
-    <div class="card"><h3>🎫 共通券で、尾根の向こうへ</h3><p>東鉢の山頂から尾根の向こうはスカイバレイ側。山頂ペアリフトまわりの<b>ディア</b>（眺め最高）・<b>フォックス</b>（入口に80mのハーフパイプ）・<b>イーグル</b>（最大32°）・<b>サンダー</b>も、同じリフト券で滑れます。帰りは<b>ディアコースの途中を右に下ると東鉢</b>へ。<span class="src">（スカイバレイ公式）</span></p></div>
-    <div class="card"><h3>🛷 ニューギアに挑戦</h3><p>スキーとスノボだけじゃない。<b>スノーモト・スノーレーサー・スノースクート</b>などのレンタルもあります（ロイヤルハジメ・レンタルちさと など）。<span class="src">（公式）</span></p></div>
-    <div class="card"><h3>🏠 泊まるなら</h3><p>ゲレンデから歩いて5分以内に、ロッジ・ペンション・民宿が並びます。1泊2食 7,000円から（ロッヂ鉢・清和荘）、「ゲレンデまで0分」の翠山荘など。<span class="src">（公式の施設案内）</span></p></div>
-    <div class="card"><h3>📷 先にコースを見ておく</h3><p>公式のゲレンデ案内から、<b>Googleストリートビュー</b>でコースを見られます（2019年2月撮影）。はじめての人は、行く前に雰囲気をつかんでおくと安心。</p><p><a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデ案内を開く</a></p></div>
+    <div class="card"><h3>ランチ</h3><p>「<b>シルバーホルン</b>」は1号リフト乗り場の少し上。テーブルサービスのお店で、営業は9:00〜17:00。ハンバーグランチ・ビーフシチューランチ・カレー・パスタ・ショコラケーキ、生クリームたっぷりのココアも人気。<b>ランチは朝イチから閉店まで</b>注文OK。中腹にはカフェテリア「フライングフォックス」も。<span class="src">（公式）</span></p></div>
+    <div class="card"><h3>金曜はレディースデイ</h3><p>毎週金曜は、女性の<b>1日リフト券が1,000円引き</b>。平日に行けるならねらい目です。<span class="src">（公式）</span></p></div>
+    <div class="card"><h3>共通券で、尾根の向こうへ</h3><p>東鉢の山頂から尾根の向こうはスカイバレイ側。山頂ペアリフトまわりの<b>ディア</b>（眺め最高）・<b>フォックス</b>（入口に80mのハーフパイプ）・<b>イーグル</b>（最大32°）・<b>サンダー</b>も、同じリフト券で滑れます。帰りは<b>ディアコースの途中を右に下ると東鉢</b>へ。<span class="src">（スカイバレイ公式）</span></p></div>
+    <div class="card"><h3>ニューギアに挑戦</h3><p>スキーとスノボだけじゃない。<b>スノーモト・スノーレーサー・スノースクート</b>などのレンタルもあります（ロイヤルハジメ・レンタルちさと など）。<span class="src">（公式）</span></p></div>
+    <div class="card"><h3>泊まるなら</h3><p>ゲレンデから歩いて5分以内に、ロッジ・ペンション・民宿が並びます。1泊2食 7,000円から（ロッヂ鉢・清和荘）、「ゲレンデまで0分」の翠山荘など。<span class="src">（公式の施設案内）</span></p></div>
+    <div class="card"><h3>先にコースを見ておく</h3><p>公式のゲレンデ案内から、<b>Googleストリートビュー</b>でコースを見られます（2019年2月撮影）。はじめての人は、行く前に雰囲気をつかんでおくと安心。</p><p><a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデ案内を開く</a></p></div>
   </div>
 
   <div class="grid g2" style="margin-top:14px">
     <div class="card">
-      <h3>🛡 ゲレンデ六法</h3>
+      <h3>ゲレンデ六法</h3>
       <ol class="rules">
         <li><b>滑りをコントロールする</b> <small>自分にも他人にも暴走はキケン。</small></li>
         <li><b>前をよく見て滑る</b> <small>下（前）を滑っている人が優先。</small></li>
@@ -697,7 +770,7 @@ footer li{ margin:2px 0; word-break:break-all; }
       <p class="note">資料：全国スキー安全対策協議会（公式サイトの安全対策ページより）</p>
     </div>
     <div class="card check" id="checklist">
-      <h3>🎒 持ち物チェック</h3>
+      <h3>持ち物チェック</h3>
     </div>
   </div>
 </section>
@@ -842,15 +915,15 @@ const SV_AREAS={
    txt:"山頂のあたりにも「東鉢｜スカイバレイ」の看板があります。スカイバレイ側の山頂からは、ディア・サンダー・イーグルなどがスタート。", tip:"ディアコースの途中を右に下ると東鉢に入ります（スカイバレイ公式）。", stats:[["近いコース","ディアなど"],["東鉢へ","ディア→右へ"],["リフト券","共通"]], src:"スカイバレイ公式マップ"},
 };
 const LEVELS=[
-  {id:"first", e:"🐣", n:"はじめて", s:"★☆☆☆", d:"雪の上に立つのも初めて", rec:["beginner","centerC","centerD","kids"],
+  {id:"first", e:"○", n:"はじめて", s:"★☆☆☆", d:"雪の上に立つのも初めて", rec:["beginner","centerC","centerD","kids"],
    steps:["スクールを確認。スノボは土日祝に東鉢（1号リフト横の事務所1階で受付）。スキーや平日のレッスンは公式サイトで確認を。","ふもとの平らな所で、板をつけて歩く・転ぶ・起きるを練習。「ハの字（スキー）」「横すべり（スノボ）」で止まれるように。","4号リフトでカフェテリアへ。3号リフトを降りたら左側から滑り、3号の裏側から乗り場へ戻る。何本かくり返して足ならし。","帰りは3号の乗り場から1号の方へ向かう道を滑る。次の急な所は大きく回り込んでよける。","最後に急な所が残るけど、大回り（ターンを大きく）でゆっくり滑れば大丈夫。"]},
-  {id:"beg", e:"🙂", n:"初級", s:"★★☆☆", d:"止まる・曲がるはできる", rec:["beginner","centerC","centerD","centerB","jump","champion"], svrec:["sv_wakaba"],
+  {id:"beg", e:"●", n:"初級", s:"★★☆☆", d:"止まる・曲がるはできる", rec:["beginner","centerC","centerD","centerB","jump","champion"], svrec:["sv_wakaba"],
    steps:["4号→3号リフトへ。3号を降りたら左側から滑り、裏側から乗り場へ戻るループで足ならし。","3号の乗り場から1号の方へ。次の急な所は大きく回り込み、最後の急な所は大回りで。","1号リフトを降りて左側（センターB）へ。幅200mの緩斜面でターンを大きく。合流する所の自然の段差は、周りの人に注意。","ランチはシルバーホルン（1号乗り場の少し上）。ランチは朝から注文できます。","慣れたら、平均10°の林間「チャンピオンコース」で ふもとまで。"]},
-  {id:"mid", e:"😎", n:"中級", s:"★★★☆", d:"中級コースなら自由に滑れる", rec:["higashione","steep3","jump","champion","openbahn","skyvalley"], svrec:["sv_dia","sv_bear","sv_fox","sv_back"],
+  {id:"mid", e:"■", n:"中級", s:"★★★☆", d:"中級コースなら自由に滑れる", rec:["higashione","steep3","jump","champion","openbahn","skyvalley"], svrec:["sv_dia","sv_bear","sv_fox","sv_back"],
    steps:["1号を降りて左側（センターB）へ。合流する所に自然の段差があって、ジャンプも楽しい（周りの人に注意）。","2号リフト（9:00から）で山頂へ。超ワイドなオープンバーンで足慣らし。","東尾根コースでスカイバレイとの境を下る。雪質と眺めがいちばん。","東尾根を降りてすぐ左に曲がり、3号の右手の急斜面を一気に下りるルートも楽しい。","共通券で、尾根の向こうのディアコースへ。途中を右に下ると東鉢に戻れる。"]},
-  {id:"adv", e:"🔥", n:"上級", s:"★★★★", d:"急斜面がすき", rec:["higashioneshita","steep3","centerA","openbahn","skyvalley"], svrec:["sv_eagle","sv_thunder","sv_back"],
+  {id:"adv", e:"◆", n:"上級", s:"★★★★", d:"急斜面がすき", rec:["higashioneshita","steep3","centerA","openbahn","skyvalley"], svrec:["sv_eagle","sv_thunder","sv_back"],
    steps:["1号→2号リフト（9:00から）で山頂へ。降雪の次の朝はオープンバーンの新雪を。","東尾根下コース（最大43°）。トップ付近から急斜面。上からラインを読んでから。","東尾根を降りてすぐ左へ。3号の右手の急斜面を一気に下りる。","センターAコース（平均30°）。整備がよいので、スピードを出しても滑りやすい。","共通券で、尾根の向こうのイーグル（最大32°・コブ）も。山頂ペアリフトで上がり、ディアコースの途中から東鉢へ戻る。"]},
-  {id:"family", e:"👨‍👩‍👧", n:"家族", s:"♡", d:"子どもといっしょ", rec:["kids","centerB"],
+  {id:"family", e:"♡", n:"家族", s:"♡", d:"子どもといっしょ", rec:["kids","centerB"],
    steps:["駐車場は早めに。チビッコパークは駐車場のすぐ近くです。","子どもはチビッコパークで雪遊び。サンキッド（スノーエスカレーター）で登れます。","大人は交代で、1号リフト→センターBをゆっくり1本ずつ。","無料更衣室・パウダールームで休憩。子どもは冷えやすいので早めに。","子どもが疲れる前に早めに帰る。帰りの雪道は明るいうちに。"]},
 ];
 const PLANS={
@@ -876,7 +949,7 @@ function skierTick(t){
   const p=(t/9000)%1, L=p*runLen, a=run.getPointAtLength(L), b=run.getPointAtLength(Math.min(runLen,L+4));
   const ang=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI, tilt=Math.max(-35,Math.min(35,ang-90))*.6;
   skier.setAttribute("transform",`translate(${a.x},${a.y}) rotate(${-tilt})`);
-  chairs.forEach((c,i)=>{ const q=((t/14000)+i/6)%1; c.setAttribute("transform",`translate(${700-110*q},${560-320*q})`); });
+  chairs.forEach((c,i)=>{ const q=((t/14000)+i/6)%1; c.setAttribute("transform",`translate(${700-94*q},${560-312*q})`); });
 }
 function snowTick(t){
   if(heroVisible){ for(const f of flakes){ f.y+=f.v; f.x+=Math.sin(t/1400+f.s)*.35; if(f.y>H){f.y=-4;f.x=Math.random()*W;} } drawFlakes(); skierTick(t); }
@@ -928,6 +1001,7 @@ function buildMap(key){
   });
   M.courses.forEach(c=>{
     const vis=el("path",{class:"course vis",id:"cv-"+c.id,"data-id":c.id,d:c.d,"stroke-width":c.w,style:`stroke:${LVC[c.lv]}`+(c.dash?";stroke-dasharray:"+c.dash:"")});
+    cg.appendChild(el("path",{class:"course case",id:"cc-"+c.id,d:c.d,"stroke-width":c.w+4})); // 線のふちどり（見やすく）
     cg.appendChild(vis);
     if(c.run) rp.appendChild(el("path",{id:"run-"+c.id,d:c.run,fill:"none",stroke:"none"}));
     let x=null,y,a;
@@ -942,6 +1016,8 @@ function buildMap(key){
   });
   // クリック用の太い線（出ているコースだけ押せる）
   M.courses.forEach(c=>{ const hit=el("path",{class:"course hit",id:"ch-"+c.id,"data-id":c.id,d:c.d}); hit.addEventListener("click",()=>select(c.id,true)); cg.appendChild(hit); });
+  cg.appendChild(el("path",{class:"flow"})); // 選んだコースの上を、滑る向きに流れる点
+  bdg.before(el("g",{class:"sg"},'<g><circle r="6.5"></circle><text y="2.7" text-anchor="middle">S</text></g><g><circle r="6.5"></circle><text y="2.7" text-anchor="middle">G</text></g>'));
   svg.querySelectorAll("[data-area]").forEach(a=>a.addEventListener("click",()=>select(a.dataset.area,true)));
 }
 buildMap("tohachi"); buildMap("sv");
@@ -963,12 +1039,12 @@ $$("#mapTabs button").forEach(b=>b.onclick=()=>{ if(b.dataset.m===curMap) return
   select(b.dataset.m==="sv"?"sv_signHub":(LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0],false); });
 
 /* チップ（ボタン）：いま見ている図のコース・エリア・リフト。★はいまのレベルのおすすめ */
-const mkChip=(box,id,label,lv,cls)=>{ const b=document.createElement("button"); b.className="chip"; b.dataset.id=id; b.setAttribute("aria-pressed","false");
-  b.innerHTML=`${esc(label)}${lv?` <span class="tag ${cls}">${esc(lv)}</span>`:""}`; b.onclick=()=>select(id,false); box.appendChild(b); };
+const mkChip=(box,id,label,lv,cls,color)=>{ const b=document.createElement("button"); b.className="chip"; b.dataset.id=id; b.setAttribute("aria-pressed","false");
+  b.innerHTML=`${color?`<span class="cdot" style="background:${color}"></span>`:""}${esc(label)}${lv?` <span class="tag ${cls}">${esc(lv)}</span>`:""}`; b.onclick=()=>select(id,false); box.appendChild(b); };
 function buildChips(){
   const M=MAPS[curMap], c1=$("#chipsCourse"), c2=$("#chipsOther");
   [c1,c2].forEach(box=>box.querySelectorAll(".chip").forEach(b=>b.remove()));
-  M.courses.forEach(c=>mkChip(c1,c.id,c.short,tagOf(c),lvCls(c.lv)));
+  M.courses.forEach(c=>mkChip(c1,c.id,c.short,(c.route||c.tag)?tagOf(c):"",lvCls(c.lv),LVC[c.lv]));
   Object.entries(M.areas).forEach(([id,a])=>mkChip(c2,id,a.name,"",""));
   M.lifts.forEach(L=>mkChip(c2,L.id,L.chip||`${L.n}号リフト`,"",""));
   markChips();
@@ -991,61 +1067,111 @@ function showCourses(key,ids){
   MAPS[key].courses.forEach(c=>{
     const p=document.getElementById("cv-"+c.id), on=ids.includes(c.id), was=p.classList.contains("on");
     p.classList.toggle("on",on);
+    document.getElementById("cc-"+c.id).classList.toggle("on",on);
     document.getElementById("ch-"+c.id).classList.toggle("on",on);
     const lab=document.getElementById("cl-"+c.id); if(lab) lab.classList.toggle("on",on);
-    if(on&&!was) drawIn(p,!!c.dash);
+    if(on&&!was){ drawIn(p,!!c.dash); drawIn(document.getElementById("cc-"+c.id),!!c.dash); }
   });
   if(key==="tohachi") $("#cautions").classList.toggle("on",ids.some(i=>i==="centerC"||i==="centerD"));
 }
 
-let selected=null, runAnim=null;
-function select(id,fromMap,extra){
+let selected=null, runAnim=null, selTok=0;
+// 斜度を角度の絵で（塗り＝平均、点線＝最大）
+function angleGlyph(avg,max){
+  const pt=a=>{ const r=a*Math.PI/180, L=Math.min(104,40/Math.sin(r)); return [(112-L*Math.cos(r)).toFixed(1),(46-L*Math.sin(r)).toFixed(1)]; };
+  const [ax,ay]=pt(avg), [mx,my]=pt(max);
+  return `<svg class="angles" viewBox="0 0 120 52" aria-hidden="true"><path class="ag-base" d="M6 46 L114 46"></path><path class="ag-avg" d="M112 46 L${ax} ${ay} L${ax} 46 Z"></path><path class="ag-max" d="M112 46 L${mx} ${my}"></path></svg>`;
+}
+const LONGEST=2000;
+function courseViz(c){
+  if(c.route) return `<p class="note" style="margin:12px 0">${esc(c.note||"長さ・斜度：公式の数字はありません（マップ上の道）")}</p>`;
+  return `<div class="cviz" style="--c:${LVC[c.lv]}">
+    <div class="cv-row"><span class="cv-k">長さ</span><div class="lenbar"><i style="--w:${Math.round(c.len/LONGEST*100)}%"></i></div><span class="cv-v">${c.len.toLocaleString()}<small>m</small></span></div>
+    <div class="cv-row"><span class="cv-k">斜度</span>${angleGlyph(c.avg,c.max)}<span class="cv-v">${c.avg}°<small>平均</small> <span class="t-3">${c.max}°</span><small>最大</small></span></div>
+  </div>`;
+}
+// 図の上の「いま表示中」の帯（もう一度ボタンつき）
+function setNow(color,name,meta,replay){
+  const bar=$("#nowbar");
+  bar.innerHTML=`<div class="pill"><span class="dot" style="background:${color}"></span><b>${esc(name)}</b>${meta?`<span class="meta">${esc(meta)}</span>`:""}${replay?'<button type="button" id="replayBtn">もう一度</button>':""}</div>`;
+  if(replay) $("#replayBtn").onclick=replay;
+}
+// スタート・ゴールの印と、滑る向きに流れる点
+function placeSG(key,c){
+  const svg=MAPS[key].svg, g=svg.querySelector(".sg"), fl=svg.querySelector(".flow");
+  const [s,e]=g.querySelectorAll("g");
+  if(!c){ s.classList.toggle("on",false); e.classList.toggle("on",false); fl.classList.toggle("on",false); return; }
+  const p=document.getElementById("cv-"+c.id), L=p.getTotalLength(), a=p.getPointAtLength(0), b=p.getPointAtLength(L);
+  s.setAttribute("transform",`translate(${a.x} ${a.y})`); e.setAttribute("transform",`translate(${b.x} ${b.y})`);
+  s.querySelector("circle").style.fill=LVC[c.lv]; e.querySelector("circle").style.fill="var(--text)";
+  s.classList.toggle("on",true); e.classList.toggle("on",true);
+  fl.setAttribute("d",c.d); fl.classList.toggle("on",true);
+}
+function select(id,fromMap,extra,quiet){
   const f=findItem(id); if(!f) return;
   if(f.map!==curMap) setMap(f.map);
-  selected=id;
+  if(!quiet){ // 図がはみ出していたら、図ぜんたいが見えるところまで少しだけスクロール
+    const r=$(".stage-map .map").getBoundingClientRect(), head=$("header.top").getBoundingClientRect().bottom+8;
+    if(r.bottom>innerHeight+8 && r.top>head) scrollBy({top:Math.min(r.top-head, r.bottom-innerHeight+16), behavior:smooth()});
+  }
+  selected=id; const tk=++selTok;
   const M=MAPS[f.map], svg=M.svg;
   // コースならそのコース、リフトなら そのリフトで行けるコース、エリアなら関係するコースだけ線を出す
   let show= f.kind==="course"?[id] : (f.kind==="lift"?(f.item.serves||[]):(f.item.show||[]));
   if(extra) show=show.concat(extra);
   showCourses(f.map,show);
-  M.courses.forEach(c=>{ const p=document.getElementById("cv-"+c.id), on=c.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w+3:c.w); });
+  M.courses.forEach(c=>{ const p=document.getElementById("cv-"+c.id), on=c.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w+2:c.w); });
+  Object.keys(MAPS).forEach(k=>placeSG(k,null));
   svg.querySelectorAll(".lift").forEach(p=>p.classList.toggle("sel",p.dataset.id===id));
   svg.querySelectorAll(".badge").forEach(b=>b.classList.toggle("sel",b.dataset.id===id));
   svg.querySelectorAll("[data-area]").forEach(a=>a.classList.toggle("sel",a.dataset.area===id));
   markChips();
   const c=f.kind==="course"?f.item:null, L=f.kind==="lift"?f.item:null, a=f.kind==="area"?f.item:null, box=$("#detail");
-  const who=LEVELS.filter(v=>v.rec.includes(id)||(v.svrec||[]).includes(id)).map(v=>v.e+" "+v.n).join("・");
+  const who=LEVELS.filter(v=>v.rec.includes(id)||(v.svrec||[]).includes(id)).map(v=>v.n).join("・");
   const whoLine=who?`<p class="note">こんな人に：${esc(who)}</p>`:"";
+  const later=fn=>{ if(quiet) return; setTimeout(()=>{ if(tk===selTok) fn(); }, reduce?0:650); }; // 線を描き終わってから動かす
   if(c){
-    const stats=c.route?`<p class="note" style="margin:10px 0">${esc(c.note||"長さ・斜度：公式の数字はありません（マップ上の道）")}</p>`
-      :`<div class="stats"><div class="stat"><b>${c.len.toLocaleString()}m</b><span>長さ</span></div><div class="stat"><b>${c.avg}°</b><span>平均斜度</span></div><div class="stat"><b>${c.max}°</b><span>最大斜度</span></div></div>`;
-    box.innerHTML=`<div class="fade"><h3>${esc(c.name)} <span class="tag ${lvCls(c.lv)}">${esc(tagOf(c))}</span></h3>${stats}
-      <p>${esc(c.txt)} <span class="src">（${esc(c.src)}）</span></p><p class="note">💡 ${esc(c.tip)}</p>${whoLine}
-      <div class="btnrow"><button class="btn" id="runBtn">▶ 滑ってみる</button>${c.route?"":'<button class="btn ghost" id="feelBtn">📐 この斜度を体感</button>'}</div></div>`;
-    $("#runBtn").onclick=()=>runCourse(c);
-    if(!c.route) $("#feelBtn").onclick=()=>{ setAngle(c.max); $("#slope").scrollIntoView({behavior:smooth()}); };
-    if(fromMap) runCourse(c);
+    placeSG(f.map,c);
+    setNow(LVC[c.lv],c.name,c.route?tagOf(c):`${c.len.toLocaleString()}m・最大${c.max}°`,()=>runCourse(c));
+    box.innerHTML=`<div class="fade"><h3>${esc(c.name)} <span class="tag ${lvCls(c.lv)}">${esc(tagOf(c))}</span></h3>${courseViz(c)}
+      <p>${esc(c.txt)} <span class="src">（${esc(c.src)}）</span></p><p class="note">ヒント：${esc(c.tip)}</p>${whoLine}
+      ${c.route?"":'<div class="btnrow"><button class="btn ghost" id="feelBtn">この斜度を体感する</button></div>'}</div>`;
+    if(!c.route) $("#feelBtn").onclick=()=>{ setAngle(Math.min(45,c.max)); $("#slope").scrollIntoView({behavior:smooth()}); };
+    later(()=>runCourse(c));
   } else if(L){
-    const stats=L.hours
-      ?`<div class="stats"><div class="stat"><b>${L.len}m</b><span>長さ</span></div><div class="stat"><b>${L.vert}m</b><span>標高差</span></div><div class="stat"><b class="sm">${L.hours}</b><span>運行時間</span></div></div>`
-      :`<div class="stats"><div class="stat"><b>${L.len}m</b><span>長さ</span></div><div class="stat"><b>${L.seats}人</b><span>乗り</span></div><div class="stat"><b>${(L.serves||[]).length}本</b><span>行けるコース</span></div></div>`;
-    const serves=(L.serves||[]).length?`<p class="note">このリフトで行けるコース（図に出しています）：${L.serves.map(s=>esc(itemName(s))).join("・")}</p>`:"";
-    box.innerHTML=`<div class="fade"><h3>${esc(L.name)} <span class="tag t-s">リフト ${esc(L.n||L.ch)}</span></h3>${stats}
-      <p>${esc(L.txt)} <span class="src">（${esc(L.src||"公式")}）</span></p>${L.hours?'<p class="note">2人乗り（ペアリフト）。東鉢の4基はぜんぶペアリフトで、輸送能力は4基で1時間に4,000人。</p>':""}${serves}
-      <div class="btnrow"><button class="btn" id="rideBtn">▶ 乗ってみる</button></div></div>`;
-    $("#rideBtn").onclick=()=>rideLift(L);
-    if(fromMap) rideLift(L);
+    setNow("var(--acc)",L.name,`${L.len}m`,()=>rideLift(L));
+    const viz=`<div class="cviz"><div class="cv-row"><span class="cv-k">長さ</span><div class="lenbar"><i style="--w:${Math.round(L.len/900*100)}%"></i></div><span class="cv-v">${L.len}<small>m</small></span></div>`
+      +(L.hours?`<div class="cv-row"><span class="cv-k">運行</span><span class="cv-v" style="grid-column:2/4">${L.hours}<small>標高差 ${L.vert}m</small></span></div>`
+               :`<div class="cv-row"><span class="cv-k">定員</span><span class="cv-v" style="grid-column:2/4">${L.seats}<small>人乗り</small></span></div>`)+`</div>`;
+    const serves=(L.serves||[]).length?`<p class="note">このリフトで行けるコース（図に表示中）：${L.serves.map(s=>esc(itemName(s))).join("・")}</p>`:"";
+    box.innerHTML=`<div class="fade"><h3>${esc(L.name)} <span class="tag t-s">リフト ${esc(L.n||L.ch)}</span></h3>${viz}
+      <p>${esc(L.txt)} <span class="src">（${esc(L.src||"公式")}）</span></p>${L.hours?'<p class="note">東鉢の4基はぜんぶペアリフト（2人乗り）。輸送能力は4基で1時間に4,000人。</p>':""}${serves}</div>`;
+    later(()=>rideLift(L));
   } else if(a){
+    setNow("var(--gold)",a.name,a.lv,a.legs?()=>runSeq(a.legs()):null);
     const list=a.list?`<ul class="svlist">${a.list.map(([n,l,len,t])=>`<li><b>${esc(n)}</b> <span class="tag ${lvCls(l)}">${esc(l)}</span><span class="km">${esc(len)}</span><br><span class="note">${esc(t)}</span></li>`).join("")}</ul>`:"";
-    const btns=(a.legs?'<button class="btn" id="goBtn">▶ 行ってみる</button>':"")+(a.goMap?`<button class="btn ghost" id="mapBtn">🗺 ${esc(a.goLabel)}</button>`:"");
+    const btns=a.goMap?`<button class="btn" id="mapBtn">${esc(a.goLabel)}</button>`:"";
     box.innerHTML=`<div class="fade"><h3>${esc(a.name)} <span class="tag t-k">${esc(a.lv)}</span></h3>
       <div class="stats">${a.stats.map(([k,v])=>`<div class="stat"><b class="sm">${esc(v)}</b><span>${esc(k)}</span></div>`).join("")}</div>
-      <p>${esc(a.txt)} <span class="src">（${esc(a.src)}）</span></p>${list}<p class="note">💡 ${esc(a.tip)}</p>${whoLine}
+      <p>${esc(a.txt)} <span class="src">（${esc(a.src)}）</span></p>${list}<p class="note">ヒント：${esc(a.tip)}</p>${whoLine}
       ${btns?`<div class="btnrow">${btns}</div>`:""}</div>`;
     if(a.goMap) $("#mapBtn").onclick=()=>select(a.goMap==="tohachi"?(LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0]:a.goMap,false);
-    if(a.legs){ $("#goBtn").onclick=()=>runSeq(a.legs()); if(fromMap) runSeq(a.legs()); }
+    if(a.legs) later(()=>runSeq(a.legs()));
     else $$(".runner").forEach(r=>r.setAttribute("opacity",0));
   }
+}
+// 図が画面に見えていなければ、図までスクロールしてから動かす
+function revealMap(cb){
+  const r=$(".stage-map .map").getBoundingClientRect();
+  if(r.top<innerHeight*.5 && r.bottom>innerHeight*.25){ cb(); return; }
+  // 図の入れ物（.stage）の上端が、ヘッダーのすぐ下に来るように
+  const head=$("header.top").getBoundingClientRect().bottom;
+  scrollTo({top:$(".stage").getBoundingClientRect().top+scrollY-head-4, behavior:smooth()});
+  if(reduce){ cb(); return; }
+  let last=-1, still=0, done=false;
+  const fin=()=>{ if(!done){ done=true; clearInterval(iv); cb(); } };
+  const iv=setInterval(()=>{ if(scrollY===last){ if(++still>2) fin(); } else { still=0; last=scrollY; } },80);
+  setTimeout(fin,1600);
 }
 // 赤い点（滑る人）・青い点（リフト）を線にそって動かす。いくつかを続けて動かせる（リフト → コース）
 let seqToken=0, curRunner=$("#runner");
@@ -1089,15 +1215,17 @@ let level=store.get("level","first");
 setMap("tohachi"); // はじめは東鉢側の図（スカイバレイ側はかくす）
 LEVELS.forEach(L=>{
   const b=document.createElement("button"); b.className="lv"; b.dataset.id=L.id;
-  b.innerHTML=`<span class="e">${L.e}</span><b>${L.n}</b><span class="stars">${L.s}</span><br><span class="d">${esc(L.d)}</span>`;
+  b.innerHTML=`<span class="e mk mk-${L.id}">${L.e}</span><b>${L.n}</b><span class="d">${esc(L.d)}</span>`;
   b.onclick=()=>setLevel(L.id); $("#levels").appendChild(b);
 });
 function setLevel(id){
   level=id; store.set("level",id);
   const L=LEVELS.find(x=>x.id===id);
   $$("#levels .lv").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.id===id)));
-  $("#lvpanel").innerHTML=`<h3>${L.e} ${L.n}の楽しみ方</h3><p class="note">おすすめ：${L.rec.map(r=>esc(itemName(r))).join("・")}</p><div class="steps">${L.steps.map((s,i)=>`<div class="step" style="animation-delay:${i*.09}s"><div>${esc(s)}</div></div>`).join("")}</div>`;
-  select(L.rec[0],false); // いちばんのおすすめを選ぶ（その線だけ出る）。チップの★もここで付けかえ
+  $("#lvpanel").innerHTML=`<h3><span class="mk mk-${L.id}">${L.e}</span>${L.n}の楽しみ方</h3><p class="note">おすすめ：${L.rec.map(r=>esc(itemName(r))).join("・")}</p><div class="steps">${L.steps.map((s,i)=>`<div class="step" style="animation-delay:${i*.09}s"><div>${esc(s)}</div></div>`).join("")}</div>
+    <div class="btnrow"><button class="btn" id="lvMapBtn">おすすめをコース図で見る</button></div>`;
+  $("#lvMapBtn").onclick=()=>revealMap(()=>select(L.rec[0],false));
+  select(L.rec[0],false,null,true); // いちばんのおすすめを選んでおく（動かすのは、図が見えているときだけ）
   renderPlan();
 }
 
@@ -1155,8 +1283,8 @@ function renderQuiz(){
   } else {
     const id= family?"family": score<=1.5?"first": score<=4?"beg": score<=8?"mid":"adv";
     const L=LEVELS.find(x=>x.id===id);
-    box.innerHTML=`<div class="progress"><i style="width:100%"></i></div><div class="result fade"><div class="big">${L.e}</div><h3>あなたは「${L.n}」タイプ</h3><p>おすすめ：<b>${L.rec.map(r=>esc(itemName(r))).join("・")}</b></p><p class="note">${esc(L.steps[0])}</p><div class="btnrow" style="justify-content:center"><button class="btn" id="applyLv">このレベルでコース図とプランを見る</button><button class="btn ghost" id="retry">もう一度</button></div></div>`;
-    $("#applyLv").onclick=()=>{ setLevel(id); $("#map").scrollIntoView({behavior:smooth()}); };
+    box.innerHTML=`<div class="progress"><i style="width:100%"></i></div><div class="result fade"><div class="big mk mk-${L.id}">${L.e}</div><h3>あなたは「${L.n}」タイプ</h3><p>おすすめ：<b>${L.rec.map(r=>esc(itemName(r))).join("・")}</b></p><p class="note">${esc(L.steps[0])}</p><div class="btnrow" style="justify-content:center"><button class="btn" id="applyLv">このレベルでコース図とプランを見る</button><button class="btn ghost" id="retry">もう一度</button></div></div>`;
+    $("#applyLv").onclick=()=>{ setLevel(id); revealMap(()=>select(L.rec[0],false)); };
     $("#retry").onclick=()=>{ qi=0; score=0; family=false; renderQuiz(); };
     burst();
   }
@@ -1209,9 +1337,9 @@ const STEPS={
   "4":{sel:"higashione", legs:()=>[liftLeg("lift1"), liftLeg("lift2"), skiLeg("higashione")]},
 };
 $$("#stepRoute .stepbtn").forEach(b=>b.onclick=()=>{
-  const S=STEPS[b.dataset.step]; select(S.sel,false,S.show);
-  $("#map").scrollIntoView({behavior:smooth()});
-  setTimeout(()=>runSeq(S.legs(),S.caution), reduce?0:650);
+  const S=STEPS[b.dataset.step];
+  // 図までスクロールしてから、線を描いて、リフト → コースの順に動かす
+  revealMap(()=>{ select(S.sel,false,S.show,true); setTimeout(()=>runSeq(S.legs(),S.caution), reduce?0:650); });
 });
 $$("#sportTabs button").forEach(b=>b.onclick=()=>{ sport=b.dataset.s; $$("#sportTabs button").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); renderTech(); });
 renderTech();
@@ -1225,7 +1353,7 @@ function moveSun(t){
 function focusIt(it){ $$("#timeline .it").forEach(x=>x.classList.toggle("now",x===it)); moveSun(it.dataset.t); }
 function renderPlan(){
   const L=LEVELS.find(x=>x.id===level), P=PLANS[level];
-  $("#planLv").textContent=L.e+" "+L.n;
+  $("#planLv").textContent=L.n;
   $("#timeline").innerHTML=P.map(([t,ico,s])=>`<div class="it" data-ico="${ico}" data-t="${t}"><span class="time">${t}</span>　${esc(s)}</div>`).join("");
   if(tlIo) tlIo.disconnect();
   tlIo=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting) focusIt(e.target); }),{rootMargin:"-40% 0px -45% 0px"});
