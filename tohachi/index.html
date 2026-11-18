@@ -160,7 +160,10 @@ nav.toc a.on{ background:var(--text); color:var(--bg); }
 
 .map svg.mapin{ animation:mapin .45s ease both; }
 @keyframes mapin{ from{ opacity:0; transform:scale(.985); } }
-.nowbar{ position:absolute; left:10px; right:10px; top:10px; display:flex; pointer-events:none; z-index:2; }
+.nowbar{ position:relative; display:flex; align-items:center; min-height:52px; padding:7px 8px 5px; border-bottom:1px solid var(--line); background:var(--panel); z-index:2; }
+.nowbar:empty::before{ content:"コースやリフトを選ぶと、ここに名前が出ます"; color:var(--sub); font-size:.8rem; padding-left:6px; }
+.runline{ fill:none; stroke-linecap:round; stroke-linejoin:round; opacity:0; transition:opacity .45s .45s; pointer-events:none; filter:drop-shadow(0 0 1.2px #fff) drop-shadow(0 0 1.2px #fff); }
+.runline.on{ opacity:.95; }
 .nowbar .pill{ pointer-events:auto; display:flex; align-items:center; gap:8px; max-width:100%; background:color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:99px; padding:4px 4px 4px 12px; font-size:.82rem; box-shadow:var(--shadow); animation:fadeup .35s both; }
 .nowbar .pill .dot{ flex:none; width:9px; height:9px; border-radius:50%; }
 .nowbar .pill b{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -448,7 +451,7 @@ footer li{ margin:2px 0; word-break:break-all; }
       <div class="nowbar" id="nowbar" aria-live="polite"></div>
       <div class="zoomctl" role="group" aria-label="図の拡大・縮小"><button type="button" data-z="in" aria-label="拡大" title="拡大">＋</button><button type="button" data-z="out" aria-label="縮小" title="縮小">－</button><button type="button" data-z="reset" aria-label="もとの大きさ" title="もとの大きさ">⟲</button></div>
       <p class="zoomhint" id="zoomhint"><span>ピンチ・＋で拡大／ドラッグで移動</span></p>
-      <svg id="mapSvg" viewBox="30 -16 290 386" role="img" aria-label="ハイパーボウル東鉢のゲレンデマップ。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
+      <svg id="mapSvg" viewBox="30 0 290 372" role="img" aria-label="ハイパーボウル東鉢のゲレンデマップ。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
         <rect class="mapout" x="-200" y="-200" width="900" height="800"/>
         <image class="mapimg" href="img/map.jpg" x="0" y="0" width="499.5" height="395" preserveAspectRatio="none"/>
         <path id="svArea" class="svarea" data-area="skyvalley" d="M131 22.5 L135 36 L142.5 46 L155 52.5 L167.5 61 L179 72.5 L189 85 L199 97.5 L210 111 L227.5 120 L247.5 131 L261 141 L269 152.5 L272.5 162.5 L499.5 162.5 L499.5 0 L127.5 0 Z"/>
@@ -466,7 +469,7 @@ footer li{ margin:2px 0; word-break:break-all; }
         <circle id="runner" class="runner" r="6.5" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
       </svg>
       <!-- スカイバレイ側：スカイバレイの公式マップ（見る向きが東鉢の図とちがう）の位置関係をもとにした略図。左上が東鉢側 -->
-      <svg id="svSvg" viewBox="140 -14 360 344" role="img" aria-label="ゲレンデマップのスカイバレイ側。左が東鉢側、右がスカイバレイ。選んだコースだけ線が出ます。">
+      <svg id="svSvg" viewBox="140 0 360 330" role="img" aria-label="ゲレンデマップのスカイバレイ側。左が東鉢側、右がスカイバレイ。選んだコースだけ線が出ます。">
         <rect class="mapout" x="-200" y="-200" width="900" height="800"/>
         <image class="mapimg" href="img/map.jpg" x="0" y="0" width="499.5" height="395" preserveAspectRatio="none"/>
         <g class="g-lifts"></g>
@@ -489,6 +492,7 @@ footer li{ margin:2px 0; word-break:break-all; }
         <span><i style="background:var(--lv1)"></i>初級</span>
         <span><i style="background:var(--lv2)"></i>中級</span>
         <span><i style="background:var(--lv3)"></i>上級</span>
+        <span><i style="background:repeating-linear-gradient(90deg,var(--sub) 0 3px,transparent 3px 7px)"></i>点線＝そのまま ふもとまで続く道</span>
         <span data-only="tohachi"><i style="background:var(--lv0)"></i>初心者コース</span>
         <span>┄ リフト（記号を押す）</span>
         <span data-only="tohachi">⚠ 急な所（おおよその場所）</span>
@@ -958,7 +962,7 @@ function findItem(id){
 }
 function buildMap(key){
   const M=MAPS[key], svg=M.svg, q=s=>svg.querySelector(s);
-  const lg=q(".g-lifts"), cg=q(".g-courses"), lbg=q(".g-labels"), bdg=q(".g-badges"), rp=el("g",{class:"g-run"}); svg.appendChild(rp);
+  const lg=q(".g-lifts"), cg=q(".g-courses"), lbg=q(".g-labels"), bdg=q(".g-badges"), rp=el("g",{class:"g-run"}); cg.before(rp);
   M.lifts.forEach(L=>{
     const d="M"+L.pts.map(p=>p.join(" ")).join(" L"), pa=L.pts[0], pb=L.pts[L.pts.length-1];
     lg.appendChild(el("path",{class:"cable",d}));
@@ -973,7 +977,7 @@ function buildMap(key){
     const vis=el("path",{class:"course vis",id:"cv-"+c.id,"data-id":c.id,d:c.d,"stroke-width":c.w,style:`stroke:${LVC[c.lv]}`+(c.dash?";stroke-dasharray:"+c.dash:"")});
     cg.appendChild(el("path",{class:"course case",id:"cc-"+c.id,d:c.d,"stroke-width":c.w+4})); // 線のふちどり（見やすく）
     cg.appendChild(vis);
-    if(c.run) rp.appendChild(el("path",{id:"run-"+c.id,d:c.run,fill:"none",stroke:"none"}));
+    if(c.run) rp.appendChild(el("path",{id:"run-"+c.id,class:"runline",d:c.run,"stroke-width":3.5,"stroke-dasharray":"0.1 7",style:`stroke:${LVC[c.lv]}`})); // 下まで続けて滑る道（点線）
     let x=null,y,a;
     if(c.lab){ [x,y,a]=c.lab; }
     else if(c.labAt){ const [f,dx,dy,an]=c.labAt, p=vis.getPointAtLength(vis.getTotalLength()*f); x=Math.round(p.x+dx); y=Math.round(p.y+dy); a=an; }
@@ -1148,7 +1152,8 @@ function select(id,fromMap,extra,quiet){
   let show= f.kind==="course"?[id] : (f.kind==="lift"?(f.item.serves||[]):(f.item.show||[]));
   if(extra) show=show.concat(extra);
   showCourses(f.map,show);
-  zoomShow(f.map, show.map(i=>document.getElementById("cv-"+i)||document.getElementById("lp-"+i)).filter(Boolean).concat(f.kind==="lift"?[document.getElementById("lp-"+id)]:[]));
+  svg.querySelectorAll(".runline").forEach(p=>p.classList.toggle("on",p.id==="run-"+id));
+  zoomShow(f.map, show.map(i=>document.getElementById("run-"+i)||document.getElementById("cv-"+i)||document.getElementById("lp-"+i)).filter(Boolean).concat(f.kind==="lift"?[document.getElementById("lp-"+id)]:[]));
   M.courses.forEach(c=>{ const p=document.getElementById("cv-"+c.id), on=c.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w+2:c.w); });
   Object.keys(MAPS).forEach(k=>placeSG(k,null));
   svg.querySelectorAll(".lift").forEach(p=>p.classList.toggle("sel",p.dataset.id===id));
