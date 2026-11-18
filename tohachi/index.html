@@ -94,7 +94,8 @@ nav.toc a.on{ background:var(--text); color:var(--bg); }
 .hero .copy{ position:absolute; inset:0; padding-top:clamp(36px,8vh,80px); }
 .hero h1{ font-size:clamp(2.3rem,7.4vw,4.6rem); margin:.1em 0 0; line-height:1.08; font-weight:900; letter-spacing:.02em; }
 .hero .tagline{ color:var(--sub); font-size:clamp(.95rem,2.4vw,1.15rem); margin:.6em 0 0; font-weight:500; }
-.facts{ display:grid; grid-template-columns:repeat(3,auto); justify-content:start; gap:14px 26px; margin:26px 0 0; padding:0; }
+.facts{ display:inline-grid; grid-template-columns:repeat(3,auto); justify-content:start; gap:14px 22px; margin:24px 0 0; padding:14px 18px; border-radius:16px;
+  background:color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter:blur(10px) saturate(1.2); -webkit-backdrop-filter:blur(10px) saturate(1.2); border:1px solid color-mix(in srgb, var(--panel) 60%, transparent); }
 @media (min-width:720px){ .facts{ grid-template-columns:repeat(5,auto); } }
 .facts div{ border-left:1px solid color-mix(in srgb, var(--text) 25%, transparent); padding-left:12px; }
 .facts dt{ font-size:.72rem; color:var(--sub); line-height:1.3; }
@@ -169,10 +170,11 @@ nav.toc a.on{ background:var(--text); color:var(--bg); }
 .svsign rect{ fill:var(--gold); stroke:var(--mapsnow); stroke-width:1.5; }
 .svsign text{ fill:#1d1d1f; font-size:8px; font-weight:800; pointer-events:none; }
 .ng{ fill:var(--ng); stroke:var(--ng); stroke-width:3; stroke-linejoin:round; opacity:.7; pointer-events:none; }
-.lift{ stroke:var(--sub); stroke-width:1.6; stroke-dasharray:2 7; animation:chairs 1.6s linear infinite; fill:none; opacity:.8; }
-.lift.sel{ stroke:var(--acc); stroke-width:3; opacity:1; }
+.cable{ stroke:var(--sub); stroke-width:.9; fill:none; opacity:.7; pointer-events:none; }
+.lift{ stroke:var(--text); stroke-width:3.2; stroke-linecap:round; stroke-dasharray:.1 9; animation:chairs 2.2s linear infinite; fill:none; opacity:.7; }
+.lift.sel{ stroke:var(--acc); stroke-width:4.2; opacity:1; }
 .lift.sv{ opacity:.4; }
-@keyframes chairs{ to{ stroke-dashoffset:-18; } }
+@keyframes chairs{ to{ stroke-dashoffset:-18.2; } }
 .lift-hit{ stroke:transparent; stroke-width:16; fill:none; cursor:pointer; }
 .lift-end{ fill:var(--panel); stroke:var(--sub); stroke-width:1.5; }
 .badge{ cursor:pointer; }
@@ -373,29 +375,7 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <!-- ============ HERO ============ -->
 <div class="hero" id="hero">
-  <svg class="scene" viewBox="0 0 1200 620" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-    <defs>
-      <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--snow)"/><stop offset="1" style="stop-color:var(--mtn2)"/></linearGradient>
-      <linearGradient id="mfar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mtn1)"/><stop offset="1" style="stop-color:var(--sky2)"/></linearGradient>
-    </defs>
-    <g class="cloud"><ellipse cx="140" cy="150" rx="120" ry="10" style="fill:var(--snow)" opacity=".55"/></g>
-    <g class="cloud c2"><ellipse cx="80" cy="210" rx="90" ry="7" style="fill:var(--snow)" opacity=".4"/></g>
-    <path d="M0 400 L90 352 L160 372 L250 318 L330 345 L420 292 L500 322 L600 268 L690 300 L780 262 L880 306 L980 272 L1080 312 L1200 286 L1200 620 L0 620Z" fill="url(#mfar)" opacity=".55"/>
-    <path d="M0 452 L140 410 L250 428 L360 372 L450 392 L560 330 L640 352 L720 330 L830 378 L960 352 L1080 396 L1200 380 L1200 620 L0 620Z" style="fill:var(--mtn1)" opacity=".38"/>
-    <path d="M0 500 L240 420 L400 336 L540 236 L600 222 L660 238 L780 304 L940 384 L1200 456 L1200 620 L0 620Z" fill="url(#mg)"/>
-    <path d="M540 236 L600 222 L660 238 L700 262 L640 252 L600 246 L560 256Z" style="fill:var(--snow)" opacity=".9"/>
-    <g style="fill:var(--tree)" opacity=".55">
-      <path d="M300 438 l9 -26 l9 26z"/><path d="M318 444 l8 -22 l8 22z"/><path d="M336 450 l7 -20 l7 20z"/><path d="M842 404 l9 -26 l9 26z"/><path d="M862 412 l8 -22 l8 22z"/><path d="M880 420 l7 -20 l7 20z"/>
-    </g>
-    <path d="M700 560 L606 248" style="stroke:var(--sub)" stroke-width="1.5" fill="none" opacity=".6"/>
-    <g id="heroChairs"></g>
-    <path id="heroRun" d="M592 238 C 540 300, 650 330, 590 388 S 480 456, 566 524 S 646 584, 528 640" fill="none" style="stroke:var(--acc2)" stroke-width="2" stroke-linecap="round" opacity=".7"/>
-    <g id="heroSkier">
-      <circle r="5" cy="-20" style="fill:var(--lv3)"/>
-      <path d="M0 -14 L-2 -2 M-2 -2 L-7 6 M-2 -2 L5 6 M0 -11 L9 -5 M0 -11 L-8 -7" style="stroke:var(--text)" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-      <path d="M-15 8 L17 8" style="stroke:var(--acc)" stroke-width="3" stroke-linecap="round"/>
-    </g>
-  </svg>
+  <canvas id="scene" class="scene" aria-hidden="true"></canvas>
   <canvas id="snow" aria-hidden="true"></canvas>
   <div class="copy wrap">
     <p class="eyebrow">Hyogo · Yabu — Ski area guide</p>
@@ -804,7 +784,7 @@ const root=document.documentElement;
 const th=store.get("theme",null); if(th) root.dataset.theme=th;
 $("#themeBtn").onclick=()=>{
   const dark=root.dataset.theme? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  root.dataset.theme=dark?"light":"dark"; store.set("theme",root.dataset.theme);
+  root.dataset.theme=dark?"light":"dark"; store.set("theme",root.dataset.theme); paintScene(); paintMaps(); if(reduce) heroFrame(3500);
 };
 
 /* ---------- データ（公式サイト・公式マップより） ---------- */
@@ -936,29 +916,141 @@ const PLANS={
 const REFS=[[2,"ふつうの道の坂（約3%）"],[6,"車道のきつい坂（約10%）"],[12,"センターB（平均）"],[15,"センターB（最大）"],[22,"センターD（最大）"],[25,"東尾根（最大）"],[30,"センターA（平均）"],[33,"ふつうの階段（約30〜35°）"],[35,"センターA（最大）"],[43,"東尾根下（最大）"]];
 const itemName=id=>{ const f=findItem(id); return f?f.item.name:id; };
 
-/* ---------- ヒーロー：雪と滑る人 ---------- */
-const cv=$("#snow"), cx=cv.getContext("2d"); let flakes=[], W=0, H=0;
-function sizeSnow(){ const r=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2); W=r.width; H=r.height; cv.width=W*d; cv.height=H*d; cx.setTransform(d,0,0,d,0,0);
-  const n=Math.round(W*H/5000); flakes=Array.from({length:n},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*2.4+.6,v:Math.random()*.6+.3,s:Math.random()*6.28})); }
-function drawFlakes(){ cx.clearRect(0,0,W,H); cx.fillStyle="rgba(255,255,255,.9)"; for(const f of flakes){ cx.beginPath(); cx.arc(f.x,f.y,f.r,0,6.283); cx.fill(); } }
+/* ---------- ヒーロー：写実寄りの雪山（キャンバスに描く） ----------
+   下の絵（空・山・森・コース・リフトの塔）は1回だけ描き、上の層で リフトの椅子・滑る人・雪 を動かす */
+const scv=$("#scene"), sx=scv.getContext("2d"), cv=$("#snow"), cx=cv.getContext("2d");
+let W=0,H=0, HS=null, flakes=[];
+function rng(seed){ return ()=>{ seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const isDark=()=>root.dataset.theme? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+// 中点変位で、ぎざぎざの稜線をつくる
+function jag(r,pts,steps,amp,rough){
+  for(let k=0;k<steps;k++){ const np=[]; for(let i=0;i<pts.length-1;i++){ const [ax,ay]=pts[i],[bx,by]=pts[i+1]; np.push(pts[i],[(ax+bx)/2+(r()-.5)*amp*.3,(ay+by)/2+(r()-.5)*amp]); } np.push(pts[pts.length-1]); pts=np; amp*=rough; }
+  return pts;
+}
+// 折れ線を、長さで引けるように
+function polyline(pts){ const cum=[0]; for(let i=1;i<pts.length;i++) cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); return {pts,cum,len:cum[cum.length-1]}; }
+function at(pl,u){ const d=u*pl.len; let i=1; while(i<pl.cum.length-1&&pl.cum[i]<d) i++; const k=(d-pl.cum[i-1])/((pl.cum[i]-pl.cum[i-1])||1), a=pl.pts[i-1], b=pl.pts[i];
+  return {x:a[0]+(b[0]-a[0])*k, y:a[1]+(b[1]-a[1])*k, dx:b[0]-a[0], dy:b[1]-a[1]}; }
+function smoothPath(pts,n){ // ゆるい曲線（Catmull-Rom）で点をふやす
+  const out=[]; for(let i=0;i<pts.length-1;i++){ const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+    for(let k=0;k<n;k++){ const t=k/n,t2=t*t,t3=t2*t; out.push([0,1].map(j=>.5*((2*p1[j])+(-p0[j]+p2[j])*t+(2*p0[j]-5*p1[j]+4*p2[j]-p3[j])*t2+(-p0[j]+3*p1[j]-3*p2[j]+p3[j])*t3))); } }
+  out.push(pts[pts.length-1]); return out; }
+
+function paintScene(){
+  const rect=scv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2);
+  W=rect.width; H=rect.height; if(!W||!H) return;
+  [scv,cv].forEach(c=>{ c.width=W*d; c.height=H*d; });
+  sx.setTransform(d,0,0,d,0,0); cx.setTransform(d,0,0,d,0,0);
+  const dark=isDark(), narrow=W<720, r=rng(20261118), S=Math.min(W/1200,H/620)*1.1;
+  const C= dark?{sky:["#08111f","#14263f","#2a3f5c"],far1:"#21354e",far2:"#1a2b40",cap:"#7f93ab",lit:"#c9d6e4",lit2:"#93a7bd",shade:"rgba(6,14,30,.45)",tree:["#0a1512","#0e1c18","#122420"],tsnow:"rgba(205,220,236,.5)",mist:"rgba(40,60,90,.35)",glow:"rgba(180,200,255,.18)",cable:"rgba(170,185,205,.7)"}
+                 :{sky:["#6d9bcb","#aecbe6","#e8f0f8"],far1:"#98aec4",far2:"#88a0b8",cap:"#eef3f8",lit:"#ffffff",lit2:"#dbe5ef",shade:"rgba(88,116,152,.30)",tree:["#1b2f29","#22392f","#2a4337"],tsnow:"rgba(255,255,255,.85)",mist:"rgba(255,255,255,.45)",glow:"rgba(255,248,225,.75)",cable:"rgba(40,50,62,.75)"};
+  // 空と光
+  let g=sx.createLinearGradient(0,0,0,H*.7); g.addColorStop(0,C.sky[0]); g.addColorStop(.55,C.sky[1]); g.addColorStop(1,C.sky[2]);
+  sx.fillStyle=g; sx.fillRect(0,0,W,H);
+  const sunX=W*.8, sunY=H*.16; g=sx.createRadialGradient(sunX,sunY,0,sunX,sunY,W*.35); g.addColorStop(0,C.glow); g.addColorStop(1,"rgba(255,255,255,0)");
+  sx.fillStyle=g; sx.fillRect(0,0,W,H);
+  // 遠くの山なみ（2枚・かすむ）
+  const farRange=(base,amp,col,seed)=>{ const rr=rng(seed); const pts=jag(rr,[[-20,H*base],[W*.5,H*(base-.06)],[W+20,H*base]],7,H*amp,.55);
+    sx.beginPath(); sx.moveTo(-20,H); pts.forEach(p=>sx.lineTo(p[0],p[1])); sx.lineTo(W+20,H); sx.closePath();
+    const gg=sx.createLinearGradient(0,H*(base-amp),0,H*(base+.15)); gg.addColorStop(0,C.cap); gg.addColorStop(.35,col); gg.addColorStop(1,col); sx.fillStyle=gg; sx.fill(); };
+  farRange(narrow?.40:.36,.16,C.far1,7); farRange(narrow?.47:.44,.12,C.far2,11);
+  g=sx.createLinearGradient(0,H*.38,0,H*.62); g.addColorStop(0,"rgba(255,255,255,0)"); g.addColorStop(.5,C.mist); g.addColorStop(1,"rgba(255,255,255,0)"); sx.fillStyle=g; sx.fillRect(0,H*.38,W,H*.24);
+  // 主峰（東鉢の山を思わせる大きな斜面）
+  const px=narrow?W*.66:W*.64, py=narrow?H*.44:H*.24, U=narrow?Math.max(W,H*1.15):W; // 細い画面でも山の幅は保つ
+  const key=[[-40,H*(narrow?.80:.74)],[W*.18,H*(narrow?.66:.56)],[px-U*.12,py+H*.10],[px-U*.04,py+H*.02],[px,py],[px+U*.06,py+H*.05],[px+U*.16,py+H*.13],[W*.95,H*(narrow?.62:.50)],[W+40,H*(narrow?.66:.56)]];
+  const ridgePts=jag(r,key,5,H*.025,.5);
+  const massif=()=>{ sx.beginPath(); sx.moveTo(-40,H+2); ridgePts.forEach(p=>sx.lineTo(p[0],p[1])); sx.lineTo(W+40,H+2); sx.closePath(); };
+  massif(); g=sx.createLinearGradient(0,py,0,H); g.addColorStop(0,C.lit); g.addColorStop(1,C.lit2); sx.fillStyle=g; sx.fill();
+  sx.save(); massif(); sx.clip();
+  // 日の当たらない右側の斜面
+  const spur=smoothPath([[px,py],[px+U*.03,py+H*.18],[px+U*.01,py+H*.38],[px+U*.06,H*1.05]],8);
+  sx.beginPath(); sx.moveTo(px,py); ridgePts.filter(p=>p[0]>px).forEach(p=>sx.lineTo(p[0],p[1])); sx.lineTo(W+40,H+2); spur.slice().reverse().forEach(p=>sx.lineTo(p[0],p[1])); sx.closePath();
+  g=sx.createLinearGradient(px,0,W,0); g.addColorStop(0,C.shade); g.addColorStop(1,"rgba(88,116,152,.12)"); sx.fillStyle=g; sx.fill();
+  // 沢すじと尾根のかげ（細い筋を何本も）
+  for(let i=0;i<(dark?24:40);i++){ const t=r(), p=ridgePts[Math.floor(t*(ridgePts.length-1))]; if(p[1]>H*.8) continue;
+    const len=H*(.08+r()*.22), bend=(r()-.5)*U*.05, w=(1+r()*3)*S;
+    sx.beginPath(); sx.moveTo(p[0],p[1]+2); sx.quadraticCurveTo(p[0]+bend,p[1]+len*.5,p[0]+bend*.4+(p[0]>px?U*.02:-U*.02),p[1]+len);
+    sx.strokeStyle=dark?`rgba(5,12,25,${.08+r()*.12})`:`rgba(90,115,150,${.06+r()*.1})`; sx.lineWidth=w; sx.lineCap="round"; sx.stroke();
+    sx.beginPath(); sx.moveTo(p[0]-w,p[1]+3); sx.quadraticCurveTo(p[0]+bend-w,p[1]+len*.5,p[0]+bend*.4-w,p[1]+len*.9); sx.strokeStyle=dark?"rgba(220,230,245,.05)":"rgba(255,255,255,.35)"; sx.lineWidth=w*.7; sx.stroke(); }
+  // コース（森を切りひらいた白い道）と リフト
+  const runA=polyline(smoothPath([[px-U*.035,py+H*.07],[px-U*.11,py+H*.26],[px-U*.06,py+H*.44],[px-U*.15,H*.86],[px-U*.10,H*1.04]],14));
+  const runB=polyline(smoothPath([[px+U*.02,py+H*.12],[px+U*.07,py+H*.34],[px+U*.03,py+H*.52],[px+U*.10,H*1.04]],14));
+  const liftA=[W*(narrow?.93:.86),H*.97], liftB=[px+U*.035,py+H*.10];
+  const forestTop=x=>H*(narrow?.71:.6)+Math.sin(x/W*7+1.3)*H*.03+Math.sin(x/W*19)*H*.012;
+  const widthAt=y=>(10+Math.max(0,(y-py))/(H-py)*46)*S;
+  const nearRun=(x,y)=>{ for(const pl of [runA,runB]){ for(let i=0;i<pl.pts.length;i+=2){ const p=pl.pts[i]; if(Math.abs(p[1]-y)<widthAt(y)&&Math.hypot(p[0]-x,p[1]-y)<widthAt(y)*.55) return true; } }
+    const t=(y-liftB[1])/(liftA[1]-liftB[1]); if(t>0&&t<1){ const lx=liftB[0]+(liftA[0]-liftB[0])*t; if(Math.abs(lx-x)<7*S+t*10*S) return true; } return false; };
+  // 圧雪のすじ
+  [runA,runB].forEach(pl=>{ for(let k=-2;k<=2;k++){ sx.beginPath(); pl.pts.forEach((p,i)=>{ const o=k*widthAt(p[1])*.12; i?sx.lineTo(p[0]+o,p[1]):sx.moveTo(p[0]+o,p[1]); });
+    sx.strokeStyle=dark?"rgba(200,215,235,.05)":"rgba(140,165,195,.12)"; sx.lineWidth=1; sx.stroke(); } });
+  // 森（針葉樹を手前ほど大きく、雪をのせて）
+  const trees=[]; const n=Math.round(W*H/(narrow?75:55));
+  for(let i=0;i<n;i++){ const x=r()*W, ft=forestTop(x), y=ft+Math.pow(r(),.8)*(H-ft+10); if(nearRun(x,y)) continue; trees.push([x,y]); }
+  for(let i=0;i<70;i++){ const x=r()*W, y=forestTop(x)-r()*H*.12; if(y>py+H*.08&&!nearRun(x,y)) trees.push([x,y]); } // 森の上の まばらな木
+  trees.sort((a,b)=>a[1]-b[1]);
+  trees.forEach(([x,y])=>{ const k=Math.max(0,(y-H*.45)/(H*.55)), h=(5+k*17)*S*(.8+r()*.4), w=h*.42;
+    sx.fillStyle=C.tree[Math.floor(r()*3)];
+    sx.beginPath(); sx.moveTo(x,y-h); sx.lineTo(x+w*.5,y-h*.45); sx.lineTo(x+w*.32,y-h*.45); sx.lineTo(x+w*.62,y); sx.lineTo(x-w*.62,y); sx.lineTo(x-w*.32,y-h*.45); sx.lineTo(x-w*.5,y-h*.45); sx.closePath(); sx.fill();
+    sx.fillStyle=C.tsnow; sx.beginPath(); sx.moveTo(x,y-h); sx.lineTo(x-w*.36,y-h*.52); sx.lineTo(x-w*.1,y-h*.6); sx.closePath(); sx.fill();
+    sx.beginPath(); sx.moveTo(x-w*.22,y-h*.4); sx.lineTo(x-w*.55,y-h*.05); sx.lineTo(x-w*.3,y-h*.12); sx.closePath(); sx.fill(); });
+  // リフトの塔とケーブル
+  const tw=[0,.18,.36,.54,.72,.9,1].map(t=>[liftA[0]+(liftB[0]-liftA[0])*t, liftA[1]+(liftB[1]-liftA[1])*t]);
+  tw.forEach(([x,y],i)=>{ const k=.5+(y/H)*.9, h=16*S*k; sx.strokeStyle=dark?"rgba(160,175,195,.8)":"#3b4652"; sx.lineWidth=Math.max(1,1.6*S*k);
+    sx.beginPath(); sx.moveTo(x,y); sx.lineTo(x,y-h); sx.stroke(); sx.beginPath(); sx.moveTo(x-6*S*k,y-h); sx.lineTo(x+6*S*k,y-h); sx.stroke(); });
+  const cab=(off)=>{ sx.beginPath(); tw.forEach(([x,y],i)=>{ const k=.5+(y/H)*.9, h=16*S*k, X=x+off*S*k, Y=y-h; if(!i) sx.moveTo(X,Y); else { const [px0,py0]=tw[i-1], k0=.5+(py0/H)*.9; sx.quadraticCurveTo((X+px0+off*S*k0)/2,(Y+py0-16*S*k0)/2+3*S,X,Y); } }); sx.strokeStyle=C.cable; sx.lineWidth=.9; sx.stroke(); };
+  cab(-5); cab(5);
+  // 乗り場の建物
+  const hut=(x,y,w,h)=>{ sx.fillStyle=dark?"#2a2f38":"#5a4636"; sx.fillRect(x-w/2,y-h,w,h); sx.fillStyle=dark?"#b9c7d6":"#f4f7fa"; sx.beginPath(); sx.moveTo(x-w*.62,y-h); sx.lineTo(x,y-h*1.6); sx.lineTo(x+w*.62,y-h); sx.closePath(); sx.fill(); sx.fillStyle=dark?"rgba(255,210,120,.8)":"rgba(255,230,170,.9)"; sx.fillRect(x-w*.25,y-h*.6,w*.16,h*.25); sx.fillRect(x+w*.08,y-h*.6,w*.16,h*.25); };
+  hut(liftA[0]+18*S,liftA[1]+2,36*S,16*S); hut(liftB[0]-10*S,liftB[1]+4*S,16*S,8*S); hut(liftA[0]-60*S,liftA[1]+6,28*S,13*S);
+  // 文字を読みやすく（左側／上側を少し明るく）
+  const bg=getComputedStyle(root).getPropertyValue("--bg").trim()||"#f4f6f9";
+  if(narrow){ g=sx.createLinearGradient(0,0,0,H*.75); g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,0)"); }
+  else { g=sx.createLinearGradient(0,0,W*.6,0); g.addColorStop(0,bg+"e0"); g.addColorStop(.55,bg+"80"); g.addColorStop(1,bg+"00"); sx.fillStyle=g; sx.fillRect(0,0,W*.6,H); }
+  HS={runA,liftA,liftB,tw,S,widthAt,dark,trail:[],spray:[]};
+  const nf=Math.round(W*H/6000); flakes=Array.from({length:nf},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.8+.5,v:Math.random()*.5+.25,s:Math.random()*6.28}));
+}
+// 滑る人（シルエット）：進む向きに板、曲がる側へ体をかたむける
+function drawSkier(x,y,ang,lean,k){
+  const s=k*1.1; cx.save(); cx.translate(x,y); cx.rotate(lean);
+  cx.strokeStyle=HS.dark?"#e6eef7":"#152230"; cx.lineCap="round";
+  cx.lineWidth=2*s; cx.beginPath(); const sa=Math.cos(ang)*9*s, sb=Math.sin(ang)*3*s; cx.moveTo(-sa-2*s,-sb+1*s); cx.lineTo(sa-2*s,sb+1*s); cx.moveTo(-sa+2*s,-sb+2.5*s); cx.lineTo(sa+2*s,sb+2.5*s); cx.stroke(); // 板
+  cx.fillStyle=HS.dark?"#c9d6e4":"#1d2a38"; cx.beginPath(); cx.moveTo(-3*s,1*s); cx.lineTo(-1.5*s,-6*s); cx.lineTo(2*s,-6*s); cx.lineTo(3.5*s,1*s); cx.closePath(); cx.fill(); // 脚
+  cx.fillStyle="#d63b3b"; cx.beginPath(); cx.moveTo(-3.5*s,-6*s); cx.quadraticCurveTo(-4*s,-12*s,0,-13*s); cx.quadraticCurveTo(4*s,-12*s,3.5*s,-6*s); cx.closePath(); cx.fill(); // 上着
+  cx.fillStyle=HS.dark?"#e6eef7":"#1d2a38"; cx.beginPath(); cx.arc(0,-15.5*s,2.6*s,0,6.283); cx.fill(); // ヘルメット
+  cx.lineWidth=1*s; cx.beginPath(); cx.moveTo(-3*s,-10*s); cx.lineTo(-7*s,2*s); cx.moveTo(3*s,-10*s); cx.lineTo(7*s,2*s); cx.stroke(); // ストック
+  cx.restore();
+}
+function heroFrame(t){
+  if(!HS) return;
+  cx.clearRect(0,0,W,H);
+  const {runA,tw,S}=HS;
+  // リフトの椅子（上り・下り）
+  [[-5,1],[5,-1]].forEach(([off,dir])=>{ for(let i=0;i<9;i++){ let q=((t/40000)*dir+i/9)%1; if(q<0) q+=1;
+    const seg=q*(tw.length-1), j=Math.min(tw.length-2,Math.floor(seg)), f=seg-j, a=tw[j], b=tw[j+1];
+    const x=a[0]+(b[0]-a[0])*f, y=a[1]+(b[1]-a[1])*f, k=.5+(y/H)*.9, X=x+off*S*k, Y=y-16*S*k+Math.sin(f*Math.PI)*3*S;
+    cx.strokeStyle=HS.dark?"rgba(190,205,225,.85)":"#2c3540"; cx.lineWidth=Math.max(.8,1.1*S*k);
+    cx.beginPath(); cx.moveTo(X,Y); cx.lineTo(X,Y+7*S*k); cx.lineTo(X-3.5*S*k,Y+7*S*k); cx.lineTo(X-3.5*S*k,Y+3.5*S*k); cx.stroke();
+    if(dir>0&&i%2===0){ cx.fillStyle=i%4?"#2a6fd6":"#d63b3b"; cx.beginPath(); cx.arc(X-1.6*S*k,Y+4.6*S*k,1.5*S*k,0,6.283); cx.fill(); } } });
+  // 滑る人：コースの中をS字に
+  const u=(t/12000)%1, c=at(runA,u), nx=-c.dy, ny=c.dx, nl=Math.hypot(nx,ny)||1, wv=Math.sin(u*Math.PI*14), w=HS.widthAt(c.y);
+  const x=c.x+nx/nl*wv*w*.32, y=c.y+ny/nl*wv*w*.32, k=(.55+c.y/H*.9)*Math.max(.8,S);
+  HS.trail.push([x,y]); if(HS.trail.length>90||u<.01) HS.trail.splice(0,HS.trail.length>90?1:HS.trail.length-1);
+  cx.strokeStyle=HS.dark?"rgba(200,215,235,.25)":"rgba(120,145,175,.35)"; cx.lineWidth=1.2; cx.beginPath(); HS.trail.forEach((p,i)=>i?cx.lineTo(p[0],p[1]):cx.moveTo(p[0],p[1])); cx.stroke();
+  const turn=Math.cos(u*Math.PI*14);
+  if(Math.abs(turn)>.85&&Math.random()<.7) for(let i=0;i<3;i++) HS.spray.push({x,y,vx:(Math.random()-.5)*1.4-Math.sign(turn)*1.2,vy:-Math.random()*1.2,l:1});
+  HS.spray=HS.spray.filter(p=>(p.l-=.04)>0); HS.spray.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=.06; cx.fillStyle=`rgba(255,255,255,${p.l*.9})`; cx.beginPath(); cx.arc(p.x,p.y,1.4*k,0,6.283); cx.fill(); });
+  drawSkier(x,y,Math.atan2(c.dy,c.dx)+turn*.5,-turn*.35,k);
+  // 降る雪
+  cx.fillStyle="rgba(255,255,255,.85)";
+  for(const f of flakes){ f.y+=f.v; f.x+=Math.sin(t/1600+f.s)*.3; if(f.y>H){f.y=-4;f.x=Math.random()*W;} cx.beginPath(); cx.arc(f.x,f.y,f.r,0,6.283); cx.fill(); }
+}
 let heroVisible=true;
 new IntersectionObserver(e=>{heroVisible=e[0].isIntersecting;}).observe($("#hero"));
-const run=$("#heroRun"), runLen=run.getTotalLength(), skier=$("#heroSkier");
-const chairs=[]; for(let i=0;i<6;i++){ const g=el("g",{},'<path d="M0 0 v10 M-8 10 h16 v6" stroke-width="2.2" fill="none" style="stroke:var(--sub)"/>'); $("#heroChairs").appendChild(g); chairs.push(g); }
-function skierTick(t){
-  const p=(t/9000)%1, L=p*runLen, a=run.getPointAtLength(L), b=run.getPointAtLength(Math.min(runLen,L+4));
-  const ang=Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI, tilt=Math.max(-35,Math.min(35,ang-90))*.6;
-  skier.setAttribute("transform",`translate(${a.x},${a.y}) rotate(${-tilt})`);
-  chairs.forEach((c,i)=>{ const q=((t/14000)+i/6)%1; c.setAttribute("transform",`translate(${700-94*q},${560-312*q})`); });
-}
-function snowTick(t){
-  if(heroVisible){ for(const f of flakes){ f.y+=f.v; f.x+=Math.sin(t/1400+f.s)*.35; if(f.y>H){f.y=-4;f.x=Math.random()*W;} } drawFlakes(); skierTick(t); }
-  requestAnimationFrame(snowTick);
-}
-sizeSnow();
-if(reduce){ skierTick(2500); drawFlakes(); } else requestAnimationFrame(snowTick);
-addEventListener("resize",()=>{ sizeSnow(); if(reduce) drawFlakes(); });
-
+function heroTick(t){ if(heroVisible) heroFrame(t); requestAnimationFrame(heroTick); }
+paintScene();
+if(reduce) heroFrame(3500); else requestAnimationFrame(heroTick);
+let rsT=0; addEventListener("resize",()=>{ clearTimeout(rsT); rsT=setTimeout(()=>{ paintScene(); if(reduce) heroFrame(3500); },150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{ paintScene(); if(typeof paintMaps==="function") paintMaps(); });
 /* ---------- スクロール ---------- */
 // 画面の外にある節だけ少し下げておき、入ってきたら持ち上げる（見えなくはしない）
 const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.toggle("pre",false); io.unobserve(e.target);} }),{threshold:.05});
@@ -973,7 +1065,6 @@ const TREES=[[20,238],[38,262],[18,290],[48,300],[30,330],[62,318],[72,280],[52,
   [150,300],[172,292],[195,282],[150,345],
   [318,282],[356,284],[376,300],[308,334],[335,318],[268,352],[312,366],[352,350],[384,330],[250,392],[285,400],[325,392],[365,385],[230,430],[270,438],[312,430],[355,425],[386,440],
   [110,38],[128,30],[100,58],[120,118],[100,132],[150,118]];
-TREES.forEach(([x,y])=>$("#trees").appendChild(el("path",{d:`M${x} ${y} l7 -18 l7 18z`})));
 /* 2つの図（東鉢側・スカイバレイ側）をまとめてあつかう */
 const MAPS={
   tohachi:{svg:$("#mapSvg"), courses:COURSES, lifts:LIFTS, areas:AREAS},
@@ -992,6 +1083,7 @@ function buildMap(key){
   const lg=q(".g-lifts"), cg=q(".g-courses"), lbg=q(".g-labels"), bdg=q(".g-badges"), rp=el("g",{class:"g-run"}); svg.appendChild(rp);
   M.lifts.forEach(L=>{
     const d=`M${L.a[0]} ${L.a[1]} L${L.b[0]} ${L.b[1]}`;
+    lg.appendChild(el("path",{class:"cable",d}));
     lg.appendChild(el("path",{class:"lift",d,id:"lp-"+L.id,"data-id":L.id}));
     lg.appendChild(el("circle",{class:"lift-end",cx:L.a[0],cy:L.a[1],r:3}));
     lg.appendChild(el("circle",{class:"lift-end",cx:L.b[0],cy:L.b[1],r:3}));
@@ -1021,6 +1113,66 @@ function buildMap(key){
   svg.querySelectorAll("[data-area]").forEach(a=>a.addEventListener("click",()=>select(a.dataset.area,true)));
 }
 buildMap("tohachi"); buildMap("sv");
+/* コース図の地形（陰影）と森を、画像にして図の下にしく */
+const TERRAIN={
+  tohachi:{vb:[-14,-54,414,540], peak:[212,8], trees:TREES, seed:7},
+  sv:{vb:[-10,-44,430,340], peak:[300,-20], trees:[], seed:19}
+};
+function paintTerrain(key){
+  const T=TERRAIN[key], svg=MAPS[key].svg, [vx,vy,vw,vh]=T.vb, S=2;
+  const cs=getComputedStyle(svg), dark=isDark();
+  const hex=v=>{ const m=(cs.getPropertyValue(v).trim()||"#3d7a5d").replace("#",""); return [0,2,4].map(i=>parseInt(m.slice(i,i+2),16)); };
+  let s=T.seed*9973; const rnd=()=>((s=(s*16807)%2147483647)/2147483647);
+  // なめらかなノイズ
+  const P=new Uint8Array(512); for(let i=0;i<256;i++) P[i]=i; for(let i=255;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [P[i],P[j]]=[P[j],P[i]]; } for(let i=0;i<256;i++) P[i+256]=P[i];
+  const fade=t=>t*t*(3-2*t), H=(x,y)=>P[P[x&255]+(y&255)]/255;
+  const vn=(x,y)=>{ const xi=Math.floor(x), yi=Math.floor(y), xf=fade(x-xi), yf=fade(y-yi);
+    const a=H(xi,yi), b=H(xi+1,yi), c=H(xi,yi+1), d=H(xi+1,yi+1); return a+(b-a)*xf+(c-a)*yf+(a-b-c+d)*xf*yf; };
+  const fbm=(x,y)=>{ let v=0,amp=1,f=1; for(let o=0;o<5;o++){ v+=amp*vn(x*f,y*f); amp*=.5; f*=2.03; } return v; };
+  // 高さ：山頂からはなれるほど低く＋尾根と沢
+  const W=vw, Hh=vh, h=new Float32Array(W*Hh);
+  for(let j=0;j<Hh;j++) for(let i=0;i<W;i++){
+    const x=vx+i, y=vy+j, dx=x-T.peak[0], dy=y-T.peak[1], r=Math.hypot(dx,dy), th=Math.atan2(dy,dx);
+    const rid=Math.abs(Math.sin(th*7+fbm(x/90,y/90)*3))*14*Math.min(1,r/120);
+    h[j*W+i]=-r*.55 - rid + fbm(x/46,y/46)*20 + fbm(x/14,y/14)*1.6;
+  }
+  const c=document.createElement("canvas"); c.width=W*S; c.height=Hh*S; const g=c.getContext("2d");
+  const lo=document.createElement("canvas"); lo.width=W; lo.height=Hh; const lg=lo.getContext("2d"), im=lg.createImageData(W,Hh);
+  const L=[-.62,-.55,.56]; // 左上からの光
+  for(let j=1;j<Hh-1;j++) for(let i=1;i<W-1;i++){
+    const nx=(h[j*W+i-1]-h[j*W+i+1]), ny=(h[(j-1)*W+i]-h[(j+1)*W+i]), nz=3.2, nl=Math.hypot(nx,ny,nz);
+    const sh=(nx*L[0]+ny*L[1]+nz*L[2])/nl - .62, k=(j*W+i)*4;
+    if(sh<0){ // かげ
+      const a=Math.min(1,-sh*1.5);
+      if(dark){ im.data[k]=0; im.data[k+1]=6; im.data[k+2]=18; im.data[k+3]=a*105; }
+      else { im.data[k]=86; im.data[k+1]=116; im.data[k+2]=158; im.data[k+3]=a*62; }
+    } else { // 日なた
+      const a=Math.min(1,sh*2.2);
+      if(dark){ im.data[k]=170; im.data[k+1]=200; im.data[k+2]=235; im.data[k+3]=a*28; }
+      else { im.data[k]=255; im.data[k+1]=252; im.data[k+2]=245; im.data[k+3]=a*90; }
+    }
+  }
+  lg.putImageData(im,0,0);
+  g.imageSmoothingEnabled=true; g.drawImage(lo,0,0,W*S,Hh*S);
+  // 森：針葉樹のかたまり（上から見た木）
+  const [tr,tg,tb]=hex("--tree"), sh=dark?.55:.72;
+  const col=(m,a)=>`rgba(${Math.round(tr*m)},${Math.round(tg*m)},${Math.round(tb*m)},${a})`;
+  const trees=[];
+  T.trees.forEach(([cx,cy])=>{ for(let n=0;n<46;n++){ const a=rnd()*6.283, d=Math.pow(rnd(),.65)*20; trees.push([cx+7+Math.cos(a)*d*1.2, cy-7+Math.sin(a)*d*.9, 2.1+rnd()*1.5]); } });
+  trees.sort((p,q)=>p[1]-q[1]);
+  const X=x=>(x-vx)*S, Y=y=>(y-vy)*S;
+  trees.forEach(([x,y,r])=>{ g.fillStyle=dark?"rgba(0,0,0,.35)":"rgba(40,60,90,.18)"; g.beginPath(); g.ellipse(X(x+r*.9),Y(y+r*.7),r*S*1.05,r*S*.6,.5,0,6.283); g.fill(); });
+  trees.forEach(([x,y,r])=>{
+    g.fillStyle=col(sh*(.85+rnd()*.3),1); g.beginPath(); g.arc(X(x),Y(y),r*S,0,6.283); g.fill();
+    g.fillStyle=col(1.15,.75); g.beginPath(); g.arc(X(x-r*.3),Y(y-r*.35),r*S*.45,0,6.283); g.fill();
+    if(!dark){ g.fillStyle="rgba(255,255,255,.55)"; g.beginPath(); g.arc(X(x-r*.4),Y(y-r*.5),r*S*.18,0,6.283); g.fill(); }
+  });
+  let img=svg.querySelector("image.terrain");
+  if(!img){ img=el("image",{class:"terrain",x:vx,y:vy,width:vw,height:vh,preserveAspectRatio:"none"}); svg.querySelector('rect[fill^="url(#mapbg"]').after(img); }
+  c.toBlob(b=>{ if(!b) return; const u=URL.createObjectURL(b), old=img.getAttribute("href"); img.setAttribute("href",u); if(old&&old.startsWith("blob:")) URL.revokeObjectURL(old); });
+}
+function paintMaps(){ try{ Object.keys(TERRAIN).forEach(paintTerrain); }catch(e){} }
+paintMaps();
 [["山頂（オープンバーン）",186,7,"end",""],["チビッコゲレンデ",126,355,"middle"," s"],["チビッコパーク",94,433,"middle"," s"],["スカイバレイ（リフト券共通）",300,3,"middle"," s"]]
   .forEach(([t,x,y,a,s])=>$("#mapSvg .g-labels").appendChild(el("text",{class:"maplabel"+s,x,y,"text-anchor":a},esc(t))));
 
@@ -1230,9 +1382,10 @@ function setLevel(id){
 }
 
 /* ---------- 斜度 ---------- */
+var C_JK="#e0453a", C_JK2="#b9352c", C_PT="#33465f", C_HM="#2e6fd1", C_GG="#f2b84b", C_PL="#8a96a6";
 const ss=$("#slopeSvg");
 ss.innerHTML=`<path id="slopeFill" style="fill:var(--snow);stroke:var(--line)"></path>
-<g id="slSkier"><circle r="6" cy="-24" fill="#ff5a5f"></circle><path d="M0 -18 L0 -6 M0 -6 L-5 4 M0 -6 L5 4 M0 -14 L8 -8 M0 -14 L-8 -10" style="stroke:var(--text)" stroke-width="3" stroke-linecap="round" fill="none"></path><path d="M-16 6 L16 6" stroke="#0e5aa7" stroke-width="3.5" stroke-linecap="round"></path></g>
+<g id="slSkier"><g transform="scale(.9)">${figSki()}</g></g>
 <path id="arc" fill="none" style="stroke:var(--gold)" stroke-width="3"></path><text id="arcTxt" font-size="15" font-weight="800" style="fill:var(--text)"></text>
 <line x1="20" y1="230" x2="390" y2="230" style="stroke:var(--faint)" stroke-dasharray="4 4"></line>`;
 let ang=15, slT=0;
@@ -1301,8 +1454,54 @@ function burst(){
 renderQuiz();
 
 /* ---------- はじめて：技術 ---------- */
-const FALL=(board)=>`<line x1="20" y1="134" x2="200" y2="134" style="stroke:var(--line)" stroke-width="3"></line><g class="fallperson"><circle cx="110" cy="58" r="10" fill="#ff5a5f"></circle><path d="M110 68 L110 100 M110 100 L${board?100:98} 128 M110 100 L${board?120:122} 128 M110 78 L92 92 M110 78 L128 92" style="stroke:var(--text)" stroke-width="5" stroke-linecap="round" fill="none"></path></g>${board?'<rect x="78" y="128" width="64" height="9" rx="4" fill="#0e5aa7"></rect>':'<path d="M70 134 L150 134" stroke="#0e5aa7" stroke-width="5" stroke-linecap="round"></path>'}`;
-const LIFTSVG=`<line x1="0" y1="30" x2="220" y2="30" style="stroke:var(--sub)" stroke-width="2"></line><g class="chairmove"><path d="M110 30 v40 M88 70 h44 v20 M88 90 h44" style="stroke:var(--sub)" stroke-width="4" fill="none"></path></g><g class="rider"><circle cx="110" cy="84" r="8" fill="#ff5a5f"></circle><path d="M110 92 v20 M110 112 l12 0 l0 16" style="stroke:var(--text)" stroke-width="4" fill="none" stroke-linecap="round"></path></g><line x1="0" y1="134" x2="220" y2="134" style="stroke:var(--line)" stroke-width="3"></line>`;
+// 人の形（塗りの立体的なシルエット）。足もと＝原点、右向き
+function figSki(skis=true){
+  return `${skis?`<path d="M-21 -1 L22 -1 Q27 -1 28 -4" style="stroke:var(--text)" stroke-width="2.4" fill="none" stroke-linecap="round"></path>`:""}
+  <path d="M9 -28 L3 -2" stroke="${C_PL}" stroke-width="1.3"></path>
+  <path d="M-3 -22 L5 -13 L1 -5" stroke="${C_PT}" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  <path d="M-4 -7 h8 l1.5 6 h-10.5z" fill="#1d2733"></path>
+  <path d="M-3 -23 L4 -38" stroke="${C_JK}" stroke-width="11" stroke-linecap="round"></path>
+  <path d="M-3 -24 L1 -31" stroke="${C_JK2}" stroke-width="3" stroke-linecap="round" opacity=".6"></path>
+  <path d="M4 -36 L10 -28 L14 -27" stroke="${C_JK2}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  <circle cx="14.5" cy="-27" r="2" fill="#1d2733"></circle>
+  <path d="M14 -28 L10 -1" stroke="${C_PL}" stroke-width="1.3"></path>
+  <circle cx="7" cy="-46" r="5.6" fill="${C_HM}"></circle>
+  <rect x="8.4" y="-47.6" width="5.2" height="3.2" rx="1.6" fill="${C_GG}"></rect>`;
+}
+function figBoard(board=true){
+  return `${board?`<rect x="-23" y="-3" width="46" height="3.4" rx="1.7" style="fill:var(--text)"></rect>`:""}
+  <path d="M-10 -3 L-6 -12 L-3 -22" stroke="${C_PT}" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  <path d="M10 -3 L9 -12 L3 -22" stroke="${C_PT}" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  <path d="M-14 -5 h8 v3 h-8z M6 -5 h8 v3 h-8z" fill="#1d2733"></path>
+  <path d="M0 -23 L1 -38" stroke="${C_JK}" stroke-width="11" stroke-linecap="round"></path>
+  <path d="M-1 -35 L-10 -30 L-15 -29 M3 -35 L12 -31 L17 -31" stroke="${C_JK2}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  <circle cx="2" cy="-46" r="5.6" fill="${C_HM}"></circle>
+  <rect x="3.6" y="-47.6" width="5.2" height="3.2" rx="1.6" fill="${C_GG}"></rect>`;
+}
+// 転び方：人だけ倒れて、板は雪の上に残る
+const FALL=(board)=>`<path d="M14 136 Q110 128 206 136 L206 150 L14 150 Z" style="fill:var(--snow);stroke:var(--line)"></path>
+  <g class="fallperson"><g transform="translate(110 132) scale(2)">${board?figBoard(false):figSki(false)}</g></g>
+  ${board?'<rect x="64" y="128" width="92" height="7" rx="3.5" style="fill:var(--text)"></rect>':'<path d="M66 132 L152 132 Q160 132 162 126" style="stroke:var(--text)" stroke-width="4.5" fill="none" stroke-linecap="round"></path>'}`;
+// リフト：いす と 人 を ひとつのかたまりで動かす（人がいすに座ったまま）
+const CHAIR=`<rect x="-4.5" y="-3.5" width="9" height="7" rx="2" fill="#4a5566"></rect>
+  <path d="M0 2 L0 8 Q0 12 -4 13 L-17 19 L-17 54 L10 54" stroke="#5b6778" stroke-width="2.6" fill="none" stroke-linejoin="round"></path>
+  <path d="M-17 54 L10 54" stroke="#3b4554" stroke-width="4" stroke-linecap="round"></path>
+  <path d="M-12 23 L-6 23" stroke="#3b4554" stroke-width="2" opacity=".5"></path>
+  <path d="M-10 50 L6 49" stroke="${C_PT}" stroke-width="7.5" stroke-linecap="round"></path>
+  <path d="M6 49 L9 63" stroke="${C_PT}" stroke-width="6.5" stroke-linecap="round"></path>
+  <path d="M6 61 h7 l1 5 h-9z" fill="#1d2733"></path>
+  <path d="M-12 70 L30 64 Q34 63 35 60" style="stroke:var(--text)" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
+  <path d="M-10 49 L-11 33" stroke="${C_JK}" stroke-width="11" stroke-linecap="round"></path>
+  <path d="M-10 36 L-3 44 L3 45" stroke="${C_JK2}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  <circle cx="-9" cy="24.5" r="5.6" fill="${C_HM}"></circle>
+  <rect x="-7.6" y="22.6" width="5.2" height="3.2" rx="1.6" fill="${C_GG}"></rect>
+  <path d="M-15 21 L16 28 L16 60 L16 72 L4 72" stroke="#5b6778" stroke-width="1.8" fill="none" stroke-linejoin="round"></path>`;
+const LIFTSVG=`<path d="M0 132 Q90 118 220 104 L220 150 L0 150 Z" style="fill:var(--snow);stroke:var(--line)"></path>
+  ${[[30,128],[58,124],[182,108],[204,106]].map(([x,y])=>`<path d="M${x} ${y} l6 -20 l6 20z" fill="#2f5a46" opacity=".8"></path>`).join("")}
+  <path d="M108 121 L110 34 L112 121z" fill="#6b7686"></path><path d="M98 34 h24" stroke="#6b7686" stroke-width="3" stroke-linecap="round"></path>
+  <circle cx="102" cy="36.5" r="2.4" fill="#4a5566"></circle><circle cx="118" cy="34.2" r="2.4" fill="#4a5566"></circle>
+  <path d="M-10 52 L230 18" stroke="#4a5566" stroke-width="1.6"></path>
+  ${[0,-4].map(b=>`<g><animateTransform attributeName="transform" type="translate" values="-50 57.7; 270 12.3" dur="8s" begin="${b}s" repeatCount="indefinite"></animateTransform>${CHAIR}</g>`).join("")}`;
 const FALLLINE=`<path d="M206 12 L206 140" style="stroke:var(--faint)" stroke-width="1.5" stroke-dasharray="3 4"></path><text x="200" y="146" text-anchor="end" font-size="10" style="fill:var(--sub)">↓ 下</text>`;
 const TECH={
   ski:[
