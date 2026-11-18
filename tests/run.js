@@ -23264,7 +23264,7 @@ async function runTabeta696(browser) {
     '使う 量 約2,562kcal と くらべて ▲ ＋172kcal プラス || 　→ 11/18（水）の 合計 約2,734kcal（使う 量 2,562kcal と くらべて ＋172kcal）');
   check('  「基礎代謝で くらべる」に すると 基礎代謝と くらべる', await page.evaluate(() => { TABETA.prof(); document.querySelector('#tbPL button[data-v="b"]').click(); TABETA.saveProf(); return document.querySelector('#tbBody .tb-pmrow').textContent; }), '基礎代謝 約1,464kcal と くらべて ▲ ＋1,270kcal プラス');
   check('  🗑 消すと ＋− を 出さない・↶ で もどる', await page.evaluate(() => { TABETA.prof(); TABETA.delProf(); const a = !!document.querySelector('#tbBody .tb-pmrow'); TABETA.undo(); return a + '/' + !!document.querySelector('#tbBody .tb-pmrow'); }), 'false/true');
-  check('  ⚙ に 👤 わたしの こと・📈 グラフ、上の 帯に 📈', await page.evaluate(() => { TABETA.menu(); const t = document.querySelector('.tb-pop').textContent; TABETA.close(); return [t.includes('👤 わたしの こと（基礎代謝・＋−）：男性 40歳'), t.includes('📈 グラフ（範囲を 決めて）'), !!document.querySelector('.tb-top button[aria-label="グラフ"]')].join('/'); }), 'true/true/true');
+  check('  ⚙ に 👤 わたしの こと・📈 グラフ、上の 帯に 📈', await page.evaluate(() => { TABETA.menu(); const t = document.querySelector('.tb-pop').textContent; TABETA.close(); return [t.includes('👤 基礎代謝と ＋−（わたしの こと：男性 40歳）'), t.includes('📈 グラフ（範囲を 決めて）'), !!document.querySelector('.tb-top button[aria-label="グラフ"]')].join('/'); }), 'true/true/true');
   // 📈 グラフ：40日ぶんの 記録
   await page.evaluate(() => { TABETA.prof(); document.querySelector('#tbPL button[data-v="2"]').click(); TABETA.saveProf();
     const st = JSON.parse(localStorage.getItem('excalc_tabeta')), e = []; for (let d = 40; d >= 1; d--) { if (d % 10 === 3) continue; e.push({ i: 'z' + d.toString(36).padStart(4, '0'), t: new Date(2026, 10, 18 - d, 12, 0).getTime(), n: d % 2 ? 'カレーライス' : 'ラーメン', m: 'hiru', q: '' }); }
@@ -23282,6 +23282,32 @@ async function runTabeta696(browser) {
     return [a.from, a.to, a.nd, document.querySelector('#tbGrR button.on') === null, document.getElementById('tbGrF').value, b.unit, b.bk.length, b.bk[b.bk.length - 1][0]].join(' / '); }), '2026-11-01 / 2026-11-10 / 10 / true / 2024-01-01 / month / 35 / 2026/11');
   check('  📋 数で 見る（表）', await page.evaluate(() => { TABETA.grSet('r', '7'); TABETA.grSet('kind', 'kcal'); const rows = [...document.querySelectorAll('.tb-gtab tbody tr')]; return rows.length + ' / ' + [...document.querySelectorAll('.tb-gtab th')].map(t => t.textContent).join(',') + ' / ' + rows.pop().textContent; }), '7 / 日,カロリー,＋−,品数 / 11/18（水）2,734＋1728');
   check('  わたしの ことが ない ときの ＋− は 入れる 案内', await page.evaluate(() => { TABETA.close(); TABETA.prof(); TABETA.delProf(); TABETA.graph(); TABETA.grSet('kind', 'pm'); const t = document.getElementById('tbGrBody').textContent; TABETA.close(); TABETA.undo(); return t.includes('👤 わたしの ことを 入れる') + '/' + !document.querySelector('#tbGrBox'); }), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v697：基礎代謝と ＋− を 一覧に 出すか 選べる・👤 の 別ページで 見る */
+async function runTabeta697(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🍽 食べた物帳：基礎代謝と ＋− を 出すか 選ぶ・別ページ（v697） ──');
+  await page.evaluate(async () => {
+    const e = [['ごはん', 17, 7], ['ラーメン', 17, 12], ['カレーライス', 16, 19], ['ごはん', 18, 7], ['みそ汁', 18, 7]].map((x, k) => ({ i: 'q' + k + 'aaa', t: new Date(2026, 10, x[1], x[2], k).getTime(), n: x[0], m: 'hiru', q: '' }));
+    localStorage.setItem('excalc_tabeta', JSON.stringify({ e, prof: { sex: 'm', age: 40, h: 170, w: 65, act: '2' } }));
+    await openTabeta(); TABETA.now('2026-11-18T20:00');
+  });
+  check('  はじめは 一覧に ＋−（前と 同じ）・上の 帯に 👤 📈 ⚙', await page.evaluate(() => [document.querySelectorAll('#tbBody .tb-pmrow').length, [...document.querySelectorAll('.tb-top button')].map(b => b.textContent).join('')].join(' / ')), '3 / 👤📈⚙');
+  check('  ⚙ で 切ると 一覧・コピーの 文から ＋− が 消える（合計は 残る）・保存', await page.evaluate(() => { TABETA.menu(); const cb = [...document.querySelectorAll('.tb-pop .tb-chk input')].find(i => i.parentElement.textContent.includes('基礎代謝との ＋−')); cb.checked = false; cb.dispatchEvent(new Event('change')); TABETA.close();
+    return [document.querySelectorAll('#tbBody .tb-pmrow').length, document.querySelectorAll('#tbBody .tb-dsum').length, TABETA.text('today').includes('くらべて'), JSON.parse(localStorage.getItem('excalc_tabeta')).pmShow].join(' / '); }), '0 / 3 / false / false');
+  check('  切って いる ときは 一覧の 下の「👤 年齢・性別などを…」も 出さない', await page.evaluate(async () => { const st = JSON.parse(localStorage.getItem('excalc_tabeta')); delete st.prof; localStorage.setItem('excalc_tabeta', JSON.stringify(st)); closeTabeta(); await openTabeta(); const a = !!document.querySelector('#tbBody .tb-count .tb-linkb'); TABETA.setPmShow(true); const b = !!document.querySelector('#tbBody .tb-count .tb-linkb'); TABETA.setPmShow(false); return a + '/' + b; }), 'false/true');
+  check('  👤 の ページ：まだ ない ときは 入れる 案内', await page.evaluate(() => { document.querySelector('.tb-top button[aria-label="基礎代謝と ＋−"]').click(); const t = document.getElementById('tbPm').textContent; return [t.includes('👤 わたしの ことを 入れる'), !!document.querySelector('.tb-pop.big')].join('/'); }), 'true/true');
+  check('  ページから 入れると ページに もどる', await page.evaluate(() => { TABETA.prof('pm'); document.querySelector('#tbPS button[data-v="m"]').click(); document.getElementById('tbPA').value = '40'; document.getElementById('tbPH').value = '170'; document.getElementById('tbPW').value = '65'; TABETA.saveProf();
+    return [!!document.getElementById('tbPm'), document.querySelector('#tbPm .tb-pmwho').textContent, document.querySelector('#tbPm .tb-res').textContent.includes('1日に 使う 量 約2,562kcal')].join(' / '); }), 'true / 男性 40歳・170cm・65kg・1日の 動き ふつう / true');
+  check('  ページ：きょうの 合計と ＋−・この 7日（記録 なしも）・まとめ', await page.evaluate(() => { const rows = [...document.querySelectorAll('#tbPm .tb-pmtab tbody tr')].map(r => r.textContent);
+    return [document.querySelector('#tbPm .tb-pmtoday').textContent, rows.length, rows[0], rows[1], rows[2], rows[3], document.querySelector('#tbPm .tb-pmsum').textContent].join(' | '); }),
+    '合計 約274kcal　▼ −2,288kcal マイナス | 7 | 11/18（水）274▼ −2,288kcal マイナス | 11/17（火）734▼ −1,828kcal マイナス | 11/16（月）750▼ −1,812kcal マイナス | 11/15（日）—記録 なし | 記録した 3日の 合計 ▼ −5,928kcal マイナス（体重 にすると 約 −0.8kg ぶん・7,200kcal＝1kg の 目安）');
+  check('  一覧に ＋− を 切って いても ページでは 見られる・ページの チェックで 一覧にも 出す', await page.evaluate(() => { const a = document.querySelectorAll('#tbBody .tb-pmrow').length; const cb = document.querySelector('#tbPm .tb-chk input'); const was = cb.checked; cb.checked = true; cb.dispatchEvent(new Event('change')); return a + '/' + was + '/' + document.querySelectorAll('#tbBody .tb-pmrow').length; }), '0/false/3');
+  check('  ✏ 直す → ページに もどる・🗑 消す → ページは 入れる 案内に', await page.evaluate(() => { TABETA.prof('pm'); document.querySelector('#tbPL button[data-v="b"]').click(); TABETA.saveProf(); const a = document.querySelector('#tbPm .tb-res').textContent.includes('この 量と くらべます') + ':' + document.querySelector('#tbPm .tb-pmtab th:last-child').textContent;
+    TABETA.prof('pm'); TABETA.delProf(); const b = document.getElementById('tbPm').textContent.includes('👤 わたしの ことを 入れる'); TABETA.undo(); return a + '/' + b; }), 'true:基礎代謝と くらべて/true');
+  check('  📈 グラフで 見る → ＋− の グラフ', await page.evaluate(() => { TABETA.pm(); TABETA.graphPm(); return [document.querySelector('#tbGrK button.on').dataset.v, document.querySelectorAll('#tbGrBox .g-minus').length > 0].join('/'); }), 'pm/true');
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
@@ -23689,6 +23715,7 @@ const SUITES = [
   [['tabeta694', 'v694'], b => runTabeta694(b)],
   [['tabetaapp', 'v695'], b => runTabetaApp695(b)],
   [['tabeta696', 'v696'], b => runTabeta696(b)],
+  [['tabeta697', 'v697'], b => runTabeta697(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
