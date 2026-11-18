@@ -89,7 +89,9 @@ nav.toc a.on{ background:var(--text); color:var(--bg); }
 
 /* ===== ヒーロー ===== */
 .hero{ position:relative; height:clamp(500px, 72vh, 640px); overflow:hidden; background:linear-gradient(var(--sky1),var(--sky2) 78%); }
-.hero svg.scene{ position:absolute; inset:0; width:100%; height:100%; }
+.hero img.scene{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:50% 64%; }
+.hero .shade{ position:absolute; inset:0; pointer-events:none; background:linear-gradient(90deg, color-mix(in srgb,var(--bg) 84%,transparent) 0%, color-mix(in srgb,var(--bg) 48%,transparent) 46%, transparent 74%); }
+@media (max-width:719px){ .hero .shade{ background:linear-gradient(180deg, color-mix(in srgb,var(--bg) 86%,transparent) 0%, color-mix(in srgb,var(--bg) 52%,transparent) 52%, transparent 78%); } .hero img.scene{ object-position:62% 70%; } }
 .hero canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
 .hero .copy{ position:absolute; inset:0; padding-top:clamp(36px,8vh,80px); }
 .hero h1{ font-size:clamp(2.3rem,7.4vw,4.6rem); margin:.1em 0 0; line-height:1.08; font-weight:900; letter-spacing:.02em; }
@@ -137,6 +139,25 @@ nav.toc a.on{ background:var(--text); color:var(--bg); }
 .map svg{ display:block; width:100%; height:auto; max-height:46vh; }
 @media (min-width:900px){ .map svg{ max-height:min(640px, calc(100vh - var(--head) - 72px)); } }
 .map svg[hidden]{ display:none; }
+.mapout{ fill:var(--panel2); }
+.mapimg{ pointer-events:none; }
+:root[data-theme="dark"] .mapimg{ filter:brightness(.82) contrast(1.05); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .mapimg{ filter:brightness(.82) contrast(1.05); } }
+.svarea, .openarea{ fill:transparent; cursor:pointer; transition:fill .25s; }
+.svarea:hover, .svarea.sel{ fill:color-mix(in srgb, var(--acc2) 12%, transparent); }
+.openarea:hover, .openarea.sel{ fill:color-mix(in srgb, var(--acc2) 22%, transparent); stroke:var(--acc2); stroke-width:1; stroke-dasharray:3 3; }
+.kidspin{ fill:var(--gold); stroke:#fff; stroke-width:1.5; }
+.kidstx{ fill:#1d1d1f; font-size:7.5px; font-weight:800; pointer-events:none; }
+.map svg{ touch-action:pan-y; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+.map svg.zoomed{ touch-action:none; cursor:grab; }
+.map svg.panning{ cursor:grabbing; }
+.zoomctl{ position:absolute; right:10px; bottom:10px; z-index:2; display:flex; flex-direction:column; gap:6px; }
+.zoomctl button{ width:38px; height:38px; display:grid; place-items:center; border-radius:11px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); color:var(--text); font-size:18px; font-weight:700; line-height:1; cursor:pointer; box-shadow:var(--shadow); }
+.zoomctl button:hover{ border-color:var(--text); }
+.zoomhint{ position:absolute; left:10px; bottom:10px; right:60px; margin:0; z-index:2; pointer-events:none; font-size:.72rem; color:var(--sub); }
+.zoomhint.off{ opacity:0; transition:opacity .4s; }
+.zoomhint span{ background:color-mix(in srgb, var(--panel) 88%, transparent); padding:3px 8px; border-radius:99px; }
+
 .map svg.mapin{ animation:mapin .45s ease both; }
 @keyframes mapin{ from{ opacity:0; transform:scale(.985); } }
 .nowbar{ position:absolute; left:10px; right:10px; top:10px; display:flex; pointer-events:none; z-index:2; }
@@ -170,8 +191,9 @@ nav.toc a.on{ background:var(--text); color:var(--bg); }
 .svsign rect{ fill:var(--gold); stroke:var(--mapsnow); stroke-width:1.5; }
 .svsign text{ fill:#1d1d1f; font-size:8px; font-weight:800; pointer-events:none; }
 .ng{ fill:var(--ng); stroke:var(--ng); stroke-width:3; stroke-linejoin:round; opacity:.7; pointer-events:none; }
-.cable{ stroke:var(--sub); stroke-width:.9; fill:none; opacity:.7; pointer-events:none; }
-.lift{ stroke:var(--text); stroke-width:3.2; stroke-linecap:round; stroke-dasharray:.1 9; animation:chairs 2.2s linear infinite; fill:none; opacity:.7; }
+.cable{ display:none; }
+.lift-end{ display:none; }
+.lift{ stroke:var(--acc); stroke-width:3.2; stroke-linecap:round; stroke-dasharray:.1 9; animation:chairs 2.2s linear infinite; fill:none; opacity:0; transition:opacity .3s; }
 .lift.sel{ stroke:var(--acc); stroke-width:4.2; opacity:1; }
 .lift.sv{ opacity:.4; }
 @keyframes chairs{ to{ stroke-dashoffset:-18.2; } }
@@ -375,7 +397,8 @@ footer li{ margin:2px 0; word-break:break-all; }
 
 <!-- ============ HERO ============ -->
 <div class="hero" id="hero">
-  <canvas id="scene" class="scene" aria-hidden="true"></canvas>
+  <img class="scene" src="img/hero.jpg" alt="ハイパーボウル東鉢の山頂から見下ろしたゲレンデ。リフトと、雪の山なみ" decoding="async" fetchpriority="high">
+  <div class="shade" aria-hidden="true"></div>
   <canvas id="snow" aria-hidden="true"></canvas>
   <div class="copy wrap">
     <p class="eyebrow">Hyogo · Yabu — Ski area guide</p>
@@ -423,81 +446,35 @@ footer li{ margin:2px 0; word-break:break-all; }
   <div class="stage-map">
     <div class="map">
       <div class="nowbar" id="nowbar" aria-live="polite"></div>
-      <svg id="mapSvg" viewBox="-14 -54 414 540" role="img" aria-label="ハイパーボウル東鉢のコースの略図。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
-        <defs>
-          <linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mapsnow)"/><stop offset="1" style="stop-color:var(--panel2)"/></linearGradient>
-          <pattern id="kidsHatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--mapsnow)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--gold)" stroke-width="2.6"/></pattern>
-        </defs>
-        <rect x="-14" y="-54" width="414" height="540" fill="url(#mapbg)"/>
-        <!-- スカイバレイ側（赤い点線が境界） -->
-        <path id="svArea" data-area="skyvalley" d="M209 17 L245 26 L271 34 L305 46 L314 62 L316 77 L319 96 L326 108 L336 125 L348 142 L362 163 L373 182 L379 199 L382 223 L400 236 L400 -54 L209 -54 Z" style="fill:var(--sv)"/>
-        <path class="lift sv" d="M327 40 L400 112"/>
-        <path d="M209 17 L245 26 L271 34 L305 46 L314 62 L316 77 L319 96 L326 108 L336 125 L348 142 L362 163 L373 182 L379 199 L382 223" fill="none" style="stroke:var(--lv3)" stroke-width="1.6" stroke-dasharray="4 4" opacity=".75" pointer-events="none"/>
-        <!-- 山頂のオープンバーン -->
-        <path id="openbahn" data-area="openbahn" d="M200 20 C 232 24, 290 40, 305 50 L 312 70 C 312 92, 300 112, 280 118 C 250 124, 215 122, 196 116 C 176 110, 160 92, 160 70 C 160 46, 178 26, 200 20 Z" style="fill:var(--acc2);stroke:var(--acc2)" fill-opacity=".1" stroke-dasharray="3 3" stroke-width="1"/>
-        <!-- 立入禁止エリア（公式マップのピンク） -->
-        <g id="ngZones">
-          <path class="ng" d="M166 31 L188 30 L186 40 L178 55 L172 72 L166 83 L154 89 L150 79 L155 60 L161 41 Z"/>
-          <path class="ng" d="M140 92 L170 88 L173 101 L140 106 Z"/>
-          <path class="ng" d="M226 31 L240 33 L256 46 L268 64 L275 84 L273 97 L267 100 L259 93 L248 77 L239 58 L230 42 Z"/>
-          <path class="ng" d="M188 173 L206 144 L218 142 L233 149 L241 165 L228 163 L209 166 Z"/>
-          <path class="ng" d="M86 184 L108 162 L137 148 L151 151 L144 180 L119 202 L94 205 Z"/>
-        </g>
-        <g id="trees" style="fill:var(--tree)" opacity=".55"></g>
-        <!-- チビッコパーク -->
-        <g id="kidsArea" data-area="kids">
-          <path d="M63 407 L72 389 L119 387 L124 392 L115 418 L65 419 Z" fill="url(#kidsHatch)" style="stroke:var(--gold)" stroke-width="1.5"/>
-          <path d="M168 358 C 150 362, 122 368, 104 375 S 85 388, 81 393" fill="none" style="stroke:var(--kids)" stroke-width="5" stroke-linecap="round"/>
-          <path d="M168 358 C 150 362, 122 368, 104 375 S 85 388, 81 393" fill="none" stroke="transparent" stroke-width="18"/>
-        </g>
+      <div class="zoomctl" role="group" aria-label="図の拡大・縮小"><button type="button" data-z="in" aria-label="拡大" title="拡大">＋</button><button type="button" data-z="out" aria-label="縮小" title="縮小">－</button><button type="button" data-z="reset" aria-label="もとの大きさ" title="もとの大きさ">⟲</button></div>
+      <p class="zoomhint" id="zoomhint"><span>ピンチ・＋で拡大／ドラッグで移動</span></p>
+      <svg id="mapSvg" viewBox="30 -16 290 386" role="img" aria-label="ハイパーボウル東鉢のゲレンデマップ。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
+        <rect class="mapout" x="-200" y="-200" width="900" height="800"/>
+        <image class="mapimg" href="img/map.jpg" x="0" y="0" width="499.5" height="395" preserveAspectRatio="none"/>
+        <path id="svArea" class="svarea" data-area="skyvalley" d="M131 22.5 L135 36 L142.5 46 L155 52.5 L167.5 61 L179 72.5 L189 85 L199 97.5 L210 111 L227.5 120 L247.5 131 L261 141 L269 152.5 L272.5 162.5 L499.5 162.5 L499.5 0 L127.5 0 Z"/>
+        <ellipse id="openbahn" class="openarea" data-area="openbahn" cx="107.5" cy="35" rx="38" ry="18"/>
         <g class="g-lifts"></g>
         <g class="g-courses"></g>
         <g class="g-labels"></g>
-        <!-- 施設 -->
-        <g id="facilities">
-          <text x="294" y="220" font-size="12" text-anchor="middle">🍴</text>
-          <text class="maplabel s" x="352" y="243" text-anchor="middle">カフェテリア</text>
-          <text class="maplabel s" x="352" y="254" text-anchor="middle">フライングフォックス</text>
-          <text x="44" y="372" font-size="11" text-anchor="middle">🍽</text>
-          <rect x="14" y="436" width="18" height="18" rx="4" style="fill:var(--acc)"/>
-          <text x="23" y="450" font-size="12" font-weight="800" text-anchor="middle" fill="#fff">P</text>
-          <text x="174" y="455" font-size="11" text-anchor="middle">🚻</text>
-          <text class="maplabel s" x="186" y="458">無料更衣室・パウダールーム</text>
-          <text class="maplabel s" x="-6" y="482">ふもと：チケット・パトロール・レストラン</text>
-        </g>
-        <!-- 初心者ルートの急な所（おおよその場所） -->
+        <g id="kidsArea" data-area="kids" transform="translate(210 338)"><circle class="kidspin" r="6.5"></circle><text class="kidstx" y="2.8" text-anchor="middle">子</text></g>
         <g id="cautions">
-          <g class="caution" transform="translate(132 263)"><g class="cin"><path d="M0 -8 L8 6 L-8 6 Z"></path><text y="4.5" text-anchor="middle">!</text></g></g>
-          <g class="caution" transform="translate(14 384)"><g class="cin"><path d="M0 -8 L8 6 L-8 6 Z"></path><text y="4.5" text-anchor="middle">!</text></g></g>
+          <g class="caution" transform="translate(196 194)"><g class="cin"><path d="M0 -8 L8 6 L-8 6 Z"></path><text y="4.5" text-anchor="middle">!</text></g></g>
+          <g class="caution" transform="translate(178 280)"><g class="cin"><path d="M0 -8 L8 6 L-8 6 Z"></path><text y="4.5" text-anchor="middle">!</text></g></g>
         </g>
-        <!-- 自然の段差（ジャンプ）：1号を降りて左側（センターB）が、3号の乗り場からの道と合流する所 -->
-        <g class="jumpmk" data-area="jump" transform="translate(236 203)"><circle r="7.5"></circle><path d="M-4.5 3.5 L-1 3.5 L3.5 -3.2 M1 -3.6 L3.5 -3.2 L3.4 -0.6"></path></g>
+        <g class="jumpmk" data-area="jump" transform="translate(205 175)"><circle r="7.5"></circle><path d="M-4.5 3.5 L-1 3.5 L3.5 -3.2 M1 -3.6 L3.5 -3.2 L3.4 -0.6"></path></g>
         <g class="g-badges"></g>
         <circle id="runner" class="runner" r="6.5" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
       </svg>
       <!-- スカイバレイ側：スカイバレイの公式マップ（見る向きが東鉢の図とちがう）の位置関係をもとにした略図。左上が東鉢側 -->
-      <svg id="svSvg" viewBox="-10 -44 430 340" role="img" aria-label="スカイバレイ側のコースの略図。左上が東鉢側、下がスカイバレイのふもと。選んだコースだけ線が出ます。">
-        <defs>
-          <linearGradient id="mapbg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--mapsnow)"/><stop offset="1" style="stop-color:var(--panel2)"/></linearGradient>
-        </defs>
-        <rect x="-10" y="-44" width="430" height="340" fill="url(#mapbg2)"/>
-        <!-- 境の向こう（東鉢側） -->
-        <path d="M-10 -44 L333.9 -44 L333.9 5.0 L317.5 13.9 L295.3 26.0 L277.6 37.8 L260.0 49.1 L243.6 54.2 L233.1 61.3 L222.6 73.9 L207.9 83.2 L189.4 92.8 L169.3 100.4 L151.2 111.3 L132.7 121.0 L116.8 127.3 L100.4 129.4 L83.2 129.8 L80.2 135.2 L80.2 137 L-10 137 Z" style="fill:var(--sv)"/>
-        <path d="M333.9 5.0 L317.5 13.9 L295.3 26.0 L277.6 37.8 L260.0 49.1 L243.6 54.2 L233.1 61.3 L222.6 73.9 L207.9 83.2 L189.4 92.8 L169.3 100.4 L151.2 111.3 L132.7 121.0 L116.8 127.3 L100.4 129.4 L83.2 129.8 L80.2 135.2" fill="none" style="stroke:var(--lv3)" stroke-width="1.6" stroke-dasharray="4 4" opacity=".75" pointer-events="none"/>
-        <path d="M294.0 14.7 L283.9 25.2 L269.6 33.6 L250.7 47.0 L221.8 64.7 L192.4 83.2 L160.0 99.1 L126.8 113.0 L91.6 115.5" fill="none" style="stroke:var(--lv2)" stroke-width="3" stroke-linecap="round" opacity=".28" pointer-events="none"/>
-        <text class="maplabel s" x="150" y="28" text-anchor="middle">← ハイパーボウル東鉢側</text>
-        <text class="maplabel s" x="178" y="72" text-anchor="middle" style="font-size:8.5px">東鉢の東尾根</text>
-        <circle cx="284.8" cy="8" r="3" class="lift-end"/>
-        <text class="maplabel s" x="278" y="10" text-anchor="end">東鉢の山頂</text>
-        <text x="93" y="122" font-size="11" text-anchor="middle">🍴</text>
-        <text class="maplabel s" x="84" y="108" text-anchor="end">東鉢のカフェテリア</text>
-        <text class="maplabel s" x="408" y="290" text-anchor="end">スカイバレイ側（リフト券共通）</text>
+      <svg id="svSvg" viewBox="140 -14 360 344" role="img" aria-label="ゲレンデマップのスカイバレイ側。左が東鉢側、右がスカイバレイ。選んだコースだけ線が出ます。">
+        <rect class="mapout" x="-200" y="-200" width="900" height="800"/>
+        <image class="mapimg" href="img/map.jpg" x="0" y="0" width="499.5" height="395" preserveAspectRatio="none"/>
         <g class="g-lifts"></g>
         <g class="g-courses"></g>
         <g class="g-labels"></g>
-        <!-- 東鉢｜スカイバレイ の看板（2つのゲレンデの境目） -->
-        <g class="svsign" data-area="sv_signTop" transform="translate(334 3)"><rect x="-8" y="-6.5" width="16" height="13" rx="2.5"></rect><text y="3.2" text-anchor="middle">境</text></g>
-        <g class="svsign" data-area="sv_signHub" transform="translate(80 137)"><rect x="-8" y="-6.5" width="16" height="13" rx="2.5"></rect><text y="3.2" text-anchor="middle">境</text></g>
+        <!-- 東鉢｜スカイバレイ の境目 -->
+        <g class="svsign" data-area="sv_signTop" transform="translate(138 31)"><rect x="-8" y="-6.5" width="16" height="13" rx="2.5"></rect><text y="3.2" text-anchor="middle">境</text></g>
+        <g class="svsign" data-area="sv_signHub" transform="translate(274 161)"><rect x="-8" y="-6.5" width="16" height="13" rx="2.5"></rect><text y="3.2" text-anchor="middle">境</text></g>
         <g class="g-badges"></g>
         <circle id="svRunner" class="runner" r="6" stroke="#fff" stroke-width="2" opacity="0" style="fill:#ff5a5f"/>
       </svg>
@@ -513,7 +490,6 @@ footer li{ margin:2px 0; word-break:break-all; }
         <span><i style="background:var(--lv2)"></i>中級</span>
         <span><i style="background:var(--lv3)"></i>上級</span>
         <span data-only="tohachi"><i style="background:var(--lv0)"></i>初心者コース</span>
-        <span data-only="tohachi"><i class="box" style="background:var(--ng)"></i>立入禁止</span>
         <span>┄ リフト（記号を押す）</span>
         <span data-only="tohachi">⚠ 急な所（おおよその場所）</span>
         <span data-only="tohachi"><i style="background:var(--acc2)"></i>自然の段差（ジャンプ）</span>
@@ -521,8 +497,8 @@ footer li{ margin:2px 0; word-break:break-all; }
         <span data-only="sv" hidden><i class="box" style="background:var(--gold)"></i>境の看板（東鉢とつながる所）</span>
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
-  <p class="note" data-note="tohachi">※ 東鉢側の図は、公式ゲレンデマップ（2027シーズン版）の位置関係をもとにした<b>略図</b>で、距離や角度は実際とはちがいます。リフトの長さは公式サイトのリフト案内の数字です。正確なマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデ案内</a>で。</p>
-  <p class="note" data-note="sv" hidden>※ スカイバレイ側の図は、スカイバレイの公式マップの位置関係をもとにした<b>略図</b>です。東鉢側の図とは見る向きがちがいます（左上が東鉢側）。コースの長さ・斜度はスカイバレイの公式マップより。</p>
+  <p class="note" data-note="tohachi">※ 図は、ゲレンデマップ（パンフレット）の上に、選んだコースの線を重ねたものです。線の位置はおおよそです。このマップは今のシーズンとコース名がちがう所があります（例：②「競技Aコース」の位置が、今の「東尾根下コース」）。コースの長さ・斜度・リフトの時間は公式サイトの数字です。最新のマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデマップ</a>で。</p>
+  <p class="note" data-note="sv" hidden>※ 同じゲレンデマップの右側（スカイバレイ側）です。線の位置はおおよそ。コースの長さ・斜度はスカイバレイの公式マップより。</p>
   </div>
   </div>
 </section>
@@ -784,113 +760,114 @@ const root=document.documentElement;
 const th=store.get("theme",null); if(th) root.dataset.theme=th;
 $("#themeBtn").onclick=()=>{
   const dark=root.dataset.theme? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  root.dataset.theme=dark?"light":"dark"; store.set("theme",root.dataset.theme); paintScene(); paintMaps(); if(reduce) heroFrame(3500);
+  root.dataset.theme=dark?"light":"dark"; store.set("theme",root.dataset.theme); paintScene(); if(reduce) heroFrame(3500);
 };
 
 /* ---------- データ（公式サイト・公式マップより） ---------- */
 // コース図の線（公式マップの位置関係をもとにした略図の座標）
 const SEG={
-  A:"M199 23 C 193 34, 184 50, 184 64 S 186 92, 194 103 L 201 110",
-  S:"M208 23 C 212 42, 222 64, 231 85",
-  E:"M204 20 C 225 25, 252 36, 268 52 S 292 84, 296 104 S 300 126, 308 142 S 338 174, 352 194",
-  // 東尾根を降りてすぐ左（公式マップの青い分かれ道）→ 3号の右手の急斜面 → 3号の乗り場
-  T:"M206 20 C 216 26, 230 40, 234 58 S 238 80, 239 90 C 252 96, 270 104, 278 116 S 290 136, 300 152 S 318 176, 328 196",
-  // 初心者コース：3号を降りて左側から滑り、3号の乗り場へ裏側から戻る
-  O:"M242 92 C 256 102, 262 112, 262 130 S 280 162, 296 177 S 324 176, 335 188 S 341 204, 332 206",
-  B:"M233 127 C 243 138, 255 150, 256 162 S 254 180, 252 188 S 249 204, 251 212",
-  // センターC：3号の乗り場（カフェテリアのあたり）から1号の方へ
-  C:"M331 206 C 310 208, 284 203, 263 207 S 251 213, 247 222 S 210 240, 176 254",
-  D:"M176 254 C 142 271, 110 296, 98 320 S 74 364, 58 380 S 32 408, 25 416",
-  H:"M319 220 C 292 243, 263 268, 240 287 S 196 330, 175 354 S 142 395, 139 418 S 143 440, 148 446",
+ "A": "M70 24 C 70.2 26.7, 70.7 34.8, 71.5 40 C 72.3 45.2, 73.6 50.4, 75 55 C 76.4 59.6, 77.8 63.7, 80 67.5 C 82.2 71.3, 84.7 74.5, 88 78 C 91.3 81.5, 98 86.8, 100 88.5",
+ "S": "M93 26.5 C 94.1 28.6, 97.2 35.1, 99.5 39 C 101.8 42.9, 104.1 46.2, 107 50 C 109.9 53.8, 113.3 58.2, 117 62 C 120.7 65.8, 127 71.2, 129 73",
+ "E": "M132.5 47 C 134.1 49.2, 138.4 56, 142 60.5 C 145.6 65, 148.1 68.9, 154 74 C 159.9 79.1, 169.8 85.8, 177.5 91 C 185.2 96.2, 192.1 100.5, 200 105 C 207.9 109.5, 217.1 113.7, 225 118 C 232.9 122.3, 241.5 126.5, 247.5 131 C 253.5 135.5, 257.8 140.9, 261 145 C 264.2 149.1, 266 153.8, 267 155.5",
+ "T": "M132.5 47 C 133.2 48.5, 135.8 51.5, 137 56 C 138.2 60.5, 137.3 68.5, 139.5 74 C 141.7 79.5, 144.1 84.7, 150 89 C 155.9 93.3, 165.8 96, 175 100 C 184.2 104, 195 108.3, 205 113 C 215 117.7, 226.7 123.2, 235 128 C 243.3 132.8, 249.8 137.5, 255 142 C 260.2 146.5, 264.2 152.8, 266 155",
+ "B": "M150 124.5 C 152.5 126.3, 159.5 131.3, 165 135.5 C 170.5 139.7, 177 144.6, 183 149.5 C 189 154.4, 198 162.4, 201 165",
+ "C": "M266 159 C 262.5 160.2, 251.8 164, 245 166.5 C 238.2 169, 230.4 171.3, 225 174 C 219.6 176.7, 216.7 179.8, 212.5 182.5 C 208.3 185.2, 204 187.6, 200 190.5 C 196 193.4, 191.8 196.8, 188.5 200 C 185.2 203.2, 182.4 206.5, 180 210 C 177.6 213.5, 175 219.2, 174 221",
+ "D": "M172.5 226 C 172.8 230, 173.4 241.4, 174.5 250 C 175.6 258.6, 177.1 268.3, 179 277.5 C 180.9 286.7, 183.8 296.7, 186 305 C 188.2 313.3, 190.3 321, 192 327.5 C 193.7 334, 195.3 341.2, 196 344",
+ "H": "M216 176 C 217 178.6, 219.6 186.7, 222 191.5 C 224.4 196.3, 227.2 200.8, 230.5 205 C 233.8 209.2, 238.3 213.2, 242 216.5 C 245.7 219.8, 250 221.2, 252.5 224.5 C 255 227.8, 256.8 230.1, 257 236 C 257.2 241.9, 254.9 251.8, 254 260 C 253.1 268.2, 251.6 275.8, 251.5 285 C 251.4 294.2, 252.4 305.2, 253.5 315 C 254.6 324.8, 256.8 337.2, 258 344 C 259.2 350.8, 260.5 354, 261 356",
+ "O": "M134 92 C 135.2 93.8, 136.8 98.8, 141 103 C 145.2 107.2, 152 112.8, 159 117 C 166 121.2, 174.8 124.5, 183 128 C 191.2 131.5, 200 134.7, 208 138 C 216 141.3, 224.2 144.5, 231 148 C 237.8 151.5, 243.7 155.5, 248.5 159 C 253.3 162.5, 256.4 168, 260 169 C 263.6 170, 268.5 166.7, 270 165 C 271.5 163.3, 269.2 160, 269 159",
+ "KB": "M48 101.5 C 48.5 103.2, 49.4 108.7, 51 112 C 52.6 115.3, 55 118.9, 57.5 121.5 C 60 124.1, 62.9 125.8, 66 127.5 C 69.1 129.2, 74.3 130.8, 76 131.5",
+ "G": "M244 284 C 241.8 285, 235 287.3, 231 290 C 227 292.7, 223.2 296.2, 220 300 C 216.8 303.8, 214.5 308.3, 212 313 C 209.5 317.7, 207.2 323, 205 328 C 202.8 333, 199.6 340.5, 198.5 343",
+ "runB": "M150 124.5 C 152.5 126.3, 159.5 131.3, 165 135.5 C 170.5 139.7, 177 144.6, 183 149.5 C 189 154.4, 197.5 160.6, 201 165 C 204.5 169.4, 204.2 171.8, 204 176 C 203.8 180.2, 202.6 186.5, 200 190.5 C 197.4 194.5, 191.8 196.8, 188.5 200 C 185.2 203.2, 182.4 206.5, 180 210 C 177.6 213.5, 175.2 218.3, 174 221 C 172.8 223.7, 172.4 221.2, 172.5 226 C 172.6 230.8, 173.4 241.4, 174.5 250 C 175.6 258.6, 177.1 268.3, 179 277.5 C 180.9 286.7, 183.8 296.7, 186 305 C 188.2 313.3, 190.3 321, 192 327.5 C 193.7 334, 195.3 341.2, 196 344",
+ "runC": "M266 159 C 262.5 160.2, 251.8 164, 245 166.5 C 238.2 169, 230.4 171.3, 225 174 C 219.6 176.7, 216.7 179.8, 212.5 182.5 C 208.3 185.2, 204 187.6, 200 190.5 C 196 193.4, 191.8 196.8, 188.5 200 C 185.2 203.2, 182.4 206.5, 180 210 C 177.6 213.5, 175.2 218.3, 174 221 C 172.8 223.7, 172.4 221.2, 172.5 226 C 172.6 230.8, 173.4 241.4, 174.5 250 C 175.6 258.6, 177.1 268.3, 179 277.5 C 180.9 286.7, 183.8 296.7, 186 305 C 188.2 313.3, 190.3 321, 192 327.5 C 193.7 334, 195.3 341.2, 196 344",
+ "runE": "M132.5 47 C 134.1 49.2, 138.4 56, 142 60.5 C 145.6 65, 148.1 68.9, 154 74 C 159.9 79.1, 169.8 85.8, 177.5 91 C 185.2 96.2, 192.1 100.5, 200 105 C 207.9 109.5, 217.1 113.7, 225 118 C 232.9 122.3, 241.5 126.5, 247.5 131 C 253.5 135.5, 257.8 140.9, 261 145 C 264.2 149.1, 268.8 152.2, 267 155.5 C 265.2 158.8, 256 162.4, 250 165 C 244 167.6, 236.7 169.2, 231 171 C 225.3 172.8, 217.5 172.6, 216 176 C 214.5 179.4, 219.6 186.7, 222 191.5 C 224.4 196.3, 227.2 200.8, 230.5 205 C 233.8 209.2, 238.3 213.2, 242 216.5 C 245.7 219.8, 250 221.2, 252.5 224.5 C 255 227.8, 256.8 230.1, 257 236 C 257.2 241.9, 254.9 251.8, 254 260 C 253.1 268.2, 251.6 275.8, 251.5 285 C 251.4 294.2, 252.4 305.2, 253.5 315 C 254.6 324.8, 256.8 337.2, 258 344 C 259.2 350.8, 260.5 354, 261 356"
 };
 const tail=s=>s.replace(/^M\s*[-\d.]+[ ,]+[-\d.]+\s*/,"");
 const LVC={"初級":"var(--lv1)","中級":"var(--lv2)","上級":"var(--lv3)","道":"var(--lv0)"};
 const lvCls=l=>({"初級":"t-1","中級":"t-2","上級":"t-3","道":"t-0"}[l]||"t-k");
 const tagOf=c=>c.tag||(c.route?"マップの道":c.lv);
 const COURSES=[
-  {id:"centerB", name:"センターBコース", short:"センターB", lv:"初級", len:700, avg:12, max:15, d:SEG.B, run:SEG.B+" S 248 218, 247 222 S 210 240, 176 254 "+tail(SEG.D), w:12, lab:[242,178,"end"],
+  {id:"centerB", name:"センターBコース", short:"センターB", lv:"初級", len:700, avg:12, max:15,   d:SEG.B, run:SEG.runB, w:12,
    txt:"中腹（1号リフトを降りた先、2号リフト乗り場の近く）から下る、コース幅が最大200mの緩斜面。ビギナーから楽しめる万能型コース。", tip:"広いので、人の少ない端のほうでゆっくり練習しましょう。下はセンターC→センターDで ふもとへ。", src:"公式"},
-  {id:"centerD", name:"センターDコース", short:"センターD", lv:"初級", len:1100, avg:17, max:22, d:SEG.D, w:6, lab:[104,318,"start"],
+  {id:"centerD", name:"センターDコース", short:"センターD", lv:"初級", len:1100, avg:17, max:22,  d:SEG.D, w:6,
    txt:"1号リフトに沿って ふもとまで下る、1,100mの初心者向け林間コース。力を抜いてリラックスクルージング！ レストランやパトロールセンターなどがコースの終点にあります。", tip:"急な所が2か所（図の⚠）。上の急な所は大きく回り込んでよけ、最後の急な所は大回り（ターンを大きく）でゆっくり。", src:"公式"},
-  {id:"centerC", name:"センターC", short:"センターC", lv:"初級", route:true, d:SEG.C, run:SEG.C+" "+tail(SEG.D), w:5, lab:[212,256,"middle"], small:true,
+  {id:"centerC", name:"センターC", short:"センターC", lv:"初級", route:true,   d:SEG.C, run:SEG.runC, w:5, small:true,
    txt:"3号リフトの乗り場（カフェテリアのあたり）から、1号リフトの方へ向かう道。センターBの下ともつながっていて、その先はセンターDで ふもとへ。ゲレンデマップにのっている道で、公式の数字（長さ・斜度）はありません。", tip:"この先の急な所は大きく回り込んでよけ、最後の急な所は大回りでゆっくり。", src:"公式マップ"},
-  {id:"beginner", name:"初心者コース", short:"初心者コース", lv:"道", route:true, d:SEG.O, w:5, lab:[318,168,"start"], small:true,
+  {id:"beginner", name:"初心者コース", short:"初心者コース", lv:"道", route:true,  d:SEG.O, w:5, small:true,
    txt:"3号リフトを降りたら左側から滑り、3号リフトの裏側から乗り場へ戻ってくるオレンジの道。何本もくり返して足を慣らすのにぴったり。ゲレンデマップにのっている道で、公式の数字はありません。", tip:"ふもとからは4号リフトでカフェテリアへ（1号→センターBからも行けます）。3号リフトは8:40〜16:20。", src:"公式マップ"},
-  {id:"champion", name:"チャンピオンコース", short:"チャンピオン", lv:"中級", len:600, avg:10, max:20, d:SEG.H, w:6, lab:[240,312,"start"],
+  {id:"champion", name:"チャンピオンコース", short:"チャンピオン", lv:"中級", len:600, avg:10, max:20,  d:SEG.H, w:6,
    txt:"カフェテリアの近くから、林の中を ふもとの無料更衣室の方へ下る。スノーボーダーに一番人気のロングな林間コース。", tip:"林間は先が見えにくいので、合流点ではスピードを落として。", src:"公式"},
-  {id:"higashione", name:"東尾根コース", short:"東尾根", lv:"中級", len:1800, avg:20, max:25, d:SEG.E, run:SEG.E+" S 340 214, 319 220 "+tail(SEG.H), w:6, lab:[330,121,"middle"],
+  {id:"higashione", name:"東尾根コース", short:"東尾根", lv:"中級", len:1800, avg:20, max:25,   d:SEG.E, run:SEG.runE, w:6,
    txt:"山頂から、スカイバレイとの境（赤い点線）にそって下る、エリアでいちばん長いコース。雪質がよく、眺めも最高の「1番ホットなコース」。下りた先はカフェテリアのあたりで、そのままチャンピオンコースへ続けて ふもとまで滑れます。", tip:"長いので途中で脚を休めながら。点線の向こうはスカイバレイです。", src:"公式"},
-  {id:"centerA", name:"センターAコース", short:"センターA", lv:"上級", len:500, avg:30, max:35, d:SEG.A, w:6, lab:[150,72,"end"],
-   txt:"山頂から2号リフトの左を下る上級コース。平均30°と ずっと急だけど、整備に力を入れているので滑りやすい。中級者以上は必ずGO！", tip:"スピードが出やすいので、ターンを細かく。左のピンクは立入禁止です。", src:"公式"},
-  {id:"higashioneshita", name:"東尾根下コース", short:"東尾根下", lv:"上級", len:600, avg:20, max:43, d:SEG.S, w:6, lab:[210,54.5,"middle"], fs:9.5, rot:69.6,
-   txt:"山頂から2号リフトの右を下る、東鉢屈指の難関コース。コースのトップ付近から急斜面で、最大43°。上級者のメインコースとして人気。", tip:"上から下をのぞいてラインを決めてから。横すべりで下りるのも立派な技術です。", src:"公式"},
-  {id:"steep3", name:"東尾根 → 3号わきの急斜面", short:"3号わき急斜面", lv:"上級", tag:"おすすめライン", route:true, dash:"7 5", d:SEG.T, w:4, lab:null, avg:25,
+  {id:"centerA", name:"センターAコース", short:"センターA", lv:"上級", len:500, avg:30, max:35,  d:SEG.A, w:6,
+   txt:"山頂から2号リフトの左を下る上級コース。平均30°と ずっと急だけど、整備に力を入れているので滑りやすい。中級者以上は必ずGO！", tip:"スピードが出やすいので、ターンを細かく。コースの外（林の中）には入らないこと。", src:"公式"},
+  {id:"higashioneshita", name:"東尾根下コース", short:"東尾根下", lv:"上級", len:600, avg:20, max:43,  d:SEG.S, w:6,
+   txt:"山頂から2号リフトの右を下る、東鉢屈指の難関コース（このマップでは②「競技Aコース」の位置）。コースのトップ付近から急斜面で、最大43°。上級者のメインコースとして人気。", tip:"上から下をのぞいてラインを決めてから。横すべりで下りるのも立派な技術です。", src:"公式"},
+  {id:"steep3", name:"東尾根 → 3号わきの急斜面", short:"3号わき急斜面", lv:"上級", tag:"おすすめライン", route:true, dash:"7 5",  d:SEG.T, w:4, avg:25,
    txt:"東尾根を降りてすぐ左に曲がって滑り、3号リフトの右手の急斜面を一気に下りるルート。下りた所は3号リフトの乗り場（カフェテリアのあたり）。", tip:"急斜面なので、上から下をよく見てから。図の線はおおよそです。", note:"公式のコースではありません（おすすめの滑り方）。", src:"おすすめ"},
+  {id:"kyogiB", name:"競技Bコース", short:"競技B", lv:"中級", tag:"マップのコース", route:true, d:SEG.KB, w:5, avg:15,
+   txt:"センターAのさらに左、山の西側の斜面を下る青いコース（マップの③）。今の公式サイトのコース一覧にはのっていないので、滑れるかは当日のゲレンデの案内で確かめてください。", tip:"大会や練習で使われる日は入れないことがあります。", note:"長さ・斜度：公式の数字はありません（マップのコース）", src:"ゲレンデマップ"},
+  {id:"chibikko", name:"チビッコゲレンデ", short:"チビッコゲレンデ", lv:"中級", tag:"マップのコース", route:true, d:SEG.G, w:5, avg:10,
+   txt:"チャンピオンコースの途中から、ふもとの駐車場の方へ下りる短いコース（マップの⑧）。ふもとのレストランや駐車場の近くに出ます。", tip:"ふもとは人が多いので、スピードを落として。", note:"長さ・斜度：公式の数字はありません（マップのコース）", src:"ゲレンデマップ"},
 ];
 const AREAS={
-  openbahn:{name:"山頂オープンバーン", lv:"中〜上級", show:["centerA","higashioneshita","higashione"], txt:"山頂は「一度味わうとやみつきになる」と評判の超ワイドなオープンバーン。自由自在な滑りは痛快そのもの。センターA・東尾根下・東尾根は、ここからスタートします。", tip:"ピンクの立入禁止エリアには入らないこと。山頂へ行く2号リフトは9:00から。", stats:[["行き方","2号リフト"],["2号の時間","9:00〜16:20"],["広さ","超ワイド"]], src:"公式"},
-  kids:{name:"チビッコパーク", lv:"キッズ", txt:"駐車場のすぐ近くにある3,000㎡の子ども用エリア。サンキッド（スノーエスカレーター）があるので、歩いて登らなくても大丈夫。マップでは、チャンピオンコースの途中から「チビッコゲレンデ」がここへつながっています。", tip:"2歳以上は1日600円（リフト1日券・半日券でも使える）。小学生未満は保護者といっしょに。", stats:[["広さ","3,000㎡"],["2歳以上","600円/日"],["場所","駐車場の近く"]], src:"公式"},
+  openbahn:{name:"山頂オープンバーン", lv:"中〜上級", show:["centerA","higashioneshita","higashione"], txt:"山頂は「一度味わうとやみつきになる」と評判の超ワイドなオープンバーン。自由自在な滑りは痛快そのもの。センターA・東尾根下・東尾根は、ここからスタートします。", tip:"コースの外（林の中など）には入らないこと。山頂へ行く2号リフトは9:00から。", stats:[["行き方","2号リフト"],["2号の時間","9:00〜16:20"],["広さ","超ワイド"]], src:"公式"},
+  kids:{name:"チビッコパーク", lv:"キッズ", show:["chibikko"], txt:"駐車場のすぐ近くにある3,000㎡の子ども用エリア。サンキッド（スノーエスカレーター）があるので、歩いて登らなくても大丈夫。マップでは、チャンピオンコースの途中から⑧「チビッコゲレンデ」が ふもとへ下りています（パークの場所はおおよそ）。", tip:"2歳以上は1日600円（リフト1日券・半日券でも使える）。小学生未満は保護者といっしょに。", stats:[["広さ","3,000㎡"],["2歳以上","600円/日"],["場所","駐車場の近く"]], src:"公式"},
   skyvalley:{name:"スカイバレイ側（共通券）", lv:"共通券", goMap:"sv_signHub", goLabel:"スカイバレイ側の図を見る", txt:"東鉢のリフト券で、尾根（赤い点線）の向こうのスカイバレイ側のコースも滑れます。東鉢の山頂から近いのは、山頂ペアリフトまわりの4コース。", tip:"営業時間は東鉢とちがいます。帰りは山頂ペアリフトで上がり、ディアコースの途中を右に下ると東鉢へ戻れます。", stats:[["山頂から近い","4コース"],["リフト券","共通"],["東鉢へ","ディア→右へ"]], src:"スカイバレイ公式",
    list:[["ディアコース","中級","710m","眺めは最高。山頂から尾根づたい。途中を右に下ると東鉢へ。"],["フォックスコース","中級","580m","入口に80mのハーフパイプ。ゆるめで幅広の片斜面。"],["イーグルコース","上級","620m","最大32°。手ごわいコブと急斜面。滑り出してすぐ右に迂回コースあり。"],["サンダーコース","上級","560m","ギャップの連続で始まり、後半はなだらか。ゴールド検定バーン。"]]},
   jump:{name:"自然の段差（ジャンプ）", lv:"おすすめ", show:["centerB"], txt:"1号リフトを降りて左側（センターB）を滑ると、もう一つのコース（3号の乗り場からの道）と合流する所に自然の段差があって、ジャンプも楽しめます。", tip:"合流する所なので、周りの人に十分注意。横や下から来る人がいないか、見てから飛ぼう。", stats:[["行き方","1号→センターB"],["場所","合流する所"],["注意","周りの人"]], src:"おすすめ",
    legs:()=>[liftLeg("lift1"), skiLeg("centerB","cv-centerB"), {hop:true}]},
 };
 const LIFTS=[
-  {id:"lift1", n:1, name:"かつら1号ペアリフト", len:879, vert:210, hours:"8:30〜16:40", a:[10,431], b:[200,131], badge:[22,417], serves:["centerB"],
+  {id:"lift1", n:1, name:"かつら1号ペアリフト", len:879, vert:210, hours:"8:30〜16:40", pts:[[188.5, 345.0], [172.5, 280.0], [161.0, 227.5], [150.0, 185.0], [145.0, 150.0], [136.5, 115.0]], badge:[180.0, 354.0], serves:["centerB"],
    txt:"ふもと（駐車場の近く）から中腹へ上がる、いちばん長いリフト。降りた先にセンターBのスタートと2号リフト乗り場があります。乗り場の横のリフト事務所1階がスクールの受付です。"},
-  {id:"lift2", n:2, name:"かつら2号ペアリフト", len:530, vert:144, hours:"9:00〜16:20", a:[240.5,132.7], b:[200,21], badge:[227,140], serves:["centerA","higashioneshita","higashione","steep3"],
+  {id:"lift2", n:2, name:"かつら2号ペアリフト", len:530, vert:144, hours:"9:00〜16:20", pts:[[146.5, 119.0], [134.0, 102.5], [125.0, 93.5], [116.0, 87.0], [108.0, 80.0], [101.5, 70.0], [95.0, 57.5], [89.0, 40.0], [84.0, 23.5]], badge:[76.0, 24.0], serves:["centerA","higashioneshita","higashione","steep3"],
    txt:"中腹から山頂へ。センターA・東尾根下・東尾根は、ここを降りた山頂からスタートします。朝は9:00からなので、ほかより少しおそめ。"},
-  {id:"lift3", n:3, name:"かつら3号ペアリフト", len:523, vert:94, hours:"8:40〜16:20", a:[330,200.4], b:[233.5,93.6], badge:[350,224], serves:["beginner"],
+  {id:"lift3", n:3, name:"かつら3号ペアリフト", len:523, vert:94, hours:"8:40〜16:20", pts:[[267.5, 156.0], [255.0, 145.0], [235.0, 132.5], [200.0, 116.5], [165.0, 101.5], [131.5, 87.5]], badge:[278.0, 150.0], serves:["beginner"],
    txt:"カフェテリア（フライングフォックス）の近くから上へ。降りたら左側から初心者コースを滑って、裏側から乗り場へ戻る。足ならしのループにいちばんのリフトです。"},
-  {id:"lift4", n:4, name:"かつら4号ペアリフト", len:818, vert:170, hours:"8:30〜16:30", a:[129.6,453.6], b:[271.2,198], badge:[116,462], serves:["champion","centerC"],
+  {id:"lift4", n:4, name:"かつら4号ペアリフト", len:818, vert:170, hours:"8:30〜16:30", pts:[[266.0, 356.0], [250.0, 300.0], [242.5, 260.0], [235.0, 215.0], [222.5, 174.0]], badge:[274.0, 358.0], serves:["champion","centerC"],
    txt:"ふもと（無料更衣室の近く）からカフェテリアへ。チャンピオンコースのスタートや3号リフトに乗りつげます。近くにレンタルちさとがあります。"},
 ];
 /* ---------- スカイバレイ側（スカイバレイの公式マップの位置関係をもとにした略図の座標） ---------- */
 const SVSEG={
-  dia:"M367.9 8.4 L352.4 11.8 L336.8 15.1 L321.3 20.6 L307.9 29.8 L295.7 40.7 L283.5 51.2 L270.5 61.3 L257.0 70.6",
-  bear:"M255.4 71.4 L239.4 86.5 L223.4 101.2 L210.0 113.4 L194.5 125.6 L180.6 134.4 L168.0 141.5 L155.4 146.2 L147.8 149.5",
-  thunder:"M371.7 11.3 L358.3 18.1 L350.3 28.6 L340.6 39.9 L332.6 49.6 L323.4 61.3 L317.1 73.5 L310.4 87.4 L311.2 102.5 L316.7 109.6 L321.7 117.2 L325.1 125.6 L328.4 134.0 L331.0 142.8 L332.6 152.0 L332.6 161.3 L336.8 169.3",
-  eagle:"M385.1 6.3 L393.1 15.1 L393.1 28.6 L397.7 41.6 L401.9 55.0 L404.0 69.3 L399.4 81.9 L390.2 89.5 L378.0 96.6",
-  fox:"M376.7 96.2 L373.8 105.4 L370.4 115.5 L369.2 126.0 L366.7 136.1 L365.4 146.2 L363.7 155.8 L358.7 165.9 L352.4 172.2",
-  rabbit:"M144.9 155.4 L158.3 173.5 L172.2 185.6 L186.5 197.8 L201.6 212.1 L215.0 225.1",
-  wakaba:"M107.9 147.4 L105.0 158.3 L109.2 170.1 L115.1 178.5 L129.8 187.3 L137.3 204.1 L150.8 215.5 L163.4 228.9 L178.9 231.8 L195.7 225.1",
-  gezan:"M104.2 151.2 L100.0 159.6 L95.3 165.1 L97.4 169.7 L107.1 173.0 L96.6 176.0 L84.0 177.7 L67.2 179.8 L50.4 183.1 L33.6 188.6 L21.0 195.3 L11.8 202.4 L14.7 207.9 L25.2 210.0 L35.7 212.5 L39.1 216.7 L31.5 221.3 L23.9 225.5 L25.2 230.2 L37.8 234.4 L50.4 238.6 L59.2 242.8 L52.5 247.8 L35.7 255.4 L18.9 262.1 L12.6 267.1 L17.6 270.9 L33.6 271.3 L50.4 270.5 L65.1 269.2 L70.1 272.6 L76.4 277.2 L84.0 278.0 L96.6 275.9 L109.2 273.8 L121.8 271.3 L134.4 269.2 L153.7 264.6",
-  // ディアの途中を右に下って、東鉢の東尾根へ（線はおおよそ）
-  back:"M367.9 8.4 L352.4 11.8 L336.8 15.1 L321.3 20.6 L307.9 29.8 C 300 33, 286 31, 272 34 L250.7 47.0 L221.8 64.7 L192.4 83.2 L160.0 99.1 L126.8 113.0 L91.6 115.5",
+ "eagle": "M161 32 C 164.2 31.2, 174.2 28.5, 180 27.5 C 185.8 26.5, 189.3 25.6, 196 26 C 202.7 26.4, 211.8 28, 220 30 C 228.2 32, 237.5 34.7, 245 38 C 252.5 41.3, 258.3 46.2, 265 50 C 271.7 53.8, 278.7 57, 285 61 C 291.3 65, 300 71.8, 303 74",
+ "thunder": "M151 35 C 151.3 36.3, 151.3 40.8, 153 43 C 154.7 45.2, 157.8 46.5, 161 48 C 164.2 49.5, 166 50.4, 172.5 52 C 179 53.6, 190.8 55.5, 200 57.5 C 209.2 59.5, 219.2 61.5, 227.5 64 C 235.8 66.5, 243.9 70.3, 250 72.5 C 256.1 74.7, 259.7 74.8, 264 77 C 268.3 79.2, 271.8 82.3, 276 86 C 280.2 89.7, 286.8 96.8, 289 99",
+ "dia": "M146 41 C 149.2 43.2, 159.2 50.2, 165 54 C 170.8 57.8, 174.8 61.6, 181 64 C 187.2 66.4, 195.2 66.7, 202.5 68.5 C 209.8 70.3, 218.3 72.6, 225 75 C 231.7 77.4, 237.9 80.5, 242.5 83 C 247.1 85.5, 250.8 88.8, 252.5 90",
+ "fox": "M305 82.5 C 307.5 84.2, 315.2 89.1, 320 93 C 324.8 96.9, 329.2 101.7, 334 106 C 338.8 110.3, 343 114.8, 349 119 C 355 123.2, 363 127.7, 370 131 C 377 134.3, 387.5 137.7, 391 139",
+ "bear": "M289 99 C 291.8 100.3, 299.2 103.8, 306 107 C 312.8 110.2, 322.2 114.3, 330 118 C 337.8 121.7, 345.4 125.8, 352.5 129 C 359.6 132.2, 366.7 134.9, 372.5 137 C 378.3 139.1, 385 140.8, 387.5 141.5",
+ "raku": "M274 138 C 278.3 139.6, 291.5 144.7, 300 147.5 C 308.5 150.3, 316.7 152.8, 325 155 C 333.3 157.2, 340.8 159.9, 350 161 C 359.2 162.1, 369.2 161.4, 380 161.5 C 390.8 161.6, 405.4 160.7, 415 161.5 C 424.6 162.3, 432.9 164.2, 437.5 166.5 C 442.1 168.8, 442.8 172.3, 442.5 175 C 442.2 177.7, 437.1 181.2, 436 182.5",
+ "wakaba": "M327.5 171 C 331.2 172.7, 341.2 177.8, 350 181 C 358.8 184.2, 370.8 186.7, 380 190 C 389.2 193.3, 400.8 199.2, 405 201",
+ "gezan": "M326 172.5 C 326.7 175.8, 326.8 186.9, 330 192.5 C 333.2 198.1, 338.8 201.9, 345 206 C 351.2 210.1, 361.5 213.2, 367.5 217 C 373.5 220.8, 376.2 224.2, 381 229 C 385.8 233.8, 391 240.5, 396 246 C 401 251.5, 404.9 255.5, 411 262 C 417.1 268.5, 424.8 278.2, 432.5 285 C 440.2 291.8, 448.3 298.3, 457.5 302.5 C 466.7 306.7, 482.5 308.8, 487.5 310",
+ "back": "M146 41 C 146.5 43.2, 147.8 49.6, 149 54 C 150.2 58.4, 150.3 62.8, 153 67.5 C 155.7 72.2, 160.9 78.6, 165 82.5 C 169.1 86.4, 171.7 87.2, 177.5 91 C 183.3 94.8, 192.1 100.5, 200 105 C 207.9 109.5, 217.1 113.7, 225 118 C 232.9 122.3, 241.5 126.5, 247.5 131 C 253.5 135.5, 257.8 140.9, 261 145 C 264.2 149.1, 266 153.8, 267 155.5"
 };
 const SV_COURSES=[
-  {id:"sv_wakaba", name:"ワカバコース", short:"ワカバ", lv:"初級", len:550, avg:10, max:12, d:SVSEG.wakaba, w:5, labAt:[.5,-8,0,"end"],
+  {id:"sv_wakaba", name:"ワカバコース", short:"ワカバ", lv:"初級", len:550, avg:10, max:12,  d:SVSEG.wakaba, w:5,
    txt:"ゆるやかな林間コース。滑る楽しさがわかり始めた人におすすめ。", tip:"スタートは、東鉢のカフェテリアのあたり（境の看板）のすぐ先。下りたらラビットペアリフトで戻れます。", src:"スカイバレイ公式"},
-  {id:"sv_rabbit", name:"ラビットコース", short:"ラビット", lv:"中級", len:460, avg:13, max:16, d:SVSEG.rabbit, w:5, labAt:[.3,-10,-2,"end"],
-   txt:"ラビットペアリフトにそって下るコース。", tip:"下りたらラビットペアリフトで、東鉢との境（カフェテリアのあたり）の近くまで戻れます。", src:"スカイバレイ公式"},
-  {id:"sv_gezan", name:"下山コース", short:"下山", lv:"中級", len:2000, avg:10, max:12, d:SVSEG.gezan, w:5, labAt:[.32,4,-9,"start"],
+  {id:"sv_gezan", name:"下山コース", short:"下山", lv:"中級", len:2000, avg:10, max:12,  d:SVSEG.gezan, w:5,
    txt:"全長2,000m、平均10°のロングコース。スカイバレイのふもと（スキーセンター）まで下りる。", tip:"東鉢へ戻るには、ふもとから登降リフト → ラビットペアリフトで上がって、境の看板のあたりへ。夕方は混むので早めに。", src:"スカイバレイ公式"},
-  {id:"sv_bear", name:"ベアコース", short:"ベア", lv:"中級", len:770, avg:13, max:22, d:SVSEG.bear, w:5, labAt:[.45,8,6,"start"],
+  {id:"sv_bear", name:"ベアコース", short:"ベア", lv:"中級", len:770, avg:13, max:22,  d:SVSEG.bear, w:5,
    txt:"スカイバレイのメインコース。中級を中心に、幅広いレベル向けのコース。", tip:"下りた先は、東鉢との境（カフェテリアのあたり）の近く。", src:"スカイバレイ公式"},
-  {id:"sv_dia", name:"ディアコース", short:"ディア", lv:"中級", len:710, avg:14, max:23, d:SVSEG.dia, w:5, labAt:[.75,-6,12,"end"],
+  {id:"sv_dia", name:"ディアコース", short:"ディア", lv:"中級", len:710, avg:14, max:23,  d:SVSEG.dia, w:5,
    txt:"眺めは最高。山頂から尾根づたいのコース。途中を右に下ると東鉢に入ります。", tip:"東鉢へ戻るときの道。そのまま続けるとベアコースへ。", src:"スカイバレイ公式"},
-  {id:"sv_fox", name:"フォックスコース", short:"フォックス", lv:"中級", len:580, avg:12, max:20, d:SVSEG.fox, w:5, labAt:[.95,6,12,"start"],
+  {id:"sv_fox", name:"フォックスコース", short:"フォックス", lv:"中級", len:580, avg:12, max:20,  d:SVSEG.fox, w:5,
    txt:"入口に全長80mのハーフパイプ。斜度はゆるめで、大きく幅広の片斜面コース。", tip:"下りたら山頂ペアリフトで山頂へ戻れます。", src:"スカイバレイ公式"},
-  {id:"sv_thunder", name:"サンダーコース", short:"サンダー", lv:"上級", len:560, avg:18, max:31, d:SVSEG.thunder, w:5, labAt:[.6,-8,0,"end"],
+  {id:"sv_thunder", name:"サンダーコース", short:"サンダー", lv:"上級", len:560, avg:18, max:31,  d:SVSEG.thunder, w:5,
    txt:"ギャップの連続で始まり、後半は比較的なだらか。地形がハーフパイプ状で楽しめる。バッジテストのゴールド検定バーン。", tip:"下りたら山頂ペアリフトで山頂へ戻れます。", src:"スカイバレイ公式"},
-  {id:"sv_eagle", name:"イーグルコース", short:"イーグル", lv:"上級", len:620, avg:20, max:32, d:SVSEG.eagle, w:5, labAt:[.45,-8,0,"end"],
+  {id:"sv_eagle", name:"イーグルコース", short:"イーグル", lv:"上級", len:620, avg:20, max:32,  d:SVSEG.eagle, w:5,
    txt:"手ごわいコブと絶句の急斜面が待つ、スカイバレイきってのエキスパートゾーン。滑り出してすぐ右に迂回コースあり。", tip:"下はフォックスコースにつながります。", src:"スカイバレイ公式"},
-  {id:"sv_back", name:"ディアの途中から東鉢へ", short:"東鉢へ戻る道", lv:"中級", tag:"東鉢へ戻る", route:true, dash:"5 4", d:SVSEG.back, w:4, labAt:[.45,8,12,"start"], small:true, avg:14,
+  {id:"sv_back", name:"ディアの途中から東鉢へ", short:"東鉢へ戻る道", lv:"中級", tag:"東鉢へ戻る", route:true, dash:"5 4",  d:SVSEG.back, w:4, small:true, avg:14,
    txt:"山頂ペアリフトで上がってディアコースを滑り、途中を右に下ると東鉢の東尾根へ。そのまま東鉢のカフェテリアのあたりまで下りられます。", tip:"どこで右に下るかは、現地の表示を見て。図の線はおおよそです。", note:"ディアコースの途中から東鉢へ（スカイバレイ公式の案内をもとにした おおよその線）。", src:"スカイバレイ公式"},
+  {id:"sv_raku", name:"らくらくルート", short:"らくらくルート", lv:"道", route:true, dash:"6 4", d:SVSEG.raku, w:5, avg:8,
+   txt:"東鉢のカフェテリアのあたり（キッズゲレンデの近く）から、スカイバレイ側のゆるい斜面へ向かう道（マップのオレンジの点線）。", tip:"スカイバレイ側は営業時間が東鉢とちがいます。帰りのリフトの時間に注意。", note:"長さ・斜度：公式の数字はありません（マップの道）", src:"ゲレンデマップ"},
 ];
 const SV_LIFTS=[
-  {id:"svl_sanchou", ch:"山", chip:"山頂ペアリフト", name:"山頂ペアリフト", len:849, seats:2, a:[346.5,164.2], b:[373,13], badge:[345,126], serves:["sv_dia","sv_fox","sv_eagle","sv_thunder"],
+  {id:"svl_sanchou", ch:"山", chip:"山頂ペアリフト", name:"山頂ペアリフト", len:849, seats:2, pts:[[371.0, 134.0], [350.0, 123.0], [325.0, 111.0], [305.0, 101.0], [289.0, 91.5], [272.5, 76.5], [255.0, 61.0], [230.0, 50.0], [200.0, 42.5], [157.5, 31.5]], badge:[380.0, 131.0], serves:["sv_dia","sv_fox","sv_eagle","sv_thunder"],
    txt:"スカイバレイ側の山頂へ上がるペアリフト。ディア・フォックス・イーグル・サンダーへ行けます。東鉢へ戻るときも、これで上がってディアコースへ。", src:"スカイバレイ公式"},
-  {id:"svl_bear", ch:"ベ", chip:"ベアトリプルリフト", name:"ベアトリプルリフト", len:676, seats:3, a:[231.4,219.2], b:[258.7,115.5], badge:[230,188], serves:["sv_bear","sv_fox"],
+  {id:"svl_bear", ch:"ベ", chip:"ベアトリプルリフト", name:"ベアトリプルリフト", len:676, seats:3, pts:[[415.0, 172.5], [395.0, 160.0], [370.0, 145.0], [340.0, 129.0], [310.0, 114.0], [282.5, 102.5], [272.5, 91.5], [257.5, 84.0]], badge:[424.0, 175.0], serves:["sv_bear","sv_fox"],
    txt:"3人乗りのリフト。ベア・フォックスへ行けます。", src:"スカイバレイ公式"},
-  {id:"svl_rabbit", ch:"ラ", chip:"ラビットペアリフト", name:"ラビットペアリフト", len:420, seats:2, a:[206.2,226.8], b:[100.8,136.9], badge:[146,190], serves:["sv_wakaba","sv_rabbit","sv_gezan"],
-   txt:"東鉢との境（カフェテリアのあたり）の近くへ上がるリフト。ワカバ・ラビット・下山へ行けます。", src:"スカイバレイ公式"},
-  {id:"svl_touko", ch:"登", chip:"登降リフト", name:"登降ペアパラレルリフト（A・B線）", len:640, seats:2, a:[137.8,280.6], b:[210,231.8], badge:[182,264], serves:[],
-   txt:"スカイバレイのふもと（スキーセンター）とゲレンデを結ぶリフト。下山コースを下りたあと、これとラビットペアリフトで上へ戻れます。", src:"スカイバレイ公式"},
 ];
 const SV_AREAS={
-  sv_signHub:{name:"境の看板（カフェテリアのあたり）", lv:"東鉢とつながる所", show:["sv_wakaba","sv_rabbit","sv_gezan"], goMap:"tohachi", goLabel:"東鉢側の図にもどる",
-   txt:"スカイバレイの公式マップで「東鉢｜スカイバレイ」の看板がある所。東鉢のカフェテリア（フライングフォックス）のあたりが、スカイバレイ側との境目です。すぐ先に、ワカバ・ラビット・下山コースのスタートがあります。", tip:"営業時間は東鉢とちがうので、帰りのリフトの時間に注意。", stats:[["東鉢側","カフェテリア"],["近いコース","3本"],["リフト券","共通"]], src:"スカイバレイ公式マップ"},
+  sv_signHub:{name:"境の看板（カフェテリアのあたり）", lv:"東鉢とつながる所", show:["sv_wakaba","sv_gezan","sv_raku"], goMap:"tohachi", goLabel:"東鉢側の図にもどる",
+   txt:"スカイバレイの公式マップで「東鉢｜スカイバレイ」の看板がある所。東鉢のカフェテリア（フライングフォックス）のあたりが、スカイバレイ側との境目です。すぐ先に、ワカバ・下山コースやらくらくルートがあります。", tip:"営業時間は東鉢とちがうので、帰りのリフトの時間に注意。", stats:[["東鉢側","カフェテリア"],["近いコース","3本"],["リフト券","共通"]], src:"スカイバレイ公式マップ"},
   sv_signTop:{name:"境の看板（山頂のあたり）", lv:"東鉢とつながる所", show:["sv_dia","sv_back"], goMap:"tohachi", goLabel:"東鉢側の図にもどる",
    txt:"山頂のあたりにも「東鉢｜スカイバレイ」の看板があります。スカイバレイ側の山頂からは、ディア・サンダー・イーグルなどがスタート。", tip:"ディアコースの途中を右に下ると東鉢に入ります（スカイバレイ公式）。", stats:[["近いコース","ディアなど"],["東鉢へ","ディア→右へ"],["リフト券","共通"]], src:"スカイバレイ公式マップ"},
 };
@@ -918,7 +895,7 @@ const itemName=id=>{ const f=findItem(id); return f?f.item.name:id; };
 
 /* ---------- ヒーロー：写実寄りの雪山（キャンバスに描く） ----------
    下の絵（空・山・森・コース・リフトの塔）は1回だけ描き、上の層で リフトの椅子・滑る人・雪 を動かす */
-const scv=$("#scene"), sx=scv.getContext("2d"), cv=$("#snow"), cx=cv.getContext("2d");
+const cv=$("#snow"), cx=cv.getContext("2d");
 let W=0,H=0, HS=null, flakes=[];
 function rng(seed){ return ()=>{ seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
 const isDark=()=>root.dataset.theme? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
@@ -936,112 +913,17 @@ function smoothPath(pts,n){ // ゆるい曲線（Catmull-Rom）で点をふや�
     for(let k=0;k<n;k++){ const t=k/n,t2=t*t,t3=t2*t; out.push([0,1].map(j=>.5*((2*p1[j])+(-p0[j]+p2[j])*t+(2*p0[j]-5*p1[j]+4*p2[j]-p3[j])*t2+(-p0[j]+3*p1[j]-3*p2[j]+p3[j])*t3))); } }
   out.push(pts[pts.length-1]); return out; }
 
+// 写真の上に、雪だけを降らせる
 function paintScene(){
-  const rect=scv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2);
+  const rect=cv.getBoundingClientRect(), d=Math.min(devicePixelRatio||1,2);
   W=rect.width; H=rect.height; if(!W||!H) return;
-  [scv,cv].forEach(c=>{ c.width=W*d; c.height=H*d; });
-  sx.setTransform(d,0,0,d,0,0); cx.setTransform(d,0,0,d,0,0);
-  const dark=isDark(), narrow=W<720, r=rng(20261118), S=Math.min(W/1200,H/620)*1.1;
-  const C= dark?{sky:["#08111f","#14263f","#2a3f5c"],far1:"#21354e",far2:"#1a2b40",cap:"#7f93ab",lit:"#c9d6e4",lit2:"#93a7bd",shade:"rgba(6,14,30,.45)",tree:["#0a1512","#0e1c18","#122420"],tsnow:"rgba(205,220,236,.5)",mist:"rgba(40,60,90,.35)",glow:"rgba(180,200,255,.18)",cable:"rgba(170,185,205,.7)"}
-                 :{sky:["#6d9bcb","#aecbe6","#e8f0f8"],far1:"#98aec4",far2:"#88a0b8",cap:"#eef3f8",lit:"#ffffff",lit2:"#dbe5ef",shade:"rgba(88,116,152,.30)",tree:["#1b2f29","#22392f","#2a4337"],tsnow:"rgba(255,255,255,.85)",mist:"rgba(255,255,255,.45)",glow:"rgba(255,248,225,.75)",cable:"rgba(40,50,62,.75)"};
-  // 空と光
-  let g=sx.createLinearGradient(0,0,0,H*.7); g.addColorStop(0,C.sky[0]); g.addColorStop(.55,C.sky[1]); g.addColorStop(1,C.sky[2]);
-  sx.fillStyle=g; sx.fillRect(0,0,W,H);
-  const sunX=W*.8, sunY=H*.16; g=sx.createRadialGradient(sunX,sunY,0,sunX,sunY,W*.35); g.addColorStop(0,C.glow); g.addColorStop(1,"rgba(255,255,255,0)");
-  sx.fillStyle=g; sx.fillRect(0,0,W,H);
-  // 遠くの山なみ（2枚・かすむ）
-  const farRange=(base,amp,col,seed)=>{ const rr=rng(seed); const pts=jag(rr,[[-20,H*base],[W*.5,H*(base-.06)],[W+20,H*base]],7,H*amp,.55);
-    sx.beginPath(); sx.moveTo(-20,H); pts.forEach(p=>sx.lineTo(p[0],p[1])); sx.lineTo(W+20,H); sx.closePath();
-    const gg=sx.createLinearGradient(0,H*(base-amp),0,H*(base+.15)); gg.addColorStop(0,C.cap); gg.addColorStop(.35,col); gg.addColorStop(1,col); sx.fillStyle=gg; sx.fill(); };
-  farRange(narrow?.40:.36,.16,C.far1,7); farRange(narrow?.47:.44,.12,C.far2,11);
-  g=sx.createLinearGradient(0,H*.38,0,H*.62); g.addColorStop(0,"rgba(255,255,255,0)"); g.addColorStop(.5,C.mist); g.addColorStop(1,"rgba(255,255,255,0)"); sx.fillStyle=g; sx.fillRect(0,H*.38,W,H*.24);
-  // 主峰（東鉢の山を思わせる大きな斜面）
-  const px=narrow?W*.66:W*.64, py=narrow?H*.44:H*.24, U=narrow?Math.max(W,H*1.15):W; // 細い画面でも山の幅は保つ
-  const key=[[-40,H*(narrow?.80:.74)],[W*.18,H*(narrow?.66:.56)],[px-U*.12,py+H*.10],[px-U*.04,py+H*.02],[px,py],[px+U*.06,py+H*.05],[px+U*.16,py+H*.13],[W*.95,H*(narrow?.62:.50)],[W+40,H*(narrow?.66:.56)]];
-  const ridgePts=jag(r,key,5,H*.025,.5);
-  const massif=()=>{ sx.beginPath(); sx.moveTo(-40,H+2); ridgePts.forEach(p=>sx.lineTo(p[0],p[1])); sx.lineTo(W+40,H+2); sx.closePath(); };
-  massif(); g=sx.createLinearGradient(0,py,0,H); g.addColorStop(0,C.lit); g.addColorStop(1,C.lit2); sx.fillStyle=g; sx.fill();
-  sx.save(); massif(); sx.clip();
-  // 日の当たらない右側の斜面
-  const spur=smoothPath([[px,py],[px+U*.03,py+H*.18],[px+U*.01,py+H*.38],[px+U*.06,H*1.05]],8);
-  sx.beginPath(); sx.moveTo(px,py); ridgePts.filter(p=>p[0]>px).forEach(p=>sx.lineTo(p[0],p[1])); sx.lineTo(W+40,H+2); spur.slice().reverse().forEach(p=>sx.lineTo(p[0],p[1])); sx.closePath();
-  g=sx.createLinearGradient(px,0,W,0); g.addColorStop(0,C.shade); g.addColorStop(1,"rgba(88,116,152,.12)"); sx.fillStyle=g; sx.fill();
-  // 沢すじと尾根のかげ（細い筋を何本も）
-  for(let i=0;i<(dark?24:40);i++){ const t=r(), p=ridgePts[Math.floor(t*(ridgePts.length-1))]; if(p[1]>H*.8) continue;
-    const len=H*(.08+r()*.22), bend=(r()-.5)*U*.05, w=(1+r()*3)*S;
-    sx.beginPath(); sx.moveTo(p[0],p[1]+2); sx.quadraticCurveTo(p[0]+bend,p[1]+len*.5,p[0]+bend*.4+(p[0]>px?U*.02:-U*.02),p[1]+len);
-    sx.strokeStyle=dark?`rgba(5,12,25,${.08+r()*.12})`:`rgba(90,115,150,${.06+r()*.1})`; sx.lineWidth=w; sx.lineCap="round"; sx.stroke();
-    sx.beginPath(); sx.moveTo(p[0]-w,p[1]+3); sx.quadraticCurveTo(p[0]+bend-w,p[1]+len*.5,p[0]+bend*.4-w,p[1]+len*.9); sx.strokeStyle=dark?"rgba(220,230,245,.05)":"rgba(255,255,255,.35)"; sx.lineWidth=w*.7; sx.stroke(); }
-  // コース（森を切りひらいた白い道）と リフト
-  const runA=polyline(smoothPath([[px-U*.035,py+H*.07],[px-U*.11,py+H*.26],[px-U*.06,py+H*.44],[px-U*.15,H*.86],[px-U*.10,H*1.04]],14));
-  const runB=polyline(smoothPath([[px+U*.02,py+H*.12],[px+U*.07,py+H*.34],[px+U*.03,py+H*.52],[px+U*.10,H*1.04]],14));
-  const liftA=[W*(narrow?.93:.86),H*.97], liftB=[px+U*.035,py+H*.10];
-  const forestTop=x=>H*(narrow?.71:.6)+Math.sin(x/W*7+1.3)*H*.03+Math.sin(x/W*19)*H*.012;
-  const widthAt=y=>(10+Math.max(0,(y-py))/(H-py)*46)*S;
-  const nearRun=(x,y)=>{ for(const pl of [runA,runB]){ for(let i=0;i<pl.pts.length;i+=2){ const p=pl.pts[i]; if(Math.abs(p[1]-y)<widthAt(y)&&Math.hypot(p[0]-x,p[1]-y)<widthAt(y)*.55) return true; } }
-    const t=(y-liftB[1])/(liftA[1]-liftB[1]); if(t>0&&t<1){ const lx=liftB[0]+(liftA[0]-liftB[0])*t; if(Math.abs(lx-x)<7*S+t*10*S) return true; } return false; };
-  // 圧雪のすじ
-  [runA,runB].forEach(pl=>{ for(let k=-2;k<=2;k++){ sx.beginPath(); pl.pts.forEach((p,i)=>{ const o=k*widthAt(p[1])*.12; i?sx.lineTo(p[0]+o,p[1]):sx.moveTo(p[0]+o,p[1]); });
-    sx.strokeStyle=dark?"rgba(200,215,235,.05)":"rgba(140,165,195,.12)"; sx.lineWidth=1; sx.stroke(); } });
-  // 森（針葉樹を手前ほど大きく、雪をのせて）
-  const trees=[]; const n=Math.round(W*H/(narrow?75:55));
-  for(let i=0;i<n;i++){ const x=r()*W, ft=forestTop(x), y=ft+Math.pow(r(),.8)*(H-ft+10); if(nearRun(x,y)) continue; trees.push([x,y]); }
-  for(let i=0;i<70;i++){ const x=r()*W, y=forestTop(x)-r()*H*.12; if(y>py+H*.08&&!nearRun(x,y)) trees.push([x,y]); } // 森の上の まばらな木
-  trees.sort((a,b)=>a[1]-b[1]);
-  trees.forEach(([x,y])=>{ const k=Math.max(0,(y-H*.45)/(H*.55)), h=(5+k*17)*S*(.8+r()*.4), w=h*.42;
-    sx.fillStyle=C.tree[Math.floor(r()*3)];
-    sx.beginPath(); sx.moveTo(x,y-h); sx.lineTo(x+w*.5,y-h*.45); sx.lineTo(x+w*.32,y-h*.45); sx.lineTo(x+w*.62,y); sx.lineTo(x-w*.62,y); sx.lineTo(x-w*.32,y-h*.45); sx.lineTo(x-w*.5,y-h*.45); sx.closePath(); sx.fill();
-    sx.fillStyle=C.tsnow; sx.beginPath(); sx.moveTo(x,y-h); sx.lineTo(x-w*.36,y-h*.52); sx.lineTo(x-w*.1,y-h*.6); sx.closePath(); sx.fill();
-    sx.beginPath(); sx.moveTo(x-w*.22,y-h*.4); sx.lineTo(x-w*.55,y-h*.05); sx.lineTo(x-w*.3,y-h*.12); sx.closePath(); sx.fill(); });
-  // リフトの塔とケーブル
-  const tw=[0,.18,.36,.54,.72,.9,1].map(t=>[liftA[0]+(liftB[0]-liftA[0])*t, liftA[1]+(liftB[1]-liftA[1])*t]);
-  tw.forEach(([x,y],i)=>{ const k=.5+(y/H)*.9, h=16*S*k; sx.strokeStyle=dark?"rgba(160,175,195,.8)":"#3b4652"; sx.lineWidth=Math.max(1,1.6*S*k);
-    sx.beginPath(); sx.moveTo(x,y); sx.lineTo(x,y-h); sx.stroke(); sx.beginPath(); sx.moveTo(x-6*S*k,y-h); sx.lineTo(x+6*S*k,y-h); sx.stroke(); });
-  const cab=(off)=>{ sx.beginPath(); tw.forEach(([x,y],i)=>{ const k=.5+(y/H)*.9, h=16*S*k, X=x+off*S*k, Y=y-h; if(!i) sx.moveTo(X,Y); else { const [px0,py0]=tw[i-1], k0=.5+(py0/H)*.9; sx.quadraticCurveTo((X+px0+off*S*k0)/2,(Y+py0-16*S*k0)/2+3*S,X,Y); } }); sx.strokeStyle=C.cable; sx.lineWidth=.9; sx.stroke(); };
-  cab(-5); cab(5);
-  // 乗り場の建物
-  const hut=(x,y,w,h)=>{ sx.fillStyle=dark?"#2a2f38":"#5a4636"; sx.fillRect(x-w/2,y-h,w,h); sx.fillStyle=dark?"#b9c7d6":"#f4f7fa"; sx.beginPath(); sx.moveTo(x-w*.62,y-h); sx.lineTo(x,y-h*1.6); sx.lineTo(x+w*.62,y-h); sx.closePath(); sx.fill(); sx.fillStyle=dark?"rgba(255,210,120,.8)":"rgba(255,230,170,.9)"; sx.fillRect(x-w*.25,y-h*.6,w*.16,h*.25); sx.fillRect(x+w*.08,y-h*.6,w*.16,h*.25); };
-  hut(liftA[0]+18*S,liftA[1]+2,36*S,16*S); hut(liftB[0]-10*S,liftB[1]+4*S,16*S,8*S); hut(liftA[0]-60*S,liftA[1]+6,28*S,13*S);
-  // 文字を読みやすく（左側／上側を少し明るく）
-  const bg=getComputedStyle(root).getPropertyValue("--bg").trim()||"#f4f6f9";
-  if(narrow){ g=sx.createLinearGradient(0,0,0,H*.75); g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,0)"); }
-  else { g=sx.createLinearGradient(0,0,W*.6,0); g.addColorStop(0,bg+"e0"); g.addColorStop(.55,bg+"80"); g.addColorStop(1,bg+"00"); sx.fillStyle=g; sx.fillRect(0,0,W*.6,H); }
-  HS={runA,liftA,liftB,tw,S,widthAt,dark,trail:[],spray:[]};
-  const nf=Math.round(W*H/6000); flakes=Array.from({length:nf},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.8+.5,v:Math.random()*.5+.25,s:Math.random()*6.28}));
-}
-// 滑る人（シルエット）：進む向きに板、曲がる側へ体をかたむける
-function drawSkier(x,y,ang,lean,k){
-  const s=k*1.1; cx.save(); cx.translate(x,y); cx.rotate(lean);
-  cx.strokeStyle=HS.dark?"#e6eef7":"#152230"; cx.lineCap="round";
-  cx.lineWidth=2*s; cx.beginPath(); const sa=Math.cos(ang)*9*s, sb=Math.sin(ang)*3*s; cx.moveTo(-sa-2*s,-sb+1*s); cx.lineTo(sa-2*s,sb+1*s); cx.moveTo(-sa+2*s,-sb+2.5*s); cx.lineTo(sa+2*s,sb+2.5*s); cx.stroke(); // 板
-  cx.fillStyle=HS.dark?"#c9d6e4":"#1d2a38"; cx.beginPath(); cx.moveTo(-3*s,1*s); cx.lineTo(-1.5*s,-6*s); cx.lineTo(2*s,-6*s); cx.lineTo(3.5*s,1*s); cx.closePath(); cx.fill(); // 脚
-  cx.fillStyle="#d63b3b"; cx.beginPath(); cx.moveTo(-3.5*s,-6*s); cx.quadraticCurveTo(-4*s,-12*s,0,-13*s); cx.quadraticCurveTo(4*s,-12*s,3.5*s,-6*s); cx.closePath(); cx.fill(); // 上着
-  cx.fillStyle=HS.dark?"#e6eef7":"#1d2a38"; cx.beginPath(); cx.arc(0,-15.5*s,2.6*s,0,6.283); cx.fill(); // ヘルメット
-  cx.lineWidth=1*s; cx.beginPath(); cx.moveTo(-3*s,-10*s); cx.lineTo(-7*s,2*s); cx.moveTo(3*s,-10*s); cx.lineTo(7*s,2*s); cx.stroke(); // ストック
-  cx.restore();
+  cv.width=W*d; cv.height=H*d; cx.setTransform(d,0,0,d,0,0);
+  HS={};
+  const nf=Math.round(W*H/9000); flakes=Array.from({length:nf},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.7+.5,v:Math.random()*.5+.25,s:Math.random()*6.28}));
 }
 function heroFrame(t){
   if(!HS) return;
-  cx.clearRect(0,0,W,H);
-  const {runA,tw,S}=HS;
-  // リフトの椅子（上り・下り）
-  [[-5,1],[5,-1]].forEach(([off,dir])=>{ for(let i=0;i<9;i++){ let q=((t/40000)*dir+i/9)%1; if(q<0) q+=1;
-    const seg=q*(tw.length-1), j=Math.min(tw.length-2,Math.floor(seg)), f=seg-j, a=tw[j], b=tw[j+1];
-    const x=a[0]+(b[0]-a[0])*f, y=a[1]+(b[1]-a[1])*f, k=.5+(y/H)*.9, X=x+off*S*k, Y=y-16*S*k+Math.sin(f*Math.PI)*3*S;
-    cx.strokeStyle=HS.dark?"rgba(190,205,225,.85)":"#2c3540"; cx.lineWidth=Math.max(.8,1.1*S*k);
-    cx.beginPath(); cx.moveTo(X,Y); cx.lineTo(X,Y+7*S*k); cx.lineTo(X-3.5*S*k,Y+7*S*k); cx.lineTo(X-3.5*S*k,Y+3.5*S*k); cx.stroke();
-    if(dir>0&&i%2===0){ cx.fillStyle=i%4?"#2a6fd6":"#d63b3b"; cx.beginPath(); cx.arc(X-1.6*S*k,Y+4.6*S*k,1.5*S*k,0,6.283); cx.fill(); } } });
-  // 滑る人：コースの中をS字に
-  const u=(t/12000)%1, c=at(runA,u), nx=-c.dy, ny=c.dx, nl=Math.hypot(nx,ny)||1, wv=Math.sin(u*Math.PI*14), w=HS.widthAt(c.y);
-  const x=c.x+nx/nl*wv*w*.32, y=c.y+ny/nl*wv*w*.32, k=(.55+c.y/H*.9)*Math.max(.8,S);
-  HS.trail.push([x,y]); if(HS.trail.length>90||u<.01) HS.trail.splice(0,HS.trail.length>90?1:HS.trail.length-1);
-  cx.strokeStyle=HS.dark?"rgba(200,215,235,.25)":"rgba(120,145,175,.35)"; cx.lineWidth=1.2; cx.beginPath(); HS.trail.forEach((p,i)=>i?cx.lineTo(p[0],p[1]):cx.moveTo(p[0],p[1])); cx.stroke();
-  const turn=Math.cos(u*Math.PI*14);
-  if(Math.abs(turn)>.85&&Math.random()<.7) for(let i=0;i<3;i++) HS.spray.push({x,y,vx:(Math.random()-.5)*1.4-Math.sign(turn)*1.2,vy:-Math.random()*1.2,l:1});
-  HS.spray=HS.spray.filter(p=>(p.l-=.04)>0); HS.spray.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=.06; cx.fillStyle=`rgba(255,255,255,${p.l*.9})`; cx.beginPath(); cx.arc(p.x,p.y,1.4*k,0,6.283); cx.fill(); });
-  drawSkier(x,y,Math.atan2(c.dy,c.dx)+turn*.5,-turn*.35,k);
-  // 降る雪
-  cx.fillStyle="rgba(255,255,255,.85)";
+  cx.clearRect(0,0,W,H); cx.fillStyle="rgba(255,255,255,.8)";
   for(const f of flakes){ f.y+=f.v; f.x+=Math.sin(t/1600+f.s)*.3; if(f.y>H){f.y=-4;f.x=Math.random()*W;} cx.beginPath(); cx.arc(f.x,f.y,f.r,0,6.283); cx.fill(); }
 }
 let heroVisible=true;
@@ -1050,7 +932,7 @@ function heroTick(t){ if(heroVisible) heroFrame(t); requestAnimationFrame(heroTi
 paintScene();
 if(reduce) heroFrame(3500); else requestAnimationFrame(heroTick);
 let rsT=0; addEventListener("resize",()=>{ clearTimeout(rsT); rsT=setTimeout(()=>{ paintScene(); if(reduce) heroFrame(3500); },150); });
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{ paintScene(); if(typeof paintMaps==="function") paintMaps(); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{ paintScene(); });
 /* ---------- スクロール ---------- */
 // 画面の外にある節だけ少し下げておき、入ってきたら持ち上げる（見えなくはしない）
 const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.toggle("pre",false); io.unobserve(e.target);} }),{threshold:.05});
@@ -1061,10 +943,6 @@ const navIo=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ $
 $$("main section[id]").forEach(s=>navIo.observe(s));
 
 /* ---------- コース図を描く ---------- */
-const TREES=[[20,238],[38,262],[18,290],[48,300],[30,330],[62,318],[72,280],[52,250],[16,358],[44,196],[24,212],[120,226],[100,244],
-  [150,300],[172,292],[195,282],[150,345],
-  [318,282],[356,284],[376,300],[308,334],[335,318],[268,352],[312,366],[352,350],[384,330],[250,392],[285,400],[325,392],[365,385],[230,430],[270,438],[312,430],[355,425],[386,440],
-  [110,38],[128,30],[100,58],[120,118],[100,132],[150,118]];
 /* 2つの図（東鉢側・スカイバレイ側）をまとめてあつかう */
 const MAPS={
   tohachi:{svg:$("#mapSvg"), courses:COURSES, lifts:LIFTS, areas:AREAS},
@@ -1082,11 +960,11 @@ function buildMap(key){
   const M=MAPS[key], svg=M.svg, q=s=>svg.querySelector(s);
   const lg=q(".g-lifts"), cg=q(".g-courses"), lbg=q(".g-labels"), bdg=q(".g-badges"), rp=el("g",{class:"g-run"}); svg.appendChild(rp);
   M.lifts.forEach(L=>{
-    const d=`M${L.a[0]} ${L.a[1]} L${L.b[0]} ${L.b[1]}`;
+    const d="M"+L.pts.map(p=>p.join(" ")).join(" L"), pa=L.pts[0], pb=L.pts[L.pts.length-1];
     lg.appendChild(el("path",{class:"cable",d}));
     lg.appendChild(el("path",{class:"lift",d,id:"lp-"+L.id,"data-id":L.id}));
-    lg.appendChild(el("circle",{class:"lift-end",cx:L.a[0],cy:L.a[1],r:3}));
-    lg.appendChild(el("circle",{class:"lift-end",cx:L.b[0],cy:L.b[1],r:3}));
+    lg.appendChild(el("circle",{class:"lift-end",cx:pa[0],cy:pa[1],r:3}));
+    lg.appendChild(el("circle",{class:"lift-end",cx:pb[0],cy:pb[1],r:3}));
     const hit=el("path",{class:"lift-hit",d,"data-id":L.id}); hit.addEventListener("click",()=>select(L.id,true)); lg.appendChild(hit);
     const b=el("g",{class:"badge","data-id":L.id,transform:`translate(${L.badge[0]} ${L.badge[1]})`},`<circle r="7"></circle><text y="3.4" text-anchor="middle">${esc(L.n||L.ch)}</text>`);
     b.addEventListener("click",()=>select(L.id,true)); bdg.appendChild(b);
@@ -1113,68 +991,66 @@ function buildMap(key){
   svg.querySelectorAll("[data-area]").forEach(a=>a.addEventListener("click",()=>select(a.dataset.area,true)));
 }
 buildMap("tohachi"); buildMap("sv");
-/* コース図の地形（陰影）と森を、画像にして図の下にしく */
-const TERRAIN={
-  tohachi:{vb:[-14,-54,414,540], peak:[212,8], trees:TREES, seed:7},
-  sv:{vb:[-10,-44,430,340], peak:[300,-20], trees:[], seed:19}
-};
-function paintTerrain(key){
-  const T=TERRAIN[key], svg=MAPS[key].svg, [vx,vy,vw,vh]=T.vb, S=2;
-  const cs=getComputedStyle(svg), dark=isDark();
-  const hex=v=>{ const m=(cs.getPropertyValue(v).trim()||"#3d7a5d").replace("#",""); return [0,2,4].map(i=>parseInt(m.slice(i,i+2),16)); };
-  let s=T.seed*9973; const rnd=()=>((s=(s*16807)%2147483647)/2147483647);
-  // なめらかなノイズ
-  const P=new Uint8Array(512); for(let i=0;i<256;i++) P[i]=i; for(let i=255;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [P[i],P[j]]=[P[j],P[i]]; } for(let i=0;i<256;i++) P[i+256]=P[i];
-  const fade=t=>t*t*(3-2*t), H=(x,y)=>P[P[x&255]+(y&255)]/255;
-  const vn=(x,y)=>{ const xi=Math.floor(x), yi=Math.floor(y), xf=fade(x-xi), yf=fade(y-yi);
-    const a=H(xi,yi), b=H(xi+1,yi), c=H(xi,yi+1), d=H(xi+1,yi+1); return a+(b-a)*xf+(c-a)*yf+(a-b-c+d)*xf*yf; };
-  const fbm=(x,y)=>{ let v=0,amp=1,f=1; for(let o=0;o<5;o++){ v+=amp*vn(x*f,y*f); amp*=.5; f*=2.03; } return v; };
-  // 高さ：山頂からはなれるほど低く＋尾根と沢
-  const W=vw, Hh=vh, h=new Float32Array(W*Hh);
-  for(let j=0;j<Hh;j++) for(let i=0;i<W;i++){
-    const x=vx+i, y=vy+j, dx=x-T.peak[0], dy=y-T.peak[1], r=Math.hypot(dx,dy), th=Math.atan2(dy,dx);
-    const rid=Math.abs(Math.sin(th*7+fbm(x/90,y/90)*3))*14*Math.min(1,r/120);
-    h[j*W+i]=-r*.55 - rid + fbm(x/46,y/46)*20 + fbm(x/14,y/14)*1.6;
-  }
-  const c=document.createElement("canvas"); c.width=W*S; c.height=Hh*S; const g=c.getContext("2d");
-  const lo=document.createElement("canvas"); lo.width=W; lo.height=Hh; const lg=lo.getContext("2d"), im=lg.createImageData(W,Hh);
-  const L=[-.62,-.55,.56]; // 左上からの光
-  for(let j=1;j<Hh-1;j++) for(let i=1;i<W-1;i++){
-    const nx=(h[j*W+i-1]-h[j*W+i+1]), ny=(h[(j-1)*W+i]-h[(j+1)*W+i]), nz=3.2, nl=Math.hypot(nx,ny,nz);
-    const sh=(nx*L[0]+ny*L[1]+nz*L[2])/nl - .62, k=(j*W+i)*4;
-    if(sh<0){ // かげ
-      const a=Math.min(1,-sh*1.5);
-      if(dark){ im.data[k]=0; im.data[k+1]=6; im.data[k+2]=18; im.data[k+3]=a*105; }
-      else { im.data[k]=86; im.data[k+1]=116; im.data[k+2]=158; im.data[k+3]=a*62; }
-    } else { // 日なた
-      const a=Math.min(1,sh*2.2);
-      if(dark){ im.data[k]=170; im.data[k+1]=200; im.data[k+2]=235; im.data[k+3]=a*28; }
-      else { im.data[k]=255; im.data[k+1]=252; im.data[k+2]=245; im.data[k+3]=a*90; }
-    }
-  }
-  lg.putImageData(im,0,0);
-  g.imageSmoothingEnabled=true; g.drawImage(lo,0,0,W*S,Hh*S);
-  // 森：針葉樹のかたまり（上から見た木）
-  const [tr,tg,tb]=hex("--tree"), sh=dark?.55:.72;
-  const col=(m,a)=>`rgba(${Math.round(tr*m)},${Math.round(tg*m)},${Math.round(tb*m)},${a})`;
-  const trees=[];
-  T.trees.forEach(([cx,cy])=>{ for(let n=0;n<46;n++){ const a=rnd()*6.283, d=Math.pow(rnd(),.65)*20; trees.push([cx+7+Math.cos(a)*d*1.2, cy-7+Math.sin(a)*d*.9, 2.1+rnd()*1.5]); } });
-  trees.sort((p,q)=>p[1]-q[1]);
-  const X=x=>(x-vx)*S, Y=y=>(y-vy)*S;
-  trees.forEach(([x,y,r])=>{ g.fillStyle=dark?"rgba(0,0,0,.35)":"rgba(40,60,90,.18)"; g.beginPath(); g.ellipse(X(x+r*.9),Y(y+r*.7),r*S*1.05,r*S*.6,.5,0,6.283); g.fill(); });
-  trees.forEach(([x,y,r])=>{
-    g.fillStyle=col(sh*(.85+rnd()*.3),1); g.beginPath(); g.arc(X(x),Y(y),r*S,0,6.283); g.fill();
-    g.fillStyle=col(1.15,.75); g.beginPath(); g.arc(X(x-r*.3),Y(y-r*.35),r*S*.45,0,6.283); g.fill();
-    if(!dark){ g.fillStyle="rgba(255,255,255,.55)"; g.beginPath(); g.arc(X(x-r*.4),Y(y-r*.5),r*S*.18,0,6.283); g.fill(); }
-  });
-  let img=svg.querySelector("image.terrain");
-  if(!img){ img=el("image",{class:"terrain",x:vx,y:vy,width:vw,height:vh,preserveAspectRatio:"none"}); svg.querySelector('rect[fill^="url(#mapbg"]').after(img); }
-  c.toBlob(b=>{ if(!b) return; const u=URL.createObjectURL(b), old=img.getAttribute("href"); img.setAttribute("href",u); if(old&&old.startsWith("blob:")) URL.revokeObjectURL(old); });
+$("#mapSvg .g-labels").appendChild(el("text",{class:"maplabel s",x:218,y:341,"text-anchor":"start"},"チビッコパーク"));
+
+/* ---------- コース図の拡大・縮小（＋－ボタン・ピンチ・ダブルクリック・Ctrl＋ホイール、拡大中はドラッグで移動） ---------- */
+const IMG={w:499.5,h:395}, ZOOM={};
+function applyZoom(key){
+  const Z=ZOOM[key], maxW=Z.maxW;
+  Z.w=Math.min(maxW,Math.max(Z.w0/6,Z.w)); Z.h=Z.w*Z.h0/Z.w0;
+  const fit=(v,size,img)=> size>=img+30 ? (img-size)/2 : Math.min(img-size+10,Math.max(-30,v));
+  Z.x=fit(Z.x,Z.w,IMG.w); Z.y=fit(Z.y,Z.h,IMG.h);
+  Z.svg.setAttribute("viewBox",`${Z.x.toFixed(2)} ${Z.y.toFixed(2)} ${Z.w.toFixed(2)} ${Z.h.toFixed(2)}`);
+  Z.svg.classList.toggle("zoomed",Z.w<Z.w0-.5);
+  if(Z.w<Z.w0-.5) $("#zoomhint").classList.add("off");
 }
-function paintMaps(){ try{ Object.keys(TERRAIN).forEach(paintTerrain); }catch(e){} }
-paintMaps();
-[["山頂（オープンバーン）",186,7,"end",""],["チビッコゲレンデ",126,355,"middle"," s"],["チビッコパーク",94,433,"middle"," s"],["スカイバレイ（リフト券共通）",300,3,"middle"," s"]]
-  .forEach(([t,x,y,a,s])=>$("#mapSvg .g-labels").appendChild(el("text",{class:"maplabel"+s,x,y,"text-anchor":a},esc(t))));
+function zoomAt(key,w,sp,cp){ // sp：止めておく図の点、cp：その点が来る画面の位置
+  const Z=ZOOM[key], r=Z.svg.getBoundingClientRect(), fx=(cp[0]-r.left)/r.width, fy=(cp[1]-r.top)/r.height;
+  Z.w=Math.min(Z.maxW,Math.max(Z.w0/6,w)); Z.h=Z.w*Z.h0/Z.w0; Z.x=sp[0]-fx*Z.w; Z.y=sp[1]-fy*Z.h; applyZoom(key);
+}
+let zoomAnim=0;
+function zoomTween(key,tx,ty,tw){
+  const Z=ZOOM[key], x0=Z.x, y0=Z.y, w0=Z.w, t0=performance.now(), tok=++zoomAnim;
+  if(reduce){ Z.x=tx; Z.y=ty; Z.w=tw; applyZoom(key); return; }
+  const step=t=>{ if(tok!==zoomAnim) return; const k=Math.min(1,(t-t0)/320), e=1-Math.pow(1-k,3);
+    Z.w=w0+(tw-w0)*e; Z.h=Z.w*Z.h0/Z.w0; Z.x=x0+(tx-x0)*e; Z.y=y0+(ty-y0)*e; applyZoom(key); if(k<1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function zoomBy(key,f){ const Z=ZOOM[key], cx0=Z.x+Z.w/2, cy0=Z.y+Z.h/2, w=Math.min(Z.maxW,Math.max(Z.w0/6,Z.w*f)), h=w*Z.h0/Z.w0; zoomTween(key,cx0-w/2,cy0-h/2,w); }
+function zoomReset(key){ const Z=ZOOM[key]; zoomTween(key,Z.x0,Z.y0,Z.w0); }
+// 拡大しているときに選んだ線が見えなければ、見える所まで動かす
+function zoomShow(key,els){
+  const Z=ZOOM[key]; if(!Z||Z.w>=Z.w0-.5||!els.length) return;
+  let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; els.forEach(e=>{ const b=e.getBBox(); x1=Math.min(x1,b.x); y1=Math.min(y1,b.y); x2=Math.max(x2,b.x+b.width); y2=Math.max(y2,b.y+b.height); });
+  if(x1>=Z.x&&y1>=Z.y&&x2<=Z.x+Z.w&&y2<=Z.y+Z.h) return;
+  const pad=14, need=Math.max(x2-x1+pad*2,(y2-y1+pad*2)*Z.w0/Z.h0), w=Math.min(Z.maxW,Math.max(Z.w,need)), h=w*Z.h0/Z.w0;
+  zoomTween(key,(x1+x2)/2-w/2,(y1+y2)/2-h/2,w);
+}
+function zoomInit(key){
+  const svg=MAPS[key].svg, vb=svg.viewBox.baseVal;
+  const Z=ZOOM[key]={svg,x0:vb.x,y0:vb.y,w0:vb.width,h0:vb.height,x:vb.x,y:vb.y,w:vb.width,h:vb.height};
+  Z.maxW=Math.max(Z.w0,Math.min(IMG.w*1.04,IMG.h*1.04*Z.w0/Z.h0));
+  const pts=new Map(); let moved=0, last=null, pinch=null;
+  const toSvg=(x,y)=>{ const r=svg.getBoundingClientRect(); return [Z.x+(x-r.left)/r.width*Z.w, Z.y+(y-r.top)/r.height*Z.h]; };
+  svg.addEventListener("pointerdown",e=>{ if(e.button>0) return; pts.set(e.pointerId,[e.clientX,e.clientY]); last=[e.clientX,e.clientY]; if(pts.size===1) moved=0;
+    if(pts.size===2){ const [a,b]=[...pts.values()]; pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])||1, w:Z.w, c:toSvg((a[0]+b[0])/2,(a[1]+b[1])/2)}; zoomAnim++; } });
+  svg.addEventListener("pointermove",e=>{ if(!pts.has(e.pointerId)) return; pts.set(e.pointerId,[e.clientX,e.clientY]);
+    if(pts.size===2&&pinch){ const [a,b]=[...pts.values()], d=Math.hypot(a[0]-b[0],a[1]-b[1]); zoomAt(key,pinch.w*pinch.d/d,pinch.c,[(a[0]+b[0])/2,(a[1]+b[1])/2]); moved=99; e.preventDefault(); return; }
+    if(pts.size===1&&Z.w<Z.w0-.5){ const r=svg.getBoundingClientRect(), dx=e.clientX-last[0], dy=e.clientY-last[1];
+      moved+=Math.abs(dx)+Math.abs(dy); if(moved>4) svg.classList.add("panning");
+      Z.x-=dx/r.width*Z.w; Z.y-=dy/r.height*Z.h; zoomAnim++; applyZoom(key); }
+    last=[e.clientX,e.clientY]; });
+  const up=e=>{ pts.delete(e.pointerId); if(pts.size<2) pinch=null; if(pts.size===1) last=[...pts.values()][0]; if(!pts.size) svg.classList.remove("panning"); };
+  ["pointerup","pointercancel","pointerleave"].forEach(t=>svg.addEventListener(t,up));
+  svg.addEventListener("click",e=>{ if(moved>4){ e.stopPropagation(); e.preventDefault(); } },true); // 動かしたあとの「押した」は無視
+  svg.addEventListener("wheel",e=>{ if(!e.ctrlKey) return; e.preventDefault(); zoomAnim++; zoomAt(key,Z.w*Math.exp(e.deltaY*.01),toSvg(e.clientX,e.clientY),[e.clientX,e.clientY]); },{passive:false});
+  svg.addEventListener("dblclick",e=>{ e.preventDefault(); const w=Z.w<Z.w0/3.5?Z.w0:Z.w/1.8, sp=toSvg(e.clientX,e.clientY), h=w*Z.h0/Z.w0, r=svg.getBoundingClientRect();
+    zoomTween(key,sp[0]-(e.clientX-r.left)/r.width*w,sp[1]-(e.clientY-r.top)/r.height*h,w); });
+  // iPhone の2本指（ページ全体の拡大にしない）
+  svg.addEventListener("touchmove",e=>{ if(e.touches.length>1||Z.w<Z.w0-.5) e.preventDefault(); },{passive:false});
+}
+Object.keys(MAPS).forEach(zoomInit);
+$$(".zoomctl button").forEach(b=>b.onclick=()=>{ const z=b.dataset.z; if(z==="in") zoomBy(curMap,1/1.6); else if(z==="out") zoomBy(curMap,1.6); else zoomReset(curMap); });
 
 /* 図の切りかえ（東鉢側／スカイバレイ側） */
 let curMap="tohachi";
@@ -1272,6 +1148,7 @@ function select(id,fromMap,extra,quiet){
   let show= f.kind==="course"?[id] : (f.kind==="lift"?(f.item.serves||[]):(f.item.show||[]));
   if(extra) show=show.concat(extra);
   showCourses(f.map,show);
+  zoomShow(f.map, show.map(i=>document.getElementById("cv-"+i)||document.getElementById("lp-"+i)).filter(Boolean).concat(f.kind==="lift"?[document.getElementById("lp-"+id)]:[]));
   M.courses.forEach(c=>{ const p=document.getElementById("cv-"+c.id), on=c.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w+2:c.w); });
   Object.keys(MAPS).forEach(k=>placeSG(k,null));
   svg.querySelectorAll(".lift").forEach(p=>p.classList.toggle("sel",p.dataset.id===id));
