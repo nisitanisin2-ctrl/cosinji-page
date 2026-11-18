@@ -1,10 +1,10 @@
-// 🍽 食べた物 帳だけのアプリ（v695）の控え。表電卓（../service-worker.js）とは別の名前で持つ。
+// 🍽 食べた物帳だけのアプリ（v695）の控え。表電卓（../service-worker.js）とは別の名前で持つ。
 // ネットワーク優先：つながっていれば いつも新しいものを取り、控えも新しくする。電波がないときだけ 控えを返す。
-const CACHE = 'tabeta-app-v695';
+const CACHE = 'tabeta-app-v696';
 const PREFIX = 'tabeta-app-';
 // かならず要るもの（このフォルダの中）
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
-// 食べた物 帳の本体。Netlify などに このフォルダだけ置くときは 同じ場所、表電卓といっしょに置くときは ひとつ上（../）にある。ない方は とばす。
+// 食べた物帳の本体。Netlify などに このフォルダだけ置くときは 同じ場所、表電卓といっしょに置くときは ひとつ上（../）にある。ない方は とばす。
 const MAYBE = ['./tabeta.js', '../tabeta.js'];
 
 self.addEventListener('install', e => {

@@ -1,4 +1,4 @@
-/* 🍽 食べた物 帳（v693〜v695。表電卓の道具。apps/tabeta/ から 単独の アプリとしても 開ける。はじめて 開いたときに 読む）
+/* 🍽 食べた物帳（v693〜v696。表電卓の道具。apps/tabeta/ から 単独の アプリとしても 開ける。はじめて 開いたときに 読む）
    食べた物を 打つか 話すだけで どんどん 記録して いく。
    ・下の 欄に「おにぎり、みそ汁」のように 打って Enter（または ＋）。「、」「,」「・」「／」・改行で 分けて 1品ずつ 入る。
      🎤 で 話したときは「おにぎりと みそ汁」の「と」でも 分ける（⚙ で 切れる）。入れたら 欄は 空に なり、そのまま 続けて 入れられる。
@@ -11,8 +11,10 @@
    ・押すと 直す（名前・日・時刻・食事・量や メモ・消す・もう一度 食べた）。入れた・消したは 下の 帯の ↶ で 取り消せる。
    ・🔍 さがす：その 物を 何回・最後に いつ 食べたか。
    ・⚙：📋 コピー・📤 共有（きょう・きのう・この7日・ぜんぶ）・⬇ CSV（Excel）・▦ 表に 入れる・「と」で 分ける・ぜんぶ 消す。
+   ・👤 わたしの こと（性別・年齢・身長・体重・1日の 動き）→ 基礎代謝と 1日に 使う 量。日ごとの 合計に ＋−（v696）。
+   ・📈 グラフ：範囲（7日〜ぜんぶ・日付）を 決めて 1日の カロリー／＋−。62日までは 日ごと、400日までは 週、それより 長いと 月ごと（v696）。
    ・⬆ CSV を 読み込む：⬇ CSV で 書き出した ものを もどす・ほかの 端末や アプリから うつす（同じ 日時・名前は とばす）（v695）。
-   ・表電卓なしで 開く 食べた物 帳だけの アプリは tabeta-app/（⚙ →「📱 食べた物 帳だけの アプリ」に 開き方・Netlify への 置き方）（v695）。
+   ・表電卓なしで 開く 食べた物帳だけの アプリは tabeta-app/（⚙ →「📱 食べた物帳だけの アプリ」に 開き方・Netlify への 置き方）（v695）。
    中身は excalc_tabeta（この端末の中だけ。📋リストの ⬇書き出しにも 入る）。 */
 (function(){
 'use strict';
@@ -474,7 +476,7 @@ function load(){
   const seen=new Set(), e=(Array.isArray(o.e) ? o.e : []).map(cleanE).filter(Boolean).filter(x=>{ if(seen.has(x.i)) x.i=rid(); seen.add(x.i); return true; });
   e.sort((a,b)=>a.t-b.t);
   const my={}; if(o.my && typeof o.my==='object') Object.keys(o.my).slice(-3000).forEach(h=>{ const v=+o.my[h], hh=hira(h).slice(0, NAME_N); if(hh && isFinite(v) && v>=0 && v<=20000) my[hh]=Math.round(v); });
-  st={e:e.slice(-MAX_E), split:o.split!==false, cal:o.cal!==false, my}; kcCache.clear();
+  st={e:e.slice(-MAX_E), split:o.split!==false, cal:o.cal!==false, my, prof:cleanProf(o.prof)}; kcCache.clear();
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); return true; }catch(_){ toastS('端末に しまえませんでした（空きが 少ない かも しれません。⚙ の ⬇ CSV で 残して、古い 記録を 消して ください）', 5200); return false; } }
 const eOf=id=>st.e.find(x=>x.i===id)||null;
@@ -563,7 +565,10 @@ function dayTotals(){   // 日ごとの カロリー 合計（わからない �
 }
 function dsumHtml(d, o){
   if(!o || o.u===o.n) return '';
-  return '<div class="tb-dsum">'+dateText(d)+'の 合計 <b>約'+kcText(o.s)+'</b>'+(o.u ? '<small>（わからない 物 '+o.u+'品は 入って いません）</small>' : '')+'</div>';
+  const bn=burnOf();
+  return '<div class="tb-dsum">'+dateText(d)+'の 合計 <b>約'+kcText(o.s)+'</b>'
+    +(bn!=null ? '<div class="tb-pmrow">'+burnName()+' 約'+kcText(bn)+' と くらべて '+pmHtml(o.s-bn)+'</div>' : '')
+    +(o.u ? '<small>（わからない 物 '+o.u+'品は 入って いません）</small>' : '')+'</div>';
 }
 function rowsHtml(list, totals){   // 食べた物を 1行ずつ（入れた 日付・時刻つき・カロリー）。日が かわる 所に 線
   const tk=ymd(now()), cal=st.cal, tot=cal && totals ? dayTotals() : null; let prev='';
@@ -593,7 +598,7 @@ function render(toBottom){
   } else {
     const list=st.e.slice(-shown), older=st.e.length-list.length;
     html=(older ? '<button type="button" class="tb-more" onclick="TABETA.more()">▲ もっと 前を 見る（あと '+older.toLocaleString()+'品）</button>' : '')
-      +rowsHtml(list, true)+'<p class="tb-count">ぜんぶで '+st.e.length.toLocaleString()+'品</p>';
+      +rowsHtml(list, true)+'<div class="tb-count">'+(st.cal && !st.prof ? '<button type="button" class="tb-linkb" onclick="TABETA.prof()">👤 年齢・性別などを 入れると 基礎代謝と ＋− が 出ます</button>' : '')+'<span>ぜんぶで '+st.e.length.toLocaleString()+'品</span></div>';
   }
   b.innerHTML='<div class="tb-wrap">'+html+'</div>';
   renderDock();
@@ -614,7 +619,7 @@ function popOpen(html, kind, id){
   popClose();
   const host=document.querySelector('#tabetaOverlay .tb-modal'); if(!host) return;
   const el=document.createElement('div'); el.className='tb-pop-bg';
-  el.innerHTML='<div class="tb-pop" role="dialog" aria-modal="true">'+html+'</div>';
+  el.innerHTML='<div class="tb-pop'+(kind==='graph' ? ' big' : '')+'" role="dialog" aria-modal="true">'+html+'</div>';
   el.addEventListener('mousedown', ev=>{ if(ev.target===el) popClose(); });
   host.appendChild(el);
   pop={el, kind, id, rel:()=>{}};
@@ -680,14 +685,16 @@ function setWhen(k, v){
 function whenTap(){ if(when){ when=null; renderDock(); toastS('いまの 時刻で 入れます'); } else openWhen(); }
 function openMenu(){
   const n=st.e.length, days=new Set(st.e.map(x=>ymd(new Date(x.t)))).size;
-  popOpen(ph('⚙ 食べた物 帳')
+  popOpen(ph('⚙ 食べた物帳')
     +'<p class="tb-note">いま <b>'+n.toLocaleString()+'</b>品（'+days+'日ぶん）。入れた ものは この 端末の 中だけに あります'+(solo() ? '。⬇ CSV で 控えを 残せます。' : '（📋リストの ⬇書き出しにも 入ります）。')+'</p>'
     +'<h5>コピー・共有（LINE・メールに 貼れます）</h5>'
     +'<div class="tb-seg wide">'+[['today','きょう'],['yday','きのう'],['week','この7日'],['all','ぜんぶ']].map(([k,t])=>'<button type="button" onclick="TABETA.out(\'copy\',\''+k+'\')">📋 '+t+'</button>').join('')+'</div>'
     +'<div class="tb-seg wide">'+[['today','きょう'],['week','この7日']].map(([k,t])=>'<button type="button" onclick="TABETA.out(\'share\',\''+k+'\')">📤 '+t+'を 送る</button>').join('')+'</div>'
     +'<h5>ほかの 形で</h5>'
     +'<div class="tb-acts col"><button type="button" class="tb-b" onclick="TABETA.csv()">⬇ CSV（Excel）で 保存（ぜんぶ）</button>'+(typeof toolPasteRows==='function' ? '<button type="button" class="tb-b" onclick="TABETA.out(\'table\',\'week\')">▦ この7日を 表に 入れる</button>' : '')
-      +'<button type="button" class="tb-b" onclick="TABETA.importClick()">⬆ CSV を 読み込む（足す）</button><button type="button" class="tb-b" onclick="TABETA.appHelp()">📱 食べた物 帳だけの アプリ'+(solo() ? '（いま 開いて います）' : '')+'</button></div>'
+      +'<button type="button" class="tb-b" onclick="TABETA.importClick()">⬆ CSV を 読み込む（足す）</button><button type="button" class="tb-b" onclick="TABETA.appHelp()">📱 食べた物帳だけの アプリ'+(solo() ? '（いま 開いて います）' : '')+'</button></div>'
+    +'<h5>カロリー</h5>'
+    +'<div class="tb-acts col"><button type="button" class="tb-b" onclick="TABETA.prof()">👤 わたしの こと（基礎代謝・＋−）'+(st.prof ? '：'+(st.prof.sex==='m' ? '男性' : '女性')+' '+st.prof.age+'歳' : '')+'</button><button type="button" class="tb-b" onclick="TABETA.graph()">📈 グラフ（範囲を 決めて）</button></div>'
     +'<h5>入れ方</h5>'
     +'<label class="tb-chk"><input type="checkbox" '+(st.cal ? 'checked' : '')+' onchange="TABETA.setCal(this.checked)"> 🔥 カロリー（目安）を 出す（よく ある 物は 自動。わからない 物は 押して 数字を 入れると、次から 同じ 名前は 自動）</label>'
     +'<label class="tb-chk"><input type="checkbox" '+(st.split ? 'checked' : '')+' onchange="TABETA.setSplit(this.checked)"> 🎤 で 話した ときは「と」でも 分ける（おにぎりと みそ汁 → 2品）</label>'
@@ -705,10 +712,10 @@ function rangeOf(k){
 function text(k){
   const r=rangeOf(k||'today'), list=st.e.filter(x=>x.t>=r.from && x.t<r.to);
   if(!list.length) return '';
-  const cal=st.cal, tot=cal ? dayTotals() : null; let all=0;
+  const cal=st.cal, tot=cal ? dayTotals() : null, bn=cal ? burnOf() : null; let all=0;
   const lines=list.map((x, i)=>{ const d=new Date(x.t), k=ymd(d), c=cal ? kcalOf(x) : null, nx=list[i+1];
     let l=dateText(d)+' '+hm(d)+'　'+x.n+(x.q ? '（'+x.q+'）' : '')+(c!=null ? '　'+kcText(c) : '');
-    if(cal && (!nx || ymd(new Date(nx.t))!==k)){ const o=tot.get(k); if(o && o.u<o.n){ l+='\n　→ '+dateText(d)+'の 合計 約'+kcText(o.s)+(o.u ? '（わからない 物 '+o.u+'品を のぞく）' : ''); all+=o.s; } }
+    if(cal && (!nx || ymd(new Date(nx.t))!==k)){ const o=tot.get(k); if(o && o.u<o.n){ l+='\n　→ '+dateText(d)+'の 合計 約'+kcText(o.s)+(o.u ? '（わからない 物 '+o.u+'品を のぞく）' : '')+(bn!=null ? '（'+burnName()+' '+kcText(bn)+' と くらべて '+pmText(o.s-bn)+'kcal）' : ''); all+=o.s; } }
     return l; });
   return '🍽 食べた物（'+r.title+'・'+list.length+'品）\n'+lines.join('\n')+(cal && r.title!=='きょう' && r.title!=='きのう' && all ? '\n\nカロリー 合計 約'+kcText(all)+'（目安）' : '');
 }
@@ -722,7 +729,7 @@ function out(kind, k){
   popClose();
   if(kind==='copy'){ if(typeof toolCopyText==='function') toolCopyText(t, '📋 '+r.title+'の 食べた物を コピーしました（LINE などに 貼れます）'); return; }
   if(kind==='share'){ if(typeof toolShareText==='function') toolShareText('食べた物（'+r.title+'）', t); return; }
-  if(kind==='table'){ if(typeof toolPasteRows==='function') toolPasteRows(rows(k), '食べた物 帳', closeTabeta); }
+  if(kind==='table'){ if(typeof toolPasteRows==='function') toolPasteRows(rows(k), '食べた物帳', closeTabeta); }
 }
 function csv(){
   if(!st.e.length){ toastS('記録が ありません'); return; }
@@ -740,6 +747,180 @@ async function wipe(){
   const keep=st.e; st.e=[]; save(); popClose(); render();
   showUndo('ぜんぶ 消しました', ()=>{ st.e=keep; save(); render(true); });
 }
+/* ───────── 👤 わたしの こと（基礎代謝・1日に 使う 量）・＋− ─────────
+   基礎代謝：18歳から 国立健康・栄養研究所の 式（Ganpule ほか 2007）
+     男性 (0.0481×体重kg＋0.0234×身長cm−0.0138×年齢−0.4235)×1000/4.186
+     女性 (0.0481×体重kg＋0.0234×身長cm−0.0138×年齢−0.9708)×1000/4.186
+   17歳まで：日本人の 食事摂取基準（2020年版）の 基礎代謝基準値（kcal/kg/日）× 体重。
+   1日に 使う 量＝基礎代謝 × 身体活動レベル（食事摂取基準 2020 の 年齢ごとの 低い・ふつう・高い）。 */
+const BMR_STD={m:[[2,61.0],[5,54.8],[7,44.3],[9,40.8],[11,37.4],[14,31.0],[17,27.0]], f:[[2,59.7],[5,52.2],[7,41.9],[9,38.3],[11,34.8],[14,29.6],[17,25.3]]};
+const PAL_TBL=[[5,[1.45,1.45,1.45]],[7,[1.35,1.55,1.75]],[9,[1.40,1.60,1.80]],[11,[1.45,1.65,1.85]],[14,[1.50,1.70,1.90]],[17,[1.55,1.75,1.95]],[64,[1.50,1.75,2.00]],[74,[1.45,1.70,1.95]],[200,[1.40,1.65,1.65]]];
+const ACTS=[['1','低い','ほとんど 座って すごす（家で ゆっくり・デスクワーク）'],['2','ふつう','立ち仕事・家事・通勤・買い物・散歩 など'],['3','高い','力仕事・よく 運動する'],['b','基礎代謝で くらべる','動いた 分は 入れずに くらべる']];
+function cleanProf(p){
+  if(!p || typeof p!=='object') return null;
+  const sex=p.sex==='m' || p.sex==='f' ? p.sex : null, age=+p.age, h=+p.h, w=+p.w, act=['1','2','3','b'].includes(String(p.act)) ? String(p.act) : '2';
+  if(!sex || !(age>=1 && age<=120) || !(w>=10 && w<=300)) return null;
+  const hh=(h>=50 && h<=250) ? Math.round(h*10)/10 : null;
+  if(age>=18 && hh==null) return null;
+  return {sex, age:Math.round(age), h:hh, w:Math.round(w*10)/10, act};
+}
+function bmrOf(p){
+  if(!p) return null;
+  if(p.age<18){ const tb=BMR_STD[p.sex], r=tb.find(x=>p.age<=x[0])||tb[tb.length-1]; return Math.round(r[1]*p.w); }
+  if(!p.h) return null;
+  return Math.max(0, Math.round((0.0481*p.w+0.0234*p.h-0.0138*p.age-(p.sex==='m' ? 0.4235 : 0.9708))*1000/4.186));
+}
+function palOf(p){ const r=PAL_TBL.find(x=>p.age<=x[0])||PAL_TBL[PAL_TBL.length-1]; return r[1][(+p.act||2)-1]; }
+function burnOf(p){ if(p===undefined) p=st && st.prof; if(!p) return null; const b=bmrOf(p); if(b==null) return null; return p.act==='b' ? b : Math.round(b*palOf(p)); }
+const burnName=()=>st.prof && st.prof.act==='b' ? '基礎代謝' : '使う 量';
+const pmText=v=>{ const r=Math.round(v); return r===0 ? '±0' : (r>0 ? '＋' : '−')+Math.abs(r).toLocaleString(); };
+function pmHtml(v){ const r=Math.round(v); return r===0 ? '<span class="tb-pm zero">± 0kcal</span>' : '<span class="tb-pm '+(r>0 ? 'plus' : 'minus')+'">'+(r>0 ? '▲ ' : '▼ ')+pmText(r)+'kcal '+(r>0 ? 'プラス' : 'マイナス')+'</span>'; }
+function openProf(){
+  const p=st.prof||{sex:'', age:'', h:'', w:'', act:'2'};
+  popOpen(ph('👤 わたしの こと（基礎代謝）')
+    +'<p class="tb-note">年齢・性別・身長・体重から <b>基礎代謝</b>（じっと して いても 使う カロリー）と <b>1日に 使う 量</b>を 出します。日ごとの 合計と くらべて <b>プラス・マイナス</b>が 自動で 出ます。</p>'
+    +'<div class="tb-f"><span>性別</span><div class="tb-seg" id="tbPS">'+[['m','男性'],['f','女性']].map(([k,t])=>'<button type="button" data-v="'+k+'" class="'+(p.sex===k ? 'on' : '')+'" onclick="TABETA.pickSeg(this)">'+t+'</button>').join('')+'</div></div>'
+    +'<label class="tb-f"><span>年齢</span><input id="tbPA" type="number" inputmode="numeric" min="1" max="120" value="'+esc(p.age)+'" oninput="TABETA.profCalc()"><em>歳</em></label>'
+    +'<label class="tb-f"><span>身長</span><input id="tbPH" type="number" inputmode="decimal" min="50" max="250" step="0.1" value="'+esc(p.h==null ? '' : p.h)+'" oninput="TABETA.profCalc()"><em>cm</em></label>'
+    +'<label class="tb-f"><span>体重</span><input id="tbPW" type="number" inputmode="decimal" min="10" max="300" step="0.1" value="'+esc(p.w)+'" oninput="TABETA.profCalc()"><em>kg</em></label>'
+    +'<h5>1日の 動き</h5><div class="tb-seg wide col" id="tbPL">'+ACTS.map(a=>'<button type="button" data-v="'+a[0]+'" class="'+(p.act===a[0] ? 'on' : '')+'" onclick="TABETA.pickSeg(this)"><b>'+a[1]+'</b><small>'+a[2]+'</small></button>').join('')+'</div>'
+    +'<div class="tb-res" id="tbPR" role="status"></div>'
+    +'<p class="tb-note">基礎代謝は 18歳から 国立健康・栄養研究所の 式、17歳までは 日本人の 食事摂取基準（2020年版）の 基礎代謝基準値で 出す 目安です。1日に 使う 量は 基礎代謝 × 身体活動レベル（食事摂取基準）です。病気の ときや 妊娠中 などは 医師・管理栄養士に 相談して ください。</p>'
+    +'<div class="tb-acts"><button type="button" class="tb-b pri" onclick="TABETA.saveProf()">✓ これで 決める</button>'+(st.prof ? '<button type="button" class="tb-b warn" onclick="TABETA.delProf()">🗑 消す（＋−を 出さない）</button>' : '')+'</div>', 'prof');
+  profCalc();
+}
+function pickSeg(btn){ btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b===btn)); if(btn.closest('#tbGr')) return; profCalc(); }
+function profRead(){
+  const sx=document.querySelector('#tbPS button.on'), ac=document.querySelector('#tbPL button.on');
+  return {sex:sx ? sx.dataset.v : '', age:String(($('tbPA')||{}).value||''), h:String(($('tbPH')||{}).value||''), w:String(($('tbPW')||{}).value||''), act:ac ? ac.dataset.v : '2'};
+}
+function profCheck(r){   // → [わたしの こと か null, まだ 足りない こと]
+  if(!r.sex) return [null, '性別を えらんで ください'];
+  const age=+r.age; if(r.age==='' || !(age>=1 && age<=120)) return [null, '年齢を 入れて ください（1〜120歳）'];
+  if(age>=18 && !(+r.h>=50 && +r.h<=250)) return [null, '身長を 入れて ください（cm）'];
+  if(r.w==='' || !(+r.w>=10 && +r.w<=300)) return [null, '体重を 入れて ください（kg）'];
+  return [cleanProf(r), ''];
+}
+function profCalc(){
+  const el=$('tbPR'); if(!el) return; const [p, msg]=profCheck(profRead());
+  if(!p){ el.innerHTML='<span class="tb-hint">'+esc(msg)+'</span>'; return; }
+  el.innerHTML='基礎代謝 <b>約'+kcText(bmrOf(p))+'</b>（1日）'+(p.act==='b' ? '<br>この 量と くらべます' : '<br>1日に 使う 量 <b>約'+kcText(burnOf(p))+'</b>（基礎代謝 × '+palOf(p)+'）');
+}
+function saveProf(){
+  const [p, msg]=profCheck(profRead()); if(!p){ toastS(msg); return; }
+  st.prof=p; save(); popClose(); render();
+  toastS('👤 基礎代謝 約'+kcText(bmrOf(p))+(p.act==='b' ? '' : '・1日に 使う 量 約'+kcText(burnOf(p)))+'と くらべて ＋− を 出します', 3800);
+}
+function delProf(){ const old=st.prof; st.prof=null; save(); popClose(); render(); showUndo('わたしの ことを 消しました（＋− を 出しません）', ()=>{ st.prof=old; save(); render(); }); }
+
+/* ───────── 📈 グラフ（範囲を 決めて：1日の カロリー・使う 量との ＋−） ─────────
+   62日までは 1日ずつ、400日までは 1週間ずつ、それより 長いと 1か月ずつ（記録した 日の 1日 平均）。
+   色：カロリーは 青 1色、＋−は 赤（プラス）と 青（マイナス）・0 の 線は 灰色（色覚の ちがいでも 見分けが つく ことを 確かめた 組）。 */
+let gr={r:'7', from:'', to:'', kind:'kcal', sel:-1}, grLast=null;
+const mdText=d=>(d.getMonth()+1)+'/'+d.getDate();
+function grRange(){
+  const T=dayStart(now());
+  if(gr.r==='cus'){ const a=okDate(gr.from), b=okDate(gr.to); if(a && b) return a<=b ? {from:a, to:b} : {from:b, to:a}; }
+  if(gr.r==='all'){ const f=st.e.length ? dayStart(new Date(st.e[0].t)) : T; return {from:f<T ? f : T, to:T}; }
+  const n=+gr.r||7; return {from:new Date(T.getFullYear(), T.getMonth(), T.getDate()-(n-1)), to:T};
+}
+function grData(){
+  const {from, to}=grRange(), dt=dayTotals(), bn=burnOf(), days=[];
+  for(let d=new Date(from); d<=to && days.length<40000; d=new Date(d.getFullYear(), d.getMonth(), d.getDate()+1)){ const raw=dt.get(ymd(d))||null; days.push({d, raw, o:raw && raw.u<raw.n ? raw : null}); }
+  const nd=days.length, unit=nd<=62 ? 'day' : nd<=400 ? 'week' : 'month', bk=[];
+  if(unit==='day') days.forEach(x=>bk.push({label:mdText(x.d), full:dateText(x.d), days:[x]}));
+  else if(unit==='week') for(let i=0;i<nd;i+=7){ const g=days.slice(i, i+7); bk.push({label:mdText(g[0].d), full:dateText(g[0].d)+'〜'+dateText(g[g.length-1].d), days:g}); }
+  else { let cur=null; days.forEach(x=>{ const k=x.d.getFullYear()+'/'+(x.d.getMonth()+1); if(!cur || cur.k!==k){ cur={k, label:k, full:x.d.getFullYear()+'年'+(x.d.getMonth()+1)+'月', days:[]}; bk.push(cur); } cur.days.push(x); }); }
+  bk.forEach(b=>{ const rec=b.days.filter(x=>x.o); b.n=rec.length; b.sum=rec.reduce((a,x)=>a+x.o.s, 0); b.v=b.n ? b.sum/b.n : null; b.pm=b.n && bn!=null ? b.v-bn : null;
+    b.u=b.days.reduce((a,x)=>a+(x.raw ? x.raw.u : 0), 0); b.items=b.days.reduce((a,x)=>a+(x.raw ? x.raw.n : 0), 0); });
+  const rec=days.filter(x=>x.o), sum=rec.reduce((a,x)=>a+x.o.s, 0);
+  return {from, to, nd, unit, bk, bn, rec:rec.length, sum, avg:rec.length ? sum/rec.length : null, unk:days.reduce((a,x)=>a+(x.raw ? x.raw.u : 0), 0), pmSum:bn!=null ? sum-bn*rec.length : null};
+}
+function openGraph(){
+  gr.sel=-1;
+  popOpen(ph('📈 グラフ')+'<div class="tb-gr" id="tbGr">'
+    +'<div class="tb-seg wide" id="tbGrR">'+[['7','7日'],['30','30日'],['90','90日'],['365','1年'],['all','ぜんぶ']].map(([k,t])=>'<button type="button" data-v="'+k+'" onclick="TABETA.grSet(\'r\',\''+k+'\')">'+t+'</button>').join('')+'</div>'
+    +'<div class="tb-grd"><input type="date" id="tbGrF" aria-label="いつから" onchange="TABETA.grSet(\'from\',this.value)"><span>〜</span><input type="date" id="tbGrT" aria-label="いつまで" onchange="TABETA.grSet(\'to\',this.value)"></div>'
+    +'<div class="tb-seg wide" id="tbGrK">'+[['kcal','🔥 1日の カロリー'],['pm','＋− くらべる']].map(([k,t])=>'<button type="button" data-v="'+k+'" onclick="TABETA.grSet(\'kind\',\''+k+'\')">'+t+'</button>').join('')+'</div>'
+    +'<div id="tbGrBody"></div></div>', 'graph');
+  grDraw();
+}
+function grSet(k, v){
+  if(k==='r'){ gr.r=String(v); }
+  else if(k==='kind'){ gr.kind=v==='pm' ? 'pm' : 'kcal'; }
+  else if(k==='from' || k==='to'){ const cur=grRange(); gr.from=gr.from||ymd(cur.from); gr.to=gr.to||ymd(cur.to); if(gr.r!=='cus'){ gr.from=ymd(cur.from); gr.to=ymd(cur.to); } if(okDate(v)) gr[k]=v; gr.r='cus'; }
+  gr.sel=-1; grDraw();
+}
+function grNum(v, pm){ const a=Math.abs(Math.round(v)), t=a>=10000 ? (a/10000).toFixed(a%10000 ? 1 : 0).replace(/\.0$/,'')+'万' : a.toLocaleString(); return (pm && v>0 ? '+' : v<0 ? '−' : '')+t; }
+function grSvg(D, W){
+  const pm=gr.kind==='pm', n=D.bk.length, top=16, PH=190, bot=24, left=46, right=8, plotW=Math.max(60, W-left-right), H=top+PH+bot;
+  const vals=D.bk.map(b=>pm ? b.pm : b.v);
+  let lo=0, hi=0; vals.forEach(v=>{ if(v==null) return; lo=Math.min(lo, v); hi=Math.max(hi, v); });
+  if(!pm && D.bn!=null) hi=Math.max(hi, D.bn);
+  if(hi-lo<1) hi=lo+(pm ? 500 : 1000);
+  const raw=(hi-lo)/4, mag=Math.pow(10, Math.floor(Math.log10(raw))), step=[1,2,2.5,5,10].map(m=>m*mag).find(x=>x>=raw)||10*mag;
+  const yMin=lo<0 ? -Math.ceil(-lo/step)*step : 0, yMax=hi>0 ? Math.ceil(hi*1.02/step)*step : 0, Y=v=>top+(yMax-v)/((yMax-yMin)||1)*PH;
+  let g='';
+  for(let t=yMin; t<=yMax+1e-6; t+=step){ const y=Math.round(Y(t))+0.5; g+='<line class="'+(Math.abs(t)<1e-6 ? 'g-base' : 'g-grid')+'" x1="'+left+'" x2="'+(left+plotW)+'" y1="'+y+'" y2="'+y+'"/><text x="'+(left-6)+'" y="'+(y+4)+'" text-anchor="end">'+grNum(t, pm)+'</text>'; }
+  const slot=plotW/n, bw=Math.max(1, Math.min(24, slot-2)), y0=Y(0);
+  let bars='', hits='';
+  D.bk.forEach((b, i)=>{
+    const v=vals[i], x=left+i*slot+(slot-bw)/2;
+    if(v!=null && Math.abs(v)>=0.5){
+      const yv=Y(v), up=v>0, h=Math.abs(y0-yv), r=Math.min(4, bw/2, h);
+      const d=up ? 'M'+x+','+y0+'V'+(yv+r)+'Q'+x+','+yv+' '+(x+r)+','+yv+'H'+(x+bw-r)+'Q'+(x+bw)+','+yv+' '+(x+bw)+','+(yv+r)+'V'+y0+'Z'
+                 : 'M'+x+','+y0+'V'+(yv-r)+'Q'+x+','+yv+' '+(x+r)+','+yv+'H'+(x+bw-r)+'Q'+(x+bw)+','+yv+' '+(x+bw)+','+(yv-r)+'V'+y0+'Z';
+      bars+='<path class="g-b '+(pm ? (up ? 'g-plus' : 'g-minus') : 'g-bar')+'" data-i="'+i+'" d="'+d+'"/>';
+    }
+    hits+='<rect class="g-hit" data-i="'+i+'" x="'+(left+i*slot)+'" y="'+top+'" width="'+slot+'" height="'+PH+'" tabindex="0" role="button" aria-label="'+esc(b.full+' '+(v==null ? '記録 なし' : (pm ? pmText(v) : Math.round(v).toLocaleString())+'kcal'))+'"/>';
+  });
+  let ref='';
+  if(!pm && D.bn!=null){ const y=Math.round(Y(D.bn))+0.5, ly=y-6<top+2 ? y+14 : y-6; ref='<line class="g-ref" x1="'+left+'" x2="'+(left+plotW)+'" y1="'+y+'" y2="'+y+'"/><text class="g-reft" x="'+(left+plotW)+'" y="'+ly+'" text-anchor="end">'+burnName().replace(' ','')+' '+D.bn.toLocaleString()+'</text>'; }
+  let xl=''; const idx=n<=8 ? D.bk.map((_, i)=>i) : [...new Set([0,1,2,3,4].map(k=>Math.round(k*(n-1)/4)))];
+  idx.forEach(i=>{ const cx=left+i*slot+slot/2, an=n>1 && i===0 && slot<30 ? 'start' : n>1 && i===n-1 && slot<30 ? 'end' : 'middle'; xl+='<text x="'+(an==='start' ? left+i*slot : an==='end' ? left+(i+1)*slot : cx)+'" y="'+(top+PH+17)+'" text-anchor="'+an+'">'+esc(D.bk[i].label)+'</text>'; });
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" aria-label="'+esc((pm ? '使う 量との ＋−' : '1日の カロリー')+'・'+dateText(D.from)+'〜'+dateText(D.to))+'">'+g+bars+ref+xl+hits+'</svg>';
+}
+function grDraw(){
+  const body=$('tbGrBody'); if(!body) return;
+  document.querySelectorAll('#tbGrR button').forEach(b=>b.classList.toggle('on', b.dataset.v===gr.r));
+  document.querySelectorAll('#tbGrK button').forEach(b=>b.classList.toggle('on', b.dataset.v===gr.kind));
+  const D=grLast=grData(), fi=$('tbGrF'), ti=$('tbGrT'); if(fi) fi.value=ymd(D.from); if(ti) ti.value=ymd(D.to);
+  const unitT={day:'1日ずつ', week:'1週間ずつ（記録した 日の 1日 平均）', month:'1か月ずつ（記録した 日の 1日 平均）'}[D.unit];
+  let html='';
+  if(!st.cal) html='<p class="tb-note">⚙ の「🔥 カロリー（目安）を 出す」が 切れて います。</p>';
+  else if(gr.kind==='pm' && D.bn==null) html='<div class="tb-res">＋− の グラフは、年齢・性別などから 出す 使う 量と くらべます。<div class="tb-acts"><button type="button" class="tb-b pri" onclick="TABETA.prof()">👤 わたしの ことを 入れる</button></div></div>';
+  else if(!D.rec) html='<p class="tb-note">この 期間は カロリーの わかる 記録が ありません。</p>';
+  else {
+    html='<div class="tb-grro" id="tbGrRo" aria-live="polite"></div>'
+      +'<div class="tb-grbox" id="tbGrBox"></div>'
+      +(gr.kind==='pm' ? '<div class="tb-grleg"><span><i class="k-plus"></i>▲ プラス（食べた 方が 多い）</span><span><i class="k-minus"></i>▼ マイナス（使う 方が 多い）</span></div>' : '')
+      +'<p class="tb-grunit">'+esc(dateText(D.from)+'〜'+dateText(D.to)+'（'+D.nd+'日）・'+unitT)+'</p>';
+  }
+  if(st.cal && D.rec){
+    const kg=D.pmSum!=null ? D.pmSum/7200 : null;
+    html+='<div class="tb-grsum">記録した 日 <b>'+D.rec+'日</b>　1日 平均 <b>約'+kcText(D.avg)+'</b>　合計 約'+kcText(D.sum)
+      +(D.bn!=null ? '<br>'+burnName()+' 1日 約'+kcText(D.bn)+' と くらべて 期間の 合計 '+pmHtml(D.pmSum)+(Math.abs(kg)>=0.05 ? '<small>（体重 にすると 約 '+(kg>0 ? '＋' : '−')+Math.abs(kg).toFixed(1)+'kg ぶん・7,200kcal＝1kg の 目安）</small>' : '') : '<br><button type="button" class="tb-linkb" onclick="TABETA.prof()">👤 年齢・性別などを 入れると ＋− も 出ます</button>')
+      +(D.unk ? '<br><small>わからない 物 '+D.unk+'品は 入って いません（押して カロリーを 入れられます）</small>' : '')+'</div>'
+      +'<details class="tb-gtab"><summary>📋 数で 見る（表）</summary><table><thead><tr><th>'+(D.unit==='day' ? '日' : '期間')+'</th><th>'+(D.unit==='day' ? 'カロリー' : '1日 平均')+'</th>'+(D.bn!=null ? '<th>＋−</th>' : '')+'<th>品数</th></tr></thead><tbody>'
+      +D.bk.map(b=>'<tr><td>'+esc(b.full)+'</td><td>'+(b.v==null ? '—' : Math.round(b.v).toLocaleString())+'</td>'+(D.bn!=null ? '<td>'+(b.pm==null ? '—' : pmText(b.pm))+'</td>' : '')+'<td>'+b.items+'</td></tr>').join('')+'</tbody></table></details>';
+  }
+  body.innerHTML=html;
+  const box=$('tbGrBox');
+  if(box){
+    box.innerHTML=grSvg(D, Math.max(280, Math.round(box.clientWidth||320)));
+    const pick=e=>{ const i=e.target && e.target.dataset ? +e.target.dataset.i : NaN; if(isFinite(i)) grSel(i); };
+    box.querySelectorAll('.g-hit').forEach(h=>{ h.addEventListener('pointerenter', pick); h.addEventListener('pointerdown', pick); h.addEventListener('focus', pick); });
+    let last=-1; D.bk.forEach((b, i)=>{ if(b.v!=null) last=i; });
+    if(gr.sel>=0 && gr.sel<D.bk.length) grSel(gr.sel, D); else grSel(last, D, true);
+  }
+}
+function grSel(i, D, auto){   // auto：はじめに 出す 最後の 日（ほかの 棒は 薄く しない）
+  D=D||grLast||grData(); const b=D.bk[i], ro=$('tbGrRo'); if(!b || !ro) return; if(!auto) gr.sel=i;
+  document.querySelectorAll('#tbGrBox .g-b').forEach(p=>p.classList.toggle('g-dim', !auto && b.v!=null && +p.dataset.i!==i));
+  ro.innerHTML='<span>'+esc(b.full)+'</span> '+(b.v==null ? '<span class="tb-hint">記録 なし</span>'
+    : '<b>'+(D.unit==='day' ? '' : '1日 平均 ')+Math.round(b.v).toLocaleString()+'kcal</b>'+(b.pm!=null ? ' '+pmHtml(b.pm) : '')+' <small>'+b.items+'品'+(b.u ? '（わからない 物 '+b.u+'品）' : '')+'</small>');
+}
+
 /* ───────── ⬆ CSV を 読み込む（⬇ CSV で 書き出した ものを もどす・ほかの 端末や アプリから うつす） ───────── */
 function parseCsv(t){
   const rows=[]; let row=[], f='', qt=false;
@@ -794,23 +975,23 @@ async function importFile(inp){
   let t=new TextDecoder('utf-8').decode(buf);
   if(/�/.test(t)){ try{ t=new TextDecoder('shift_jis').decode(buf); }catch(_){} }   // Excel で 保存し直した CSV（Shift_JIS）
   const r=importText(t);
-  if(!r){ toastS('食べた物 帳の CSV では ありません（1行目に「日付」「食べた物」の 列が いります）', 5200); return; }
+  if(!r){ toastS('食べた物帳の CSV では ありません（1行目に「日付」「食べた物」の 列が いります）', 5200); return; }
   popClose(); render(true);
   if(!r.over) toastS(r.add ? '⬆ '+r.add.toLocaleString()+'品を 読み込みました'+(r.skip ? '（もう ある '+r.skip+'品は とばしました）' : '') : 'あたらしい ものは ありませんでした'+(r.skip ? '（もう ある '+r.skip+'品）' : ''), 4200);
 }
-/* ───────── 📱 食べた物 帳だけの アプリ（tabeta-app/） ───────── */
+/* ───────── 📱 食べた物帳だけの アプリ（tabeta-app/） ───────── */
 const solo=()=>document.documentElement.classList.contains('tb-solo');
 function appHelp(){
-  popOpen(ph('📱 食べた物 帳だけの アプリ')+'<div class="tb-help" id="tbAppHelp">'
-    +'<p>表電卓を 開かずに、<b>食べた物 帳だけ</b>を ひとつの アプリとして 使えます（できる ことは 同じです。▦ 表に 入れる だけは 表電卓の 中で）。</p>'
-    +(solo() ? '<p>いま 開いて いるのが <b>食べた物 帳だけの アプリ</b>です。</p>'
-      : '<p><a href="tabeta-app/" target="_blank" rel="noopener" id="tbAppLink">🍽 食べた物 帳だけの アプリを 開く</a>（同じ サイトなら、入れた ものは この 食べた物 帳と 同じです）</p>')
+  popOpen(ph('📱 食べた物帳だけの アプリ')+'<div class="tb-help" id="tbAppHelp">'
+    +'<p>表電卓を 開かずに、<b>食べた物帳だけ</b>を ひとつの アプリとして 使えます（できる ことは 同じです。▦ 表に 入れる だけは 表電卓の 中で）。</p>'
+    +(solo() ? '<p>いま 開いて いるのが <b>食べた物帳だけの アプリ</b>です。</p>'
+      : '<p><a href="tabeta-app/" target="_blank" rel="noopener" id="tbAppLink">🍽 食べた物帳だけの アプリを 開く</a>（同じ サイトなら、入れた ものは この 食べた物帳と 同じです）</p>')
     +'<h5>🏠 ホーム画面に 足す</h5><ol><li><b>iPhone</b>：Safari で 開いて 共有（□↑）→「<b>ホーム画面に追加</b>」</li><li><b>Android</b>：Chrome で 開いて ⋮ →「<b>ホーム画面に追加</b>」（または「アプリをインストール」）</li></ol>'
-    +'<p>アイコンから 食べた物 帳だけが すぐ 開きます。電波が ない ときも 前に 開いた ものが 使えます。</p>'
+    +'<p>アイコンから 食べた物帳だけが すぐ 開きます。電波が ない ときも 前に 開いた ものが 使えます。</p>'
     +'<h5>🌐 Netlify に 置く</h5><ol><li>1つの フォルダに、<b>tabeta-app</b> フォルダの <b>中身</b>（index.html・manifest.json・sw.js・アイコン）と <b>tabeta.js</b> を 入れる（zip「tabeta-netlify-…」を 開いた フォルダが この 形です）</li>'
     +'<li>app.netlify.com に ログイン →「<b>Add new project</b>」→「<b>Deploy manually</b>」に その フォルダを 落とす</li><li>できた アドレス（〜.netlify.app）を スマホで 開いて、ホーム画面に 足す</li></ol>'
     +'<p>あとで 新しく する ときは、Netlify の その 場所の「Deploys」に 新しい フォルダを 落とします。</p>'
-    +'<h5>⚠ 中身を うつす とき</h5><p>ちがう サイト（Netlify と 表電卓 など）の 食べた物 帳は、中身が <b>別々</b>です。うつす ときは、前の 方の ⚙ →「<b>⬇ CSV（Excel）で 保存</b>」で ファイルを 作り、新しい 方の ⚙ →「<b>⬆ CSV を 読み込む</b>」で その ファイルを 選びます。同じ 物は 2回 入りません。自分で 入れた カロリーも うつります。</p>'
+    +'<h5>⚠ 中身を うつす とき</h5><p>ちがう サイト（Netlify と 表電卓 など）の 食べた物帳は、中身が <b>別々</b>です。うつす ときは、前の 方の ⚙ →「<b>⬇ CSV（Excel）で 保存</b>」で ファイルを 作り、新しい 方の ⚙ →「<b>⬆ CSV を 読み込む</b>」で その ファイルを 選びます。同じ 物は 2回 入りません。自分で 入れた カロリーも うつります。</p>'
     +'<div class="tb-acts"><button type="button" class="tb-b pri" onclick="TABETA.close()">✓ わかった</button></div></div>', 'app');
 }
 function more(){ const b=$('tbBody'), h=b ? b.scrollHeight : 0; shown+=300; render(); if(b) b.scrollTop=b.scrollHeight-h; }
@@ -884,6 +1065,30 @@ body.dark .tb-kc{ color:#ffab91; } body.dark .tb-kc.my{ color:#ce93d8; }
 .tb-acts{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; } .tb-acts.col{ flex-direction:column; }
 .tb-b{ min-height:46px; padding:0 14px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; }
 .tb-b.pri{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); } .tb-b.warn{ color:#e53935; border-color:rgba(229,57,53,.5); background:transparent; }
+.tb-pop.big{ max-width:780px; height:92%; max-height:92%; }
+.tb-seg.col{ flex-direction:column; } .tb-seg.col button{ text-align:left; padding:7px 14px; border-radius:14px; min-height:48px; } .tb-seg button small{ display:block; font-size:12px; font-weight:normal; opacity:.85; }
+.tb-res{ margin:10px 0 6px; padding:10px 12px; border-radius:12px; background:var(--acc-weak,rgba(33,115,70,.12)); font-size:15px; line-height:1.8; } .tb-res b{ font-size:17px; }
+.tb-pm{ display:inline-block; padding:1px 8px; border-radius:10px; font-weight:bold; font-size:13.5px; white-space:nowrap; }
+.tb-pm.plus{ background:rgba(227,73,72,.12); color:#b3261e; } .tb-pm.minus{ background:rgba(42,120,214,.12); color:#1c5cab; } .tb-pm.zero{ background:rgba(120,132,156,.14); }
+body.dark .tb-pm.plus{ background:rgba(230,103,103,.2); color:#ff9e99; } body.dark .tb-pm.minus{ background:rgba(57,135,229,.22); color:#9ec5f4; }
+.tb-pmrow{ margin-top:3px; font-size:13px; }
+.tb-count{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px; } .tb-count span{ margin-left:auto; }
+.tb-linkb{ min-height:36px; padding:4px 10px; border-radius:10px; border:1px dashed var(--acc); background:transparent; color:var(--acc-text,var(--acc)); font-size:13px; font-weight:bold; cursor:pointer; text-align:left; }
+.tb-gr{ --g-bar:#2a78d6; --g-plus:#e34948; --g-minus:#2a78d6; --g-grid:#e1e0d9; --g-axis:#c3c2b7; --g-muted:#6f6d68; --g-ref:#52514e; }
+body.dark .tb-gr{ --g-bar:#3987e5; --g-plus:#e66767; --g-minus:#3987e5; --g-grid:rgba(255,255,255,.10); --g-axis:rgba(255,255,255,.28); --g-muted:#a3abbb; --g-ref:#c3c2b7; }
+.tb-grd{ display:flex; align-items:center; gap:6px; margin:0 0 8px; } .tb-grd input{ flex:1; min-width:0; min-height:42px; padding:0 8px; border-radius:10px; border:1px solid rgba(120,132,156,.55); background:var(--cell-bg,#fff); color:var(--text,#222); font-size:15px; }
+.tb-grro{ min-height:46px; margin:6px 0 4px; padding:6px 10px; border-radius:10px; background:rgba(120,132,156,.08); font-size:14px; line-height:1.6; } .tb-grro b{ font-size:17px; margin:0 4px; } .tb-grro small{ color:var(--text-light,#666); white-space:nowrap; }
+.tb-grbox{ width:100%; } .tb-grbox svg{ display:block; width:100%; height:auto; touch-action:pan-y; }
+.tb-gr svg text{ fill:var(--g-muted); font-size:11px; font-variant-numeric:tabular-nums; }
+.tb-gr .g-grid{ stroke:var(--g-grid); stroke-width:1; } .tb-gr .g-base{ stroke:var(--g-axis); stroke-width:1; }
+.tb-gr .g-bar{ fill:var(--g-bar); } .tb-gr .g-plus{ fill:var(--g-plus); } .tb-gr .g-minus{ fill:var(--g-minus); } .tb-gr .g-dim{ opacity:.42; }
+.tb-gr .g-ref{ stroke:var(--g-ref); stroke-width:2; } .tb-gr svg text.g-reft{ fill:var(--g-ref); font-weight:bold; font-size:11.5px; paint-order:stroke; stroke:var(--modal-bg,#fff); stroke-width:3px; stroke-linejoin:round; }
+.tb-gr .g-hit{ fill:transparent; cursor:pointer; outline:none; } .tb-gr .g-hit:focus-visible{ stroke:var(--g-ref); stroke-width:1; }
+.tb-grleg{ display:flex; flex-wrap:wrap; gap:4px 14px; margin:4px 0; font-size:12.5px; color:var(--text-light,#666); } .tb-grleg i{ display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:5px; vertical-align:-1px; } .tb-grleg .k-plus{ background:var(--g-plus); } .tb-grleg .k-minus{ background:var(--g-minus); }
+.tb-grunit{ margin:2px 0 6px; font-size:12px; color:var(--text-light,#666); }
+.tb-grsum{ margin:8px 0; padding:8px 10px; border-radius:12px; background:var(--acc-weak,rgba(33,115,70,.12)); font-size:14px; line-height:1.9; } .tb-grsum small{ display:inline-block; font-size:12px; color:var(--text-light,#666); }
+.tb-gtab summary{ cursor:pointer; min-height:40px; display:flex; align-items:center; font-weight:bold; font-size:14px; }
+.tb-gtab table{ width:100%; border-collapse:collapse; font-size:13.5px; font-variant-numeric:tabular-nums; } .tb-gtab th, .tb-gtab td{ padding:5px 6px; border-bottom:1px solid rgba(120,132,156,.22); text-align:right; white-space:nowrap; } .tb-gtab th:first-child, .tb-gtab td:first-child{ text-align:left; white-space:normal; } .tb-gtab th{ font-size:12.5px; color:var(--text-light,#666); }
 .tb-help{ font-size:14.5px; line-height:1.75; } .tb-help ol{ margin:4px 0 8px; padding-left:1.4em; } .tb-help a{ color:var(--acc-text,var(--acc)); font-weight:bold; }
 .tb-chk{ display:flex; gap:8px; align-items:flex-start; font-size:14px; line-height:1.5; margin:4px 0; } .tb-chk input{ width:22px; height:22px; flex:none; }
 body.dark .tb-when.set{ background:#4e342e; color:#ffe0b2; }
@@ -894,8 +1099,8 @@ function ensureDom(){
   const box=document.createElement('div');
   box.innerHTML=`<div class="modal-overlay" id="tabetaOverlay">
   <div class="modal vol-modal tb-modal modal-full" style="position:relative">
-    <div class="modal-header"><span>🍽 食べた物 帳</span><button class="modal-close" onclick="closeTabeta()" aria-label="閉じる">✕</button></div>
-    <div class="tb-top"><input id="tbFind" type="search" placeholder="🔍 さがす（例：カレー）" aria-label="食べた物を さがす" autocomplete="off" oninput="TABETA.find(this.value)"><button type="button" onclick="TABETA.menu()" aria-label="コピー・CSV・設定">⚙</button></div>
+    <div class="modal-header"><span>🍽 食べた物帳</span><button class="modal-close" onclick="closeTabeta()" aria-label="閉じる">✕</button></div>
+    <div class="tb-top"><input id="tbFind" type="search" placeholder="🔍 さがす（例：カレー）" aria-label="食べた物を さがす" autocomplete="off" oninput="TABETA.find(this.value)"><button type="button" onclick="TABETA.graph()" aria-label="グラフ">📈</button><button type="button" onclick="TABETA.menu()" aria-label="コピー・CSV・設定">⚙</button></div>
     <div class="tb-body" id="tbBody"></div>
     <div class="tb-undo" id="tbUndo" role="status"></div>
     <div class="tb-dock">
@@ -920,9 +1125,9 @@ function cleanup(){ popClose(); micStop(); clearTimeout(undoT); undo=null; const
 function openTabeta(){ ensureDom(); load(); q=''; shown=SHOW_N; const f=$('tbFind'); if(f) f.value=''; openDlg('tabetaOverlay', cleanup); render(true); }
 function closeTabeta(){ if(!$('tabetaOverlay') || !isDlgOpen('tabetaOverlay')) return; closeDlg('tabetaOverlay', cleanup); }
 
-window.TABETA={ go:addGo, chip, undo:undoDo, open:openItem, close:popClose, pickMeal, saveItem, del:delItem, again, whenTap, setWhen, openWhen, menu:openMenu, out, csv, wipe, setSplit, setCal, more, importClick, importFile, importText, appHelp, find, mic,
+window.TABETA={ go:addGo, chip, undo:undoDo, open:openItem, close:popClose, pickMeal, saveItem, del:delItem, again, whenTap, setWhen, openWhen, menu:openMenu, out, csv, wipe, setSplit, setCal, more, prof:openProf, saveProf, delProf, profCalc, pickSeg, graph:openGraph, grSet, grSel:i=>grSel(+i), importClick, importFile, importText, appHelp, find, mic,
   // ためす とき 用
   now:s=>{ fixedNow=s ? String(s) : null; if(st) render(true); }, add:(t, voice)=>addText(t, !!voice).length, state:()=>JSON.parse(JSON.stringify(st)), split:(t, v)=>splitFoods(t, v!==false), mealOf:s=>mealOf(new Date(s)),
-  text, rows, chips:chipList, clean:cleanE, heard, kcal:(n, q)=>{ const a=kcAuto(String(n||''), String(q||'')); return a ? a.k : null; }, kcalOf:id=>{ const x=eOf(id); return x ? kcalOf(x) : null; }, qty:t=>qtyOf(t), when:()=>when ? Object.assign({}, when) : null };
+  text, rows, chips:chipList, clean:cleanE, heard, bmr:p=>bmrOf(cleanProf(p)), burn:p=>burnOf(cleanProf(p)), grData:()=>{ const D=grData(); return {from:ymd(D.from), to:ymd(D.to), nd:D.nd, unit:D.unit, rec:D.rec, sum:Math.round(D.sum), avg:D.avg==null ? null : Math.round(D.avg), bn:D.bn, pmSum:D.pmSum==null ? null : Math.round(D.pmSum), unk:D.unk, bk:D.bk.map(b=>[b.label, b.v==null ? null : Math.round(b.v), b.pm==null ? null : Math.round(b.pm), b.items])}; }, gr:()=>Object.assign({}, gr), kcal:(n, q)=>{ const a=kcAuto(String(n||''), String(q||'')); return a ? a.k : null; }, kcalOf:id=>{ const x=eOf(id); return x ? kcalOf(x) : null; }, qty:t=>qtyOf(t), when:()=>when ? Object.assign({}, when) : null };
 Object.assign(window, { openTabeta, closeTabeta });
 })();
