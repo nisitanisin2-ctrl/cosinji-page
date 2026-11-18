@@ -1,4 +1,4 @@
-/* 🍽 食べた物 帳（v693・v694。表電卓の道具。apps/tabeta/ から 単独の アプリとしても 開ける。はじめて 開いたときに 読む）
+/* 🍽 食べた物 帳（v693〜v695。表電卓の道具。apps/tabeta/ から 単独の アプリとしても 開ける。はじめて 開いたときに 読む）
    食べた物を 打つか 話すだけで どんどん 記録して いく。
    ・下の 欄に「おにぎり、みそ汁」のように 打って Enter（または ＋）。「、」「,」「・」「／」・改行で 分けて 1品ずつ 入る。
      🎤 で 話したときは「おにぎりと みそ汁」の「と」でも 分ける（⚙ で 切れる）。入れたら 欄は 空に なり、そのまま 続けて 入れられる。
@@ -11,6 +11,8 @@
    ・押すと 直す（名前・日・時刻・食事・量や メモ・消す・もう一度 食べた）。入れた・消したは 下の 帯の ↶ で 取り消せる。
    ・🔍 さがす：その 物を 何回・最後に いつ 食べたか。
    ・⚙：📋 コピー・📤 共有（きょう・きのう・この7日・ぜんぶ）・⬇ CSV（Excel）・▦ 表に 入れる・「と」で 分ける・ぜんぶ 消す。
+   ・⬆ CSV を 読み込む：⬇ CSV で 書き出した ものを もどす・ほかの 端末や アプリから うつす（同じ 日時・名前は とばす）（v695）。
+   ・表電卓なしで 開く 食べた物 帳だけの アプリは tabeta-app/（⚙ →「📱 食べた物 帳だけの アプリ」に 開き方・Netlify への 置き方）（v695）。
    中身は excalc_tabeta（この端末の中だけ。📋リストの ⬇書き出しにも 入る）。 */
 (function(){
 'use strict';
@@ -679,12 +681,13 @@ function whenTap(){ if(when){ when=null; renderDock(); toastS('いまの 時刻�
 function openMenu(){
   const n=st.e.length, days=new Set(st.e.map(x=>ymd(new Date(x.t)))).size;
   popOpen(ph('⚙ 食べた物 帳')
-    +'<p class="tb-note">いま <b>'+n.toLocaleString()+'</b>品（'+days+'日ぶん）。入れた ものは この 端末の 中だけに あります（📋リストの ⬇書き出しにも 入ります）。</p>'
+    +'<p class="tb-note">いま <b>'+n.toLocaleString()+'</b>品（'+days+'日ぶん）。入れた ものは この 端末の 中だけに あります'+(solo() ? '。⬇ CSV で 控えを 残せます。' : '（📋リストの ⬇書き出しにも 入ります）。')+'</p>'
     +'<h5>コピー・共有（LINE・メールに 貼れます）</h5>'
     +'<div class="tb-seg wide">'+[['today','きょう'],['yday','きのう'],['week','この7日'],['all','ぜんぶ']].map(([k,t])=>'<button type="button" onclick="TABETA.out(\'copy\',\''+k+'\')">📋 '+t+'</button>').join('')+'</div>'
     +'<div class="tb-seg wide">'+[['today','きょう'],['week','この7日']].map(([k,t])=>'<button type="button" onclick="TABETA.out(\'share\',\''+k+'\')">📤 '+t+'を 送る</button>').join('')+'</div>'
     +'<h5>ほかの 形で</h5>'
-    +'<div class="tb-acts col"><button type="button" class="tb-b" onclick="TABETA.csv()">⬇ CSV（Excel）で 保存（ぜんぶ）</button><button type="button" class="tb-b" onclick="TABETA.out(\'table\',\'week\')">▦ この7日を 表に 入れる</button></div>'
+    +'<div class="tb-acts col"><button type="button" class="tb-b" onclick="TABETA.csv()">⬇ CSV（Excel）で 保存（ぜんぶ）</button>'+(typeof toolPasteRows==='function' ? '<button type="button" class="tb-b" onclick="TABETA.out(\'table\',\'week\')">▦ この7日を 表に 入れる</button>' : '')
+      +'<button type="button" class="tb-b" onclick="TABETA.importClick()">⬆ CSV を 読み込む（足す）</button><button type="button" class="tb-b" onclick="TABETA.appHelp()">📱 食べた物 帳だけの アプリ'+(solo() ? '（いま 開いて います）' : '')+'</button></div>'
     +'<h5>入れ方</h5>'
     +'<label class="tb-chk"><input type="checkbox" '+(st.cal ? 'checked' : '')+' onchange="TABETA.setCal(this.checked)"> 🔥 カロリー（目安）を 出す（よく ある 物は 自動。わからない 物は 押して 数字を 入れると、次から 同じ 名前は 自動）</label>'
     +'<label class="tb-chk"><input type="checkbox" '+(st.split ? 'checked' : '')+' onchange="TABETA.setSplit(this.checked)"> 🎤 で 話した ときは「と」でも 分ける（おにぎりと みそ汁 → 2品）</label>'
@@ -736,6 +739,79 @@ async function wipe(){
   if(!ok) return;
   const keep=st.e; st.e=[]; save(); popClose(); render();
   showUndo('ぜんぶ 消しました', ()=>{ st.e=keep; save(); render(true); });
+}
+/* ───────── ⬆ CSV を 読み込む（⬇ CSV で 書き出した ものを もどす・ほかの 端末や アプリから うつす） ───────── */
+function parseCsv(t){
+  const rows=[]; let row=[], f='', qt=false;
+  for(let i=0;i<t.length;i++){
+    const c=t[i];
+    if(qt){ if(c==='"'){ if(t[i+1]==='"'){ f+='"'; i++; } else qt=false; } else f+=c; }
+    else if(c==='"') qt=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n' || c==='\r'){ if(c==='\r' && t[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=''; }
+    else f+=c;
+  }
+  if(f!=='' || row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r=>r.some(v=>String(v).trim()!==''));
+}
+function importText(text){   // → {add, skip, bad} か null（食べた物の CSV では ない）
+  const rows=parseCsv(String(text||'').replace(/^﻿/, ''));
+  if(!rows.length) return null;
+  const hd=rows[0].map(v=>String(v).trim()), col=w=>hd.findIndex(h=>h.includes(w));
+  const cD=col('日付'), cT=col('時刻'), cM=col('食事'), cN=col('食べた'), cQ=col('量'), cK=col('カロリー');
+  if(cD<0 || cN<0) return null;
+  const unq=v=>String(v==null?'':v).replace(/^'(?=[=+\-@])/, '');   // 書き出しで 頭に 足した「'」を とる
+  const have=new Set(st.e.map(x=>Math.floor(x.t/60000)+'\t'+x.n));
+  const add=[]; let skip=0, bad=0;
+  rows.slice(1).forEach((r, k)=>{
+    const dm=/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/.exec(String(r[cD]||'').trim()), n=oneLine(unq(r[cN]), NAME_N);
+    if(!dm || !n){ bad++; return; }
+    const d=okDate(dm[1]+'-'+pad2(+dm[2])+'-'+pad2(+dm[3])); if(!d){ bad++; return; }
+    const tm=/^(\d{1,2}):(\d{2})/.exec(String(cT>=0 ? r[cT] : '').trim()), H=tm ? Math.min(23, +tm[1]) : 12, M=tm ? Math.min(59, +tm[2]) : 0;
+    const t=new Date(d.getFullYear(), d.getMonth(), d.getDate(), H, M).getTime()+(k%60)*10;   // 同じ 分の ものは 書いて ある 順に
+    const key=Math.floor(t/60000)+'\t'+n; if(have.has(key)){ skip++; return; } have.add(key);
+    const mn=cM>=0 ? String(r[cM]||'').trim() : '', mk=(MEALS.find(m=>m[2]===mn || m[0]===mn)||[])[0];
+    const x={i:rid(), t, n, m:mk || mealOf(new Date(t)), q:oneLine(cQ>=0 ? unq(r[cQ]) : '', MEMO_N)};
+    const kv=cK>=0 && String(r[cK]||'').trim()!=='' ? Math.round(+String(r[cK]).replace(/[^\d.]/g,'')) : null;
+    if(kv!=null && isFinite(kv) && kv>=0 && kv<=20000){ const a=kcAuto(x.n, x.q); if(!a || a.k!==kv){ x.k=kv; learnKcal(x, kv); } }
+    add.push(x);
+  });
+  if(st.e.length+add.length>MAX_E){ toastS('記録は '+MAX_E.toLocaleString()+' 品まで です（いま '+st.e.length.toLocaleString()+'品・読む '+add.length.toLocaleString()+'品）', 5200); return {add:0, skip, bad, over:true}; }
+  if(add.length){
+    st.e=st.e.concat(add).sort((a,b)=>a.t-b.t); kcCache.clear();
+    if(!save()){ const ids=new Set(add.map(x=>x.i)); st.e=st.e.filter(x=>!ids.has(x.i)); return {add:0, skip, bad}; }
+    const ids=new Set(add.map(x=>x.i));
+    showUndo(add.length.toLocaleString()+'品を 読み込みました', ()=>{ st.e=st.e.filter(x=>!ids.has(x.i)); save(); render(true); });
+    q=''; const fd=$('tbFind'); if(fd) fd.value=''; render(true);
+  }
+  return {add:add.length, skip, bad};
+}
+function importClick(){ const f=$('tbFileIn'); if(f) f.click(); }
+async function importFile(inp){
+  const f=inp.files && inp.files[0]; inp.value=''; if(!f) return;
+  if(f.size>20*1024*1024){ toastS('ファイルが 大きすぎます（20MB まで）'); return; }
+  let buf; try{ buf=await f.arrayBuffer(); }catch(_){ toastS('ファイルを 読めませんでした'); return; }
+  let t=new TextDecoder('utf-8').decode(buf);
+  if(/�/.test(t)){ try{ t=new TextDecoder('shift_jis').decode(buf); }catch(_){} }   // Excel で 保存し直した CSV（Shift_JIS）
+  const r=importText(t);
+  if(!r){ toastS('食べた物 帳の CSV では ありません（1行目に「日付」「食べた物」の 列が いります）', 5200); return; }
+  popClose(); render(true);
+  if(!r.over) toastS(r.add ? '⬆ '+r.add.toLocaleString()+'品を 読み込みました'+(r.skip ? '（もう ある '+r.skip+'品は とばしました）' : '') : 'あたらしい ものは ありませんでした'+(r.skip ? '（もう ある '+r.skip+'品）' : ''), 4200);
+}
+/* ───────── 📱 食べた物 帳だけの アプリ（tabeta-app/） ───────── */
+const solo=()=>document.documentElement.classList.contains('tb-solo');
+function appHelp(){
+  popOpen(ph('📱 食べた物 帳だけの アプリ')+'<div class="tb-help" id="tbAppHelp">'
+    +'<p>表電卓を 開かずに、<b>食べた物 帳だけ</b>を ひとつの アプリとして 使えます（できる ことは 同じです。▦ 表に 入れる だけは 表電卓の 中で）。</p>'
+    +(solo() ? '<p>いま 開いて いるのが <b>食べた物 帳だけの アプリ</b>です。</p>'
+      : '<p><a href="tabeta-app/" target="_blank" rel="noopener" id="tbAppLink">🍽 食べた物 帳だけの アプリを 開く</a>（同じ サイトなら、入れた ものは この 食べた物 帳と 同じです）</p>')
+    +'<h5>🏠 ホーム画面に 足す</h5><ol><li><b>iPhone</b>：Safari で 開いて 共有（□↑）→「<b>ホーム画面に追加</b>」</li><li><b>Android</b>：Chrome で 開いて ⋮ →「<b>ホーム画面に追加</b>」（または「アプリをインストール」）</li></ol>'
+    +'<p>アイコンから 食べた物 帳だけが すぐ 開きます。電波が ない ときも 前に 開いた ものが 使えます。</p>'
+    +'<h5>🌐 Netlify に 置く</h5><ol><li>1つの フォルダに、<b>tabeta-app</b> フォルダの <b>中身</b>（index.html・manifest.json・sw.js・アイコン）と <b>tabeta.js</b> を 入れる（zip「tabeta-netlify-…」を 開いた フォルダが この 形です）</li>'
+    +'<li>app.netlify.com に ログイン →「<b>Add new project</b>」→「<b>Deploy manually</b>」に その フォルダを 落とす</li><li>できた アドレス（〜.netlify.app）を スマホで 開いて、ホーム画面に 足す</li></ol>'
+    +'<p>あとで 新しく する ときは、Netlify の その 場所の「Deploys」に 新しい フォルダを 落とします。</p>'
+    +'<h5>⚠ 中身を うつす とき</h5><p>ちがう サイト（Netlify と 表電卓 など）の 食べた物 帳は、中身が <b>別々</b>です。うつす ときは、前の 方の ⚙ →「<b>⬇ CSV（Excel）で 保存</b>」で ファイルを 作り、新しい 方の ⚙ →「<b>⬆ CSV を 読み込む</b>」で その ファイルを 選びます。同じ 物は 2回 入りません。自分で 入れた カロリーも うつります。</p>'
+    +'<div class="tb-acts"><button type="button" class="tb-b pri" onclick="TABETA.close()">✓ わかった</button></div></div>', 'app');
 }
 function more(){ const b=$('tbBody'), h=b ? b.scrollHeight : 0; shown+=300; render(); if(b) b.scrollTop=b.scrollHeight-h; }
 function find(v){ q=String(v||''); render(!q); }
@@ -808,6 +884,7 @@ body.dark .tb-kc{ color:#ffab91; } body.dark .tb-kc.my{ color:#ce93d8; }
 .tb-acts{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; } .tb-acts.col{ flex-direction:column; }
 .tb-b{ min-height:46px; padding:0 14px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; }
 .tb-b.pri{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); } .tb-b.warn{ color:#e53935; border-color:rgba(229,57,53,.5); background:transparent; }
+.tb-help{ font-size:14.5px; line-height:1.75; } .tb-help ol{ margin:4px 0 8px; padding-left:1.4em; } .tb-help a{ color:var(--acc-text,var(--acc)); font-weight:bold; }
 .tb-chk{ display:flex; gap:8px; align-items:flex-start; font-size:14px; line-height:1.5; margin:4px 0; } .tb-chk input{ width:22px; height:22px; flex:none; }
 body.dark .tb-when.set{ background:#4e342e; color:#ffe0b2; }
 `;
@@ -830,6 +907,7 @@ function ensureDom(){
   </div></div>`;
   while(box.firstElementChild) document.body.appendChild(box.firstElementChild);
   const ov=$('tabetaOverlay');
+  const fi=document.createElement('input'); fi.type='file'; fi.id='tbFileIn'; fi.accept='.csv,text/csv,text/comma-separated-values'; fi.hidden=true; fi.addEventListener('change', ()=>importFile(fi)); ov.appendChild(fi);
   ov.addEventListener('keydown', e=>{ if(e.key!=='Escape' && e.key!=='Tab') e.stopPropagation(); });   // 表の 電卓キーに 届かないように
   window.addEventListener('keydown', e=>{   // Esc は 上に 重ねた 小さな窓から 閉じる
     if(e.key!=='Escape' || !pop || !isDlgOpen('tabetaOverlay') || (typeof appModalOpen!=='undefined' && appModalOpen)) return;
@@ -842,7 +920,7 @@ function cleanup(){ popClose(); micStop(); clearTimeout(undoT); undo=null; const
 function openTabeta(){ ensureDom(); load(); q=''; shown=SHOW_N; const f=$('tbFind'); if(f) f.value=''; openDlg('tabetaOverlay', cleanup); render(true); }
 function closeTabeta(){ if(!$('tabetaOverlay') || !isDlgOpen('tabetaOverlay')) return; closeDlg('tabetaOverlay', cleanup); }
 
-window.TABETA={ go:addGo, chip, undo:undoDo, open:openItem, close:popClose, pickMeal, saveItem, del:delItem, again, whenTap, setWhen, openWhen, menu:openMenu, out, csv, wipe, setSplit, setCal, more, find, mic,
+window.TABETA={ go:addGo, chip, undo:undoDo, open:openItem, close:popClose, pickMeal, saveItem, del:delItem, again, whenTap, setWhen, openWhen, menu:openMenu, out, csv, wipe, setSplit, setCal, more, importClick, importFile, importText, appHelp, find, mic,
   // ためす とき 用
   now:s=>{ fixedNow=s ? String(s) : null; if(st) render(true); }, add:(t, voice)=>addText(t, !!voice).length, state:()=>JSON.parse(JSON.stringify(st)), split:(t, v)=>splitFoods(t, v!==false), mealOf:s=>mealOf(new Date(s)),
   text, rows, chips:chipList, clean:cleanE, heard, kcal:(n, q)=>{ const a=kcAuto(String(n||''), String(q||'')); return a ? a.k : null; }, kcalOf:id=>{ const x=eOf(id); return x ? kcalOf(x) : null; }, qty:t=>qtyOf(t), when:()=>when ? Object.assign({}, when) : null };
