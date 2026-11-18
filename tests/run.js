@@ -23144,6 +23144,98 @@ async function runTabeta694(browser) {
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
+/* v695：🍽 食べた物 帳だけのアプリ（tabeta-app/）・⬆ CSV を 読み込む */
+async function runTabetaApp695(browser) {
+  console.log('\n── 🍽 食べた物 帳だけのアプリ（tabeta-app/）・⬆ CSV を 読み込む（v695） ──');
+  const os = require('os'), http = require('http');
+  // ── 表電卓の中：⚙ に ⬆ 読み込む・📱 アプリの 案内（開く リンク）
+  {
+    const { ctx, page, errs } = await newPage(browser);
+    await page.evaluate(async () => { await openTabeta(); TABETA.now('2026-11-17T07:20'); TABETA.add('ごはん、みそ汁'); TABETA.now('2026-11-17T12:30'); TABETA.add('ふしぎ定食'); });
+    const id = await page.evaluate(() => TABETA.state().e.find(x => x.n === 'ふしぎ定食').i);
+    await page.evaluate(id => { TABETA.open(id); document.getElementById('tbEK').value = '777'; TABETA.saveItem(id); TABETA.menu(); }, id);
+    check('  表電卓の中：⚙ に ▦ 表に 入れる・⬆ CSV を 読み込む・📱 アプリ（リンクは tabeta-app/）', await page.evaluate(() => { const t = document.querySelector('.tb-pop').textContent; const a = ['▦ この7日を 表に 入れる', '⬆ CSV を 読み込む', '📱 食べた物 帳だけの アプリ', '📋リストの ⬇書き出し'].map(w => t.includes(w)).join('/') + '/' + t.includes('いま 開いて います');
+      TABETA.appHelp(); return a + ' / ' + document.getElementById('tbAppLink').getAttribute('href') + ' / ' + [...document.querySelectorAll('#tbAppHelp h5')].map(h => h.textContent).join(','); }), 'true/true/true/true/false / tabeta-app/ / 🏠 ホーム画面に 足す,🌐 Netlify に 置く,⚠ 中身を うつす とき');
+    // ⬇ CSV の 中身を 取って、消して、⬆ 読み込む
+    const csvText = await page.evaluate(async () => { TABETA.close(); let blob = null; const o = URL.createObjectURL; URL.createObjectURL = b => { blob = b; return 'blob:x'; }; const oc = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () {}; TABETA.csv(); URL.createObjectURL = o; HTMLAnchorElement.prototype.click = oc; const u8 = new Uint8Array(await blob.arrayBuffer()); return (u8[0] === 0xEF && u8[1] === 0xBB && u8[2] === 0xBF ? '\uFEFF' : '') + await blob.text(); });
+    check('  ⬇ CSV：頭に BOM・カロリーの 列・自分で 入れた 値も', [csvText.charCodeAt(0) === 0xFEFF, csvText.split('\r\n')[0].replace(/^﻿/, ''), csvText.includes('"ふしぎ定食","","777"')].join(' / '), 'true / "日付","時刻","食事","食べた物","量・メモ","カロリー(kcal)" / true');
+    check('  ⬆ 同じ ものを 読むと 2回 入らない', await page.evaluate(t => JSON.stringify(TABETA.importText(t)) + '/' + TABETA.state().e.length, csvText), '{"add":0,"skip":3,"bad":0}/3');
+    check('  ぜんぶ 消して ⬆ 読み込む → もどる（時刻・食事・自分の カロリーも・名前ごとに おぼえる）', await page.evaluate(async t => { localStorage.setItem('excalc_tabeta', JSON.stringify({ e: [] })); closeTabeta(); await openTabeta(); const r = TABETA.importText(t); const s = TABETA.state();
+      const x = s.e.find(y => y.n === 'ふしぎ定食'); return JSON.stringify(r) + ' / ' + s.e.map(y => { const d = new Date(y.t); return d.getHours() + ':' + d.getMinutes() + y.n + ':' + y.m + ':' + TABETA.kcalOf(y.i); }).join(',') + ' / ' + (x.k === 777) + '/' + TABETA.kcal('ふしぎ定食', '') + ' / ' + document.querySelectorAll('#tbBody .tb-row').length; }, csvText),
+      '{"add":3,"skip":0,"bad":0} / 7:20ごはん:asa:234,7:20みそ汁:asa:40,12:30ふしぎ定食:hiru:777 / true/777 / 3');
+    check('  ↶ で 読み込みを 取り消せる', await page.evaluate(() => { TABETA.undo(); return TABETA.state().e.length; }), 0);
+    check('  ほかの 形の CSV：カロリーの 列なし・日付は 2026/11/1・頭の「\'」・おかしな 行は とばす・ちがう CSV は 読まない', await page.evaluate(() => { const r = TABETA.importText('日付,時刻,食事,食べた物,量・メモ\n2026/11/1,8:05,朝,パン,\n2026/11/1,,夕,"\'=カレー","大盛り"\nあいう,1:00,朝,x,\n2026-02-30,1:00,朝,y,\n');
+      const s = TABETA.state(); return JSON.stringify(r) + ' / ' + s.e.map(y => { const d = new Date(y.t); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + d.getMinutes() + ' ' + y.n + '(' + y.q + '):' + y.m + ':' + TABETA.kcalOf(y.i); }).join(',') + ' / ' + TABETA.importText('名前,電話\n山田,090\n'); }),
+      '{"add":2,"skip":0,"bad":2} / 11/1 8:5 パン():asa:160,11/1 12:0 =カレー(大盛り):yuu:1125 / null');
+    check('  エラーなし', errs.join(' / '), '');
+    await ctx.close();
+  }
+  // ── 食べた物 帳だけのアプリ：表電卓の ページなしで 開く
+  const solo = async (url) => {
+    const c = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+    const p = await c.newPage(); const e = []; p.on('pageerror', x => e.push(x.message));
+    await p.goto(url); await p.waitForTimeout(1200);
+    const st = await p.evaluate(() => [typeof openTabeta, isDlgOpen('tabetaOverlay'), window.TB_BASE === undefined ? '同じ場所' : window.TB_BASE, !!document.getElementById('tbBoot'), getComputedStyle(document.querySelector('#tabetaOverlay .modal-close')).display, typeof NP_TOOLS, document.title].join(' / '));
+    await p.fill('#tbIn', 'おにぎり2個、みそ汁'); await p.press('#tbIn', 'Enter'); await p.waitForTimeout(250);
+    const it = await p.evaluate(() => [...document.querySelectorAll('#tbBody .tb-row .tb-nm')].map(x => x.textContent).join(',') + ':' + document.querySelector('#tbBody .tb-dsum b').textContent + ':' + JSON.parse(localStorage.getItem('excalc_tabeta')).e.length);
+    await p.evaluate(() => TABETA.menu()); await p.waitForTimeout(200);
+    const mn = await p.evaluate(() => { const t = document.querySelector('.tb-pop').textContent; return [t.includes('▦'), t.includes('⬆ CSV を 読み込む'), t.includes('（いま 開いて います）'), t.includes('📋リスト')].join('/') + ':' + (TABETA.appHelp(), document.getElementById('tbAppHelp').textContent.includes('いま 開いて いるのが') + '/' + !!document.getElementById('tbAppLink')); });
+    await p.goBack().catch(() => {}); await p.waitForTimeout(400);
+    const bk = await p.evaluate(() => !!document.querySelector('.tb-pop-bg') + '/' + isDlgOpen('tabetaOverlay'));
+    await c.close();
+    return [st, it, mn, bk, e.join(' | ') || 'エラーなし'].join(' // ');
+  };
+  check('  食べた物 帳だけのアプリ（表電卓といっしょ：ひとつ上の tabeta.js）：開く・入れる・カロリー・▦ なし・戻るで 閉じるのは 上の 窓だけ', await solo('file://' + path.join(ROOT, 'tabeta-app', 'index.html')),
+    'function / true / ../ / false / none / undefined / 🍽 食べた物 帳 // おにぎり2個,みそ汁:約400kcal:2 // false/true/true/false:true/false // false/true // エラーなし');
+  const tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'tbapp-')), tmp = path.join(tmpBase, 'site'); fs.mkdirSync(tmp);   // ひとつ上には tabeta.js が ない 形
+  for (const f of fs.readdirSync(path.join(ROOT, 'tabeta-app'))) fs.copyFileSync(path.join(ROOT, 'tabeta-app', f), path.join(tmp, f));
+  fs.copyFileSync(path.join(ROOT, 'tabeta.js'), path.join(tmp, 'tabeta.js'));
+  check('  食べた物 帳だけのアプリ（Netlify の 中の フォルダに 置く 形：同じ 場所の tabeta.js）', await solo('file://' + path.join(tmp, 'index.html')),
+    'function / true / 同じ場所 / false / none / undefined / 🍽 食べた物 帳 // おにぎり2個,みそ汁:約400kcal:2 // false/true/true/false:true/false // false/true // エラーなし');
+  fs.rmSync(tmpBase, { recursive: true, force: true });
+  { const mf = JSON.parse(fs.readFileSync(path.join(ROOT, 'tabeta-app', 'manifest.json'), 'utf8')), sw = fs.readFileSync(path.join(ROOT, 'tabeta-app', 'sw.js'), 'utf8'), ver = (fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8').match(/APP_VERSION='([^']+)'/) || [])[1];
+    check('  　ホーム画面に 足せる（manifest：名前・start_url・アイコン）・控え（sw.js の 名前は 表電卓と 同じ 版）', [mf.name, mf.start_url, mf.display, mf.icons.length, ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(ROOT, 'tabeta-app', f))), (sw.match(/const CACHE = '([^']+)'/) || [])[1] === 'tabeta-app-' + ver, /'\.\.\/tabeta\.js'/.test(sw)].join('/'), '食べた物 帳/.//standalone/4/true/true/true'); }
+  // ── HTTP で 開く（GitHub Pages・Netlify と 同じ 形）：読めない（404）ものが ない・控え（sw.js）で 電波が なくても 開く
+  const serve = dir => new Promise(res => {
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.css': 'text/css' };
+    const srv = http.createServer((req, rsp) => {
+      let u = decodeURIComponent(req.url.split('?')[0]); if (u.endsWith('/')) u += 'index.html';
+      const f = path.join(dir, path.normalize(u));
+      if (!f.startsWith(dir) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { rsp.writeHead(404); rsp.end('not found'); return; }
+      rsp.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }); fs.createReadStream(f).pipe(rsp);
+    });
+    srv.listen(0, '127.0.0.1', () => res(srv));
+  });
+  const httpRun = async (dir, rel, sw) => {
+    const srv = await serve(dir), url = `http://127.0.0.1:${srv.address().port}/${rel}`;
+    const c = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: sw ? 'allow' : 'block' });
+    const p = await c.newPage(); const bad = [], e = [];
+    p.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.url().replace(/^http:\/\/[^/]+/, '')); });
+    p.on('pageerror', x => e.push(x.message));
+    await p.goto(url); await p.waitForTimeout(1200);
+    const st = await p.evaluate(() => [isDlgOpen('tabetaOverlay'), window.TB_BASE, document.title].join(' / '));
+    await p.fill('#tbIn', 'カレー'); await p.press('#tbIn', 'Enter'); await p.waitForTimeout(250);
+    let off = '（控えなし）';
+    if (sw) {
+      const ready = await p.evaluate(() => Promise.race([navigator.serviceWorker.ready.then(() => new Promise(r => { if (navigator.serviceWorker.controller) r('ok'); else navigator.serviceWorker.addEventListener('controllerchange', () => r('ok')); })), new Promise(r => setTimeout(() => r('timeout'), 8000))]));
+      await p.waitForTimeout(500);
+      const keys = await p.evaluate(async () => { const ks = await caches.keys(); const c = await caches.open(ks.find(k => k.startsWith('tabeta-app-'))); return ks.join(',') + ' / ' + (await c.keys()).map(r => new URL(r.url).pathname).filter(u => /tabeta\.js/.test(u)).sort().join(','); });
+      { const cl = new Promise(r => srv.close(r)); srv.closeAllConnections(); await cl; }
+      await p.reload().catch(x => e.push('reload: ' + x.message)); await p.waitForTimeout(1500);
+      off = ready + ' / ' + keys + ' / 電波なし：' + await p.evaluate(() => [isDlgOpen('tabetaOverlay'), [...document.querySelectorAll('#tbBody .tb-row .tb-nm')].map(x => x.textContent).join(',')].join(' / ')).catch(x => 'NG ' + x.message);
+    } else { const cl = new Promise(r => srv.close(r)); srv.closeAllConnections(); await cl; }
+    await c.close();
+    return [st, bad.join(' | ') || '404なし', off, e.join(' | ') || 'エラーなし'].join(' // ');
+  };
+  check('  HTTP：表電卓といっしょ（GitHub Pages の tabeta-app/）：ひとつ上を 読む・404なし', await httpRun(ROOT, 'tabeta-app/', false),
+    'true / ../ / 🍽 食べた物 帳 // 404なし // （控えなし） // エラーなし');
+  { const base = fs.mkdtempSync(path.join(os.tmpdir(), 'tbhttp-')), site = path.join(base, 'site'); fs.mkdirSync(site);
+    for (const f of fs.readdirSync(path.join(ROOT, 'tabeta-app'))) fs.copyFileSync(path.join(ROOT, 'tabeta-app', f), path.join(site, f));
+    fs.copyFileSync(path.join(ROOT, 'tabeta.js'), path.join(site, 'tabeta.js'));
+    check('  HTTP：Netlify に 単独で 置く 形（いちばん 上）：404なし・控えに 本体・電波が なくても 開いて 中身も 残る', await httpRun(site, '', true),
+      'true / ../ / 🍽 食べた物 帳 // 404なし // ok / ' + (fs.readFileSync(path.join(ROOT, 'tabeta-app', 'sw.js'), 'utf8').match(/const CACHE = '([^']+)'/) || [])[1] + ' / /tabeta.js / 電波なし：true / カレー // エラーなし');
+    fs.rmSync(base, { recursive: true, force: true }); }
+}
 async function runOto686(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎶 2〜3分の 名曲メドレー（v686） ──');
@@ -23546,6 +23638,7 @@ const SUITES = [
   [['oto692', 'v692'], b => runOto692(b)],
   [['tabeta693', 'v693'], b => runTabeta693(b)],
   [['tabeta694', 'v694'], b => runTabeta694(b)],
+  [['tabetaapp', 'v695'], b => runTabetaApp695(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- 🍽 食べた物 帳だけのアプリ（v695）。表電卓の 🍽食べた物 帳（../tabeta.js）を、表電卓なしで そのまま使う入れ物。
+     Netlify などに このフォルダの中身と tabeta.js を同じ場所に置けば 動く。
+     表電卓といっしょに置いたとき（GitHub Pages の tabeta-app/）は、ひとつ上の tabeta.js を読む（先に ひとつ上を見る）。
+     入れたものは この端末の中だけ（表電卓と同じ置き場 excalc_tabeta。同じサイトなら 表電卓の 食べた物 帳と 同じ中身）。 -->
+<title>🍽 食べた物 帳</title>
+<meta name="description" content="食べた物を 打つか 話すだけで どんどん 記録する。1行ずつ 日付と 時刻つきで 並び、よく ある 物の カロリー（目安）と 日ごとの 合計も 自動。入れたものは この端末の中だけに残ります。">
+<meta name="theme-color" content="#217346">
+<meta name="color-scheme" content="light dark">
+<meta name="format-detection" content="telephone=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="食べた物">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="icon" href="icon-512.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --acc:#217346; --acc-dark:#1a5c35; --acc-on-dark:#6cc492; --acc-weak:rgba(33,115,70,.12); --on-acc:#fff; --acc-text:var(--acc);
+  --text:#333; --text-sub:#555; --text-light:#888; --modal-bg:#fff; --bg:#f0f0f0; --panel:#fff; --cell-bg:#fff;
+  --r-btn:8px; --r-card:12px; --dur:.14s; --elev-2:0 8px 28px rgba(0,0,0,.28);
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px); --safe-left:env(safe-area-inset-left,0px); --safe-right:env(safe-area-inset-right,0px);
+}
+body.dark{ --acc-text:var(--acc-on-dark); --acc-weak:rgba(33,115,70,.30); --text:#ddd; --text-sub:#aaa; --text-light:#8f97aa; --modal-bg:#1e2a45; --bg:#1a1a2e; --panel:#1e2a45; --cell-bg:#1e2a45; --elev-2:0 8px 28px rgba(0,0,0,.6); }
+html,body{ margin:0; height:100%; }
+body{ background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",Meiryo,sans-serif; -webkit-text-size-adjust:100%; }
+button,input,select,textarea{ font-family:inherit; }
+.modal-overlay{ display:none; position:fixed; inset:0; background:var(--bg); z-index:1000; align-items:center; justify-content:center; }
+.modal-overlay.open{ display:flex; }
+.modal{ background:var(--modal-bg); color:var(--text); border-radius:var(--r-card); width:92%; max-width:420px; max-height:75vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--elev-2); }
+.modal.modal-full{ width:100%; max-width:none; height:100%; max-height:100%; border-radius:0; box-shadow:none; padding-bottom:0; }
+.modal-header{ background:var(--acc); color:#fff; padding:12px 16px; padding-top:calc(12px + var(--safe-top)); padding-left:calc(16px + var(--safe-left)); padding-right:calc(16px + var(--safe-right));
+  font-size:17px; font-weight:bold; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+body.dark .modal-header{ background:var(--acc-dark); }
+/* いちばん下の画面（食べた物 帳）は閉じない：✕ を出さない */
+html.tb-solo #tabetaOverlay .modal-header .modal-close{ display:none; }
+.app-toast{ position:fixed; left:50%; bottom:calc(150px + var(--safe-bottom)); transform:translateX(-50%) translateY(8px); background:rgba(0,0,0,.85); color:#fff; padding:8px 16px; border-radius:var(--r-btn);
+  font-size:13px; font-weight:bold; z-index:100001; opacity:0; pointer-events:none; transition:opacity var(--dur), transform var(--dur); max-width:80%; text-align:center; white-space:pre-wrap; }
+.app-toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+#tbBoot{ position:fixed; inset:0; display:flex; flex-direction:column; gap:10px; align-items:center; justify-content:center; padding:24px; text-align:center; font-size:18px; font-weight:bold; color:var(--text-light); }
+#tbBoot small{ font-size:13px; font-weight:normal; line-height:1.7; }
+</style>
+<script>
+/* ── 食べた物 帳（tabeta.js）が使う 小さな道具（表電卓の app.js にあるものと同じ働き） ── */
+document.documentElement.classList.add('tb-solo');
+let appModalOpen=false;
+/* お知らせ（下に少し出す） */
+let _toastTimer=null;
+function toast(msg, ms){
+  let el=document.getElementById('appToast');
+  if(!el){ el=document.createElement('div'); el.id='appToast'; el.className='app-toast'; el.setAttribute('role','status'); el.setAttribute('aria-live','polite'); document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'), ms||1800);
+}
+/* はい／いいえ */
+function appConfirm(message, yes='OK', no='キャンセル'){
+  return new Promise(resolve=>{
+    appModalOpen=true;
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:12vh;background:rgba(0,0,0,.45)';
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);min-width:280px;max-width:90vw;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
+    const msg=document.createElement('div'); msg.textContent=message; msg.style.cssText='margin-bottom:14px;font-weight:600;line-height:1.5;white-space:pre-wrap';
+    const row=document.createElement('div'); row.style.cssText='display:flex;justify-content:flex-end;gap:8px';
+    const bn=document.createElement('button'); bn.textContent=no; bn.style.cssText='padding:8px 14px;font-size:14px;border:1px solid #999;border-radius:6px;background:#eee;color:#222;cursor:pointer';
+    const by=document.createElement('button'); by.textContent=yes; by.style.cssText='padding:8px 16px;font-size:14px;border:none;border-radius:6px;background:#217346;color:#fff;cursor:pointer;font-weight:bold';
+    let done=false;
+    const close=v=>{ if(done) return; done=true; relBack(); appModalOpen=false; document.removeEventListener('keydown', onKey, true); try{ document.body.removeChild(ov); }catch(_){} resolve(v); };
+    const relBack=modalBack(()=>close(false));   // 端末の「戻る」は「いいえ」（下の画面は閉じない）
+    const onKey=e=>{ if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); close(false); } };
+    document.addEventListener('keydown', onKey, true);
+    bn.onclick=()=>close(false); by.onclick=()=>close(true);
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(false); });
+    row.appendChild(bn); row.appendChild(by); box.appendChild(msg); box.appendChild(row); ov.appendChild(box); document.body.appendChild(ov);
+    by.focus();
+  });
+}
+/* 文字を見せる（コピーできなかったとき。長押しで コピーしてもらう） */
+function appPrompt(message, defaultValue='', multiline=false){
+  return new Promise(resolve=>{
+    appModalOpen=true;
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding-top:7vh;background:rgba(0,0,0,.45)';
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--panel,#fff);color:var(--text,#222);min-width:280px;max-width:90vw;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);font-size:15px';
+    const msg=document.createElement('div'); msg.textContent=message; msg.style.cssText='margin-bottom:10px;font-weight:600;white-space:pre-wrap';
+    const input=document.createElement(multiline?'textarea':'input'); if(multiline) input.rows=8; else input.type='text';
+    input.value=defaultValue;
+    input.style.cssText='width:100%;box-sizing:border-box;padding:8px 10px;font-size:16px;border:1px solid #999;border-radius:6px;background:var(--cell-bg,#fff);color:var(--text,#222)';
+    const row=document.createElement('div'); row.style.cssText='display:flex;justify-content:flex-end;gap:8px;margin-top:14px';
+    const ok=document.createElement('button'); ok.textContent='OK'; ok.style.cssText='padding:7px 16px;font-size:14px;border:none;border-radius:6px;background:#217346;color:#fff;cursor:pointer;font-weight:bold';
+    let done=false;
+    const close=val=>{ if(done) return; done=true; relBack(); appModalOpen=false; try{ document.body.removeChild(ov); }catch(_){} resolve(val); };
+    const relBack=modalBack(()=>close(null));
+    ok.onclick=()=>close(input.value);
+    input.addEventListener('keydown',e=>{ e.stopPropagation(); if(e.key==='Escape'){ e.preventDefault(); close(null); } });
+    ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(null); });
+    row.appendChild(ok); box.appendChild(msg); box.appendChild(input); box.appendChild(row); ov.appendChild(box); document.body.appendChild(ov);
+    input.focus(); input.select();
+  });
+}
+/* コピー・共有（LINE・メール など）。共有できないときはコピー */
+async function toolCopyText(text, msg){
+  try{ await navigator.clipboard.writeText(text); toast(msg||'コピーしました（LINE などに貼れます）'); return true; }
+  catch(_){
+    const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+    document.body.appendChild(ta); ta.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(_){} ta.remove();
+    if(ok){ toast(msg||'コピーしました（LINE などに貼れます）'); return true; }
+    await appPrompt('うまくコピーできませんでした。下の文を長押ししてコピーしてください', text, true);
+    return false;
+  }
+}
+async function toolShareText(title, text){
+  if(navigator.share){ try{ await navigator.share({ title, text }); return true; }catch(e){ if(e && e.name==='AbortError') return false; } }
+  return toolCopyText(text, '共有のかわりにコピーしました（LINE などに貼れます）');
+}
+/* CSV の頭の記号・声（表電卓と同じ） */
+function csvSafe(v){ const s=String(v==null?'':v); return /^[=+\-@\t\r]/.test(s) && !/^[\d\s+\-.,:\/()%]*$/.test(s) ? "'"+s : s; }
+function speechRecCtor(){ return window.SpeechRecognition || window.webkitSpeechRecognition || null; }
+
+/* ── 画面の開け閉め：開いたら 端末の「戻る」で閉じられるように（いちばん下の 食べた物 帳 は閉じない） ── */
+const dlgStack=[]; let histSkip=0, histBase=false;
+function isDlgOpen(id){ const el=document.getElementById(id); return !!(el && el.classList.contains('open')); }
+function openDlg(id, cleanup){
+  const el=document.getElementById(id);
+  if(!el || el.classList.contains('open')) return false;
+  el.classList.add('open');
+  if(id==='tabetaOverlay') return true;
+  dlgStack.push({id, close:()=>{ el.classList.remove('open'); if(cleanup) cleanup(); }});
+  try{ history.pushState({tbDlg:1},''); }catch(_){}
+  return true;
+}
+function closeDlg(id, cleanup){
+  const el=document.getElementById(id);
+  if(!el || !el.classList.contains('open') || id==='tabetaOverlay') return false;
+  el.classList.remove('open');
+  const i=dlgStack.map(d=>d.id).lastIndexOf(id);
+  if(i>=0){ dlgStack.splice(i,1); histSkip++; try{ history.back(); }catch(_){ histSkip--; } }
+  if(cleanup) cleanup();
+  return true;
+}
+window.addEventListener('popstate', ()=>{
+  if(histSkip>0){ histSkip--; return; }
+  const d=dlgStack.pop(); if(d){ d.close(); return; }
+  if(histBase){ histBase=false; toast('もう一度「戻る」を押すと閉じます', 2600); }   // 押しまちがいで閉じないように
+});
+/* 小さな窓（直す・いつ・⚙・はい／いいえ）も、端末の「戻る」で その窓だけ閉じる。返す関数は ボタンで閉じたときに呼ぶ */
+let modalSeq=0;
+function modalBack(onBack){
+  let on=true; const id='__modal'+(++modalSeq);
+  dlgStack.push({id, close:()=>{ if(!on) return; on=false; try{ onBack(); }catch(_){} }});
+  try{ history.pushState({tbDlg:1},''); }catch(_){}
+  return ()=>{ if(!on) return; on=false; const i=dlgStack.map(d=>d.id).lastIndexOf(id); if(i>=0){ dlgStack.splice(i,1); histSkip++; try{ history.back(); }catch(_){ histSkip--; } } };
+}
+/* はじめて触れたときに、いちばん下の分を1つ積んでおく */
+function tbActed(){ if(histBase || histSkip>0) return; try{ history.pushState({tbBase:1},''); histBase=true; }catch(_){} }
+['pointerup','keydown'].forEach(t=>window.addEventListener(t, tbActed, true));
+/* Esc：いちばん上の窓を閉じる */
+window.addEventListener('keydown', e=>{ if(e.key!=='Escape' || appModalOpen || !dlgStack.length) return; e.preventDefault(); history.back(); });
+</script>
+</head>
+<body>
+<div id="tbBoot">🍽 食べた物 帳<small>開いています…</small></div>
+<script>
+/* 夜の色：端末の設定に合わせる */
+(function(){
+  const mq=window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  const set=()=>document.body.classList.toggle('dark', !!(mq && mq.matches));
+  set(); if(mq){ try{ mq.addEventListener('change', set); }catch(_){ try{ mq.addListener(set); }catch(__){} } }
+})();
+/* 食べた物 帳の本体を読む（ひとつ上 → なければ 同じ場所）
+   表電卓といっしょ（GitHub Pages の tabeta-app/）は ひとつ上にある。Netlify の いちばん上に置いたときは ../ も 同じ場所を指すので、
+   どちらも 読めない（404）ものを出さずに開ける。Netlify の中のフォルダに置いたときは 同じ場所を読む。 */
+(function(){
+  const load=src=>new Promise(res=>{ const s=document.createElement('script'); s.src=src; s.onload=()=>res(true); s.onerror=()=>{ s.remove(); res(false); }; document.head.appendChild(s); });
+  (async()=>{
+    window.TB_BASE='../';
+    let ok=await load('../tabeta.js');
+    if(!ok){ delete window.TB_BASE; ok=await load('tabeta.js'); }
+    const boot=document.getElementById('tbBoot');
+    if(!ok || typeof window.openTabeta!=='function'){
+      boot.innerHTML='🍽 食べた物 帳を 読み込めませんでした<small>このページと同じ場所に tabeta.js を置いてください。<br>インターネットにつながるところで、もう一度 開いてみてください。</small>';
+      return;
+    }
+    boot.remove();
+    window.openTabeta();
+  })();
+  if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script>
+</body>
+</html>
