@@ -19018,7 +19018,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v697';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v698';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22526,7 +22526,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_auto_half','excalc_auto_date','excalc_auto_opfx','excalc_auto_paren','excalc_auto_calcfx','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
-  'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
+  'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_nav_fold','excalc_tool_fs','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
   'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step','excalc_regi_ui',   // v460〜v462・v501
   'hyo_voice',   // 🔈 読み上げの声（v540。声の計算帳・ほかの道具と同じ）
@@ -23681,7 +23681,67 @@ function setToolFs(on){
   toolFsSync(); renderUi2Seg();
   toast(on ? '道具を全画面で開きます' : '道具を開いても下のタブを残します');
 }
+/* ── 下の タブを 右下に たたむ（v698）──
+   設定の「下のメニュー」で ◀ 右下に たたむ に すると、タブを 隠して 表の 右下（入力欄の すぐ 上）に ◀ だけ 出す。
+   ◀ で タブが 右から 出て、▶・タブの ボタン・ほかの 所を 押すと たたむ。テンキーと 表が タブの 分 広く なる。
+   横向き・テンキーを 右に 出す ときは タブが 上の 段に あるので たたまない */
+const NAV_FOLD_KEY='excalc_nav_fold';
+let navFoldOpen=false;
+function navFoldOn(){ try{ return localStorage.getItem(NAV_FOLD_KEY)==='1'; }catch(_){ return false; } }
+function navFoldActive(){
+  if(!ui2On || !navFoldOn()) return false;
+  const b=document.body;
+  if(b.classList.contains('np-side') || b.classList.contains('calc-only')) return false;
+  try{ if(matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return false; }catch(_){}
+  return !document.documentElement.classList.contains('app-tool') && !document.documentElement.classList.contains('app-techo');
+}
+function navFoldPos(){   // ◀ と 出した タブを 入力欄（ない ときは テンキー）の すぐ 上に
+  if(!document.body.classList.contains('nav-fold')) return;
+  let top=window.innerHeight;
+  for(const sel of ['.left-pane .formula-bar', '.formula-bar', '.numpad-section']){
+    const e=document.querySelector(sel); if(!e) continue;
+    const r=e.getBoundingClientRect(); if(r.height>0 && r.width>0){ top=r.top; break; }
+  }
+  const b=Math.max(10, Math.min(window.innerHeight-80, Math.round(window.innerHeight-top+10)));
+  document.body.style.setProperty('--navf-b', b+'px');
+}
+function navFoldSync(){
+  const on=navFoldActive();
+  if(!on) navFoldOpen=false;
+  document.body.classList.toggle('nav-fold', !!(ui2On && navFoldOn()));
+  document.body.classList.toggle('nav-fold-open', on && navFoldOpen);
+  const t=document.getElementById('navFoldTab');
+  if(t){
+    t.textContent=navFoldOpen ? '▶' : '◀';
+    t.setAttribute('aria-expanded', String(on && navFoldOpen));
+    t.setAttribute('aria-label', navFoldOpen ? 'メニューを たたむ' : 'メニューを出す（表・電卓・ひな形・道具・メニュー）');
+    t.classList.toggle('has-note', !navFoldOpen && !!(typeof menuNotes!=='undefined' && menuNotes.length));
+  }
+  navFoldPos();
+}
+function navFoldTap(){ navFoldOpen=!navFoldOpen; navFoldSync(); }
+function setNavFold(on){
+  try{ localStorage.setItem(NAV_FOLD_KEY, on ? '1' : '0'); }catch(_){}
+  navFoldOpen=false; navFoldSync(); renderUi2Seg();
+  try{ window.dispatchEvent(new Event('resize')); }catch(_){}
+  toast(on ? '下のメニューを右下の ◀ にたたみました（押すと出ます）' : '下のメニューをいつも出します', 3000);
+}
+(function navFoldSetup(){
+  // ほかの 所を 押したら たたむ（◀ ▶ と タブの 中は のぞく）
+  document.addEventListener('pointerdown', e=>{
+    if(!navFoldOpen) return;
+    const t=e.target; if(t && t.closest && (t.closest('#appNav') || t.closest('#navFoldTab'))) return;
+    navFoldOpen=false; navFoldSync();
+  }, true);
+  window.addEventListener('resize', ()=>{ navFoldSync(); });
+  try{
+    const ro=new ResizeObserver(()=>navFoldPos());
+    ['.numpad-section', '.left-pane', '.formula-bar'].forEach(s=>{ const e=document.querySelector(s); if(e) ro.observe(e); });
+  }catch(_){}
+  requestAnimationFrame(navFoldSync);
+})();
 function renderUi2Seg(){
+  document.querySelectorAll('#navFoldSeg button').forEach(b=>{ const on=(b.dataset.f==='1')===navFoldOn(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
   document.querySelectorAll('#toolFsSeg button').forEach(b=>{ const on=(b.dataset.t==='1')===toolFsOn(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
   document.querySelectorAll('#ui2Seg button').forEach(b=>b.classList.toggle('on', (b.dataset.u==='1')===ui2On));
   const n=document.getElementById('ui2Note');
@@ -23766,6 +23826,7 @@ function navCloseAll(){
   if(typeof closeSideApp==='function'){ try{ closeSideApp(); }catch(_){} }
 }
 function navGo(tab){
+  if(navFoldOpen){ navFoldOpen=false; navFoldSync(); }   // たたんだ タブから 移った ときは また たたむ（v698）
   commitPendingEdit();   // 打ちかけの 中身を 先に 入れる（v672）
   // 「電卓だけ」の あいだは 表・ひな形へ 移らない（表に 戻ると テンキーは 電卓の まま 動けなく なるため。v659）
   if(calcOnly && isDentaku() && (tab==='sheet' || tab==='tpl')){ toast('「電卓だけ」のあいだは表に移りません（⋮ → 設定 → ⌨テンキー で戻せます）', 3200); navSync(); return; }
@@ -23792,6 +23853,7 @@ function navSync(){
   const cur=navCurrent();
   document.querySelectorAll('#appNav button').forEach(b=>{ const on=b.dataset.nav===cur; b.classList.toggle('on', on); if(on) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   const mb=document.getElementById('navMenuBtn'); if(mb) mb.classList.toggle('has-note', !!(typeof menuNotes!=='undefined' && menuNotes.length));
+  if(typeof navFoldSync==='function') navFoldSync();
   uiTopSync();
 }
 /* 窓の 開け閉め・モードの 切り替え・元に戻す の たびに タブと 上の バーを 合わせる */
