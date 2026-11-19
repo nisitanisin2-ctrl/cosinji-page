@@ -384,20 +384,99 @@ footer li{ margin:2px 0; word-break:break-all; }
   *,*::before,*::after{ animation:none !important; transition:none !important; }
   .reveal{ transform:none !important; opacity:1 !important; }
 }
+
+/* ===== アプリの形（下のタブ・画面ごとの切りかえ） ===== */
+:root{ --tabh:64px; }
+body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px); }
+.brand{ display:flex; align-items:center; gap:8px; }
+.brand .logo{ display:grid; place-items:center; width:28px; height:28px; border-radius:9px; background:linear-gradient(140deg,var(--acc),var(--acc2)); color:#fff; font-size:13px; }
+.brand b{ font-size:.95rem; }
+.apptitle{ flex:1; text-align:center; font-weight:700; font-size:.92rem; color:var(--sub); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tabbar{ position:fixed; z-index:55; left:0; right:0; bottom:0; height:calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); padding-bottom:env(safe-area-inset-bottom, 0px);
+  display:grid; grid-template-columns:repeat(5,1fr); background:color-mix(in srgb, var(--panel) 88%, transparent); backdrop-filter:saturate(1.5) blur(16px); -webkit-backdrop-filter:saturate(1.5) blur(16px); border-top:1px solid var(--line); }
+.tabbar button{ border:none; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--faint); font-size:.68rem; font-weight:700; position:relative; -webkit-tap-highlight-color:transparent; }
+.tabbar svg{ width:24px; height:24px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; transition:transform .25s; }
+.tabbar button[aria-current="page"]{ color:var(--acc); }
+.tabbar button[aria-current="page"] svg{ transform:translateY(-1px) scale(1.08); }
+.tabbar button[aria-current="page"]::before{ content:""; position:absolute; top:7px; width:46px; height:30px; border-radius:99px; background:color-mix(in srgb, var(--acc) 13%, transparent); z-index:-1; }
+@media (min-width:1000px){
+  body{ padding-bottom:0; padding-left:92px; }
+  .tabbar{ top:0; right:auto; width:92px; height:auto; grid-template-columns:none; grid-auto-rows:76px; align-content:center; border-top:none; border-right:1px solid var(--line); padding:0; }
+  .tabbar button{ font-size:.72rem; }
+  header.top{ margin-left:0; }
+}
+.screen.enter{ animation:scrin .32s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes scrin{ from{ opacity:0; transform:translateY(10px); } }
+.screen section{ padding-block:30px 6px; }
+.screen section:first-child{ padding-top:18px; }
+.sechead{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.sechead h2{ margin:0; font-size:1.3rem; }
+/* ホームの写真 */
+#scr-home .hero{ height:clamp(440px, 64vh, 600px); border-radius:0 0 28px 28px; }
+@media (min-width:1000px){ #scr-home .hero{ margin:16px 16px 0; border-radius:28px; } }
+#scr-home #level h2{ font-size:1.3rem; }
+#scr-home .levels{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; gap:10px; margin-inline:-16px; padding:2px 16px 6px; scrollbar-width:none; }
+#scr-home .levels::-webkit-scrollbar{ display:none; }
+#scr-home .levels .lv{ flex:0 0 auto; width:138px; scroll-snap-align:start; border-radius:18px; }
+.hscroll{ display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; margin-inline:-16px; padding:4px 16px 12px; scrollbar-width:none; }
+.hscroll::-webkit-scrollbar{ display:none; }
+.reccard{ flex:0 0 auto; width:min(64vw,230px); scroll-snap-align:start; text-align:left; cursor:pointer; border:1px solid var(--line); border-radius:20px; padding:16px 16px 14px; display:flex; flex-direction:column; gap:4px; min-height:150px; position:relative; overflow:hidden;
+  background:linear-gradient(160deg, color-mix(in srgb, var(--c) 16%, var(--panel)) 0%, var(--panel) 70%); box-shadow:var(--shadow); transition:transform .2s; }
+.reccard::before{ content:""; position:absolute; right:-26px; top:-26px; width:90px; height:90px; border-radius:50%; background:color-mix(in srgb, var(--c) 22%, transparent); }
+.reccard:active{ transform:scale(.97); }
+.reccard .rk{ font-size:.7rem; font-weight:800; color:var(--c); letter-spacing:.06em; }
+.reccard b{ font-size:1.08rem; line-height:1.35; }
+.reccard .rm{ font-size:.8rem; color:var(--sub); font-family:var(--f-num); }
+.reccard .rgo{ margin-top:auto; font-size:.78rem; font-weight:700; color:var(--acc); }
+.stampcard{ border-radius:22px; }
+.stamphead{ display:flex; gap:16px; align-items:center; }
+.stamphead h3{ margin:0; }
+.ring{ --p:0; flex:none; width:76px; height:76px; border-radius:50%; display:grid; place-items:center; align-content:center; background:conic-gradient(var(--acc2) calc(var(--p)*1%), var(--panel2) 0); position:relative; transition:--p .6s; }
+.ring::before{ content:""; position:absolute; inset:7px; border-radius:50%; background:var(--panel); }
+.ring b, .ring small{ position:relative; font-family:var(--f-num); line-height:1; }
+.ring b{ font-size:1.6rem; font-weight:800; } .ring small{ font-size:.72rem; color:var(--sub); }
+.stampgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(74px,1fr)); gap:10px; margin-top:16px; }
+.stamp{ border:none; background:none; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:.68rem; color:var(--sub); padding:0; }
+.stamp i{ font-style:normal; width:48px; height:48px; border-radius:50%; display:grid; place-items:center; border:2px dashed color-mix(in srgb, var(--c) 55%, transparent); color:#fff; font-weight:900; font-size:1.2rem; transition:transform .3s; }
+.stamp.on i{ border:2px solid var(--c); background:var(--c); transform:rotate(-8deg); box-shadow:0 4px 12px -4px var(--c); }
+.stamp span{ line-height:1.3; text-align:center; }
+.badges{ display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+.badge2{ display:inline-flex; align-items:center; gap:5px; font-size:.74rem; padding:4px 10px 4px 6px; border-radius:99px; background:var(--panel2); color:var(--faint); filter:grayscale(1); opacity:.7; }
+.badge2 i{ font-style:normal; }
+.badge2.on{ filter:none; opacity:1; color:var(--text); background:color-mix(in srgb, var(--gold) 18%, var(--panel)); font-weight:700; }
+.tiles{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+@media (min-width:720px){ .tiles{ grid-template-columns:repeat(3,1fr); } }
+.tile{ text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--panel); border-radius:18px; padding:14px; display:flex; flex-direction:column; gap:2px; transition:transform .2s, border-color .2s; }
+.tile:active{ transform:scale(.97); } .tile:hover{ border-color:var(--text); }
+.tile .ti{ font-size:1.4rem; line-height:1.2; margin-bottom:4px; }
+.tile b{ font-size:.95rem; } .tile span:last-child{ font-size:.74rem; color:var(--sub); }
+.stampbtn.on{ background:var(--lv1); border-color:var(--lv1); color:#fff; }
+.toast{ position:fixed; z-index:70; left:50%; bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 14px); transform:translate(-50%,20px); opacity:0; pointer-events:none;
+  background:var(--text); color:var(--bg); font-weight:700; font-size:.88rem; padding:10px 18px; border-radius:99px; box-shadow:var(--shadow); transition:transform .3s, opacity .3s; white-space:nowrap; }
+.toast.on{ transform:translate(-50%,0); opacity:1; }
+#scr-info footer{ margin-top:40px; }
+.subnav{ position:sticky; top:calc(var(--head) + env(safe-area-inset-top, 0px)); z-index:20; display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin-inline:-16px; padding:10px 16px; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+.subnav::-webkit-scrollbar{ display:none; }
+.subnav button{ flex:none; border:1px solid var(--line); background:var(--panel); border-radius:99px; padding:7px 14px; font-size:.84rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+.subnav button:hover{ border-color:var(--text); }
+.subnav + section{ padding-top:8px; }
 </style>
 </head>
 <body>
 
 <header class="top">
   <div class="wrap">
-    <div class="brand"><b>東鉢ガイド</b><small>UNOFFICIAL</small></div>
-    <nav class="toc" id="toc">
-      <a href="#level">レベル</a><a href="#map">コース</a><a href="#slope">斜度</a><a href="#quiz">診断</a><a href="#basic">はじめて</a><a href="#plan">1日</a><a href="#cost">料金</a><a href="#access">アクセス</a><a href="#tips">知っ得</a>
-    </nav>
+    <div class="brand"><span class="logo" aria-hidden="true">▲</span><b>東鉢ガイド</b></div>
+    <div class="apptitle" id="appTitle" aria-live="polite">ホーム</div>
     <button class="iconbtn" id="themeBtn" aria-label="明るさを切りかえる" title="明るさを切りかえる"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
   </div>
 </header>
 
+
+<div class="app">
+<nav class="tabbar" id="tabbar" aria-label="画面の切りかえ"><button type="button" data-tab="home" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></button><button type="button" data-tab="map" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5 9 4z"/><path d="M9 4v13M15 6.5v13"/></svg><span>マップ</span></button><button type="button" data-tab="play" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 21 9"/><circle cx="15" cy="5" r="2"/><path d="M8 14.5 11 10l3 2 2-3.5"/></svg><span>あそぶ</span></button><button type="button" data-tab="plan" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>プラン</span></button><button type="button" data-tab="info" aria-current="false"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.4"/></svg><span>情報</span></button></nav>
+<main id="screens">
+<div class="screen" data-tab="home" data-title="ホーム" id="scr-home">
 <!-- ============ HERO ============ -->
 <div class="hero" id="hero">
   <img class="scene" src="img/hero.jpg" alt="ハイパーボウル東鉢の山頂から見下ろしたゲレンデ。リフトと、雪の山なみ" decoding="async" fetchpriority="high">
@@ -416,9 +495,39 @@ footer li{ margin:2px 0; word-break:break-all; }
     </dl>
   </div>
 </div>
-
-<main class="wrap">
-
+<div class="wrap">
+<!-- ============ LEVEL ============ -->
+<section id="level" class="reveal">
+  <p class="eyebrow">Your level</p>
+  <h2>あなたはどのレベル？</h2>
+  <p class="lead">えらぶと、おすすめコース・コース図・1日のプランが、そのレベル向けに変わります。</p>
+  <div class="levels" id="levels"></div>
+  <div class="card lvpanel" id="lvpanel" aria-live="polite"></div>
+</section>
+<!-- ============ TODAY ============ -->
+<section id="today">
+  <div class="sechead"><h2>今日のおすすめ</h2><span class="note" id="recFor"></span></div>
+  <div class="hscroll" id="recCards"></div>
+</section>
+<section id="stamps">
+  <div class="card stampcard">
+    <div class="stamphead"><div class="ring" id="stampRing"><b id="stampNum">0</b><small id="stampTot">/0</small></div>
+      <div><h3>コース制覇スタンプ</h3><p class="note">滑ったコースは、マップでコースを選んで「滑った！」を押すとスタンプがたまります（この端末だけに保存）。</p></div></div>
+    <div class="stampgrid" id="stampGrid"></div>
+    <div class="badges" id="badges"></div>
+  </div>
+</section>
+<section id="quick">
+  <div class="sechead"><h2>あそびかたを探す</h2></div>
+  <div class="tiles">
+    <button type="button" class="tile" data-go="slope"><span class="ti">📐</span><b>斜度を体感</b><span>43°ってどのくらい？</span></button>
+    <button type="button" class="tile" data-go="quiz"><span class="ti">🎯</span><b>30秒診断</b><span>合うコースがわかる</span></button>
+    <button type="button" class="tile" data-go="basic"><span class="ti">🔰</span><b>はじめての人へ</b><span>止まる・曲がる</span></button>
+    <button type="button" class="tile" data-go="plan"><span class="ti">🕘</span><b>1日のプラン</b><span>朝から夕方まで</span></button>
+    <button type="button" class="tile" data-go="cost"><span class="ti">🎫</span><b>料金を計算</b><span>リフト券・レンタル</span></button>
+    <button type="button" class="tile" data-go="access"><span class="ti">🚗</span><b>アクセス</b><span>ICからのルート</span></button>
+  </div>
+</section>
 <!-- ============ ABOUT ============ -->
 <section id="about" class="reveal">
   <p class="eyebrow">About</p>
@@ -430,16 +539,10 @@ footer li{ margin:2px 0; word-break:break-all; }
     <div class="card"><h3>独立したチビッコパーク</h3><p>駐車場のすぐ近くに 3,000㎡。<b>サンキッド（スノーエスカレーター）</b>つき。小学生未満はリフト無料。口コミでは「比較的すいていて滑りやすい」という声も。</p></div>
   </div>
 </section>
-
-<!-- ============ LEVEL ============ -->
-<section id="level" class="reveal">
-  <p class="eyebrow">Your level</p>
-  <h2>あなたはどのレベル？</h2>
-  <p class="lead">えらぶと、下のコース図・1日のプランが、そのレベル向けに変わります。</p>
-  <div class="levels" id="levels"></div>
-  <div class="card lvpanel" id="lvpanel" aria-live="polite"></div>
-</section>
-
+</div>
+</div>
+<div class="screen" data-tab="map" data-title="コースマップ" id="scr-map" hidden>
+<div class="wrap">
 <!-- ============ MAP ============ -->
 <section id="map">
   <p class="eyebrow">Course map</p>
@@ -506,7 +609,11 @@ footer li{ margin:2px 0; word-break:break-all; }
   </div>
   </div>
 </section>
-
+</div>
+</div>
+<div class="screen" data-tab="play" data-title="あそぶ・練習" id="scr-play" hidden>
+<div class="wrap">
+<nav class="subnav" aria-label="この画面の中"><button type="button" data-go="slope">📐 斜度</button><button type="button" data-go="quiz">🎯 診断</button><button type="button" data-go="basic">🔰 はじめて</button></nav>
 <!-- ============ SLOPE ============ -->
 <section id="slope" class="reveal">
   <p class="eyebrow">Slope</p>
@@ -526,7 +633,6 @@ footer li{ margin:2px 0; word-break:break-all; }
     </div>
   </div>
 </section>
-
 <!-- ============ QUIZ ============ -->
 <section id="quiz" class="reveal">
   <p class="eyebrow">Course finder</p>
@@ -534,7 +640,6 @@ footer li{ margin:2px 0; word-break:break-all; }
   <p class="lead">4つの質問に答えると、あなたに合うコースと回り方をおすすめします。</p>
   <div class="card quiz" id="quizBox"></div>
 </section>
-
 <!-- ============ BASIC ============ -->
 <section id="basic" class="reveal">
   <p class="eyebrow">Basics</p>
@@ -593,16 +698,19 @@ footer li{ margin:2px 0; word-break:break-all; }
     </div>
   </div>
 </section>
-
+</div>
+</div>
+<div class="screen" data-tab="plan" data-title="1日のプラン" id="scr-plan" hidden>
+<div class="wrap">
+<nav class="subnav" aria-label="この画面の中"><button type="button" data-go="plan">🕘 1日のプラン</button><button type="button" data-go="cost">🎫 料金</button></nav>
 <!-- ============ PLAN ============ -->
 <section id="plan" class="reveal">
   <p class="eyebrow">One day</p>
   <h2>1日のモデルプラン</h2>
-  <p class="lead">いま選んでいるレベル：<b id="planLv"></b>（上の「レベル」で変えられます）</p>
+  <p class="lead">いま選んでいるレベル：<b id="planLv"></b>（ホームの「あなたのレベル」で変えられます）</p>
   <div class="sunbar" id="sunbar"><div class="sun" id="sun"></div><div class="hrs"><span>6時</span><span>9時</span><span>12時</span><span>15時</span><span>18時</span></div></div>
   <div class="card"><div class="tl" id="timeline"></div></div>
 </section>
-
 <!-- ============ COST ============ -->
 <section id="cost" class="reveal">
   <p class="eyebrow">Lift tickets</p>
@@ -640,7 +748,11 @@ footer li{ margin:2px 0; word-break:break-all; }
     <p class="note">シーズン券（スカイバレイ共通）大人 40,000円・小学生 20,000円。<b>早割シーズン券 大人 37,000円は11月末まで</b>。月間券もあります。駐車場は平日 1,000円・土日祝 1,500円。<span class="src">（公式・2026年11月17日確認）</span></p>
   </div>
 </section>
-
+</div>
+</div>
+<div class="screen" data-tab="info" data-title="情報" id="scr-info" hidden>
+<div class="wrap">
+<nav class="subnav" aria-label="この画面の中"><button type="button" data-go="access">🚗 アクセス</button><button type="button" data-go="tips">💡 知っ得</button><button type="button" data-go="about-app">ℹ このアプリ</button></nav>
 <!-- ============ ACCESS ============ -->
 <section id="access" class="reveal">
   <p class="eyebrow">Access</p>
@@ -701,7 +813,6 @@ footer li{ margin:2px 0; word-break:break-all; }
     </div>
   </div>
 </section>
-
 <!-- ============ TIPS ============ -->
 <section id="tips" class="reveal">
   <p class="eyebrow">Good to know</p>
@@ -734,10 +845,7 @@ footer li{ margin:2px 0; word-break:break-all; }
     </div>
   </div>
 </section>
-
-</main>
-
-<footer class="wrap">
+<footer id="about-app">
   <p><b>このページについて</b>：ハイパーボウル東鉢の公式サイトではありません。コース・リフト・料金・施設は<a href="https://tohachi.jp/" rel="noopener" target="_blank">公式サイト（tohachi.jp）</a>と公式ゲレンデマップ（SEASON2027）で2026年11月17日に確認した内容を、口コミや旅行サイトの情報はそうとわかるように書いています。コース図は公式マップの位置関係をもとに描いた略図です。料金や営業時間は変わることがあるので、お出かけ前に公式サイトで確認してください。</p>
   <p><b>参考にした情報</b></p>
   <ol>
@@ -747,7 +855,11 @@ footer li{ margin:2px 0; word-break:break-all; }
     <li>口コミ・旅行サイト：<a href="https://snoway.jp/gelande/10466/" target="_blank" rel="noopener">Snoway</a>／<a href="https://surfsnow.jp/guide/htm/r0897s.htm" target="_blank" rel="noopener">SURF&amp;SNOW</a>／<a href="https://www.jalan.net/kankou/spt_28604ca3470058256/" target="_blank" rel="noopener">じゃらんnet</a>／<a href="https://tenki.jp/season/ski/6/31/16503/access.html" target="_blank" rel="noopener">tenki.jp</a>／<a href="https://rurubu.jp/andmore/spot/80030752" target="_blank" rel="noopener">るるぶ&amp;more.</a></li>
   </ol>
 </footer>
-
+</div>
+</div>
+</main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 (()=>{
 "use strict";
@@ -941,10 +1053,6 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{ paint
 // 画面の外にある節だけ少し下げておき、入ってきたら持ち上げる（見えなくはしない）
 const io=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.toggle("pre",false); io.unobserve(e.target);} }),{threshold:.05});
 if(!reduce) $$(".reveal").forEach(s=>{ if(s.getBoundingClientRect().top>innerHeight){ s.classList.add("pre"); io.observe(s);} });
-const navIo=new IntersectionObserver(es=>es.forEach(e=>{ if(e.isIntersecting){ $$("#toc a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id)); const on=$("#toc a.on"), nav=$("#toc");
-  // メニューの帯の中だけ横に動かす（scrollIntoView だと、まわりの画面ごと横に動いてしまう）
-  if(on) nav.scrollTo({left:on.offsetLeft-(nav.clientWidth-on.offsetWidth)/2,behavior:smooth()});} }),{rootMargin:"-45% 0px -50% 0px"});
-$$("main section[id]").forEach(s=>navIo.observe(s));
 
 /* ---------- コース図を描く ---------- */
 /* 2つの図（東鉢側・スカイバレイ側）をまとめてあつかう */
@@ -1170,7 +1278,8 @@ function select(id,fromMap,extra,quiet){
     box.innerHTML=`<div class="fade"><h3>${esc(c.name)} <span class="tag ${lvCls(c.lv)}">${esc(tagOf(c))}</span></h3>${courseViz(c)}
       <p>${esc(c.txt)} <span class="src">（${esc(c.src)}）</span></p><p class="note">ヒント：${esc(c.tip)}</p>${whoLine}
       ${c.route?"":'<div class="btnrow"><button class="btn ghost" id="feelBtn">この斜度を体感する</button></div>'}</div>`;
-    if(!c.route) $("#feelBtn").onclick=()=>{ setAngle(Math.min(45,c.max)); $("#slope").scrollIntoView({behavior:smooth()}); };
+    if(!c.route) $("#feelBtn").onclick=()=>{ setAngle(Math.min(45,c.max)); goTo("slope"); };
+    stampUI(box,c);
     later(()=>runCourse(c));
   } else if(L){
     setNow("var(--acc)",L.name,`${L.len}m`,()=>rideLift(L));
@@ -1196,6 +1305,7 @@ function select(id,fromMap,extra,quiet){
 }
 // 図が画面に見えていなければ、図までスクロールしてから動かす
 function revealMap(cb){
+  if(curTab!=="map"){ showTab("map"); setTimeout(cb, reduce?0:380); return; } // ほかの画面からはマップの画面へ
   const r=$(".stage-map .map").getBoundingClientRect();
   if(r.top<innerHeight*.5 && r.bottom>innerHeight*.25){ cb(); return; }
   // 図の入れ物（.stage）の上端が、ヘッダーのすぐ下に来るように
@@ -1244,6 +1354,77 @@ const liftLeg=id=>{ const p=document.getElementById("lp-"+id); return {p, dur:Ma
 function runCourse(c){ runSeq([skiLeg(c.id)]); }
 function rideLift(L){ runSeq([liftLeg(L.id)]); }
 
+
+/* ---------- アプリの画面（下のタブで切りかえ） ---------- */
+const TAB_IDS=["home","map","play","plan","info"], tabScroll={};
+let curTab="home";
+function showTab(t,keep){
+  if(!TAB_IDS.includes(t)) return;
+  if(t===curTab){ if(!keep) scrollTo({top:0,behavior:smooth()}); return; }
+  tabScroll[curTab]=scrollY;
+  $$(".screen").forEach(sc=>{ const on=sc.dataset.tab===t; sc.hidden=!on; if(on&&!reduce){ sc.classList.remove("enter"); void sc.offsetWidth; sc.classList.add("enter"); } });
+  $$("#tabbar button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===t?"page":"false"));
+  const scr=$("#scr-"+t); $("#appTitle").textContent=scr.dataset.title;
+  curTab=t; document.documentElement.style.scrollBehavior="auto"; scrollTo(0,keep?(tabScroll[t]||0):0); document.documentElement.style.scrollBehavior="";
+  try{ history.replaceState(null,"","#"+t); }catch(e){}
+  if(t==="home") requestAnimationFrame(()=>{ paintScene(); if(reduce) heroFrame(3500); });
+}
+// 画面の中の節へ（その節がある画面を開いてから）
+function goTo(id){
+  const el=document.getElementById(id); if(!el) return;
+  const sc=el.closest(".screen"); if(sc) showTab(sc.dataset.tab);
+  requestAnimationFrame(()=>{ const head=$("header.top").getBoundingClientRect().bottom; const sn=el.closest(".screen")&&el.closest(".screen").querySelector(".subnav"); scrollTo({top:el.getBoundingClientRect().top+scrollY-head-(sn?sn.offsetHeight:0)-8, behavior:smooth()}); });
+}
+$$("#tabbar button").forEach(b=>b.onclick=()=>{ try{ navigator.vibrate&&navigator.vibrate(8); }catch(e){} showTab(b.dataset.tab,true); });
+$$(".tile[data-go], .subnav [data-go]").forEach(b=>b.onclick=()=>goTo(b.dataset.go));
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("on"); void t.offsetWidth; t.classList.add("on"); clearTimeout(toast.tm); toast.tm=setTimeout(()=>t.classList.remove("on"),2400); }
+
+/* ---------- コース制覇スタンプ ---------- */
+let stamps=store.get("stamps",[]); if(!Array.isArray(stamps)) stamps=[];
+const STAMP_COURSES=()=>COURSES.filter(c=>!c.tag||c.tag!=="おすすめライン");
+const BADGES=[
+  {id:"first", e:"🎿", n:"はじめの1本", ok:()=>stamps.length>=1},
+  {id:"green", e:"🟢", n:"初級ぜんぶ", ok:()=>COURSES.filter(c=>c.lv==="初級").every(c=>stamps.includes(c.id))},
+  {id:"long", e:"🏔", n:"1,800mロング", ok:()=>stamps.includes("higashione")},
+  {id:"wall", e:"🧗", n:"43°の壁", ok:()=>stamps.includes("higashioneshita")},
+  {id:"expert", e:"🔥", n:"上級ぜんぶ", ok:()=>COURSES.filter(c=>c.lv==="上級").every(c=>stamps.includes(c.id))},
+  {id:"all", e:"👑", n:"東鉢 制覇", ok:()=>STAMP_COURSES().every(c=>stamps.includes(c.id))},
+];
+function renderStamps(){
+  const list=STAMP_COURSES(), n=list.filter(c=>stamps.includes(c.id)).length;
+  $("#stampNum").textContent=n; $("#stampTot").textContent="/"+list.length;
+  $("#stampRing").style.setProperty("--p",(n/list.length*100).toFixed(1));
+  $("#stampGrid").innerHTML=list.map(c=>{ const on=stamps.includes(c.id);
+    return `<button type="button" class="stamp${on?" on":""}" data-id="${c.id}" style="--c:${LVC[c.lv]}" aria-label="${esc(c.name)}${on?"（スタンプ済み）":""}"><i>${on?"✓":""}</i><span>${esc(c.short)}</span></button>`; }).join("");
+  $$("#stampGrid .stamp").forEach(b=>b.onclick=()=>revealMap(()=>select(b.dataset.id,false)));
+  $("#badges").innerHTML=BADGES.map(b=>`<span class="badge2${b.ok()?" on":""}" title="${esc(b.n)}"><i>${b.e}</i>${esc(b.n)}</span>`).join("");
+}
+function stampUI(box,c){
+  if(c.tag==="おすすめライン") return;
+  let row=box.querySelector(".btnrow"); if(!row){ row=document.createElement("div"); row.className="btnrow"; box.querySelector(".fade").appendChild(row); }
+  const b=document.createElement("button"); b.type="button"; b.className="btn stampbtn"; row.prepend(b);
+  const draw=()=>{ const on=stamps.includes(c.id); b.classList.toggle("on",on); b.innerHTML=on?"✓ スタンプ済み":"🏁 滑った！スタンプ"; };
+  b.onclick=()=>{ const on=stamps.includes(c.id), before=BADGES.filter(x=>x.ok()).map(x=>x.id);
+    stamps=on?stamps.filter(x=>x!==c.id):stamps.concat(c.id); store.set("stamps",stamps); draw(); renderStamps();
+    if(!on){ burst(b); try{ navigator.vibrate&&navigator.vibrate([12,40,12]); }catch(e){}
+      const got=BADGES.filter(x=>x.ok()&&!before.includes(x.id)); const list=STAMP_COURSES(), n=list.filter(x=>stamps.includes(x.id)).length;
+      toast(got.length?`バッジ獲得！ ${got[0].e} ${got[0].n}`:`スタンプ ゲット！ ${n} / ${list.length}`); } };
+  draw();
+}
+/* ---------- ホーム：今日のおすすめ ---------- */
+function renderHome(){
+  const L=LEVELS.find(x=>x.id===level)||LEVELS[0];
+  $("#recFor").textContent=`${L.n}向け`;
+  $("#recCards").innerHTML=L.rec.map(id=>{ const f=findItem(id); if(!f) return ""; const it=f.item;
+    const col=f.kind==="course"?LVC[it.lv]:"var(--gold)";
+    const meta=f.kind==="course"?(it.route?tagOf(it):`${it.len.toLocaleString()}m・最大${it.max}°`):(it.lv||"");
+    const kind=f.kind==="course"?it.lv:(f.kind==="lift"?"リフト":"エリア");
+    const done=stamps.includes(id);
+    return `<button type="button" class="reccard" data-id="${id}" style="--c:${col}"><span class="rk">${esc(kind)}${done?" ✓":""}</span><b>${esc(it.name)}</b><span class="rm">${esc(meta)}</span><span class="rgo">マップで見る →</span></button>`; }).join("");
+  $$("#recCards .reccard").forEach(b=>b.onclick=()=>revealMap(()=>select(b.dataset.id,false)));
+  renderStamps();
+}
+
 /* ---------- レベル ---------- */
 let level=store.get("level","first");
 setMap("tohachi"); // はじめは東鉢側の図（スカイバレイ側はかくす）
@@ -1260,7 +1441,7 @@ function setLevel(id){
     <div class="btnrow"><button class="btn" id="lvMapBtn">おすすめをコース図で見る</button></div>`;
   $("#lvMapBtn").onclick=()=>revealMap(()=>select(L.rec[0],false));
   select(L.rec[0],false,null,true); // いちばんのおすすめを選んでおく（動かすのは、図が見えているときだけ）
-  renderPlan();
+  renderPlan(); renderHome();
 }
 
 /* ---------- 斜度 ---------- */
@@ -1324,11 +1505,11 @@ function renderQuiz(){
     burst();
   }
 }
-function burst(){
+function burst(at){
   if(reduce) return;
-  const r=$("#quizBox").getBoundingClientRect();
+  const r=(at||$("#quizBox")).getBoundingClientRect();
   for(let i=0;i<26;i++){ const s=document.createElement("span"); s.textContent=["❄","✦","❅","⛄"][i%4];
-    Object.assign(s.style,{position:"fixed",left:(r.left+r.width/2)+"px",top:(r.top+70)+"px",fontSize:(12+Math.random()*16)+"px",color:"var(--acc2)",pointerEvents:"none",zIndex:99,transition:"transform 1.1s cubic-bezier(.1,.8,.3,1), opacity 1.1s"});
+    Object.assign(s.style,{position:"fixed",left:(r.left+r.width/2)+"px",top:(r.top+(at?r.height/2:70))+"px",fontSize:(12+Math.random()*16)+"px",color:"var(--acc2)",pointerEvents:"none",zIndex:99,transition:"transform 1.1s cubic-bezier(.1,.8,.3,1), opacity 1.1s"});
     document.body.appendChild(s); const a=Math.random()*6.28, d=80+Math.random()*120;
     requestAnimationFrame(()=>{ s.style.transform=`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px) rotate(${Math.random()*360}deg)`; s.style.opacity=0; });
     setTimeout(()=>s.remove(),1200); }
@@ -1502,6 +1683,8 @@ ITEMS.forEach((it,i)=>{ const l=document.createElement("label"); l.innerHTML=`<i
 
 /* ---------- はじめ ---------- */
 setLevel(LEVELS.some(l=>l.id===level)?level:"first");
+{ const h=(location.hash||"").slice(1); if(TAB_IDS.includes(h)) showTab(h); else if(h&&document.getElementById(h)) goTo(h); }
+renderHome();
 })();
 </script>
 </body>
