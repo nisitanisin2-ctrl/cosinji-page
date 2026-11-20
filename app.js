@@ -17974,7 +17974,7 @@ function openVoiceSet(){
   openDlg('voiceSetOverlay');
 }
 function closeVoiceSet(){ if(window.HyoVoice) HyoVoice.cancel(); closeDlg('voiceSetOverlay'); }
-function closeModeVis(){ closeDlg('modeVisOverlay'); }
+function closeModeVis(){ closeDlg('modeVisOverlay'); if(isDlgOpen('modeMenuOverlay')) renderTmplPick(); }
 function persistModeOrder(){ try{ localStorage.setItem(MODE_ORDER_KEY, JSON.stringify(modeOrder)); }catch(e){} }
 function allModeKeys(){ return MODE_MENU.map(m=>m.key).concat(customModes.map(m=>m.key)); }
 /* 並び順を現存モードに同期（消えたキーを除去・新規キーを末尾に追加） */
@@ -18105,6 +18105,9 @@ function renderTmplPick(){
   if(!html) html=`<div class="tmpl-none">「${escHtml(q)}」に合うひな形はありません。<br>上の ✨ で、このことばから 表を作れます。</div>`;
   html=gen+html;
   box.innerHTML=html;
+  // ⚙ 一覧に出すもの（v701：設定から ここへ）。かくして いる 数も 出す
+  const vn=document.getElementById('tmplVisNote');
+  if(vn){ const n=MODE_MENU.filter(m=>m.key!=='normal' && !MODE_NOT_LISTED.includes(m.key) && isModeHidden(m.key)).length; vn.textContent=n?'（'+n+'件 かくし中）':''; }
   bindModeDrag();
 }
 function tmplGen(){
@@ -19022,7 +19025,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v700';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v701';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){

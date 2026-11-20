@@ -23445,6 +23445,30 @@ async function runNavLook700(browser) {
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
+
+async function runTmplVis701(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 設定の ひな形を 消して「一覧に出すもの」を ひな形の 画面へ（v701） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); }); await w(300); await page.reload(); await w(1300);
+  check('  設定に ひな形の 見出し・説明・ボタンが ない', await page.evaluate(() => {
+    const sp = document.querySelector('#settingsOverlay') || document;
+    return [...document.querySelectorAll('.set-sec')].some(e => /ひな形から作る/.test(e.textContent)) + '/' + [...document.querySelectorAll('.set-act')].some(e => /ひな形の一覧に出すもの/.test(e.textContent)); }), 'false/false');
+  check('  設定の 検索「一覧に出す」で 出ない', await page.evaluate(async () => { toggleSettings(); await new Promise(r => setTimeout(r, 300)); setFind('一覧に出す'); const t = document.getElementById('setFindRes').textContent; setFind(''); toggleSettings(); await new Promise(r => setTimeout(r, 400)); return /ひな形/.test(t); }), false);
+  await page.evaluate(() => openModeMenu()); await w(500);
+  check('  ひな形の 画面の いちばん下に「⚙ 一覧に出すものを選ぶ」', await page.evaluate(() => { const b = document.getElementById('tmplVisBtn'), body = document.querySelector('#modeMenuOverlay .modal-body'); return [!!b && b.offsetHeight > 0, b && b.parentElement === body && body.lastElementChild === b, b && b.textContent].join('/'); }), 'true/true/⚙ 一覧に出すものを選ぶ');
+  await page.evaluate(() => { document.querySelector('#modeMenuOverlay .modal-body').scrollTop = 1e6; }); await w(600);
+  await page.click('#tmplVisBtn'); await w(400);
+  check('  押すと「一覧に出すもの」が ひな形の 画面の 上に 開く', await page.evaluate(() => { const a = document.getElementById('modeVisOverlay'); const r = a.querySelector('.modal').getBoundingClientRect(); return [isDlgOpen('modeVisOverlay'), isDlgOpen('modeMenuOverlay'), document.elementFromPoint(r.left + r.width / 2, r.top + 20)?.closest('.modal-overlay')?.id].join('/'); }), 'true/true/modeVisOverlay');
+  const first = await page.evaluate(() => { const m = MODE_MENU.find(m => m.key !== 'normal' && !MODE_NOT_LISTED.includes(m.key)); toggleModeHidden(m.key); return m.key; });
+  await page.evaluate(() => closeModeVis()); await w(400);
+  check('  外して 閉じると ひな形の 一覧から 消えて「（1件 かくし中）」', await page.evaluate(k => [document.querySelector('#modeMenuBody [data-tk="m:' + k + '"]') === null, document.getElementById('tmplVisNote').textContent, isDlgOpen('modeMenuOverlay')].join('/'), first), 'true/（1件 かくし中）/true');
+  await page.evaluate(k => { openModeVis(); toggleModeHidden(k); closeModeVis(); }, first); await w(400);
+  check('  もどすと 一覧に 出て 件数も 消える', await page.evaluate(k => [document.querySelector('#modeMenuBody [data-tk="m:' + k + '"]') !== null, document.getElementById('tmplVisNote').textContent].join('/'), first), 'true/');
+  await page.evaluate(() => closeModeMenu()); await w(300);
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
 async function runOto686(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎶 2〜3分の 名曲メドレー（v686） ──');
@@ -23853,6 +23877,7 @@ const SUITES = [
   [['navfold', 'v698'], b => runNavFold698(b)],
   [['navfold', 'navmove', 'v699'], b => runNavFoldMove699(b)],
   [['navfold', 'navlook', 'v700'], b => runNavLook700(b)],
+  [['tmplvis', 'v701'], b => runTmplVis701(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
