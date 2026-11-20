@@ -1,6 +1,6 @@
 // 🍽 食べた物帳だけのアプリ（v695）の控え。表電卓（../service-worker.js）とは別の名前で持つ。
 // ネットワーク優先：つながっていれば いつも新しいものを取り、控えも新しくする。電波がないときだけ 控えを返す。
-const CACHE = 'tabeta-app-v698';
+const CACHE = 'tabeta-app-v699';
 const PREFIX = 'tabeta-app-';
 // かならず要るもの（このフォルダの中）
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];

@@ -2558,17 +2558,22 @@ body.ui2.calc-only .modal-overlay, html.app-tool body.ui2 .modal-overlay, html.a
   body.ui2.nav-fold:not(.np-side) .modal-overlay:not(.tool-fs) > .modal { padding-bottom: var(--safe-bottom); }
   body.ui2.nav-fold:not(.np-side):not(.calc-only):not(.kb-edit):not(.tool-fs-open) .nav-fold-tab { display: flex; }
   body.ui2.nav-fold.nav-fold-open:not(.np-side):not(.kb-edit):not(.tool-fs-open) .app-nav {
-    display: grid; position: fixed; left: 6px; right: 0; bottom: var(--navf-b, 96px); height: 60px; padding: 0 42px 0 2px; z-index: 990;
+    display: grid; position: fixed; left: 6px; right: 0; bottom: var(--navf-b, 96px); height: 68px; padding: 0 48px 0 2px; z-index: 990;
     background: var(--modal-bg, #fff); border: 1px solid var(--cell-border, #d5dbe3); border-right: 0; border-radius: 16px 0 0 16px;
     box-shadow: 0 6px 22px rgba(0,0,0,.24); animation: navFoldIn .16s ease-out; }
 }
-.nav-fold-tab { position: fixed; right: 0; bottom: var(--navf-b, 96px); z-index: 991; width: 40px; height: 60px; align-items: center; justify-content: center;
-  padding: 0 0 0 3px; border: 0; border-radius: 16px 0 0 16px; background: var(--acc); color: #fff; font-size: 17px; line-height: 1; cursor: pointer;
-  box-shadow: -2px 3px 12px rgba(0,0,0,.28); touch-action: manipulation; }
+/* ◀ は v699 で 大きく（40×60 → 46×68）。押さえた まま 上下に 動かすと 好きな 高さに 置ける（上と 下の 短い 線は つまめる 印） */
+.nav-fold-tab { position: fixed; right: 0; bottom: var(--navf-b, 96px); z-index: 991; width: 46px; height: 68px; align-items: center; justify-content: center;
+  padding: 0 0 0 4px; border: 0; border-radius: 18px 0 0 18px; background-color: var(--acc); color: #fff; font-size: 22px; line-height: 1; cursor: grab;
+  background-image: linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,.55)), linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,.55));
+  background-size: 14px 2px, 14px 2px; background-position: calc(50% + 2px) 9px, calc(50% + 2px) calc(100% - 9px); background-repeat: no-repeat;
+  box-shadow: -2px 3px 12px rgba(0,0,0,.28); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .nav-fold-tab::before { content: ''; position: absolute; inset: -8px 0 -8px -10px; }   /* 押せる 所を すこし 広く */
 .nav-fold-tab:active { filter: brightness(1.12); }
-.nav-fold-tab.has-note::after { content: ''; position: absolute; top: 6px; left: 6px; width: 9px; height: 9px; border-radius: 50%; background: #ff7a2f; box-shadow: 0 0 0 2px var(--acc); }
-body.nav-fold-open .nav-fold-tab { width: 36px; box-shadow: none; border-radius: 12px 0 0 12px; }
+.nav-fold-tab.dragging { cursor: grabbing; filter: brightness(1.1); transform: translateX(-3px); box-shadow: -4px 6px 22px rgba(0,0,0,.4); }
+.nav-fold-tab.has-note::after { content: ''; position: absolute; top: 6px; left: 6px; width: 10px; height: 10px; border-radius: 50%; background: #ff7a2f; box-shadow: 0 0 0 2px var(--acc); }
+body.nav-fold-open .nav-fold-tab { width: 42px; box-shadow: none; border-radius: 14px 0 0 14px; }
+#navFoldPosReset[hidden] { display: none !important; }
 @keyframes navFoldIn { from { transform: translateX(40%); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { body.ui2.nav-fold.nav-fold-open .app-nav { animation: none !important; } }
 html.app-tool .nav-fold-tab, html.app-techo .nav-fold-tab { display: none !important; }
@@ -5127,7 +5132,8 @@ body.dark {
       <div class="set-ui2-note ui2-only-blk">全画面は、道具を開いている間は下のタブを隠します（もどるで表に戻ります）。</div>
       <div class="set-ui2-t ui2-only-blk" style="margin-top:10px">下のメニュー（表・電卓・ひな形・道具・メニュー）</div>
       <div class="skin-seg ui2-only-blk" id="navFoldSeg"><button class="skin-seg-btn" data-f="0" onclick="setNavFold(false)">いつも出す</button><button class="skin-seg-btn" data-f="1" onclick="setNavFold(true)">◀ 右下にたたむ</button></div>
-      <div class="set-ui2-note ui2-only-blk">右下にたたむと、ふだんは表の右下に ◀ だけを出し、押すとメニューが出ます（▶ でたたみます）。テンキーと表がその分広くなります。横向きのときはいつも出します。</div>
+      <div class="set-ui2-note ui2-only-blk">右下にたたむと、ふだんは表の右下に ◀ だけを出し、押すとメニューが出ます（▶ でたたみます）。◀ は<b>押さえたまま上下に動かすと、好きな高さに置けます</b>。テンキーと表がその分広くなります。横向きのときはいつも出します。</div>
+      <button class="set-act ui2-only-blk" id="navFoldPosReset" onclick="navFoldPosReset()" hidden>↺ ◀ の場所をもとにもどす（表の右下）</button>
     </div>
     <div class="ez-only">
       <div class="set-note ez-note" id="ezNote"><b>かんたんモード</b>です。よく使う設定だけを出しています。<br>標準モードにするときは <b>☰ メニューのいちばん上</b>で切りかえます。</div>
