@@ -18970,7 +18970,11 @@ function setGoTo(id){
   // 見出し（.set-sec）が すぐ 前に あれば いっしょに 見せる
   const sec=(()=>{ let x=tgt.previousElementSibling; for(let k=0;k<3 && x;k++,x=x.previousElementSibling){ if(x.classList && x.classList.contains('set-sec')) return x; } return null; })();
   requestAnimationFrame(()=>{
-    try{ (sec||tgt).scrollIntoView({block:'start', behavior:'smooth'}); }catch(_){ (sec||tgt).scrollIntoView(); }
+    // 見出しから 見せると 目当てが 画面の 下に はみ出す ときは 目当てに 合わせる（v700：画面の形の 下に 設定が ふえて「色と 背景」が 見えなく なった）
+    let head=sec||tgt;
+    if(sec){ const box=sec.closest('.settings-body, .modal-body')||document.documentElement, vh=box.clientHeight||window.innerHeight;   // 送る 箱の 見えて いる 高さ
+      if(tgt.getBoundingClientRect().top-sec.getBoundingClientRect().top > vh-120) head=tgt; }
+    try{ head.scrollIntoView({block:'start', behavior:'smooth'}); }catch(_){ head.scrollIntoView(); }
     tgt.classList.remove('set-flash'); void tgt.offsetWidth; tgt.classList.add('set-flash');
     setTimeout(()=>tgt.classList.remove('set-flash'), 1800);
   });
