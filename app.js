@@ -19018,7 +19018,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v698';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v699';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22526,7 +22526,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_auto_half','excalc_auto_date','excalc_auto_opfx','excalc_auto_paren','excalc_auto_calcfx','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
-  'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_nav_fold','excalc_tool_fs','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
+  'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_nav_fold','excalc_nav_fold_y','excalc_tool_fs','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
   'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step','excalc_regi_ui',   // v460〜v462・v501
   'hyo_voice',   // 🔈 読み上げの声（v540。声の計算帳・ほかの道具と同じ）
@@ -23684,9 +23684,30 @@ function setToolFs(on){
 /* ── 下の タブを 右下に たたむ（v698）──
    設定の「下のメニュー」で ◀ 右下に たたむ に すると、タブを 隠して 表の 右下（入力欄の すぐ 上）に ◀ だけ 出す。
    ◀ で タブが 右から 出て、▶・タブの ボタン・ほかの 所を 押すと たたむ。テンキーと 表が タブの 分 広く なる。
+   ◀ は 押さえた まま 上下に 動かすと 好きな 高さに 置ける（覚えて おく。設定で もとに もどせる。v699）。
    横向き・テンキーを 右に 出す ときは タブが 上の 段に あるので たたまない */
 const NAV_FOLD_KEY='excalc_nav_fold';
-let navFoldOpen=false;
+const NAV_FOLD_Y_KEY='excalc_nav_fold_y';   // ◀ の 高さ（画面の 高さに 対する 下からの 割合。自分で 動かした とき だけ。v699）
+let navFoldOpen=false, nfDrag=null, nfNoClick=0, nfSafeB=null, nfTold=false;
+function navFoldY(){ try{ const v=parseFloat(localStorage.getItem(NAV_FOLD_Y_KEY)); return isFinite(v) && v>0 && v<1 ? v : null; }catch(_){ return null; } }
+function navFoldSafeB(){   // ホームの バー（iPhone）の 高さ
+  if(nfSafeB!=null) return nfSafeB;
+  try{ const p=document.createElement('div'); p.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none'; document.body.appendChild(p); nfSafeB=p.offsetHeight||0; p.remove(); }catch(_){ nfSafeB=0; }
+  return nfSafeB;
+}
+function navFoldClamp(b){   // 動かした ◀ が 上の バーと 画面の 下の はしから はみ出さない ように
+  const t=document.getElementById('navFoldTab'), h=(t && t.offsetHeight) || 68, vh=window.innerHeight;
+  let topLim=8; const at=document.querySelector('.app-top'); if(at){ const r=at.getBoundingClientRect(); if(r.height>0) topLim=r.bottom+6; }
+  const lo=8+navFoldSafeB(), hi=Math.max(lo, vh-topLim-h);
+  return Math.round(Math.max(lo, Math.min(hi, b)));
+}
+function navFoldCurB(){ const v=parseFloat(document.body.style.getPropertyValue('--navf-b')); return isFinite(v) ? v : 96; }
+function navFoldSaveY(b){ try{ localStorage.setItem(NAV_FOLD_Y_KEY, (b/window.innerHeight).toFixed(4)); }catch(_){} renderUi2Seg(); }
+function navFoldPosReset(){
+  try{ localStorage.removeItem(NAV_FOLD_Y_KEY); }catch(_){}
+  navFoldPos(); renderUi2Seg();
+  toast('◀ を もとの 場所（表の 右下）に もどしました');
+}
 function navFoldOn(){ try{ return localStorage.getItem(NAV_FOLD_KEY)==='1'; }catch(_){ return false; } }
 function navFoldActive(){
   if(!ui2On || !navFoldOn()) return false;
@@ -23695,8 +23716,10 @@ function navFoldActive(){
   try{ if(matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return false; }catch(_){}
   return !document.documentElement.classList.contains('app-tool') && !document.documentElement.classList.contains('app-techo');
 }
-function navFoldPos(){   // ◀ と 出した タブを 入力欄（ない ときは テンキー）の すぐ 上に
-  if(!document.body.classList.contains('nav-fold')) return;
+function navFoldPos(){   // ◀ と 出した タブを 入力欄（ない ときは テンキー）の すぐ 上に。自分で 動かした ときは その 高さ（v699）
+  if(!document.body.classList.contains('nav-fold') || nfDrag) return;
+  const y=navFoldY();
+  if(y!=null){ document.body.style.setProperty('--navf-b', navFoldClamp(y*window.innerHeight)+'px'); return; }
   let top=window.innerHeight;
   for(const sel of ['.left-pane .formula-bar', '.formula-bar', '.numpad-section']){
     const e=document.querySelector(sel); if(!e) continue;
@@ -23719,12 +23742,12 @@ function navFoldSync(){
   }
   navFoldPos();
 }
-function navFoldTap(){ navFoldOpen=!navFoldOpen; navFoldSync(); }
+function navFoldTap(){ if(nfNoClick && Date.now()-nfNoClick<350){ nfNoClick=0; return; } nfNoClick=0; navFoldOpen=!navFoldOpen; navFoldSync(); }   // 動かした すぐ あとの 1回の クリックでは 開かない
 function setNavFold(on){
   try{ localStorage.setItem(NAV_FOLD_KEY, on ? '1' : '0'); }catch(_){}
   navFoldOpen=false; navFoldSync(); renderUi2Seg();
   try{ window.dispatchEvent(new Event('resize')); }catch(_){}
-  toast(on ? '下のメニューを右下の ◀ にたたみました（押すと出ます）' : '下のメニューをいつも出します', 3000);
+  toast(on ? '下のメニューを右下の ◀ にたたみました（押すと出ます。押さえたまま上下に動かすと、置く高さを変えられます）' : '下のメニューをいつも出します', 3600);
 }
 (function navFoldSetup(){
   // ほかの 所を 押したら たたむ（◀ ▶ と タブの 中は のぞく）
@@ -23733,7 +23756,39 @@ function setNavFold(on){
     const t=e.target; if(t && t.closest && (t.closest('#appNav') || t.closest('#navFoldTab'))) return;
     navFoldOpen=false; navFoldSync();
   }, true);
-  window.addEventListener('resize', ()=>{ navFoldSync(); });
+  window.addEventListener('resize', ()=>{ nfSafeB=null; navFoldSync(); });
+  // ◀ を 押さえた まま 上下に 動かすと 好きな 高さに 置ける（8px 動いたら 動かす。少し 押した だけなら 開く。v699）
+  const tab=document.getElementById('navFoldTab');
+  if(tab){
+    tab.addEventListener('pointerdown', e=>{
+      if(e.pointerType==='mouse' && e.button!==0) return;
+      nfDrag={id:e.pointerId, y0:e.clientY, b0:navFoldCurB(), moved:false};
+      try{ tab.setPointerCapture(e.pointerId); }catch(_){}
+    });
+    tab.addEventListener('pointermove', e=>{
+      if(!nfDrag || e.pointerId!==nfDrag.id) return;
+      const dy=e.clientY-nfDrag.y0;
+      if(!nfDrag.moved){ if(Math.abs(dy)<8) return; nfDrag.moved=true; tab.classList.add('dragging'); if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(_){} } }
+      e.preventDefault();
+      document.body.style.setProperty('--navf-b', navFoldClamp(nfDrag.b0-dy)+'px');   // 出して いる ときは タブも いっしょに 動く
+    });
+    const end=e=>{
+      if(!nfDrag || (e && e.pointerId!==nfDrag.id)) return;
+      const d=nfDrag; nfDrag=null; tab.classList.remove('dragging');
+      try{ tab.releasePointerCapture(d.id); }catch(_){}
+      if(!d.moved) return;
+      nfNoClick=Date.now();
+      navFoldSaveY(navFoldCurB());
+      if(!nfTold){ nfTold=true; toast('◀ の 場所を 覚えました（⚙ 設定の「下のメニュー」で もとに もどせます）', 3000); }
+    };
+    ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>tab.addEventListener(ev, end));
+    tab.addEventListener('keydown', e=>{   // キーボードでは ↑ ↓ で 動かす
+      if(e.key!=='ArrowUp' && e.key!=='ArrowDown') return;
+      e.preventDefault(); e.stopPropagation();
+      const b=navFoldClamp(navFoldCurB()+(e.key==='ArrowUp' ? 24 : -24));
+      document.body.style.setProperty('--navf-b', b+'px'); navFoldSaveY(b);
+    });
+  }
   try{
     const ro=new ResizeObserver(()=>navFoldPos());
     ['.numpad-section', '.left-pane', '.formula-bar'].forEach(s=>{ const e=document.querySelector(s); if(e) ro.observe(e); });
@@ -23742,6 +23797,7 @@ function setNavFold(on){
 })();
 function renderUi2Seg(){
   document.querySelectorAll('#navFoldSeg button').forEach(b=>{ const on=(b.dataset.f==='1')===navFoldOn(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  { const rb=document.getElementById('navFoldPosReset'); if(rb) rb.hidden=!(navFoldOn() && navFoldY()!=null); }
   document.querySelectorAll('#toolFsSeg button').forEach(b=>{ const on=(b.dataset.t==='1')===toolFsOn(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
   document.querySelectorAll('#ui2Seg button').forEach(b=>b.classList.toggle('on', (b.dataset.u==='1')===ui2On));
   const n=document.getElementById('ui2Note');

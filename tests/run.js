@@ -23355,6 +23355,56 @@ async function runNavFold698(browser) {
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
+/* v699：たたんだ ◀ を 押さえた まま 上下に 動かして 好きな 高さに 置く・◀ を 大きく */
+async function runNavFoldMove699(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── たたんだ ◀ を 上下に 動かす・◀ を 大きく（v699） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_nav_fold', '1'); }); await page.reload(); await w(1300);
+  await page.evaluate(() => { window.__vib = 0; try { Object.defineProperty(navigator, 'vibrate', { value: () => { window.__vib++; return true; }, configurable: true }); } catch (e) {} window.__toasts = []; const t = window.toast; window.toast = function (m) { window.__toasts.push(m); return t.apply(this, arguments); }; });
+  const tab = async () => { const r = await (await page.$('#navFoldTab')).boundingBox(); return { x: r.x, y: r.y, w: r.width, h: r.height, b: Math.round(900 - (r.y + r.height)) }; };
+  const t0 = await tab();
+  check('  ◀ を 大きく（46×68・矢印 22px・上下に つまめる 印）', await page.evaluate(() => { const t = document.getElementById('navFoldTab'), cs = getComputedStyle(t); return [t.offsetWidth, t.offsetHeight, cs.fontSize, cs.backgroundImage.split('linear-gradient').length - 1, cs.touchAction].join('/'); }), '46/68/22px/2/none');
+  check('  はじめは 入力欄の すぐ 上・もとに もどす ボタンは 出ない・保存 項目', await page.evaluate(() => { const t = document.getElementById('navFoldTab').getBoundingClientRect(), f = document.querySelector('.left-pane .formula-bar').getBoundingClientRect(); return [Math.round(f.top - t.bottom), document.getElementById('navFoldPosReset').hidden, String(localStorage.getItem('excalc_nav_fold_y')), SETTINGS_BACKUP_KEYS.includes('excalc_nav_fold_y')].join('/'); }), '10/true/null/true');
+  // 押さえた まま 上へ 150px
+  await page.mouse.move(t0.x + 23, t0.y + 34); await page.mouse.down(); await page.mouse.move(t0.x + 23, t0.y + 34 - 150, { steps: 12 }); await page.mouse.up(); await w(300);
+  const t1 = await tab();
+  check('  押さえた まま 上に 動かすと ついて くる・開かない・ブルッと・高さを 覚える（画面の 割合）・1回だけ 知らせる', [t1.b - t0.b, await page.evaluate(() => [document.body.classList.contains('nav-fold-open'), document.getElementById('navFoldTab').classList.contains('dragging'), window.__vib, localStorage.getItem('excalc_nav_fold_y'), window.__toasts.filter(m => m.includes('場所を 覚えました')).length].join('/'))].join('/'),
+    '150/false/false/1/' + ((t0.b + 150) / 900).toFixed(4) + '/1');
+  check('  少し 押した だけなら 開く（▶ で たたむ）', await (async () => { await page.mouse.click(t1.x + 23, t1.y + 34); await w(250); const a = await page.evaluate(() => document.body.classList.contains('nav-fold-open') + ':' + document.getElementById('navFoldTab').textContent); await page.mouse.click(t1.x + 23, t1.y + 34); await w(250); return a + '/' + await page.evaluate(() => document.body.classList.contains('nav-fold-open')); })(), 'true:▶/false');
+  await page.mouse.click(t1.x + 23, t1.y + 34); await w(250);
+  await page.mouse.move(t1.x + 23, t1.y + 34); await page.mouse.down(); await page.mouse.move(t1.x + 23, t1.y + 34 + 60, { steps: 8 }); await page.mouse.up(); await w(300);
+  check('  出して いる ときに 動かすと タブも いっしょに 動く（出した まま）・もう 知らせない', await page.evaluate(() => { const n = document.getElementById('appNav').getBoundingClientRect(), t = document.getElementById('navFoldTab').getBoundingClientRect(); return [document.body.classList.contains('nav-fold-open'), Math.round(n.bottom) === Math.round(t.bottom), Math.round(n.height) === Math.round(t.height), window.__toasts.filter(m => m.includes('場所を 覚えました')).length].join('/'); }) + '/' + ((await tab()).b - t1.b), 'true/true/true/1/-60');
+  await page.evaluate(() => navFoldTap()); await w(200);
+  const t2 = await tab();
+  await page.mouse.move(t2.x + 23, t2.y + 34); await page.mouse.down(); await page.mouse.move(t2.x + 23, t2.y + 34 - 2000, { steps: 10 }); await page.mouse.up(); await w(300);
+  check('  上の バーより 上には 行かない', await page.evaluate(() => Math.round(document.getElementById('navFoldTab').getBoundingClientRect().top - document.querySelector('.app-top').getBoundingClientRect().bottom)), 6);
+  const t3 = await tab();
+  await page.mouse.move(t3.x + 23, t3.y + 34); await page.mouse.down(); await page.mouse.move(t3.x + 23, t3.y + 34 + 2000, { steps: 10 }); await page.mouse.up(); await w(300);
+  check('  画面の 下の はしからも はみ出さない（テンキーの 上にも 置ける）', (await tab()).b, 8);
+  await page.mouse.move(t3.x + 23, 900 - 8 - 34); await page.mouse.down(); await page.mouse.move(t3.x + 23, 900 - 8 - 34 - 300, { steps: 10 }); await page.mouse.up(); await w(300);
+  const t4 = await tab();
+  await page.reload(); await w(1300);
+  check('  開き直しても 同じ 高さ', (await tab()).b, t4.b);
+  await page.setViewportSize({ width: 412, height: 700 }); await w(600);
+  check('  画面の 高さが かわっても 同じ 割合の 所', await page.evaluate(() => Math.round(innerHeight - document.getElementById('navFoldTab').getBoundingClientRect().bottom) === Math.round(parseFloat(localStorage.getItem('excalc_nav_fold_y')) * innerHeight)), true);
+  await page.setViewportSize({ width: 412, height: 900 }); await w(600);
+  check('  キーボードの ↑ ↓ でも 動かせる（24px ずつ・覚える）', await page.evaluate(() => { const t = document.getElementById('navFoldTab'), b0 = innerHeight - t.getBoundingClientRect().bottom; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })); const b1 = innerHeight - t.getBoundingClientRect().bottom; return Math.round(b1 - b0) + '/' + (Math.abs(parseFloat(localStorage.getItem('excalc_nav_fold_y')) * innerHeight - b1) < 1); }), '24/true');
+  check('  設定に「◀ の場所をもとにもどす」→ 押すと もとの 所（入力欄の すぐ 上）・ボタンは 消える', await page.evaluate(async () => { toggleSettings(); setSettingsTab(1); await new Promise(r => setTimeout(r, 300)); const rb = document.getElementById('navFoldPosReset'); const a = !rb.hidden && getComputedStyle(rb).display !== 'none'; rb.click(); await new Promise(r => setTimeout(r, 200)); toggleSettings(); await new Promise(r => setTimeout(r, 300));
+    const t = document.getElementById('navFoldTab').getBoundingClientRect(), f = document.querySelector('.left-pane .formula-bar').getBoundingClientRect(); return [a, rb.hidden, getComputedStyle(rb).display, String(localStorage.getItem('excalc_nav_fold_y')), Math.round(f.top - t.bottom)].join('/'); }), 'true/true/none/null/10');
+  check('  いつも出す の ときは もとに もどす ボタンも 出さない', await page.evaluate(() => { localStorage.setItem('excalc_nav_fold_y', '0.5'); setNavFold(false); const a = document.getElementById('navFoldPosReset').hidden; setNavFold(true); const b = document.getElementById('navFoldPosReset').hidden; localStorage.removeItem('excalc_nav_fold_y'); renderUi2Seg(); return a + '/' + b; }), 'true/false');
+  // 指（タッチ）で 押さえて 動かす
+  { const t = await tab(), cdp = await ctx.newCDPSession(page), x = t.x + 23, y0 = t.y + 34;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: y0 }] });
+    for (let k = 1; k <= 10; k++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y0 - k * 10 }] }); await w(16); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(450);
+    check('  指で 押さえて 動かしても 同じ（開かない・覚える）', [(await tab()).b - t.b, await page.evaluate(() => document.body.classList.contains('nav-fold-open') + '/' + (localStorage.getItem('excalc_nav_fold_y') !== null))].join('/'), '100/false/true');
+    await page.touchscreen.tap(x, y0 - 100); await w(300);
+    check('  そのあと 指で 軽く 押すと 開く', await page.evaluate(() => document.body.classList.contains('nav-fold-open')), true);
+    await page.evaluate(() => { navFoldTap(); localStorage.removeItem('excalc_nav_fold_y'); navFoldPos(); renderUi2Seg(); }); await w(200); }
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
 async function runOto686(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎶 2〜3分の 名曲メドレー（v686） ──');
@@ -23761,6 +23811,7 @@ const SUITES = [
   [['tabeta696', 'v696'], b => runTabeta696(b)],
   [['tabeta697', 'v697'], b => runTabeta697(b)],
   [['navfold', 'v698'], b => runNavFold698(b)],
+  [['navfold', 'navmove', 'v699'], b => runNavFoldMove699(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
