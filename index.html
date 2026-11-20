@@ -2562,7 +2562,7 @@ body.ui2.calc-only .modal-overlay, html.app-tool body.ui2 .modal-overlay, html.a
     background: var(--modal-bg, #fff); border: 1px solid var(--cell-border, #d5dbe3); border-right: 0; border-radius: 16px 0 0 16px;
     box-shadow: 0 6px 22px rgba(0,0,0,.24); animation: navFoldIn .16s ease-out; }
 }
-/* ◀ は v699 で 大きく。押さえた まま 上下に 動かすと 好きな 高さに 置ける（上と 下の 短い 線は つまめる 印）。
+/* ◀ は v699 で 大きく。押さえた まま 上下に 動かすと 好きな 高さに 置ける（v699 の 上と 下の 短い 線は v700 で やめて 矢印だけに）。
    v700：幅（とても細い 26・細い 32・ふつう 38・太い 46px）と 大きさ（高さ・矢印：小・ふつう・大・特大）を 設定で 選ぶ。はじめの 幅は 46 → 38px に */
 body { --nf-w: 38px; --nf-h: 68px; --nf-ar: 22px; --nav-ic-need: 56px; }
 body.nfw-xs { --nf-w: 26px; } body.nfw-s { --nf-w: 32px; } body.nfw-l { --nf-w: 46px; }
@@ -2570,10 +2570,7 @@ body.nfs-s { --nf-h: 56px; --nf-ar: 18px; } body.nfs-l { --nf-h: 80px; --nf-ar: 
 body.navic-s { --nav-ic-need: 50px; } body.navic-l { --nav-ic-need: 64px; } body.navic-xl { --nav-ic-need: 74px; }
 .nav-fold-tab, .nf-prev-tab { width: var(--nf-w); height: var(--nf-h); align-items: center; justify-content: center;
   padding: 0 0 0 calc(var(--nf-w) / 12); border: 0; border-radius: min(18px, calc(var(--nf-w) / 2)) 0 0 min(18px, calc(var(--nf-w) / 2));
-  background-color: var(--acc); color: #fff; font-size: min(var(--nf-ar), calc(var(--nf-w) - 8px)); line-height: 1;
-  background-image: linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,.55)), linear-gradient(rgba(255,255,255,.55), rgba(255,255,255,.55));
-  background-size: min(14px, calc(var(--nf-w) - 14px)) 2px, min(14px, calc(var(--nf-w) - 14px)) 2px;
-  background-position: calc(50% + 2px) 9px, calc(50% + 2px) calc(100% - 9px); background-repeat: no-repeat; }
+  background-color: var(--acc); color: #fff; font-size: min(var(--nf-ar), calc(var(--nf-w) - 8px)); line-height: 1; }   /* 矢印だけ（v700 で 上と 下の 短い 線を やめた） */
 .nav-fold-tab { position: fixed; right: 0; bottom: var(--navf-b, 96px); z-index: 991; cursor: grab;
   box-shadow: -2px 3px 12px rgba(0,0,0,.28); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .nav-fold-tab::before { content: ''; position: absolute; inset: -8px 0 -8px -10px; }   /* 押せる 所を すこし 広く */
