@@ -22717,7 +22717,7 @@ async function runFillMenu687(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ⇲ メニューから コピー・1つの セルの 🎨 色・メニューの 場所（v687） ──');
   const w = ms => page.waitForTimeout(ms);
-  await page.evaluate(() => { localStorage.setItem('excalc_fill_how', 'menu'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await page.reload(); await w(900);   // 新しい 画面で（v698：待ちが コメントの 中に 入って いたのを 出した）
+  await page.evaluate(() => { localStorage.setItem('excalc_fill_how', 'menu'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await w(300); await page.reload(); await w(900);   // 新しい 画面で（v698：待ちが コメントの 中に 入って いたのを 出した。v700：書いて すぐ 開き直すと まれに 消えるので 前にも 待つ）
   const box = async id => (await (await page.$(id)).boundingBox());
   const tap = async id => { const b = await box(id); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await w(450); };
   const band = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent && b.getBoundingClientRect().width > 0).map(b => b.getAttribute('aria-label') || b.textContent.trim()).join('|'));
@@ -22804,8 +22804,10 @@ async function runHelp690(browser) {
     for (let i = 0; i < SET_QUICK.length; i++) {
       const q = SET_QUICK[i]; if (q[3]) continue;   // 窓を 開く もの（夜の色・読み上げ）は 別に 見る
       toggleSettings(); await new Promise(r => setTimeout(r, 30)); if (!document.getElementById('settingsPanel').classList.contains('open')) toggleSettings();
-      setQuickGo(i); await new Promise(r => setTimeout(r, 450));
-      const el = document.getElementById(q[2]); const r = el && el.getBoundingClientRect();
+      setQuickGo(i); await new Promise(r => setTimeout(r, 300));
+      const el = document.getElementById(q[2]);
+      for (let k = 0, prev = NaN; el && k < 30; k++) { const t = Math.round(el.getBoundingClientRect().top); if (t === prev) break; prev = t; await new Promise(r => setTimeout(r, 80)); }   // ゆっくり 送る（smooth）が 止まるまで 待つ（v700：設定が ふえて 送る 距離が 長く なった）
+      const r = el && el.getBoundingClientRect();
       if (!el || !el.offsetParent || r.top < 0 || r.top > innerHeight - 60) bad.push(q[1]);   // 頭が 見えて いれば よい（たたみを 開いた 大きな まとまりは 下が はみ出す）
     }
     return bad.join(',') || 'ok';
@@ -23320,7 +23322,7 @@ async function runNavFold698(browser) {
     const nav = document.getElementById('appNav'), tab = document.getElementById('navFoldTab');
     return { fold: document.body.classList.contains('nav-fold'), open: document.body.classList.contains('nav-fold-open'), navShown: getComputedStyle(nav).display !== 'none' && nav.getBoundingClientRect().height > 0, tabShown: getComputedStyle(tab).display !== 'none', tab: tab.textContent, exp: tab.getAttribute('aria-expanded'),
       tabB: Math.round(r('#navFoldTab').bottom), fbT: Math.round(r('.left-pane .formula-bar').top), npH: Math.round(r('.numpad-section').height), shH: Math.round(r('.sheet-wrap').height), npB: Math.round(r('.numpad-section').bottom), vh: innerHeight }; });
-  await page.evaluate(() => localStorage.setItem('excalc_ui2', '1')); await page.reload(); await w(1200);   // 新しい 画面（下の タブ）で
+  await page.evaluate(() => localStorage.setItem('excalc_ui2', '1')); await w(300); await page.reload(); await w(1200);   // 新しい 画面（下の タブ）で（書いた すぐ あとに 開き直すと まれに 消えるので 少し 待つ）
   const a = await st();
   check('  はじめは いつも 出す（前と 同じ）・◀ は 出さない', [a.fold, a.navShown, a.tabShown].join('/'), 'false/true/false');
   check('  設定の「画面の形」に 下のメニューの 切りかえ（いつも出す・右下にたたむ）', await page.evaluate(() => { toggleSettings(); const seg = document.getElementById('navFoldSeg'); const r = [...seg.querySelectorAll('button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') + ' / ' + (getComputedStyle(seg).display !== 'none'); return r; }), 'いつも出す*,◀ 右下にたたむ / true');
@@ -23360,11 +23362,11 @@ async function runNavFoldMove699(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── たたんだ ◀ を 上下に 動かす・◀ を 大きく（v699） ──');
   const w = ms => page.waitForTimeout(ms);
-  await page.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_nav_fold', '1'); }); await page.reload(); await w(1300);
+  await page.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_nav_fold', '1'); }); await w(300); await page.reload(); await w(1300);
   await page.evaluate(() => { window.__vib = 0; try { Object.defineProperty(navigator, 'vibrate', { value: () => { window.__vib++; return true; }, configurable: true }); } catch (e) {} window.__toasts = []; const t = window.toast; window.toast = function (m) { window.__toasts.push(m); return t.apply(this, arguments); }; });
   const tab = async () => { const r = await (await page.$('#navFoldTab')).boundingBox(); return { x: r.x, y: r.y, w: r.width, h: r.height, b: Math.round(900 - (r.y + r.height)) }; };
   const t0 = await tab();
-  check('  ◀ を 大きく（46×68・矢印 22px・上下に つまめる 印）', await page.evaluate(() => { const t = document.getElementById('navFoldTab'), cs = getComputedStyle(t); return [t.offsetWidth, t.offsetHeight, cs.fontSize, cs.backgroundImage.split('linear-gradient').length - 1, cs.touchAction].join('/'); }), '46/68/22px/2/none');
+  check('  ◀ を 大きく（高さ 68・矢印 22px。幅は v700 で 46 → 38・上と 下の 線は v700 で なくして 矢印だけ）', await page.evaluate(() => { const t = document.getElementById('navFoldTab'), cs = getComputedStyle(t); return [t.offsetWidth, t.offsetHeight, cs.fontSize, cs.backgroundImage, cs.touchAction].join('/'); }), '38/68/22px/none/none');
   check('  はじめは 入力欄の すぐ 上・もとに もどす ボタンは 出ない・保存 項目', await page.evaluate(() => { const t = document.getElementById('navFoldTab').getBoundingClientRect(), f = document.querySelector('.left-pane .formula-bar').getBoundingClientRect(); return [Math.round(f.top - t.bottom), document.getElementById('navFoldPosReset').hidden, String(localStorage.getItem('excalc_nav_fold_y')), SETTINGS_BACKUP_KEYS.includes('excalc_nav_fold_y')].join('/'); }), '10/true/null/true');
   // 押さえた まま 上へ 150px
   await page.mouse.move(t0.x + 23, t0.y + 34); await page.mouse.down(); await page.mouse.move(t0.x + 23, t0.y + 34 - 150, { steps: 12 }); await page.mouse.up(); await w(300);
@@ -23402,6 +23404,44 @@ async function runNavFoldMove699(browser) {
     await page.touchscreen.tap(x, y0 - 100); await w(300);
     check('  そのあと 指で 軽く 押すと 開く', await page.evaluate(() => document.body.classList.contains('nav-fold-open')), true);
     await page.evaluate(() => { navFoldTap(); localStorage.removeItem('excalc_nav_fold_y'); navFoldPos(); renderUi2Seg(); }); await w(200); }
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v700：たたんだ ◀ の 幅（はじめを 細く・設定で 選ぶ）・◀ の 大きさ・メニューの アイコンの 大きさ */
+async function runNavLook700(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ◀ の 幅・大きさ・メニューの アイコンの 大きさ（v700） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_nav_fold', '1'); }); await w(300); await page.reload(); await w(1300);
+  const tabSz = () => page.evaluate(() => { const t = document.getElementById('navFoldTab'), cs = getComputedStyle(t); return [t.offsetWidth, t.offsetHeight, cs.fontSize].join('/'); });
+  check('  はじめの ◀ は 細く（46 → 38px）・高さ 68・矢印 22px', await tabSz(), '38/68/22px');
+  check('  設定（画面の形 → 下のメニュー）に ◀ の 幅・◀ の 大きさ・メニューの アイコンの 大きさ（どれも 4つ）と 見本', await page.evaluate(async () => { toggleSettings(); setSettingsTab(1); await new Promise(r => setTimeout(r, 300));
+    const seg = id => [...document.querySelectorAll('#' + id + ' button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',');
+    return [seg('navFoldWSeg'), seg('navFoldSSeg'), seg('navIconSeg'), !document.getElementById('navFoldLook').hidden, document.querySelector('.nf-prev-tab').offsetWidth, getComputedStyle(document.querySelector('.nf-prev-tab')).backgroundImage, document.querySelectorAll('#navIconPrev button').length, document.querySelectorAll('#navIconPrev [id], #navIconPrev [onclick]').length].join(' | '); }),
+    'とても細い,細い,ふつう*,太い | 小,ふつう*,大,特大 | 小,ふつう*,大,特大 | true | 38 | none | 5 | 0');
+  check('  設定の 検索で「幅」「アイコン」で 見つかる', await page.evaluate(() => { setFind('幅'); const a = document.getElementById('setFindRes').textContent; setFind('アイコンの大きさ'); const b = document.getElementById('setFindRes').textContent; setFind(''); return a.includes('画面の形') + '/' + b.includes('画面の形'); }), 'true/true');
+  const widths = await page.evaluate(() => ['xs', 's', 'l', 'm'].map(v => { setNavLook('w', v); const t = document.getElementById('navFoldTab'); return v + ':' + t.offsetWidth + ':' + getComputedStyle(t).fontSize + ':' + document.querySelector('.nf-prev-tab').offsetWidth; }).join(' '));
+  check('  ◀ の 幅：とても細い 26・細い 32・太い 46・ふつう 38（細いと 矢印も 入る 大きさに・見本も 同じ）', widths, 'xs:26:18px:26 s:32:22px:32 l:46:22px:46 m:38:22px:38');
+  const sizes = await page.evaluate(() => ['s', 'l', 'xl', 'm'].map(v => { setNavLook('s', v); const t = document.getElementById('navFoldTab'); return v + ':' + t.offsetHeight + ':' + getComputedStyle(t).fontSize; }).join(' '));
+  check('  ◀ の 大きさ：小 56/18・大 80/26・特大 92/30・ふつう 68/22', sizes, 's:56:18px l:80:26px xl:92:30px m:68:22px');
+  check('  えらんだ ものを 覚える（ふつうは 消す）・全保存にも 入る', await page.evaluate(() => { setNavLook('w', 's'); setNavLook('s', 'l'); setNavLook('ic', 'xl'); return [localStorage.getItem('excalc_nav_fold_w'), localStorage.getItem('excalc_nav_fold_size'), localStorage.getItem('excalc_nav_icon'), ['excalc_nav_fold_w', 'excalc_nav_fold_size', 'excalc_nav_icon'].every(k => SETTINGS_BACKUP_KEYS.includes(k))].join('/'); }), 's/l/xl/true');
+  check('  見本の アイコンも 大きく', await page.evaluate(() => getComputedStyle(document.querySelector('#navIconPrev .ui-ic')).width), '32px');
+  await page.evaluate(() => toggleSettings()); await w(500); await page.reload(); await w(1300);   // 閉じた ときの「戻る」が 終わってから 開き直す
+  check('  開き直しても 同じ（細い・大。矢印は 幅に 入る 24px まで）', await tabSz(), '32/80/24px');
+  await page.click('#navFoldTab'); await w(300);
+  check('  出した メニュー：アイコン 特大（32px）・高さは ◀ と アイコンの 大きい 方・▶ は 右はし', await page.evaluate(() => { const n = document.getElementById('appNav').getBoundingClientRect(), t = document.getElementById('navFoldTab').getBoundingClientRect(); return [getComputedStyle(document.querySelector('#appNav .ui-ic')).width, Math.round(n.height), Math.round(n.bottom) === Math.round(t.bottom), Math.round(t.right) === innerWidth].join('/'); }), '32px/80/true/true');
+  check('  ◀ を 小さく すると 出した メニューは アイコンが 入る 高さ（74）', await page.evaluate(() => { setNavLook('s', 's'); return Math.round(document.getElementById('appNav').getBoundingClientRect().height) + '/' + document.getElementById('navFoldTab').offsetHeight; }), '74/56');
+  await page.evaluate(() => { navFoldTap(); setNavLook('s', 'm'); setNavFold(false); }); await w(500);
+  const navInfo = () => page.evaluate(() => { const n = document.getElementById('appNav').getBoundingClientRect(); return [getComputedStyle(document.querySelector('#appNav .ui-ic')).width, Math.round(n.height), Math.round(n.bottom) === innerHeight].join('/'); });
+  check('  いつも出す ときも アイコン 特大・下の メニューが 高く（62）', await navInfo(), '32px/62/true');
+  check('  ページ（メニュー）も 高く なった メニューの 上で 止まる', await page.evaluate(async () => { openMoreMenu(); await new Promise(r => setTimeout(r, 300)); const o = document.getElementById('moreMenuOverlay').getBoundingClientRect(), n = document.getElementById('appNav').getBoundingClientRect(); closeDlg('moreMenuOverlay'); await new Promise(r => setTimeout(r, 300)); return Math.round(n.top - o.bottom); }), 0);
+  check('  大 26px・高さ 52／小 16px・高さ 44（ふつうと 同じ）／ふつう 20px・44', await page.evaluate(() => ['l', 's', 'm'].map(v => { setNavLook('ic', v); const n = document.getElementById('appNav').getBoundingClientRect(); return getComputedStyle(document.querySelector('#appNav .ui-ic')).width + ':' + Math.round(n.height); }).join(' ')), '26px:52 16px:44 20px:44');
+  check('  いつも出す ときは ◀ の 幅・大きさの 設定は 出さない', await page.evaluate(() => { renderUi2Seg(); return document.getElementById('navFoldLook').hidden; }), true);
+  await page.evaluate(() => setNavLook('ic', 'xl'));
+  await page.setViewportSize({ width: 900, height: 412 }); await w(700);
+  check('  横向き（メニューが 上の 段）は アイコンを 大きく しない（前と 同じ 20px）', await page.evaluate(() => getComputedStyle(document.querySelector('#appNav .ui-ic')).width), '20px');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(700);
+  await page.evaluate(() => { setNavLook('ic', 'm'); setNavLook('w', 'm'); });
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
@@ -23812,6 +23852,7 @@ const SUITES = [
   [['tabeta697', 'v697'], b => runTabeta697(b)],
   [['navfold', 'v698'], b => runNavFold698(b)],
   [['navfold', 'navmove', 'v699'], b => runNavFoldMove699(b)],
+  [['navfold', 'navlook', 'v700'], b => runNavLook700(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
