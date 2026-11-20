@@ -22717,7 +22717,7 @@ async function runFillMenu687(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ⇲ メニューから コピー・1つの セルの 🎨 色・メニューの 場所（v687） ──');
   const w = ms => page.waitForTimeout(ms);
-  await page.evaluate(() => { localStorage.setItem('excalc_fill_how', 'menu'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await page.reload();   // 新しい 画面で await w(900);
+  await page.evaluate(() => { localStorage.setItem('excalc_fill_how', 'menu'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await page.reload(); await w(900);   // 新しい 画面で（v698：待ちが コメントの 中に 入って いたのを 出した）
   const box = async id => (await (await page.$(id)).boundingBox());
   const tap = async id => { const b = await box(id); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await w(450); };
   const band = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent && b.getBoundingClientRect().width > 0).map(b => b.getAttribute('aria-label') || b.textContent.trim()).join('|'));
@@ -23311,6 +23311,50 @@ async function runTabeta697(browser) {
   check('  エラーなし', errs.join(' / '), '');
   await ctx.close();
 }
+/* v698：下の タブ（表・電卓・ひな形・道具・メニュー）を 右下の ◀ に たたむ（設定で 切りかえ。連絡帳と 同じ 形） */
+async function runNavFold698(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 下の メニューを 右下に たたむ（v698） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const st = () => page.evaluate(() => { const r = s => { const e = document.querySelector(s); const b = e.getBoundingClientRect(); return b; };
+    const nav = document.getElementById('appNav'), tab = document.getElementById('navFoldTab');
+    return { fold: document.body.classList.contains('nav-fold'), open: document.body.classList.contains('nav-fold-open'), navShown: getComputedStyle(nav).display !== 'none' && nav.getBoundingClientRect().height > 0, tabShown: getComputedStyle(tab).display !== 'none', tab: tab.textContent, exp: tab.getAttribute('aria-expanded'),
+      tabB: Math.round(r('#navFoldTab').bottom), fbT: Math.round(r('.left-pane .formula-bar').top), npH: Math.round(r('.numpad-section').height), shH: Math.round(r('.sheet-wrap').height), npB: Math.round(r('.numpad-section').bottom), vh: innerHeight }; });
+  await page.evaluate(() => localStorage.setItem('excalc_ui2', '1')); await page.reload(); await w(1200);   // 新しい 画面（下の タブ）で
+  const a = await st();
+  check('  はじめは いつも 出す（前と 同じ）・◀ は 出さない', [a.fold, a.navShown, a.tabShown].join('/'), 'false/true/false');
+  check('  設定の「画面の形」に 下のメニューの 切りかえ（いつも出す・右下にたたむ）', await page.evaluate(() => { toggleSettings(); const seg = document.getElementById('navFoldSeg'); const r = [...seg.querySelectorAll('button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') + ' / ' + (getComputedStyle(seg).display !== 'none'); return r; }), 'いつも出す*,◀ 右下にたたむ / true');
+  check('  設定の 検索で「たたむ」「下のメニュー」で 見つかる', await page.evaluate(() => { setFind('下のメニュー'); const a = document.getElementById('setFindRes').textContent; setFind('たたむ'); const b = document.getElementById('setFindRes').textContent; setFind(''); return a.includes('画面の形') + '/' + b.includes('画面の形'); }), 'true/true');
+  await page.evaluate(() => { document.querySelector('#navFoldSeg button[data-f="1"]').click(); toggleSettings(); }); await w(500);
+  const b = await st();
+  check('  右下に たたむ：タブを 隠し、◀ を 入力欄の すぐ 上に・テンキーが いちばん 下まで・空いた 分 表が 広く なる・保存', [b.fold, b.navShown, b.tabShown, b.tab, b.exp, b.tabB <= b.fbT && b.fbT - b.tabB <= 14, b.npB === b.vh, b.shH - a.shH >= 40, await page.evaluate(() => localStorage.getItem('excalc_nav_fold') + '/' + SETTINGS_BACKUP_KEYS.includes('excalc_nav_fold'))].join('/'), 'true/false/true/◀/false/true/true/true/1/true');
+  await page.click('#navFoldTab'); await w(250);
+  const c = await st();
+  check('  ◀ を 押すと タブが 右から 出る（5つ・▶ で たたむ）', [c.open, c.navShown, c.tab, c.exp, await page.evaluate(() => { const n = document.getElementById('appNav').getBoundingClientRect(), t = document.getElementById('navFoldTab').getBoundingClientRect(); return [document.querySelectorAll('#appNav button').length, Math.round(n.bottom) === Math.round(t.bottom), Math.round(n.right) === innerWidth].join('/'); })].join('/'), 'true/true/▶/true/5/true/true');
+  await page.click('#navFoldTab'); await w(200);
+  check('  ▶ で たたむ', (await st()).open + '/' + (await st()).navShown, 'false/false');
+  await page.click('#navFoldTab'); await w(200);
+  await page.click('#appNav button[data-nav="calc"]'); await w(500);
+  check('  タブの ボタンを 押すと 移って また たたむ（電卓でも ◀）', await page.evaluate(() => [isDentaku(), document.body.classList.contains('nav-fold-open'), getComputedStyle(document.getElementById('navFoldTab')).display !== 'none'].join('/')), 'true/false/true');
+  await page.click('#navFoldTab'); await w(200); await page.click('#appNav button[data-nav="sheet"]'); await w(500);
+  await page.click('#navFoldTab'); await w(200);
+  await page.mouse.click(100, 200); await w(200);
+  check('  ほかの 所を 押すと たたむ', await page.evaluate(() => [isDentaku(), document.body.classList.contains('nav-fold-open')].join('/')), 'false/false');
+  check('  お知らせが ある ときは ◀ にも 印', await page.evaluate(() => { const old = menuNotes.slice(); menuNotes.push({ t: 'テスト' }); navSync(); const a = document.getElementById('navFoldTab').classList.contains('has-note'); menuNotes.length = 0; old.forEach(x => menuNotes.push(x)); navSync(); return a + '/' + document.getElementById('navFoldTab').classList.contains('has-note'); }), 'true/false');
+  check('  ページ（メニュー）を 開くと ◀ は ページの 下（押せるのは ページ）・閉じると もどる', await page.evaluate(async () => { openMoreMenu(); await new Promise(r => setTimeout(r, 300)); const t = document.getElementById('navFoldTab').getBoundingClientRect(); const top = document.elementFromPoint(t.left + 20, t.top + 30); const a = !top.closest('#navFoldTab');
+    closeDlg('moreMenuOverlay'); await new Promise(r => setTimeout(r, 300)); const t2 = document.getElementById('navFoldTab').getBoundingClientRect(); return a + '/' + !!document.elementFromPoint(t2.left + 20, t2.top + 30).closest('#navFoldTab'); }), 'true/true');
+  check('  キーボードで 打つ 間は ◀ を 隠す', await page.evaluate(() => { document.body.classList.add('kb-edit'); const a = getComputedStyle(document.getElementById('navFoldTab')).display; document.body.classList.remove('kb-edit'); return a; }), 'none');
+  await page.reload(); await w(1200);
+  check('  開き直しても たたんだ まま', [(await st()).fold, (await st()).navShown, (await st()).tabShown].join('/'), 'true/false/true');
+  await page.setViewportSize({ width: 900, height: 412 }); await w(700);
+  check('  横向き（タブが 上の 段）では いつも 出す・◀ なし', await page.evaluate(() => [getComputedStyle(document.getElementById('appNav')).display !== 'none', getComputedStyle(document.getElementById('navFoldTab')).display].join('/')), 'true/none');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(700);
+  await page.evaluate(() => setNavFold(false)); await w(400);
+  const d = await st();
+  check('  いつも出す に もどすと 前と 同じ', [d.fold, d.navShown, d.tabShown, d.npH === a.npH, d.shH === a.shH].join('/'), 'false/true/false/true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
 async function runOto686(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎶 2〜3分の 名曲メドレー（v686） ──');
@@ -23716,6 +23760,7 @@ const SUITES = [
   [['tabetaapp', 'v695'], b => runTabetaApp695(b)],
   [['tabeta696', 'v696'], b => runTabeta696(b)],
   [['tabeta697', 'v697'], b => runTabeta697(b)],
+  [['navfold', 'v698'], b => runNavFold698(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
