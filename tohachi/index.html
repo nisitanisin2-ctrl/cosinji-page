@@ -406,7 +406,10 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
   .tabbar button{ font-size:.72rem; }
   header.top{ margin-left:0; }
 }
-.screen.enter{ animation:scrin .32s cubic-bezier(.2,.8,.2,1) both; }
+.screen.enter{ animation:scrin .32s cubic-bezier(.2,.8,.2,1) backwards; }
+/* 全画面のあいだは、まわりの画面の動き（変形）をなくし、上の帯と下のタブもかくす */
+body.fs3d .screen{ animation:none !important; transform:none !important; }
+body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 @keyframes scrin{ from{ opacity:0; transform:translateY(10px); } }
 .screen section{ padding-block:30px 6px; }
 .screen section:first-child{ padding-top:18px; }
@@ -1545,9 +1548,11 @@ function build3D(THREE,img){
   ];
   LIFTS.forEach(Lf=>{ const o=liftObj[Lf.id]; if(!o) return; const m=o.curve.getPoint(.5); LABELS.push({d:mk(String(Lf.n),"lift"),p:m.clone().add(new THREE.Vector3(0,14,0)),lift:Lf.id}); });
   const selLab=mk("","sel"); selLab.hidden=true; let selP=null; const compass=$("#m3dCompass");
+  // 画面の上で、いつも同じ大きさ（px）に見える丸
+  function pxSize(sp,px){ sp.userData.px=px; const v=px*LK.value; sp.scale.set(v,v,1); }
   // 滑る人（どの距離でも同じ大きさで見える点）
   const dot=(col)=>{ const c=document.createElement("canvas"); c.width=c.height=64; const x=c.getContext("2d"); x.beginPath(); x.arc(32,32,24,0,6.283); x.fillStyle="#fff"; x.fill(); x.beginPath(); x.arc(32,32,17,0,6.283); x.fillStyle=col; x.fill();
-    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,sizeAttenuation:false})); s.scale.set(.045,.045,1); s.renderOrder=10; s.visible=false; scene.add(s); return s; };
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,sizeAttenuation:false})); pxSize(s,20); s.renderOrder=10; s.visible=false; scene.add(s); return s; };
   const skier=dot("#ff4d4f"), rider=dot("#2a7bd6");
 
   // カメラ
@@ -1639,8 +1644,8 @@ function build3D(THREE,img){
     while(ed.markers.length<ed.pts.length){ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:DT.n,depthTest:false,sizeAttenuation:false})); sp.renderOrder=12; edGroup.add(sp); ed.markers.push(sp); }
     while(ed.markers.length>ed.pts.length){ const sp=ed.markers.pop(); edGroup.remove(sp); sp.material.dispose(); }
     const last=ed.pts.length-1;
-    ed.pts.forEach((p,i)=>{ const sp=ed.markers[i], k=i===ed.sel?"sel":(i===0?"s":(i===last?"g":"n")), sc=k==="sel"?.046:(k==="n"?.028:.04);
-      sp.position.copy(P3(p[0],p[1],5)); if(sp.material.map!==DT[k]){ sp.material.map=DT[k]; sp.material.needsUpdate=true; } sp.scale.set(sc,sc,1); });
+    ed.pts.forEach((p,i)=>{ const sp=ed.markers[i], k=i===ed.sel?"sel":(i===0?"s":(i===last?"g":"n"));
+      sp.position.copy(P3(p[0],p[1],5)); if(sp.material.map!==DT[k]){ sp.material.map=DT[k]; sp.material.needsUpdate=true; } pxSize(sp,k==="sel"?22:(k==="n"?14:21)); });
     if(edRibbon){ edGroup.remove(edRibbon); dispose(edRibbon); edRibbon=null; }
     const c=COURSES.find(x=>x.id===ed.id);
     if(c&&ed.pts.length>=2){ const sp=smooth(ed.pts), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"); edRibbon=new THREE.Group();
@@ -1717,7 +1722,7 @@ function build3D(THREE,img){
   function refreshCourse(id){ const c=COURSES.find(x=>x.id===id); if(!c) return; buildCourse(c); needDraw=true;
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
-  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; needDraw=true; }
+  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
   new ResizeObserver(resize).observe(box);
   function theme(){ const dk=isDark(); hemi.intensity=dk?.95:1.25; sun.intensity=dk?1.4:1.9; sideMat.color.set(dk?0x2a3a4e:0x8b98a8); scene.fog.color.set(dk?0x22374f:0xdfeaf5); needDraw=true; }
   // 描く：カメラが動いたとき・動きがあるときだけ（止まっている間は描かない。近くで見ている間は、いすを動かすため少しずつ）
