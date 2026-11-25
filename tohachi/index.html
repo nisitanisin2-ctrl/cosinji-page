@@ -480,6 +480,7 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 .m3d-lab.peak{ background:rgba(15,29,46,.78); color:#fff; }
 .m3d-lab.sv{ background:rgba(180,122,4,.92); color:#fff; }
 .m3d-lab.lift{ width:17px; height:17px; padding:0; display:grid; place-items:center; border-radius:50%; background:#0f1d2e; color:#fff; font-family:var(--f-num); font-size:.6rem; }
+.m3d-lab.lift.sv{ background:#8a5a00; }
 .m3d-lab.lift.on{ background:#2a7bd6; transform-origin:center; }
 .m3d-lab.sel{ background:#e5484d; color:#fff; font-size:.64rem; }
 .m3d-lab.sel::after{ display:none; }
@@ -531,6 +532,7 @@ body.fs3d .stage-map{ z-index:90; }
 .map.full .fsbar::-webkit-scrollbar{ display:none; }
 .map.full .fsbar .chip{ flex:none; white-space:nowrap; }
 .map.full .fsbar .chip.rec::after{ display:none; }
+.map.full .fsbar > span.chipsep{ width:auto; flex:none; align-self:center; letter-spacing:.06em; padding:0 2px 0 10px; margin-left:4px; border-left:1px solid var(--line); white-space:nowrap; }
 body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124px); }
 
 /* ===== 3D：拡大・回転・傾きのボタン ===== */
@@ -719,7 +721,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
   <p class="note" data-note="tohachi">※ 図は、ゲレンデマップ（パンフレット）の上に、選んだコースの線を重ねたものです。線の位置はおおよそです。今はない施設（3号リフト上の「ミニスノーパーク」、1号リフト終点の休憩所）は図から消し、スカイバレイのリフトは今の「ベアトリプルリフト」に直してあります。また、このマップは今のシーズンとコース名がちがう所があります（例：②「競技Aコース」の位置が、今の「東尾根下コース」）。コースの長さ・斜度・リフトの時間は公式サイトの数字です。最新のマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデマップ</a>で。</p>
-  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置で、標高差は公式の数字とほぼ同じです。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「✏️ 描く」で、点を押してコースの線を描きなおせます。</p>
+  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「✏️ 描く」で、点を押してコースの線を描きなおせます。</p>
   <p class="note" data-note="sv" hidden>※ 同じゲレンデマップの右側（スカイバレイ側）です。線の位置はおおよそ。コースの長さ・斜度はスカイバレイの公式マップより。</p>
   </div>
   </div>
@@ -1168,6 +1170,18 @@ if(!reduce) $$(".reveal").forEach(s=>{ if(s.getBoundingClientRect().top>innerHei
 
 /* ---------- コース図を描く ---------- */
 /* 2つの図（東鉢側・スカイバレイ側）をまとめてあつかう */
+// 3Dの図だけにあるもの（2Dのゲレンデマップの絵にはのっていない）
+const SV3D_COURSES=[
+  {id:"sv_rabbit", name:"ラビットコース", short:"ラビット", lv:"中級", len:460, avg:13, max:16, w:5, only3d:true,
+   txt:"ラビットペアリフトにそって下るコース。", tip:"下りたらラビットペアリフトで、東鉢との境（カフェテリアのあたり）の近くまで戻れます。", src:"スカイバレイ公式"},
+];
+const SV3D_LIFTS=[
+  {id:"svl_rabbit", ch:"ラ", chip:"ラビットペアリフト", name:"ラビットペアリフト", len:420, seats:2, only3d:true, serves:["sv_wakaba","sv_rabbit","sv_gezan"],
+   txt:"東鉢との境（カフェテリアのあたり）の近くへ上がるリフト。ワカバ・ラビット・下山へ行けます。", src:"スカイバレイ公式"},
+  {id:"svl_touko", ch:"登", chip:"登降リフト", name:"登降ペアパラレルリフト（A・B線）", len:640, seats:2, only3d:true, serves:[],
+   txt:"スカイバレイのふもと（スキーセンター）とゲレンデを結ぶ、2本ならんだリフト（A線・B線）。下山コースを下りたあと、これとラビットペアリフトで上へ戻れます。", src:"スカイバレイ公式"},
+];
+const SV_ORDER=["sv_wakaba","sv_rabbit","sv_gezan","sv_bear","sv_dia","sv_fox","sv_thunder","sv_eagle","sv_back","sv_raku"];
 const MAPS={
   tohachi:{svg:$("#mapSvg"), courses:COURSES, lifts:LIFTS, areas:AREAS},
   sv:{svg:$("#svSvg"), courses:SV_COURSES, lifts:SV_LIFTS, areas:SV_AREAS},
@@ -1178,6 +1192,8 @@ function findItem(id){
     it=M.lifts.find(x=>x.id===id); if(it) return {map:key,kind:"lift",item:it};
     if(M.areas[id]) return {map:key,kind:"area",item:M.areas[id]};
   }
+  let it=SV3D_COURSES.find(x=>x.id===id); if(it) return {map:"sv",kind:"course",item:it};
+  it=SV3D_LIFTS.find(x=>x.id===id); if(it) return {map:"sv",kind:"lift",item:it};
   return null;
 }
 function buildMap(key){
@@ -1279,9 +1295,10 @@ $$(".zoomctl button").forEach(b=>b.onclick=()=>{ const z=b.dataset.z; if(z==="in
 
 /* ---------- 3D 地形図（国土地理院：数値標高モデル5mメッシュ・全国最新写真・標準地図の索道） ----------
    リフト：地理院地図の索道の線（5mメッシュでの標高差は公式とほぼ同じ）。コース：航空写真のゲレンデの形と公式の説明から合わせた おおよその位置 */
-const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[733.75,368.75],[552.5,252.5]],"lift2":[[555.0,233.0],[426.5,220.25]],"lift3":[[635.0,212.0],[505.0,222.5]],"lift4":[[792.5,350.0],[623.75,237.0]]},"courses":{"centerA":[[430,225],[445,234],[465,243],[488,250],[512,254],[534,256],[548,257]],"higashioneshita":[[432,217],[446,209],[458,203],[470,205],[480,212],[492,218],[507,225],[530,230],[550,233]],"higashione":[[430,216],[442,204],[455,192],[472,184],[495,180],[522,181],[550,184],[578,187],[605,189],[624,196],[636,208],[640,218]],"centerB":[[556,258],[563,271],[572,284],[584,295],[600,304],[617,310],[632,315]],"centerC":[[640,220],[636,235],[634,252],[636,270],[639,288],[640,304],[636,315]],"centerD":[[636,315],[652,324],[670,335],[688,346],[706,356],[722,365],[732,373]],"champion":[[642,223],[660,238],[680,255],[700,272],[720,290],[740,308],[760,325],[776,338],[788,347]],"beginner":[[507,225],[518,233],[534,239],[555,243],[575,239],[593,230],[608,219],[622,208],[634,203],[642,209]],"kyogiB":[[436,232],[446,248],[456,265],[468,282],[482,298]],"chibikko":[[720,290],[728,306],[740,321],[754,333],[768,343]]},"marks":{"summit":[426.5,220.25],"cafe":[629,228],"base":[748,366],"hachibuse":[31,98],"sv":[585,142],"open":[480,196]}};
+const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[733.75,368.75],[552.5,252.5]],"lift2":[[555.0,233.0],[426.5,220.25]],"lift3":[[635.0,212.0],[505.0,222.5]],"lift4":[[792.5,350.0],[623.75,237.0]],"svl_sanchou":[[662.0,82.53],[469.66,155.06]],"svl_bear":[[719.66,96.22],[575.78,157.09]],"svl_rabbit":[[728.62,106.25],[663.56,188.06]],"svl_touko":[[879.59,47.06],[738.59,98.47]]},"courses":{"centerA":[[430,225],[445,234],[465,243],[488,250],[512,254],[534,256],[548,257]],"higashioneshita":[[432,217],[446,209],[458,203],[470,205],[480,212],[492,218],[507,225],[530,230],[550,233]],"higashione":[[430,216],[442,204],[455,192],[472,184],[495,180],[522,181],[550,184],[578,187],[605,189],[624,196],[636,208],[640,218]],"centerB":[[556,258],[563,271],[572,284],[584,295],[600,304],[617,310],[632,315]],"centerC":[[640,220],[636,235],[634,252],[636,270],[639,288],[640,304],[636,315]],"centerD":[[636,315],[652,324],[670,335],[688,346],[706,356],[722,365],[732,373]],"champion":[[642,223],[660,238],[680,255],[700,272],[720,290],[740,308],[760,325],[776,338],[788,347]],"beginner":[[507,225],[518,233],[534,239],[555,243],[575,239],[593,230],[608,219],[622,208],[634,203],[642,209]],"kyogiB":[[436,232],[446,248],[456,265],[468,282],[482,298]],"chibikko":[[720,290],[728,306],[740,321],[754,333],[768,343]],"sv_dia":[[476,162],[495,168],[518,171],[542,172],[560,168],[578,162]],"sv_back":[[476,162],[495,168],[518,171],[536,175],[550,181],[565,187],[594,191],[616,199],[628,210]],"sv_thunder":[[474,158],[490,153],[508,146],[528,139],[550,132],[572,125],[594,118],[612,112]],"sv_eagle":[[468,147],[476,136],[488,126],[502,118],[516,112],[528,109]],"sv_fox":[[528,109],[550,105],[572,100],[595,96],[616,91],[636,86],[656,82]],"sv_bear":[[578,162],[598,160],[616,152],[632,140],[652,134],[672,127],[688,116],[705,108],[718,101]],"sv_rabbit":[[662,184],[671,172],[681,160],[692,147],[703,134],[714,121],[724,110]],"sv_wakaba":[[667,188],[682,181],[697,174],[710,166],[718,154],[722,140],[726,126],[730,113]],"sv_gezan":[[668,190],[686,182],[705,172],[722,162],[740,157],[760,155],[780,152],[800,147],[818,141],[835,136],[850,130],[860,121],[867,111],[875,104],[888,98],[898,88],[902,76],[898,65],[890,57],[884,49]]},"marks":{"summit":[426.5,220.25],"cafe":[629,228],"base":[748,366],"hachibuse":[31,98],"sv":[585,142],"open":[480,196],"svbase":[882,39]}};
 const C3D={"初級":"#1f9d55","中級":"#2a8fd6","上級":"#d63b3b","道":"#e08a00"};
-const RUN3D={centerB:["centerB","centerD"],centerC:["centerC","centerD"],higashione:["higashione","champion"],openbahn:[],kids:[]};
+const RUN3D={centerB:["centerB","centerD"],centerC:["centerC","centerD"],higashione:["higashione","champion"],sv_dia:["sv_dia","sv_bear"],sv_eagle:["sv_eagle","sv_fox"],openbahn:[],kids:[]};
+const SHOW3D={skyvalley:["sv_dia","sv_fox","sv_eagle","sv_thunder"]}; // 3Dで、エリアを選んだときに出すコース
 var view3d=false, T3D=null, t3dLoading=null;
 function load3D(){
   if(t3dLoading) return t3dLoading;
@@ -1294,17 +1311,27 @@ function load3D(){
   t3dLoading.catch(e=>{ console.error("3D:",e); t3dLoading=null; msg.hidden=false; msg.textContent="この端末・ブラウザでは3Dを表示できませんでした（2Dの図をお使いください）"; });
   return t3dLoading;
 }
-function set3D(on){
+// 3Dの図で見られるか（コース・リフト、いくつかのエリア）
+function has3D(id){ return !!(GEO3D.courses[id]||GEO3D.lifts[id]||["openbahn","kids","skyvalley","sv_signHub","sv_signTop"].includes(id)); }
+function set3D(on,fromSelect){
   view3d=on;
   $(".stage-map .map").classList.toggle("is3d",on);
   $("#viewBtn").textContent=on?"2D":"3D"; $("#viewBtn").setAttribute("aria-label",on?"2Dの図にもどす":"3Dの地形で見る");
   $$("#mapTabs button").forEach(b=>b.setAttribute("aria-pressed",String(on?b.dataset.m==="3d":b.dataset.m===curMap)));
   $("#note3d").hidden=!on;
+  const rec0=()=>(LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0];
   if(on){
-    if(curMap!=="tohachi"){ select((LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0],false,null,true); }
-    load3D().then(T=>{ T.start(); const f=selected&&findItem(selected); if(f&&f.map==="tohachi") T.select(selected,curShow,false); else T.home(); }).catch(()=>{});
-  } else if(T3D){ T3D.endEdit(); T3D.stop(); }
+    if(fromSelect) load3D().then(T=>T.start()).catch(()=>{});
+    else {
+      if(!(selected&&has3D(selected))) select(curMap==="sv"?"sv_signHub":rec0(),false,null,true); // スカイバレイ側を見ていたら、スカイバレイ側を
+      load3D().then(T=>{ T.start(); if(selected&&has3D(selected)) T.select(selected,curShow,false); else T.home(); }).catch(()=>{});
+    }
+  } else {
+    if(T3D){ T3D.endEdit(); T3D.stop(); }
+    const f=selected&&findItem(selected); if(f&&f.item.only3d) select(f.map==="sv"?"sv_signHub":rec0(),false,null,true); // 2Dの絵にないものは、近くのものに
+  }
   if(!on&&full3d) setFull3d(false);
+  buildChips();
 }
 var curShow=[];
 // 地図のように動かす：
@@ -1476,7 +1503,7 @@ function build3D(THREE,img){
     return new THREE.Mesh(g,m);
   }
   // コースの線：半透明の細い帯（下の斜面が見える）＋ どの距離でも同じ太さに見える中心の線
-  const courseObj={}, cW=c=>c.id==="centerB"?22:(c.route?7:10), CIDX={}; COURSES.forEach((c,i)=>{ CIDX[c.id]=i; });
+  const courseObj={}, cW=c=>c.id==="centerB"?22:(c.route?7:10), CIDX={}; COURSES3D.forEach((c,i)=>{ CIDX[c.id]=i; });
   const dispose=g=>g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); });
   const LK={value:.001}; // カメラから距離1の所で、画面の1pxが何mか（大きさが変わるたびに計算）
   // 帯や線が折れて重なっても、そこだけ濃くならないように
@@ -1502,7 +1529,7 @@ function build3D(THREE,img){
     const L=routeLine(sp,col,4.6,ref+1,3);
     grp.add(band,L.grp); grp.visible=old?old.grp.visible:false; scene.add(grp);
     const o={c,sp,grp,op:old?old.op:1,set:(v)=>{ o.op=v; band.material.opacity=.34*v; L.cas.material.uniforms.uOp.value=.8*v; L.ln.material.uniforms.uOp.value=.95*v; }}; o.set(o.op); courseObj[c.id]=o; }
-  COURSES.forEach(buildCourse);
+  COURSES3D.forEach(buildCourse);
 
   // ===== リフト（ペアリフト）：本物に近い形 =====
   //  支柱：くつ（コンクリート）・柱・腕・点検の足場・はしご・滑車（両はしに4こずつ）
@@ -1515,15 +1542,18 @@ function build3D(THREE,img){
   const mConc=new THREE.MeshStandardMaterial({color:0xb9bdc2,roughness:.95}), mWall=new THREE.MeshStandardMaterial({color:0xece4d3,roughness:.9}), mRoof=new THREE.MeshStandardMaterial({color:0x8a2f25,roughness:.75});
   const mDeck=new THREE.MeshStandardMaterial({color:0x8e7657,roughness:.95}), mGlass=new THREE.MeshStandardMaterial({color:0x1f2c38,roughness:.25,metalness:.3});
   const UPV=new THREE.Vector3(0,1,0), BX=new THREE.BoxGeometry(1,1,1), POLE=new THREE.CylinderGeometry(.3,.42,1,12), CYL=new THREE.CylinderGeometry(1,1,1,10);
-  const WHEEL=new THREE.CylinderGeometry(.27,.27,.1,14), BULL=new THREE.TorusGeometry(HR,.14,8,48), SPH=new THREE.SphereGeometry(1,8,6);
+  const WHEEL=new THREE.CylinderGeometry(.27,.27,.1,8), BULL=new THREE.TorusGeometry(HR,.14,8,48), SPH=new THREE.SphereGeometry(1,8,6);
   const batch=new Map(), _q=new THREE.Quaternion(), _e=new THREE.Euler(), _m=new THREE.Matrix4(), _l=new THREE.Matrix4(), _p=new THREE.Vector3(), _s=new THREE.Vector3();
   function frameAt(x,y,z,yaw){ return new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromAxisAngle(UPV,yaw),new THREE.Vector3(1,1,1)); }
-  function part(geo,p,s,r){ const g=geo.index?geo.toNonIndexed():geo.clone(); _e.set(r?r[0]:0,r?r[1]:0,r?r[2]:0);
+  function part(geo,p,s,r){ const g=geo.clone(); _e.set(r?r[0]:0,r?r[1]:0,r?r[2]:0);
     _l.compose(_p.set(p[0],p[1],p[2]),_q.setFromEuler(_e),_s.set(s?s[0]:1,s?s[1]:1,s?s[2]:1)); return g.applyMatrix4(_l); }
   function put(mat,geo,F,p,s,r){ const g=part(geo,p,s,r).applyMatrix4(F); if(!batch.has(mat)) batch.set(mat,[]); batch.get(mat).push(g); }
-  function merge(list,withColor){ let n=0; list.forEach(g=>n+=g.attributes.position.count); const pos=new Float32Array(n*3), nor=new Float32Array(n*3), col=withColor?new Float32Array(n*3):null; let o=0;
-    list.forEach(g=>{ const c=g.attributes.position.count; pos.set(g.attributes.position.array,o*3); nor.set(g.attributes.normal.array,o*3); if(col) for(let i=0;i<c;i++) col.set(g.userData.col,(o+i)*3); o+=c; g.dispose(); });
-    const out=new THREE.BufferGeometry(); out.setAttribute("position",new THREE.BufferAttribute(pos,3)); out.setAttribute("normal",new THREE.BufferAttribute(nor,3)); if(col) out.setAttribute("color",new THREE.BufferAttribute(col,3)); return out; }
+  function merge(list,withColor){ let n=0, ni=0; list.forEach(g=>{ n+=g.attributes.position.count; ni+=g.index?g.index.count:g.attributes.position.count; });
+    const pos=new Float32Array(n*3), nor=new Float32Array(n*3), col=withColor?new Float32Array(n*3):null, idx=new Uint32Array(ni); let o=0, oi=0;
+    list.forEach(g=>{ const c=g.attributes.position.count; pos.set(g.attributes.position.array,o*3); nor.set(g.attributes.normal.array,o*3); if(col) for(let i=0;i<c;i++) col.set(g.userData.col,(o+i)*3);
+      if(g.index){ const a=g.index.array; for(let i=0;i<a.length;i++) idx[oi+i]=a[i]+o; oi+=a.length; } else { for(let i=0;i<c;i++) idx[oi+i]=o+i; oi+=c; }
+      o+=c; g.dispose(); });
+    const out=new THREE.BufferGeometry(); out.setAttribute("position",new THREE.BufferAttribute(pos,3)); out.setAttribute("normal",new THREE.BufferAttribute(nor,3)); if(col) out.setAttribute("color",new THREE.BufferAttribute(col,3)); out.setIndex(new THREE.BufferAttribute(idx,1)); return out; }
   const gLocal=(F,lx,lz)=>{ _p.set(lx,0,lz).applyMatrix4(F); return hAt(_p.x,_p.z)-F.elements[13]; }; // 駅の部品の下の地面の高さ（駅の足もとから）
   const shB=[], shS=[], SUN=[-.164,-.986]; // 影：まるい影／支柱の細長い影（日の光と同じ向き）
   function tower(x,z,g,h,yaw){ const F=frameAt(x,g,z,yaw);
@@ -1561,7 +1591,7 @@ function build3D(THREE,img){
       ix.push(i*2,j*2,i*2+1, i*2+1,j*2,j*2+1); }
     const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(pos,3)); g.setAttribute("nxt",new THREE.BufferAttribute(nx,3)); g.setAttribute("side",new THREE.BufferAttribute(sd,1)); g.setIndex(ix); return g; }
   const liftObj={}, lifts=[], chairs=[];
-  LIFTS.forEach(Lf=>{ const ab=G.lifts[Lf.id]; if(!ab) return; const [a,b]=ab;
+  LIFTS3D.forEach(Lf=>{ const ab=G.lifts[Lf.id]; if(!ab) return; const [a,b]=ab;
     const ga=P3(a[0],a[1],0), gb=P3(b[0],b[1],0), d=new THREE.Vector3(gb.x-ga.x,0,gb.z-ga.z), lenH=d.length(); d.normalize();
     const n=new THREE.Vector3(-d.z,0,d.x), yawL=Math.atan2(d.x,d.z), nT=Math.max(2,Math.round(lenH/92));
     // 支え（駅と支柱）の場所と、ワイヤーの高さ
@@ -1587,7 +1617,7 @@ function build3D(THREE,img){
     const curve=new THREE.CatmullRomCurve3(upP.filter((p,i)=>i%3===0||i===upP.length-1),false,"centripetal");
     const o={Lf,a,b,lenM:lenH,curve,side:new THREE.Vector3(),pts:loop,cum,L:cum[cum.length-1],upLen,off:0,mul:1,
       set:on=>{ const u=rope.material.uniforms; u.uColor.value.set(on?0x2a7bd6:0x2b3138); u.uHalf.value=on?1.15:.7; u.uOp.value=on?1:.9; }};
-    const N=Math.max(8,Math.floor(o.L/CH_GAP)); for(let i=0;i<N;i++) chairs.push({o,base:i*o.L/N,col:CHAIR_COL,riders:[]});
+    const N=Math.max(8,Math.floor(o.L/CH_GAP)), sx=Lf.seats===3?1.45:1; for(let i=0;i<N;i++) chairs.push({o,base:i*o.L/N,col:CHAIR_COL,riders:[],sx});
     liftObj[Lf.id]=o; lifts.push(o); });
   // 支柱・駅は動かないので、材料ごとに1つにまとめる
   batch.forEach((list,mat)=>{ const mesh=new THREE.Mesh(merge(list),mat); mesh.frustumCulled=false; scene.add(mesh); });
@@ -1604,31 +1634,39 @@ function build3D(THREE,img){
     shadowMat(x=>{ const im=x.createImageData(64,64); for(let j=0;j<64;j++) for(let i=0;i<64;i++){ const u=Math.abs(i/63-.5)*2, k=(j*64+i)*4; im.data[k]=im.data[k+1]=im.data[k+2]=255; im.data[k+3]=255*(1-u*u*u)*(.4*(1-j/63)+.05); } x.putImageData(im,0,0); }));
   // いす（2人乗り）と、乗っている人
   const shape=(parts,withColor)=>merge(parts.map(([geo,p,s,r,col])=>{ const g=part(geo,p,s,r); g.userData.col=col; return g; }),withColor);
-  const HOOK=new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0,-.05,0],[0,-.62,-.05],[.06,-.86,-.1],[.26,-1.04,-.14],[.47,-1.17,-.16],[.61,-1.31,-.16],[.56,-1.48,-.16]].map(p=>new THREE.Vector3(...p))),12,.045,5,false);
+  const HOOK=new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0,-.05,0],[0,-.62,-.05],[.06,-.86,-.1],[.26,-1.04,-.14],[.47,-1.17,-.16],[.61,-1.31,-.16],[.56,-1.48,-.16]].map(p=>new THREE.Vector3(...p))),8,.045,4,false);
   const gFrame=shape([[BX,[0,-.04,0],[.14,.18,.42]],[HOOK,[0,0,0]],[BX,[0,-1.48,-.16],[1.17,.05,.05]],
     [BX,[-.56,-1.9,-.16],[.05,.84,.05]],[BX,[.56,-1.9,-.16],[.05,.84,.05]],[BX,[-.56,-2.02,.07],[.05,.05,.48]],[BX,[.56,-2.02,.07],[.05,.05,.48]],
     [BX,[-.56,-2.17,.3],[.05,.3,.05]],[BX,[.56,-2.17,.3],[.05,.3,.05]],[BX,[0,-2.37,-.14],[1.12,.05,.05]],[BX,[0,-2.37,.28],[1.12,.05,.05]]]);
   const gSeat=shape([[BX,[0,-2.32,.07],[1.1,.07,.48]],[BX,[0,-2.13,-.165],[1.08,.11,.035]],[BX,[0,-1.93,-.165],[1.08,.11,.035]]]);
   const W=[1,1,1], PNT=[.17,.18,.22], HEL=[.92,.92,.94], SKI=[.78,.78,.8], BOOT=[.2,.2,.22];
-  const gRider=shape([[BX,[0,.36,-.04],[.42,.6,.28],[-.08,0,0],W],[BX,[0,.33,.12],[.56,.13,.3],null,W],[SPH,[0,.8,-.02],[.135,.14,.135],null,HEL],
+  const gRider=shape([[BX,[0,.36,-.04],[.42,.6,.28],[-.08,0,0],W],[BX,[0,.33,.12],[.56,.13,.3],null,W],[BX,[0,.8,-.02],[.25,.27,.27],null,HEL],
     [BX,[0,.08,.22],[.38,.15,.48],null,PNT],[BX,[0,-.2,.44],[.34,.5,.14],null,PNT],[BX,[0,-.47,.5],[.36,.14,.3],null,BOOT],
     [BX,[-.1,-.56,.6],[.09,.03,1.6],[-.05,0,0],SKI],[BX,[.1,-.56,.6],[.09,.03,1.6],[-.05,0,0],SKI]],true);
   const R=rng(20261125), JK=[0xd83a34,0x2c6fd1,0xf08c1a,0x2e9b57,0x7b4bc4,0x1d2530,0xf2f2f2,0xf2c61f,0xe25c9a,0x16a3b3]; let rCount=0;
-  chairs.forEach(c=>{ const r=R(), k=r<.38?0:(r<.72?1:2), slots=k===2?[-.28,.28]:(k===1?[R()<.5?-.28:.28]:[]);
-    slots.forEach(x=>c.riders.push({x,col:JK[Math.floor(R()*JK.length)],idx:rCount++,local:new THREE.Matrix4().makeTranslation(x,-2.285,.05)})); });
+  chairs.forEach(c=>{ const r=R(), tri=c.sx>1, k=tri?(r<.3?0:(r<.6?1:(r<.85?2:3))):(r<.38?0:(r<.72?1:2)), pool=tri?[-.42,0,.42]:[-.28,.28];
+    for(let i=pool.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); [pool[i],pool[j]]=[pool[j],pool[i]]; } const slots=pool.slice(0,k);
+    slots.forEach(x=>c.riders.push({x,col:new THREE.Color(JK[Math.floor(R()*JK.length)]),idx:rCount++,local:new THREE.Matrix4().makeTranslation(x,-2.285,.05)})); });
   const mSeat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.6}), mRider=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.8,vertexColors:true});
   const frameIM=new THREE.InstancedMesh(gFrame,mSteel,chairs.length), seatIM=new THREE.InstancedMesh(gSeat,mSeat,chairs.length), riderIM=new THREE.InstancedMesh(gRider,mRider,Math.max(1,rCount));
-  const cTmp=new THREE.Color(); chairs.forEach((c,i)=>{ seatIM.setColorAt(i,cTmp.set(c.col)); c.riders.forEach(r=>riderIM.setColorAt(r.idx,cTmp.set(r.col))); });
+  const cTmp=new THREE.Color(); chairs.forEach((c,i)=>{ seatIM.setColorAt(i,cTmp.set(c.col)); c.riders.forEach(r=>riderIM.setColorAt(r.idx,r.col)); });
   [frameIM,seatIM,riderIM].forEach(m=>{ m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled=false; scene.add(m); });
   // いすを動かす（ワイヤーにそって進み、駅では滑車のまわりを回る。人が乗っているのは上りだけ）
   let rideChair=null; const tP=new THREE.Vector3(), tT=new THREE.Vector3(), qC=new THREE.Quaternion(), ONE=new THREE.Vector3(1,1,1), mCh=new THREE.Matrix4(), mRd=new THREE.Matrix4(), ZERO=new THREE.Matrix4().makeScale(0,0,0);
   function atS(o,s,P,T){ const c=o.cum; let lo=0, hi=c.length-1; while(hi-lo>1){ const m=(lo+hi)>>1; if(c[m]<=s) lo=m; else hi=m; }
     const a=o.pts[lo], b=o.pts[(lo+1)%o.pts.length], f=(s-c[lo])/((c[lo+1]-c[lo])||1); P.lerpVectors(a,b,f); if(T) T.subVectors(b,a); }
   const sOf=c=>((c.base+c.o.off)%c.o.L+c.o.L)%c.o.L;
-  function moveChairs(){ chairs.forEach((c,i)=>{ const o=c.o, s=sOf(c); atS(o,s,tP,tT); qC.setFromAxisAngle(UPV,Math.atan2(tT.x,tT.z)); mCh.compose(tP,qC,ONE);
-      frameIM.setMatrixAt(i,mCh); seatIM.setMatrixAt(i,mCh);
-      const on=s>3&&s<o.upLen-2&&c!==rideChair; c.riders.forEach(r=>riderIM.setMatrixAt(r.idx,on?mRd.multiplyMatrices(mCh,r.local):ZERO)); });
-    frameIM.instanceMatrix.needsUpdate=seatIM.instanceMatrix.needsUpdate=riderIM.instanceMatrix.needsUpdate=true; }
+  const S3=new THREE.Vector3(1.45,1,1), mChS=new THREE.Matrix4(), frus=new THREE.Frustum(), mPV=new THREE.Matrix4(), mInv=new THREE.Matrix4(), bsph=new THREE.Sphere(new THREE.Vector3(),5);
+  function moveChairs(){
+    camera.updateMatrixWorld(); mPV.multiplyMatrices(camera.projectionMatrix,mInv.copy(camera.matrixWorld).invert()); frus.setFromProjectionMatrix(mPV);
+    const withRiders=camera.position.distanceTo(controls.target)<1700||!!rideChair; let n=0, nr=0;
+    chairs.forEach(c=>{ const o=c.o, s=sOf(c); atS(o,s,tP,tT); bsph.center.copy(tP); if(!frus.intersectsSphere(bsph)) return; // 画面の外は とばす
+      qC.setFromAxisAngle(UPV,Math.atan2(tT.x,tT.z)); mCh.compose(tP,qC,ONE);
+      if(c.sx>1){ mChS.compose(tP,qC,S3); frameIM.setMatrixAt(n,mChS); seatIM.setMatrixAt(n,mChS); } else { frameIM.setMatrixAt(n,mCh); seatIM.setMatrixAt(n,mCh); }
+      n++;
+      if(withRiders&&s>3&&s<o.upLen-2&&c!==rideChair) c.riders.forEach(r=>{ riderIM.setMatrixAt(nr,mRd.multiplyMatrices(mCh,r.local)); riderIM.setColorAt(nr,r.col); nr++; }); });
+    frameIM.count=seatIM.count=n; riderIM.count=nr;
+    frameIM.instanceMatrix.needsUpdate=seatIM.instanceMatrix.needsUpdate=riderIM.instanceMatrix.needsUpdate=true; if(riderIM.instanceColor) riderIM.instanceColor.needsUpdate=true; }
 
   // 文字（画面の上に重ねる）
   const lab=$("#m3dLabels"); lab.innerHTML="";
@@ -1642,7 +1680,8 @@ function build3D(THREE,img){
     {d:mk("鉢伏山 1,221m","peak"),p:P3(...mk2.hachibuse,30)},
     {d:mk("スカイバレイ側","sv"),p:P3(...mk2.sv,24)},
   ];
-  LIFTS.forEach(Lf=>{ const o=liftObj[Lf.id]; if(!o) return; const m=o.curve.getPoint(.5); LABELS.push({d:mk(String(Lf.n),"lift"),p:m.clone().add(new THREE.Vector3(0,10,0)),lift:Lf.id}); });
+  if(mk2.svbase) LABELS.push({d:mk("スカイバレイのふもと"),p:P3(...mk2.svbase,14)});
+  LIFTS3D.forEach(Lf=>{ const o=liftObj[Lf.id]; if(!o) return; const m=o.curve.getPoint(.5); LABELS.push({d:mk(String(Lf.n||Lf.ch),"lift"+(Lf.n?"":" sv")),p:m.clone().add(new THREE.Vector3(0,10,0)),lift:Lf.id}); });
   const selLab=mk("","sel"); selLab.hidden=true; let selP=null, selP2=null; const compass=$("#m3dCompass");
   // 画面の上で、いつも同じ大きさ（px）に見える丸
   function pxSize(sp,px){ sp.userData.px=px; const v=px*LK.value; sp.scale.set(v,v,1); }
@@ -1743,7 +1782,7 @@ function build3D(THREE,img){
     const f=findItem(id); if(!f) return;
     needDraw=true;
     if(ed.on){ if(f.kind==="course"&&COURSE_IDS.has(id)&&id!==ed.id){ edKeep(); edOpen(id); } return; }
-    const run=RUN3D[id]||[id], showSet=new Set((showIds||[]).concat(run));
+    const run=RUN3D[id]||[id], showSet=new Set((showIds||[]).concat(run,SHOW3D[id]||[]));
     Object.entries(courseObj).forEach(([cid,o])=>{ o.grp.visible=showSet.has(cid); o.set(cid===id||!run.includes(cid)?1:.6); });
     Object.entries(liftObj).forEach(([lid,o])=>o.set(lid===id));
     LABELS.forEach(L=>{ if(L.lift) L.d.classList.toggle("on",L.lift===id); });
@@ -1753,8 +1792,7 @@ function build3D(THREE,img){
       lastMove=()=>startSki(run.filter(c=>courseObj[c])); if(!quiet) setTimeout(()=>{ if(lastMove) lastMove(); },reduce?0:1150); }
     else if(f.kind==="lift"&&liftObj[id]){ const o=liftObj[id]; frameXY([o.a,o.b],quiet?0:1100); lastMove=()=>startRide(id); if(!quiet) setTimeout(()=>lastMove&&lastMove(),reduce?0:1150); }
     else { lastMove=null; const ids=[...showSet].filter(c=>courseObj[c]);
-      if(id==="skyvalley"){ flyTo(P3(...G.marks.sv,0),1500,AZ-.5,.95); }
-      else if(ids.length){ frameXY([].concat(...ids.map(c=>courseObj[c].sp)),quiet?0:1100); }
+      if(ids.length){ frameXY([].concat(...ids.map(c=>courseObj[c].sp)),quiet?0:1100); }
       else home(); }
   }
 
@@ -1762,8 +1800,9 @@ function build3D(THREE,img){
   const ed={on:false,id:null,pts:[],sel:-1,hist:[],dirty:false,markers:[],drafts:{}};
   try{ const d=store.get("draft3d",{}); Object.entries(d||{}).forEach(([k,v])=>{ const p=okPts(v); if(p&&COURSE_IDS.has(k)) ed.drafts[k]=p; }); }catch(e){}
   const edBox=$("#m3dEdit"), edSel=$("#edCourse"), edGroup=new THREE.Group(); scene.add(edGroup); let edRibbon=null;
-  COURSES.forEach(c=>{ const o=document.createElement("option"); o.value=c.id; edSel.appendChild(o); });
-  function edOptions(){ [...edSel.options].forEach(o=>{ const c=COURSES.find(x=>x.id===o.value); o.textContent=c.name+(ovr3d[c.id]?" ✓":"")+(ed.drafts[c.id]?" ✎":""); }); }
+  COURSES3D.filter(c=>!SV_ORDER.includes(c.id)).forEach(c=>{ const o=document.createElement("option"); o.value=c.id; edSel.appendChild(o); });
+  { const g=document.createElement("optgroup"); g.label="スカイバレイ側"; COURSES3D.filter(c=>SV_ORDER.includes(c.id)).sort((a,b)=>SV_ORDER.indexOf(a.id)-SV_ORDER.indexOf(b.id)).forEach(c=>{ const o=document.createElement("option"); o.value=c.id; g.appendChild(o); }); edSel.appendChild(g); }
+  function edOptions(){ [...edSel.options].forEach(o=>{ const c=COURSES3D.find(x=>x.id===o.value); o.textContent=c.name+(ovr3d[c.id]?" ✓":"")+(ed.drafts[c.id]?" ✎":""); }); }
   const dotTex=(fill,ring,txt)=>{ const c=document.createElement("canvas"); c.width=c.height=64; const x=c.getContext("2d");
     x.beginPath(); x.arc(32,32,27,0,6.283); x.fillStyle=ring; x.fill(); x.beginPath(); x.arc(32,32,20,0,6.283); x.fillStyle=fill; x.fill();
     if(txt){ x.fillStyle="#fff"; x.font="bold 26px sans-serif"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(txt,32,34); }
@@ -1780,7 +1819,7 @@ function build3D(THREE,img){
     ed.pts.forEach((p,i)=>{ const sp=ed.markers[i], k=i===ed.sel?"sel":(i===0?"s":(i===last?"g":"n"));
       sp.position.copy(P3(p[0],p[1],5)); if(sp.material.map!==DT[k]){ sp.material.map=DT[k]; sp.material.needsUpdate=true; } pxSize(sp,k==="sel"?22:(k==="n"?14:21)); });
     if(edRibbon){ edGroup.remove(edRibbon); dispose(edRibbon); edRibbon=null; }
-    const c=COURSES.find(x=>x.id===ed.id);
+    const c=COURSES3D.find(x=>x.id===ed.id);
     if(c&&ed.pts.length>=2){ const sp=smooth(ed.pts), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"); edRibbon=new THREE.Group();
       const band=ribbon(sp,cW(c),col,.24,3.4); stencil(band.material,251); band.renderOrder=5;
       const L=routeLine(sp,col,5,252,6); edRibbon.add(band,L.grp); edGroup.add(edRibbon); }
@@ -1852,7 +1891,7 @@ function build3D(THREE,img){
     catch(err){ toast("もどせませんでした。少し待ってからもう一度押してください"); }
     b.disabled=false; };
   $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&COURSE_IDS.has(selected)?selected:"centerB"); };
-  function refreshCourse(id){ const c=COURSES.find(x=>x.id===id); if(!c) return; buildCourse(c); needDraw=true;
+  function refreshCourse(id){ const c=COURSES3D.find(x=>x.id===id); if(!c) return; buildCourse(c); needDraw=true;
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
   function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; LABELS.concat([{d:selLab}]).forEach(L=>{ L.d._w=0; }); vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
@@ -1893,7 +1932,8 @@ function build3D(THREE,img){
 }
 
 /* ---------- 描いたコースの線（3D）：共有のデータ（このアプリ）か、この端末に保存 ---------- */
-const DEF3D=JSON.parse(JSON.stringify(GEO3D.courses)), COURSE_IDS=new Set(COURSES.map(c=>c.id));
+const COURSES3D=COURSES.concat(SV_COURSES,SV3D_COURSES).filter(c=>GEO3D.courses[c.id]), LIFTS3D=LIFTS.concat(SV_LIFTS,SV3D_LIFTS).filter(L=>GEO3D.lifts[L.id]);
+const DEF3D=JSON.parse(JSON.stringify(GEO3D.courses)), COURSE_IDS=new Set(COURSES3D.map(c=>c.id));
 var ovr3d={}, db3d=null;
 function okPts(flat){ // [x0,y0,x1,y1,...] → [[x,y],...]（形がおかしいものは使わない）
   if(!Array.isArray(flat)||flat.length<4||flat.length>1200||flat.length%2) return null; const out=[];
@@ -1947,12 +1987,17 @@ $("#viewBtn").onclick=()=>set3D(!view3d);
 /* チップ（ボタン）：いま見ている図のコース・エリア・リフト。★はいまのレベルのおすすめ */
 const mkChip=(box,id,label,lv,cls,color)=>{ const b=document.createElement("button"); b.className="chip"; b.dataset.id=id; b.setAttribute("aria-pressed","false");
   b.innerHTML=`${color?`<span class="cdot" style="background:${color}"></span>`:""}${esc(label)}${lv?` <span class="tag ${cls}">${esc(lv)}</span>`:""}`; b.onclick=()=>select(id,false); box.appendChild(b); };
+const chipSep=(box,t)=>{ const s=document.createElement("span"); s.className="chipsep"; s.textContent=t; box.appendChild(s); };
+const svCourses3D=()=>SV_COURSES.concat(SV3D_COURSES).filter(c=>has3D(c.id)).sort((a,b)=>SV_ORDER.indexOf(a.id)-SV_ORDER.indexOf(b.id));
+function chipsFor(key,boxC,boxO,only3){ const M=MAPS[key], ok=id=>!only3||has3D(id);
+  (key==="sv"&&only3?svCourses3D():M.courses).forEach(c=>mkChip(boxC,c.id,c.short,(c.route||c.tag)?tagOf(c):"",lvCls(c.lv),LVC[c.lv]));
+  Object.entries(M.areas).filter(([id])=>ok(id)).forEach(([id,a])=>mkChip(boxO,id,a.name,"",""));
+  M.lifts.concat(key==="sv"&&only3?SV3D_LIFTS:[]).filter(L=>ok(L.id)).forEach(L=>mkChip(boxO,L.id,L.chip||`${L.n}号リフト`,"","")); }
 function buildChips(){
-  const M=MAPS[curMap], c1=$("#chipsCourse"), c2=$("#chipsOther");
-  [c1,c2].forEach(box=>box.querySelectorAll(".chip").forEach(b=>b.remove()));
-  M.courses.forEach(c=>mkChip(c1,c.id,c.short,(c.route||c.tag)?tagOf(c):"",lvCls(c.lv),LVC[c.lv]));
-  Object.entries(M.areas).forEach(([id,a])=>mkChip(c2,id,a.name,"",""));
-  M.lifts.forEach(L=>mkChip(c2,L.id,L.chip||`${L.n}号リフト`,"",""));
+  const c1=$("#chipsCourse"), c2=$("#chipsOther");
+  [c1,c2].forEach(box=>box.querySelectorAll(".chip,.chipsep").forEach(b=>b.remove()));
+  if(view3d){ chipsFor("tohachi",c1,c2,true); chipSep(c1,"スカイバレイ側"); chipSep(c2,"スカイバレイ側"); chipsFor("sv",c1,c2,true); }
+  else chipsFor(curMap,c1,c2,false);
   markChips();
 }
 function markChips(){
@@ -2015,7 +2060,8 @@ function placeSG(key,c){
 }
 function select(id,fromMap,extra,quiet){
   const f=findItem(id); if(!f) return;
-  if(view3d&&f.map!=="tohachi") set3D(false); // スカイバレイ側は2Dの図で
+  if(view3d&&!has3D(id)) set3D(false); // 3Dの図にないもの（らくらくルート）は、2Dの図で
+  else if(!view3d&&f.item.only3d) set3D(true,true); // 3Dの図にしかないもの（ラビット・登降リフトなど）は、3Dで
   if(f.map!==curMap) setMap(f.map);
   if(!quiet){ // 図がはみ出していたら、図ぜんたいが見えるところまで少しだけスクロール
     const r=$(".stage-map .map").getBoundingClientRect(), head=$("header.top").getBoundingClientRect().bottom+8;
@@ -2035,13 +2081,13 @@ function select(id,fromMap,extra,quiet){
   svg.querySelectorAll(".badge").forEach(b=>b.classList.toggle("sel",b.dataset.id===id));
   svg.querySelectorAll("[data-area]").forEach(a=>a.classList.toggle("sel",a.dataset.area===id));
   markChips();
-  if(view3d&&f.map==="tohachi") load3D().then(T=>T.select(id,show,quiet)).catch(()=>{});
+  if(view3d&&has3D(id)) load3D().then(T=>T.select(id,show,quiet)).catch(()=>{});
   const c=f.kind==="course"?f.item:null, L=f.kind==="lift"?f.item:null, a=f.kind==="area"?f.item:null, box=$("#detail");
   const who=LEVELS.filter(v=>v.rec.includes(id)||(v.svrec||[]).includes(id)).map(v=>v.n).join("・");
   const whoLine=who?`<p class="note">こんな人に：${esc(who)}</p>`:"";
   const later=fn=>{ if(quiet||view3d) return; setTimeout(()=>{ if(tk===selTok) fn(); }, reduce?0:650); }; // 線を描き終わってから動かす
   if(c){
-    placeSG(f.map,c);
+    if(!c.only3d) placeSG(f.map,c);
     setNow(LVC[c.lv],c.name,c.route?tagOf(c):`${c.len.toLocaleString()}m・最大${c.max}°`,()=>runCourse(c));
     box.innerHTML=`<div class="fade"><h3>${esc(c.name)} <span class="tag ${lvCls(c.lv)}">${esc(tagOf(c))}</span></h3>${courseViz(c)}
       <p>${esc(c.txt)} <span class="src">（${esc(c.src)}）</span></p><p class="note">ヒント：${esc(c.tip)}</p>${whoLine}
@@ -2212,10 +2258,14 @@ $("#fsBtn").onclick=()=>setFull3d(!full3d);
 $("#edFull").onclick=()=>setFull3d(!full3d);
 document.addEventListener("fullscreenchange",()=>{ if(!document.fullscreenElement&&full3d) setFull3d(false); });
 addEventListener("keydown",e=>{ if(e.key==="Escape"&&full3d&&!document.fullscreenElement) setFull3d(false); });
-// 全画面のときの、コース・エリア・リフトのボタン（東鉢側）
+// 全画面のときの、コース・エリア・リフトのボタン（東鉢側、つづけてスカイバレイ側）
 COURSES.forEach(c=>mkChip($("#fsBar"),c.id,c.short,"","",LVC[c.lv]));
 Object.entries(AREAS).forEach(([id,a])=>mkChip($("#fsBar"),id,a.name,"",""));
 LIFTS.forEach(L=>mkChip($("#fsBar"),L.id,`${L.n}号リフト`,"",""));
+chipSep($("#fsBar"),"スカイバレイ側");
+svCourses3D().forEach(c=>mkChip($("#fsBar"),c.id,c.short,"","",LVC[c.lv]));
+Object.entries(SV_AREAS).filter(([id])=>has3D(id)).forEach(([id,a])=>mkChip($("#fsBar"),id,a.name,"",""));
+SV_LIFTS.concat(SV3D_LIFTS).filter(L=>has3D(L.id)).forEach(L=>mkChip($("#fsBar"),L.id,L.chip,"",""));
 
 /* ---------- レベル ---------- */
 let level=store.get("level","first");
