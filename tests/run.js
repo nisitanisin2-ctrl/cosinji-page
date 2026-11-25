@@ -23446,6 +23446,30 @@ async function runNavLook700(browser) {
   await ctx.close();
 }
 
+async function runTabetaTime702(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🍽 食べた物帳：時刻の 横に ✓ 決定・下の ボタンが いつも 見える（v702） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.setViewportSize({ width: 393, height: 430 }); await w(300);
+  await page.evaluate(async () => { await openTabeta(); TABETA.now('2026-11-17T07:20'); TABETA.add('ごはん'); TABETA.openWhen(); }); await w(300);
+  const vis = sel => page.evaluate(s => { const e = document.querySelector(s); if (!e) return 'なし'; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }, sel);
+  check('  いつ：時刻の 横に ✓ 決定・下の ボタンも 画面の 中', [await vis('#tbWT + .tb-ok'), await vis('.tb-pop > .tb-acts')].join('/'), 'true/true');
+  await page.fill('#tbWT', '12:40'); await w(200);
+  check('  時刻を 入れても 窓は 作り直さず（同じ 欄）、食事は 昼に', await page.evaluate(() => [document.activeElement && document.activeElement.id, document.querySelector('#tbWM .on').dataset.m].join('/')), 'tbWT/hiru');
+  await page.click('#tbWT + .tb-ok'); await w(200);
+  check('  ✓ 決定 で 閉じて その 時刻で 入れる', await page.evaluate(() => [!!document.querySelector('.tb-pop'), TABETA.when().time, TABETA.when().meal].join('/')), 'false/12:40/hiru');
+  check('  change が 来て いなくても ✓ 決定 で 欄の 時刻を 使う', await page.evaluate(() => { TABETA.openWhen(); document.getElementById('tbWT').value = '19:05'; TABETA.whenOk(); return TABETA.when().time + '/' + TABETA.when().meal; }), '19:05/yuu');
+  await page.evaluate(() => TABETA.setWhen('now'));
+  const id = await page.evaluate(() => TABETA.state().e[0].i);
+  await page.evaluate(id => TABETA.open(id), id); await w(300);
+  await page.evaluate(() => document.getElementById('tbET').scrollIntoView({ block: 'nearest' })); await w(200);
+  check('  直す：時刻まで 送ると 横に ✓ 決定・下の ✓ 直す も 画面の 中', [await vis('#tbET + .tb-ok'), await vis('.tb-pop > .tb-acts')].join('/'), 'true/true');
+  await page.fill('#tbET', '08:15'); await page.click('#tbET + .tb-ok'); await w(200);
+  check('  ✓ 決定 で 直して 閉じる', await page.evaluate(() => { const d = new Date(TABETA.state().e[0].t); return d.getHours() + ':' + d.getMinutes() + '/' + !!document.querySelector('.tb-pop'); }), '8:15/false');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
 async function runTmplVis701(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 設定の ひな形を 消して「一覧に出すもの」を ひな形の 画面へ（v701） ──');
@@ -23878,6 +23902,7 @@ const SUITES = [
   [['navfold', 'navmove', 'v699'], b => runNavFoldMove699(b)],
   [['navfold', 'navlook', 'v700'], b => runNavLook700(b)],
   [['tmplvis', 'v701'], b => runTmplVis701(b)],
+  [['tabeta702', 'v702'], b => runTabetaTime702(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],
