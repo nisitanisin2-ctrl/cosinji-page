@@ -508,6 +508,22 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
 .map.editing3d .viewbtn{ display:none; }
 .map3d.editing .m3d-canvas{ cursor:crosshair; }
 .eddata textarea{ width:100%; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.72rem; border-radius:10px; border:1px solid var(--line); background:var(--panel2); color:var(--text); padding:8px; resize:vertical; }
+
+/* ===== 3D：全画面 ===== */
+.fsbtn{ position:absolute; z-index:4; top:9px; right:66px; width:40px; height:38px; border-radius:11px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); color:var(--text); font-size:1.05rem; font-weight:700; cursor:pointer; box-shadow:var(--shadow); }
+.map3d.editing .fsbtn{ display:none; }
+.fsbar{ display:none; }
+body.fs3d .stage-map{ z-index:90; }
+.map.full{ position:fixed; inset:0; z-index:80; border-radius:0; border:none; display:flex; flex-direction:column; background:var(--bg); }
+.map.full .nowbar{ flex:none; padding-top:max(7px, env(safe-area-inset-top, 0px)); }
+.map.full .map3d{ flex:1 1 auto; height:auto !important; min-height:0; }
+.map.full .viewbtn{ display:none; }
+.map.full .fsbtn{ right:10px; }
+.map.full .fsbar{ display:flex; flex:none; flex-wrap:nowrap; overflow-x:auto; margin:0; gap:6px; padding:8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); border-top:1px solid var(--line); background:var(--panel); scrollbar-width:none; }
+.map.full .fsbar::-webkit-scrollbar{ display:none; }
+.map.full .fsbar .chip{ flex:none; white-space:nowrap; }
+.map.full .fsbar .chip.rec::after{ display:none; }
+body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124px); }
 </style>
 </head>
 <body>
@@ -609,12 +625,14 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
         <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
         <p class="m3d-hint"><span>1本指で回す・2本指で拡大と移動</span></p>
         <div class="m3d-compass" id="m3dCompass" aria-hidden="true"><i>N</i></div>
+        <button type="button" class="fsbtn" id="fsBtn" aria-label="全画面で見る" title="全画面">⛶</button>
         <p class="m3d-msg" id="m3dMsg" hidden></p>
         <div class="m3d-edit" id="m3dEdit" hidden>
           <div class="ed-top">
             <select id="edCourse" aria-label="描くコース"></select>
             <span class="ed-n" id="edN"></span>
             <button type="button" id="edClear" title="点をぜんぶ消す">全消し</button>
+            <button type="button" id="edFull" aria-label="全画面で見る" title="全画面">⛶</button>
             <button type="button" id="edClose" aria-label="描くのを終わる" title="終わる">✕</button>
           </div>
           <p class="ed-help" id="edHelp"></p>
@@ -627,6 +645,7 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
           <button type="button" class="ed-reset" id="edReset" hidden>元の線にもどす</button>
         </div>
       </div>
+      <div class="chiprow fsbar" id="fsBar" aria-label="コースとリフト"></div>
       <svg id="mapSvg" viewBox="30 0 290 372" role="img" aria-label="ハイパーボウル東鉢のゲレンデマップ。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
         <rect class="mapout" x="-200" y="-200" width="900" height="800"/>
         <image class="mapimg" href="img/map.jpg" x="0" y="0" width="499.5" height="395" preserveAspectRatio="none"/>
@@ -1266,6 +1285,7 @@ function set3D(on){
     if(curMap!=="tohachi"){ select((LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0],false,null,true); }
     load3D().then(T=>{ T.start(); const f=selected&&findItem(selected); if(f&&f.map==="tohachi") T.select(selected,curShow,false); else T.home(); }).catch(()=>{});
   } else if(T3D){ T3D.endEdit(); T3D.stop(); }
+  if(!on&&full3d) setFull3d(false);
 }
 var curShow=[];
 // 指・マウスで回す／拡大／移動（1本指：回す、2本指：拡大と移動、右ドラッグやShift：移動、ホイール：拡大）
@@ -1815,6 +1835,7 @@ const TAB_IDS=["home","map","play","plan","info"], tabScroll={};
 let curTab="home";
 function showTab(t,keep){
   if(!TAB_IDS.includes(t)) return;
+  if(t!=="map"&&full3d) setFull3d(false);
   if(t===curTab){ if(!keep) scrollTo({top:0,behavior:smooth()}); return; }
   tabScroll[curTab]=scrollY;
   $$(".screen").forEach(sc=>{ const on=sc.dataset.tab===t; sc.hidden=!on; if(on&&!reduce){ sc.classList.remove("enter"); void sc.offsetWidth; sc.classList.add("enter"); } });
@@ -1834,7 +1855,7 @@ function goTo(id){
 $$("#tabbar button").forEach(b=>b.onclick=()=>{ try{ navigator.vibrate&&navigator.vibrate(8); }catch(e){} showTab(b.dataset.tab,true); });
 $$(".tile[data-go], .subnav [data-go]").forEach(b=>b.onclick=()=>goTo(b.dataset.go));
 $$(".tile[data-go3d]").forEach(b=>b.onclick=()=>{ showTab("map"); setTimeout(()=>set3D(true),60); });
-function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("on"); void t.offsetWidth; t.classList.add("on"); clearTimeout(toast.tm); toast.tm=setTimeout(()=>t.classList.remove("on"),2400); }
+function toast(msg){ const t=$("#toast"), host=document.fullscreenElement||document.body; if(t.parentNode!==host) host.appendChild(t); t.textContent=msg; t.classList.remove("on"); void t.offsetWidth; t.classList.add("on"); clearTimeout(toast.tm); toast.tm=setTimeout(()=>t.classList.remove("on"),2400); }
 
 /* ---------- コース制覇スタンプ ---------- */
 let stamps=store.get("stamps",[]); if(!Array.isArray(stamps)) stamps=[];
@@ -1881,6 +1902,27 @@ function renderHome(){
   $$("#recCards .reccard").forEach(b=>b.onclick=()=>revealMap(()=>select(b.dataset.id,false)));
   renderStamps();
 }
+
+/* ---------- 3Dマップを全画面に（ブラウザの全画面が使えればそれも、使えなければ画面いっぱいに広げる） ---------- */
+var full3d=false;
+function setFull3d(on){
+  const m=$(".stage-map .map"); if(on===full3d) return; full3d=on;
+  m.classList.toggle("full",on); document.body.classList.toggle("fs3d",on); document.documentElement.style.overflow=on?"hidden":"";
+  $$("#fsBtn, #edFull").forEach(b=>{ b.textContent=on?(b.id==="edFull"?"縮小":"✕"):"⛶"; const t=on?"全画面をやめる":"全画面で見る"; b.setAttribute("aria-label",t); b.title=t; });
+  try{
+    if(on&&document.fullscreenEnabled&&!document.fullscreenElement&&m.requestFullscreen) m.requestFullscreen().catch(()=>{});
+    if(!on&&document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  }catch(e){}
+  if(on) markChips();
+}
+$("#fsBtn").onclick=()=>setFull3d(!full3d);
+$("#edFull").onclick=()=>setFull3d(!full3d);
+document.addEventListener("fullscreenchange",()=>{ if(!document.fullscreenElement&&full3d) setFull3d(false); });
+addEventListener("keydown",e=>{ if(e.key==="Escape"&&full3d&&!document.fullscreenElement) setFull3d(false); });
+// 全画面のときの、コース・エリア・リフトのボタン（東鉢側）
+COURSES.forEach(c=>mkChip($("#fsBar"),c.id,c.short,"","",LVC[c.lv]));
+Object.entries(AREAS).forEach(([id,a])=>mkChip($("#fsBar"),id,a.name,"",""));
+LIFTS.forEach(L=>mkChip($("#fsBar"),L.id,`${L.n}号リフト`,"",""));
 
 /* ---------- レベル ---------- */
 let level=store.get("level","first");
