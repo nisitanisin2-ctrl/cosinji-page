@@ -721,7 +721,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
   <p class="note" data-note="tohachi">※ 図は、ゲレンデマップ（パンフレット）の上に、選んだコースの線を重ねたものです。線の位置はおおよそです。今はない施設（3号リフト上の「ミニスノーパーク」、1号リフト終点の休憩所）は図から消し、スカイバレイのリフトは今の「ベアトリプルリフト」に直してあります。また、このマップは今のシーズンとコース名がちがう所があります（例：②「競技Aコース」の位置が、今の「東尾根下コース」）。コースの長さ・斜度・リフトの時間は公式サイトの数字です。最新のマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデマップ</a>で。</p>
-  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「✏️ 描く」で、点を押してコースの線を描きなおせます。</p>
+  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「✏️ 描く」で、点を押してコースの線を描きなおせます。</p>
   <p class="note" data-note="sv" hidden>※ 同じゲレンデマップの右側（スカイバレイ側）です。線の位置はおおよそ。コースの長さ・斜度はスカイバレイの公式マップより。</p>
   </div>
   </div>
@@ -968,7 +968,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
   <ol>
     <li>ハイパーボウル東鉢 公式：<a href="https://tohachi.jp/area" target="_blank" rel="noopener">ゲレンデ案内・ゲレンデマップ</a>／<a href="https://tohachi.jp/lift" target="_blank" rel="noopener">リフト料金</a>／<a href="https://tohachi.jp/facility" target="_blank" rel="noopener">施設</a>／<a href="https://tohachi.jp/rental" target="_blank" rel="noopener">レンタル</a>／<a href="https://tohachi.jp/school" target="_blank" rel="noopener">スクール</a>／<a href="https://tohachi.jp/access" target="_blank" rel="noopener">アクセス</a>／<a href="https://tohachi.jp/parking" target="_blank" rel="noopener">駐車場</a>／<a href="https://tohachi.jp/safety" target="_blank" rel="noopener">安全対策</a></li>
     <li><a href="https://skyvalley.jp/area" target="_blank" rel="noopener">スカイバレイ 公式 ゲレンデ案内</a></li>
-    <li>3D地形：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院 地理院タイル</a>（数値標高モデル・全国最新写真（シームレス）・標準地図）を加工して作成／描画 <a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a></li>
+    <li>3D地形：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院 地理院タイル</a>（数値標高モデル・全国最新写真（シームレス）・電子国土基本図（オルソ画像）・標準地図・ベクトルタイル）を加工して作成／描画 <a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a></li>
     <li>ICからのルート：Googleマップのルート（経由地あり）と同じ点を通るように計算。道路データ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>（経路計算 OSRM）</li>
     <li>口コミ・旅行サイト：<a href="https://snoway.jp/gelande/10466/" target="_blank" rel="noopener">Snoway</a>／<a href="https://surfsnow.jp/guide/htm/r0897s.htm" target="_blank" rel="noopener">SURF&amp;SNOW</a>／<a href="https://www.jalan.net/kankou/spt_28604ca3470058256/" target="_blank" rel="noopener">じゃらんnet</a>／<a href="https://tenki.jp/season/ski/6/31/16503/access.html" target="_blank" rel="noopener">tenki.jp</a>／<a href="https://rurubu.jp/andmore/spot/80030752" target="_blank" rel="noopener">るるぶ&amp;more.</a></li>
   </ol>
@@ -1442,12 +1442,20 @@ function build3D(THREE,img){
     return HGT[k]*(1-fx)*(1-fy)+HGT[k+1]*fx*(1-fy)+HGT[k+G.gw]*(1-fx)*fy+HGT[k+G.gw+1]*fx*fy; };
   const P3=(x,y,up=0)=>new THREE.Vector3((x-W2)*M,(elev(x,y)-hmin)*EX+up,(y-H2)*M);
   // 3Dの座標での地面の高さと、光線が地面に当たる所
-  const XB=W2*M, ZB=H2*M, hAt=(x,z)=>(elev(x/M+W2,z/M+H2)-hmin)*EX, hIn=(x,z)=>(x<-XB||x>XB||z<-ZB||z>ZB)?-1e9:hAt(x,z), qv=new THREE.Vector3();
+  const XB=W2*M, ZB=H2*M, hAt=(x,z)=>(elev(x/M+W2,z/M+H2)-hmin)*EX, qv=new THREE.Vector3();
+  // まわりの山の高さ（読みこんだあと）
+  let outerH=null;
+  function hGrid(L,x,z){ const gx=(x-L.x0)/L.cell, gy=(z-L.z0)/L.cell; if(gx<0||gy<0||gx>L.nx-1||gy>L.ny-1) return null;
+    const i=Math.min(L.nx-2,Math.floor(gx)), j=Math.min(L.ny-2,Math.floor(gy)), fx=gx-i, fy=gy-j, k=j*L.nx+i, H=L.H;
+    return ((H[k]*(1-fx)+H[k+1]*fx)*(1-fy)+(H[k+L.nx]*(1-fx)+H[k+L.nx+1]*fx)*fy-hmin)*EX; }
+  function hOut(x,z){ if(!outerH) return null; let h=hGrid(outerH.near,x,z); if(h==null) h=hGrid(outerH.mid,x,z); return h==null?hGrid(outerH.far,x,z):h; }
+  const outside=(x,z)=>x<-XB||x>XB||z<-ZB||z>ZB, hAny=(x,z)=>{ if(!outside(x,z)) return hAt(x,z); const h=hOut(x,z); return h==null?hAt(x,z):h; },
+    hIn=(x,z)=>{ if(!outside(x,z)) return hAt(x,z); const h=hOut(x,z); return h==null?-1e9:h; };
   function groundRay(r){ const o=r.ray.origin, d=r.ray.direction; let a=0, step=4;
-    for(let t=step;t<16000;t+=step){ qv.copy(o).addScaledVector(d,t);
-      if(qv.y<=hIn(qv.x,qv.z)){ let lo=a, hi=t; for(let k=0;k<20;k++){ const m=(lo+hi)/2; qv.copy(o).addScaledVector(d,m); if(qv.y<=hIn(qv.x,qv.z)) hi=m; else lo=m; }
+    for(let t=step;t<42000;t+=step){ qv.copy(o).addScaledVector(d,t);
+      if(qv.y<=hIn(qv.x,qv.z)){ let lo=a, hi=t; for(let k=0;k<22;k++){ const m=(lo+hi)/2; qv.copy(o).addScaledVector(d,m); if(qv.y<=hIn(qv.x,qv.z)) hi=m; else lo=m; }
         return qv.copy(o).addScaledVector(d,hi).clone(); }
-      a=t; step=Math.min(36,step*1.05); if(qv.y<-400||(d.y>=0&&qv.y>2600)) break; }
+      a=t; step=Math.min(t<6000?36:160,step*1.05); if(qv.y<-1000||(d.y>=0&&qv.y>2600)) break; }
     return null; }
 
   const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,stencil:true,powerPreference:"high-performance"});
@@ -1455,37 +1463,150 @@ function build3D(THREE,img){
   renderer.domElement.className="m3d-canvas"; box.prepend(renderer.domElement);
   const scene=new THREE.Scene();
   const camera=new THREE.PerspectiveCamera(42,1,5,30000);
-  const controls=mapControls3D(THREE,camera,renderer.domElement,{groundRay,heightAt:hAt,bounds:{x0:-XB+80,x1:XB-80,z0:-ZB+60,z1:ZB-60},minR:60,maxR:6000,minPhi:.04,maxPhi:1.4,clear:14});
-  scene.fog=new THREE.Fog(0xdfeaf5,3200,9500);
+  const ctlOpt={groundRay,heightAt:hAny,bounds:{x0:-XB+80,x1:XB-80,z0:-ZB+60,z1:ZB-60},minR:60,maxR:6000,minPhi:.04,maxPhi:1.4,clear:14};
+  const controls=mapControls3D(THREE,camera,renderer.domElement,ctlOpt);
+  scene.fog=new THREE.Fog(0xdfeaf5,5500,30000);
   const hemi=new THREE.HemisphereLight(0xe8f0fa,0x3a4636,1.25); scene.add(hemi);
   const sun=new THREE.DirectionalLight(0xfff3df,1.9); sun.position.set(300,1600,1800); scene.add(sun);
 
-  // 地形（写真をはった面）と、まわりの側面（模型のような台）
+  // ===== 地形 =====
+  // まんなか（スキー場のまわり）：くわしい高さ（5m）と写真。近づいた所は、もっと細かい写真（z18、約0.5m）に入れかえる
   const gw=G.gw, gh=G.gh, pos=new Float32Array(gw*gh*3), uv=new Float32Array(gw*gh*2);
   for(let j=0;j<gh;j++) for(let i=0;i<gw;i++){ const k=j*gw+i, x=i*G.step, y=j*G.step;
     pos[k*3]=(x-W2)*M; pos[k*3+1]=(HGT[k]-hmin)*EX; pos[k*3+2]=(y-H2)*M; uv[k*2]=x/G.w; uv[k*2+1]=1-y/G.h; }
   const idx=new Uint32Array((gw-1)*(gh-1)*6); let n=0;
   for(let j=0;j<gh-1;j++) for(let i=0;i<gw-1;i++){ const a=j*gw+i,b=a+1,c=a+gw,d=c+1; idx[n++]=a; idx[n++]=c; idx[n++]=b; idx[n++]=b; idx[n++]=c; idx[n++]=d; }
   const tg=new THREE.BufferGeometry(); tg.setAttribute("position",new THREE.BufferAttribute(pos,3)); tg.setAttribute("uv",new THREE.BufferAttribute(uv,2)); tg.setIndex(new THREE.BufferAttribute(idx,1)); tg.computeVertexNormals();
-  const tex=new THREE.TextureLoader().load("img/sat3d.jpg",()=>{ needDraw=true; }); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
-  const snowU={value:store.get("snow3d",true)?1:0}, terrainMat=new THREE.MeshStandardMaterial({map:tex,roughness:1,metalness:0});
-  terrainMat.onBeforeCompile=sh=>{ sh.uniforms.uSnow=snowU;
-    sh.fragmentShader="uniform float uSnow;\n"+sh.fragmentShader.replace("#include <map_fragment>",`#include <map_fragment>
-    { vec3 c=diffuseColor.rgb; float l=dot(c,vec3(.2126,.7152,.0722)), gr=c.g-max(c.r,c.b);
-      float open=smoothstep(.09,.24,l)*(1.-smoothstep(.06,.16,gr));
+  const nor=tg.attributes.normal.array, ANISO=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  const tex=new THREE.TextureLoader().load("img/sat3d.jpg",()=>{ needDraw=true; }); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=ANISO;
+  const snowU={value:store.get("snow3d",true)?1:0};
+  // 冬の色（すべての地形で同じ式）：写真の草地・平らな所（田んぼ・町）は雪に、森は高い所ほど白っぽく、海はそのまま。
+  // ふち（外がわの地形との境め）は、外がわの写真へ なめらかに つなぐ
+  function winterOBC(sh){ Object.assign(sh.uniforms,this.userData.U);
+    sh.vertexShader="uniform float uEX;\nuniform float uHmin;\nuniform vec4 uPar;\nvarying float vHm;\nvarying float vNy;\nvarying vec2 vWxz;\nvarying vec2 vPar;\n"+sh.vertexShader.replace("#include <begin_vertex>",
+      "#include <begin_vertex>\n vHm=transformed.y/uEX+uHmin; vNy=objectNormal.y; vWxz=transformed.xz; vPar=vec2((transformed.x-uPar.x)/uPar.z,1.0-(transformed.z-uPar.y)/uPar.w);");
+    sh.fragmentShader="uniform float uSnow;\nuniform vec4 uOwn;\nuniform float uBlend;\nuniform sampler2D uParTex;\nuniform float uParOn;\nvarying float vHm;\nvarying float vNy;\nvarying vec2 vWxz;\nvarying vec2 vPar;\n"+sh.fragmentShader.replace("#include <map_fragment>",`#include <map_fragment>
+    { vec3 c=diffuseColor.rgb;
+      if(uParOn>.5){ float e=min(min(vWxz.x-uOwn.x,uOwn.z-vWxz.x),min(vWxz.y-uOwn.y,uOwn.w-vWxz.y)); float wg=1.-smoothstep(0.,uBlend,e); if(wg>.001) c=mix(c,texture2D(uParTex,vPar).rgb,wg); }
+      float l=dot(c,vec3(.2126,.7152,.0722)), gr=c.g-max(c.r,c.b), sea=1.-step(2.,vHm);
+      float fl=smoothstep(.93,.99,vNy)*smoothstep(.025,.06,l);
+      float open=max(smoothstep(.09,.24,l)*(1.-smoothstep(.06,.16,gr)),fl*.85)*(1.-sea);
       vec3 snow=vec3(.84,.88,.95)+vec3(.12)*smoothstep(.12,.5,l);
-      vec3 w=mix(c,snow,open); w=mix(w,vec3(.78,.83,.9),.14*(1.-open));
-      diffuseColor.rgb=mix(c,w,uSnow); }`); };
-  const terrain=new THREE.Mesh(tg,terrainMat);
-  scene.add(terrain);
+      float hi=smoothstep(450.,1250.,vHm);
+      vec3 w=mix(c,snow,open); w=mix(w,vec3(.78,.83,.9),(.12+.2*hi)*(1.-open)*(1.-sea));
+      diffuseColor.rgb=mix(c,w,uSnow); }`); }
+  const winterMat=(map,U)=>{ const m=new THREE.MeshStandardMaterial({map,roughness:1,metalness:0}); m.userData.U=U; m.onBeforeCompile=winterOBC; return m; };
+  const blankTex=new THREE.DataTexture(new Uint8Array([214,224,236,255]),1,1); blankTex.needsUpdate=true;
+  const IX0=pos[0], IZ0=pos[2], IX1=pos[(gw-1)*3], IZ1=pos[(gh-1)*gw*3+2];
+  const innerU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(IX0,IZ0,IX1,IZ1)},uBlend:{value:170},uPar:{value:new THREE.Vector4(0,0,1,1)},uParTex:{value:blankTex},uParOn:{value:0}};
+  const baseMat=winterMat(tex,innerU);
+  // 64x64 マスずつに分ける（細かい写真は、この1つ分ずつ読みこむ）
+  const CW=64, BPX=CW*G.step, chunks=[];
+  for(let cy=0;cy*CW<gh-1;cy++) for(let cx=0;cx*CW<gw-1;cx++){
+    const i0=cx*CW, i1=Math.min(i0+CW,gw-1), j0=cy*CW, j1=Math.min(j0+CW,gh-1), nx=i1-i0+1, ny=j1-j0+1, bx0=cx*BPX, by0=cy*BPX, bw=Math.min(BPX,G.w-bx0), bh=Math.min(BPX,G.h-by0);
+    const P=new Float32Array(nx*ny*3), N=new Float32Array(nx*ny*3), U0=new Float32Array(nx*ny*2), U1=new Float32Array(nx*ny*2), I=[];
+    for(let j=j0;j<=j1;j++) for(let i=i0;i<=i1;i++){ const k=j*gw+i, q=(j-j0)*nx+(i-i0);
+      for(let t=0;t<3;t++){ P[q*3+t]=pos[k*3+t]; N[q*3+t]=nor[k*3+t]; }
+      U0[q*2]=uv[k*2]; U0[q*2+1]=uv[k*2+1]; U1[q*2]=(i*G.step-bx0)/bw; U1[q*2+1]=1-(j*G.step-by0)/bh; }
+    for(let j=0;j<ny-1;j++) for(let i=0;i<nx-1;i++){ const a=j*nx+i,b=a+1,c=a+nx,d=c+1; I.push(a,c,b,b,c,d); }
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(P,3)); g.setAttribute("normal",new THREE.BufferAttribute(N,3));
+    g.setAttribute("uv",new THREE.BufferAttribute(U0,2)); g.setAttribute("uv1",new THREE.BufferAttribute(U1,2)); g.setIndex(I); g.computeBoundingBox(); g.computeBoundingSphere();
+    const mesh=new THREE.Mesh(g,baseMat); scene.add(mesh);
+    chunks.push({mesh,box:g.boundingBox.clone(),cx,cy,det:null,loading:false,failed:false,d:1e9,vis:false});
+  }
+  // 細かい写真の読みこみ：画面に見えていて、近い所から（同時に2つまで）。遠くなったら手ばなす
+  const DCAP=matchMedia("(pointer: coarse)").matches?8:16, frusD=new THREE.Frustum(), mPVD=new THREE.Matrix4(), mInvD=new THREE.Matrix4(); let detBusy=0, detT=0;
+  function dropDetail(c){ c.mesh.material=baseMat; c.det.tex.dispose(); c.det.mat.dispose(); c.det=null; needDraw=true; }
+  function loadDetail(c){ c.loading=true; detBusy++;
+    new THREE.TextureLoader().load(`img/d18/${c.cx}_${c.cy}.jpg`,t=>{ detBusy--; c.loading=false; t.colorSpace=THREE.SRGBColorSpace; t.channel=1; t.anisotropy=ANISO;
+      const m=winterMat(t,innerU); c.det={tex:t,mat:m}; c.mesh.material=m; needDraw=true; },undefined,()=>{ detBusy--; c.loading=false; c.failed=true; }); }
+  function updateDetail(now){ if(now-detT<180) return; detT=now;
+    const hDev=renderer.domElement.height||800, LOAD=1.13*hDev, DROP=LOAD*1.7;
+    camera.updateMatrixWorld(); mPVD.multiplyMatrices(camera.projectionMatrix,mInvD.copy(camera.matrixWorld).invert()); frusD.setFromProjectionMatrix(mPVD);
+    for(const c of chunks){ c.d=c.box.distanceToPoint(camera.position); c.vis=frusD.intersectsBox(c.box); if(c.det&&c.d>DROP) dropDetail(c); }
+    const want=chunks.filter(c=>c.vis&&c.d<LOAD&&!c.det&&!c.loading&&!c.failed).sort((a,b)=>a.d-b.d);
+    for(const c of want){ if(detBusy>=2) break;
+      if(chunks.filter(x=>x.det||x.loading).length>=DCAP){ const far=chunks.filter(x=>x.det).sort((a,b)=>b.d-a.d)[0]; if(far&&far.d>c.d*1.3) dropDetail(far); else break; }
+      loadDetail(c); } }
+  // まわりの側面（模型の台）：まわりの山を読みこめなかったときだけ見える
   const BASE=-60, sidePos=[], sideIdx=[];
   const edge=(list)=>{ const s=sidePos.length/3; list.forEach(k=>{ sidePos.push(pos[k*3],pos[k*3+1],pos[k*3+2], pos[k*3],BASE,pos[k*3+2]); });
     for(let q=0;q<list.length-1;q++){ const a=s+q*2; sideIdx.push(a,a+1,a+2, a+2,a+1,a+3); } };
   edge([...Array(gw).keys()].map(i=>i)); edge([...Array(gw).keys()].map(i=>(gh-1)*gw+i).reverse());
   edge([...Array(gh).keys()].map(j=>j*gw).reverse()); edge([...Array(gh).keys()].map(j=>j*gw+gw-1));
   const sg=new THREE.BufferGeometry(); sg.setAttribute("position",new THREE.Float32BufferAttribute(sidePos,3)); sg.setIndex(sideIdx); sg.computeVertexNormals();
-  const sideMat=new THREE.MeshStandardMaterial({color:0x8b98a8,roughness:1,side:THREE.DoubleSide});
-  scene.add(new THREE.Mesh(sg,sideMat));
+  const sideMat=new THREE.MeshStandardMaterial({color:0x8b98a8,roughness:1,side:THREE.DoubleSide}), sideMesh=new THREE.Mesh(sg,sideMat);
+  scene.add(sideMesh);
+
+  // ===== まわりの山：近く（±4km、写真 約4m）・中くらい（±8km、約8m）・遠く（±30km、日本海まで）。境めは すき間なく つなぐ =====
+  const OUT={near:{nx:257,ny:225,cell:8*M,px:2048,py:1792,sc:M},mid:{nx:257,ny:225,cell:16*M,px:2048,py:1792,sc:2*M},far:{nx:241,ny:241,cell:64*M,px:1920,py:1920,sc:8*M}};
+  const imgP=src=>new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error(src)); im.src=src; });
+  function readH(im,nx,ny){ const c=document.createElement("canvas"); c.width=nx; c.height=ny; const x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(im,0,0);
+    const d=x.getImageData(0,0,nx,ny).data, H=new Float32Array(nx*ny); for(let i=0;i<H.length;i++) H[i]=(d[i*4]*256+d[i*4+1])/10; return H; }
+  function outLevel(key,H){ const o=OUT[key]; return {H,nx:o.nx,ny:o.ny,cell:o.cell,x0:-(o.px/2)*o.sc,z0:-(o.py/2)*o.sc,w:(o.nx-1)*o.cell,h:(o.ny-1)*o.cell}; }
+  function gridMesh(L,hole,mat){ const nx=L.nx, ny=L.ny, P=new Float32Array(nx*ny*3), UV=new Float32Array(nx*ny*2), I=[];
+    for(let j=0;j<ny;j++) for(let i=0;i<nx;i++){ const k=j*nx+i; P[k*3]=L.x0+i*L.cell; P[k*3+1]=(L.H[k]-hmin)*EX; P[k*3+2]=L.z0+j*L.cell; UV[k*2]=i/(nx-1); UV[k*2+1]=1-j/(ny-1); }
+    for(let j=0;j<ny-1;j++) for(let i=0;i<nx-1;i++){ if(hole&&i>=hole.I0&&i<hole.I1&&j>=hole.J0&&j<hole.J1) continue; const a=j*nx+i,b=a+1,c=a+nx,d=c+1; I.push(a,c,b,b,c,d); }
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(P,3)); g.setAttribute("uv",new THREE.BufferAttribute(UV,2)); g.setIndex(I); g.computeVertexNormals();
+    const m=new THREE.Mesh(g,mat); m.frustumCulled=false; scene.add(m); return {P,N:g.attributes.normal.array}; }
+  const holeOf=(L,x0,z0,x1,z1,mg)=>({I0:Math.max(1,Math.floor((x0-mg-L.x0)/L.cell)),I1:Math.min(L.nx-2,Math.ceil((x1+mg-L.x0)/L.cell)),J0:Math.max(1,Math.floor((z0-mg-L.z0)/L.cell)),J1:Math.min(L.ny-2,Math.ceil((z1+mg-L.z0)/L.cell))});
+  // 長方形のふち（上・右・下・左の順、どれも同じ回り方）
+  function loopOf(nx,ny,I0,I1,J0,J1,P,N){ const v=(i,j)=>{ const k=(j*nx+i)*3; return {p:[P[k],P[k+1],P[k+2]],n:[N[k],N[k+1],N[k+2]]}; }, r=(a,b)=>{ const o=[]; if(a<=b) for(let t=a;t<=b;t++) o.push(t); else for(let t=a;t>=b;t--) o.push(t); return o; };
+    return [r(I0,I1).map(i=>v(i,J0)), r(J0,J1).map(j=>v(I1,j)), r(I1,I0).map(i=>v(i,J1)), r(J1,J0).map(j=>v(I0,j))]; }
+  // 内がわのふちと外がわのふちを、三角形で ジッパーのように つなぐ
+  function ringMesh(A,B,uvf,mat){ const P=[], N=[], UV=[], I=[];
+    const add=v=>{ P.push(...v.p); N.push(...v.n); const t=uvf(v.p[0],v.p[2]); UV.push(t[0],t[1]); return P.length/3-1; };
+    for(let s=0;s<4;s++){ const a=A[s], b=B[s], ia=a.map(add), ib=b.map(add); let i=0, j=0;
+      while(i<a.length-1||j<b.length-1){ let t;
+        if(j>=b.length-1||(i<a.length-1&&(i+1)/(a.length-1)<=(j+1)/(b.length-1))){ t=[ia[i],ib[j],ia[i+1]]; i++; } else { t=[ia[i],ib[j],ib[j+1]]; j++; }
+        const p0=t[0]*3,p1=t[1]*3,p2=t[2]*3, ux=P[p1]-P[p0], uz=P[p1+2]-P[p0+2], vx=P[p2]-P[p0], vz=P[p2+2]-P[p0+2];
+        if(uz*vx-ux*vz>=0) I.push(t[0],t[1],t[2]); else I.push(t[0],t[2],t[1]); } }
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("normal",new THREE.Float32BufferAttribute(N,3)); g.setAttribute("uv",new THREE.Float32BufferAttribute(UV,2)); g.setIndex(I);
+    const m=new THREE.Mesh(g,mat); m.frustumCulled=false; scene.add(m); }
+  Promise.all([imgP("img/near3d_h.png"),imgP("img/mid3d_h.png"),imgP("img/far3d_h.png")]).then(([ni,mi,fi])=>{
+    const LN=outLevel("near",readH(ni,257,225)), LM=outLevel("mid",readH(mi,257,225)), LF=outLevel("far",readH(fi,241,241));
+    const ldTex=(src,fn)=>{ const t=new THREE.TextureLoader().load(src,()=>{ fn(); needDraw=true; }); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=ANISO; return t; };
+    const nearTex=ldTex("img/near3d.jpg",()=>{ innerU.uParOn.value=1; }), midTex=ldTex("img/mid3d.jpg",()=>{ nearU.uParOn.value=1; }), farTex=ldTex("img/far3d.jpg",()=>{ midU.uParOn.value=1; });
+    innerU.uParTex.value=nearTex; innerU.uPar.value.set(LN.x0,LN.z0,LN.w,LN.h);
+    const nearU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LN.x0,LN.z0,LN.x0+LN.w,LN.z0+LN.h)},uBlend:{value:900},uPar:{value:new THREE.Vector4(LM.x0,LM.z0,LM.w,LM.h)},uParTex:{value:midTex},uParOn:{value:0}};
+    const midU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LM.x0,LM.z0,LM.x0+LM.w,LM.z0+LM.h)},uBlend:{value:1500},uPar:{value:new THREE.Vector4(LF.x0,LF.z0,LF.w,LF.h)},uParTex:{value:farTex},uParOn:{value:0}};
+    const farU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LF.x0,LF.z0,LF.x0+LF.w,LF.z0+LF.h)},uBlend:{value:1},uPar:{value:new THREE.Vector4(0,0,1,1)},uParTex:{value:blankTex},uParOn:{value:0}};
+    const nearMat=winterMat(nearTex,nearU), midMat=winterMat(midTex,midU), farMat=winterMat(farTex,farU);
+    const hN=holeOf(LN,IX0,IZ0,IX1,IZ1,15), near=gridMesh(LN,hN,nearMat);
+    const hM=holeOf(LM,LN.x0,LN.z0,LN.x0+LN.w,LN.z0+LN.h,40), mid=gridMesh(LM,hM,midMat);
+    const hF=holeOf(LF,LM.x0,LM.z0,LM.x0+LM.w,LM.z0+LM.h,60), far=gridMesh(LF,hF,farMat);
+    // まんなか ↔ 近く、近く ↔ 中くらい、中くらい ↔ 遠く
+    ringMesh(loopOf(gw,gh,0,gw-1,0,gh-1,pos,nor),loopOf(LN.nx,LN.ny,hN.I0,hN.I1,hN.J0,hN.J1,near.P,near.N),(x,z)=>[(x-LN.x0)/LN.w,1-(z-LN.z0)/LN.h],nearMat);
+    ringMesh(loopOf(LN.nx,LN.ny,0,LN.nx-1,0,LN.ny-1,near.P,near.N),loopOf(LM.nx,LM.ny,hM.I0,hM.I1,hM.J0,hM.J1,mid.P,mid.N),(x,z)=>[(x-LM.x0)/LM.w,1-(z-LM.z0)/LM.h],midMat);
+    ringMesh(loopOf(LM.nx,LM.ny,0,LM.nx-1,0,LM.ny-1,mid.P,mid.N),loopOf(LF.nx,LF.ny,hF.I0,hF.I1,hF.J0,hF.J1,far.P,far.N),(x,z)=>[(x-LF.x0)/LF.w,1-(z-LF.z0)/LF.h],farMat);
+    outerH={near:LN,mid:LM,far:LF}; sideMesh.visible=false;
+    Object.assign(ctlOpt.bounds,{x0:-6300,x1:6300,z0:-5400,z1:5400}); ctlOpt.maxR=8000;
+    LABELS.push({d:mk("氷ノ山 1,510m","peak"),p:new THREE.Vector3(-467*2*M,(1510-hmin)*EX+30,527*2*M)});
+    needDraw=true;
+  }).catch(e=>console.warn("3D outer:",e));
+
+  // ===== 空（上は青く、地平線は かすみの色。うすい雲と、日の光） =====
+  const skyU={uTop:{value:new THREE.Color(0x7eaee0)},uHor:{value:new THREE.Color(0xdfeaf5)},uSunDir:{value:new THREE.Vector3(300,1600,1800).normalize()},uSun:{value:1},uCloud:{value:.75},uCC:{value:new THREE.Color(0xf4f7fb)}};
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(20000,32,16),new THREE.ShaderMaterial({uniforms:skyU,side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,
+    vertexShader:"varying vec3 vD;\nvoid main(){ vD=position; vec4 p=projectionMatrix*modelViewMatrix*vec4(position,1.0); gl_Position=p.xyww; }",
+    fragmentShader:`uniform vec3 uTop;
+uniform vec3 uHor;
+uniform vec3 uSunDir;
+uniform float uSun;
+uniform float uCloud;
+uniform vec3 uCC;
+varying vec3 vD;
+float hs(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+float ns(vec2 p){ vec2 i=floor(p), f=fract(p), u=f*f*(3.-2.*f); return mix(mix(hs(i),hs(i+vec2(1.,0.)),u.x),mix(hs(i+vec2(0.,1.)),hs(i+vec2(1.,1.)),u.x),u.y); }
+float fbm(vec2 p){ float v=0., a=.5; for(int i=0;i<5;i++){ v+=a*ns(p); p=p*2.03+vec2(1.7,9.2); a*=.5; } return v; }
+void main(){ vec3 d=normalize(vD); float h=d.y;
+  vec3 col=mix(uHor,uTop,smoothstep(0.,.45,max(h,0.)));
+  float s=max(dot(d,uSunDir),0.); col+=uSun*(vec3(1.,.96,.88)*pow(s,700.)*1.6+vec3(1.,.92,.8)*pow(s,12.)*.22);
+  if(h>0.){ vec2 p=d.xz/(h+.1); float n=fbm(p*.9+vec2(4.,2.)); float cl=smoothstep(.52,.82,n)*smoothstep(0.,.2,h)*uCloud; col=mix(col,uCC,cl); }
+  gl_FragColor=vec4(col,1.);
+  #include <colorspace_fragment>
+}`}));
+  sky.frustumCulled=false; sky.renderOrder=-1000; scene.add(sky);
 
   // 線をなめらかに（画素で約3pxごと）
   const smooth=(pts)=>{ const out=[]; for(let i=0;i<pts.length-1;i++){ const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
@@ -1729,7 +1850,7 @@ function build3D(THREE,img){
   function update(now,dt){
     if(!reduce) lifts.forEach(o=>{ o.off+=dt*LIFT_V*o.mul; if(o.off>=o.L) o.off-=o.L; });
     if(anim&&anim.fp){ const o=anim.o, sc=sOf(anim.c);
-      if((sc>o.upLen+1&&sc<o.upLen+40)||now-anim.t0>anim.dur*1.6){ anim=null; stopRide(); o.set(selected===o.Lf.id); if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); controls.repivot(); } }
+      anim.el=(anim.el||0)+dt; if((sc>o.upLen+1&&sc<o.upLen+40)||anim.el*1000>anim.dur*1.6){ /* 予備の終わり：動きの時間で数える（遅い端末でも 途中で終わらない） */ anim=null; stopRide(); o.set(selected===o.Lf.id); if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); controls.repivot(); } }
       else if(follow){ atS(o,sc,eyeP,eyeT); eyeT.normalize(); eyeP.y-=1.2; eyeP.addScaledVector(eyeT,-.1); camera.position.copy(eyeP);
         lookP.copy(eyeP).addScaledVector(eyeT,60); lookP.y-=6; controls.target.lerp(lookP,anim.snap?1:1-Math.exp(-dt*6)); anim.snap=false; } }
     if(tw){ const k=Math.max(0,Math.min(1,(now-tw.t0)/tw.ms)), e=ease(k);
@@ -1896,18 +2017,20 @@ function build3D(THREE,img){
   // 大きさ
   function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; LABELS.concat([{d:selLab}]).forEach(L=>{ L.d._w=0; }); vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
   new ResizeObserver(resize).observe(box);
-  function theme(){ const dk=isDark(); hemi.intensity=dk?.95:1.25; sun.intensity=dk?1.4:1.9; sideMat.color.set(dk?0x2a3a4e:0x8b98a8); scene.fog.color.set(dk?0x22374f:0xdfeaf5); needDraw=true; }
+  function theme(){ const dk=isDark(); hemi.intensity=dk?.95:1.25; sun.intensity=dk?1.4:1.9; sideMat.color.set(dk?0x2a3a4e:0x8b98a8);
+    const hz=dk?0x26394f:0xdfeaf5; scene.fog.color.set(hz); skyU.uHor.value.set(hz); skyU.uTop.value.set(dk?0x0b1728:0x7eaee0); skyU.uSun.value=dk?0:1; skyU.uCloud.value=dk?.55:.75; skyU.uCC.value.set(dk?0x3a4d66:0xf4f7fb); needDraw=true; }
   // 描く：カメラが動いたとき・動きがあるときだけ（止まっている間は描かない。近くで見ている間は、いすを動かすため少しずつ）
   let running=false, last=0, lastR=0, chairT=0, prevBusy=false, slowN=0, slowT=0; const pc=new THREE.Vector3(), pt=new THREE.Vector3();
   function loop(now){ if(!running) return; if(!view3d||curTab!=="map"){ running=false; return; } requestAnimationFrame(loop);
     const dt=Math.min(.1,(now-last)/1000||0); last=now; const spOn=!!(follow&&anim&&anim.kind==="ski"); if(spBtn.hidden===spOn) spBtn.hidden=!spOn; const hideL=!!(follow&&anim); if(lab.classList.contains("hide")!==hideL) lab.classList.toggle("hide",hideL); /* 札は、目線のあいだだけ かくす */ update(now,dt); controls.update(dt);
     const moved=!camera.position.equals(pc)||!controls.target.equals(pt), busy=moved||!!tw||!!anim, near=!reduce&&camera.position.distanceTo(controls.target)<2000;
+    updateDetail(now);
     if(!(busy||needDraw||(near&&now-lastR>50))){ prevBusy=false; return; }
     // 重い端末では、動かしている間の速さを見て、画面の細かさを少し下げる
     if(busy&&prevBusy){ slowT+=Math.min(500,now-lastR); if(++slowN>=40){ if(slowT/slowN>30&&pr>1){ pr=Math.max(1,pr-.25); renderer.setPixelRatio(pr); resize(); } slowN=0; slowT=0; } }
     prevBusy=busy; pc.copy(camera.position); pt.copy(controls.target); needDraw=false;
     moveChairs();
-    lastR=now; renderer.render(scene,camera); placeLabels(); }
+    lastR=now; sky.position.copy(camera.position); renderer.render(scene,camera); placeLabels(); }
   controls.addEventListener("start",()=>{ tw=null; if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); lab.classList.remove("hide"); } $("#m3dHint").classList.add("gone"); });
   // 速さのボタン（目線で滑っているあいだだけ出る）
   const SPEEDS=[[.5,"🐢 ゆっくり"],[1,"⛷ ふつう"],[2,"🐇 はやい"]]; let spIdx=Math.max(0,Math.min(2,store.get("skiSpeed",1)|0));
