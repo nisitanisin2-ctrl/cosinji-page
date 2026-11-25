@@ -480,6 +480,7 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
 .m3d-lab.sel{ background:#e5484d; color:#fff; font-size:.78rem; }
 .m3d-ui{ position:absolute; right:10px; bottom:10px; z-index:3; display:flex; flex-direction:column; gap:6px; }
 .m3d-ui button, .viewbtn{ height:38px; padding:0 12px; border-radius:11px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); color:var(--text); font-size:.8rem; font-weight:700; cursor:pointer; box-shadow:var(--shadow); white-space:nowrap; }
+#snowBtn[aria-pressed="false"]{ background:color-mix(in srgb, var(--gold) 22%, var(--panel)); }
 .m3d-ui button.on{ background:#e5484d; border-color:#e5484d; color:#fff; }
 .viewbtn{ position:absolute; z-index:4; right:10px; top:62px; min-width:48px; background:linear-gradient(140deg,var(--acc),var(--acc2)); color:#fff; border:none; font-family:var(--f-num); font-size:.86rem; letter-spacing:.04em; }
 .m3d-hint{ position:absolute; left:10px; bottom:10px; right:110px; margin:0; pointer-events:none; font-size:.7rem; color:var(--sub); }
@@ -585,9 +586,9 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
       <div class="zoomctl" role="group" aria-label="図の拡大・縮小"><button type="button" data-z="in" aria-label="拡大" title="拡大">＋</button><button type="button" data-z="out" aria-label="縮小" title="縮小">－</button><button type="button" data-z="reset" aria-label="もとの大きさ" title="もとの大きさ">⟲</button></div>
       <p class="zoomhint" id="zoomhint"><span>ピンチ・＋で拡大／ドラッグで移動</span></p>
       <button type="button" class="viewbtn" id="viewBtn" aria-label="3Dの地形で見る">3D</button>
-      <div class="map3d" id="map3d" role="img" aria-label="ハイパーボウル東鉢の3D地形図。本物の標高と衛星写真に、コースとリフトを重ねています">
+      <div class="map3d" id="map3d" role="img" aria-label="ハイパーボウル東鉢の3D地形図。国土地理院の標高と航空写真に、コースとリフトを重ねています">
         <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
-        <div class="m3d-ui"><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
+        <div class="m3d-ui"><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
         <p class="m3d-hint"><span>1本指で回す・2本指で拡大と移動</span></p>
         <div class="m3d-compass" id="m3dCompass" aria-hidden="true"><i>N</i></div>
         <p class="m3d-msg" id="m3dMsg" hidden></p>
@@ -640,7 +641,7 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
   <p class="note" data-note="tohachi">※ 図は、ゲレンデマップ（パンフレット）の上に、選んだコースの線を重ねたものです。線の位置はおおよそです。今はない施設（3号リフト上の「ミニスノーパーク」、1号リフト終点の休憩所）は図から消し、スカイバレイのリフトは今の「ベアトリプルリフト」に直してあります。また、このマップは今のシーズンとコース名がちがう所があります（例：②「競技Aコース」の位置が、今の「東尾根下コース」）。コースの長さ・斜度・リフトの時間は公式サイトの数字です。最新のマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデマップ</a>で。</p>
-  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は AWS Terrain Tiles、写真は Copernicus Sentinel-2 の衛星写真（2024年2月）。高さは見やすいように1.35倍にしています。コースとリフトの線は、春の衛星写真に残る圧雪のあとと、公式のリフトの長さ・標高差から合わせた<b>おおよその位置</b>です。</p>
+  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置で、標高差は公式の数字とほぼ同じです。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。</p>
   <p class="note" data-note="sv" hidden>※ 同じゲレンデマップの右側（スカイバレイ側）です。線の位置はおおよそ。コースの長さ・斜度はスカイバレイの公式マップより。</p>
   </div>
   </div>
@@ -887,7 +888,7 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
   <ol>
     <li>ハイパーボウル東鉢 公式：<a href="https://tohachi.jp/area" target="_blank" rel="noopener">ゲレンデ案内・ゲレンデマップ</a>／<a href="https://tohachi.jp/lift" target="_blank" rel="noopener">リフト料金</a>／<a href="https://tohachi.jp/facility" target="_blank" rel="noopener">施設</a>／<a href="https://tohachi.jp/rental" target="_blank" rel="noopener">レンタル</a>／<a href="https://tohachi.jp/school" target="_blank" rel="noopener">スクール</a>／<a href="https://tohachi.jp/access" target="_blank" rel="noopener">アクセス</a>／<a href="https://tohachi.jp/parking" target="_blank" rel="noopener">駐車場</a>／<a href="https://tohachi.jp/safety" target="_blank" rel="noopener">安全対策</a></li>
     <li><a href="https://skyvalley.jp/area" target="_blank" rel="noopener">スカイバレイ 公式 ゲレンデ案内</a></li>
-    <li>3D地形：標高 <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles</a>／衛星写真 Contains modified Copernicus Sentinel data 2024（<a href="https://registry.opendata.aws/sentinel-2-l2a-cogs/" target="_blank" rel="noopener">Sentinel-2 L2A</a>）／描画 <a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a></li>
+    <li>3D地形：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">国土地理院 地理院タイル</a>（数値標高モデル・全国最新写真（シームレス）・標準地図）を加工して作成／描画 <a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a></li>
     <li>ICからのルート：Googleマップのルート（経由地あり）と同じ点を通るように計算。道路データ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>（経路計算 OSRM）</li>
     <li>口コミ・旅行サイト：<a href="https://snoway.jp/gelande/10466/" target="_blank" rel="noopener">Snoway</a>／<a href="https://surfsnow.jp/guide/htm/r0897s.htm" target="_blank" rel="noopener">SURF&amp;SNOW</a>／<a href="https://www.jalan.net/kankou/spt_28604ca3470058256/" target="_blank" rel="noopener">じゃらんnet</a>／<a href="https://tenki.jp/season/ski/6/31/16503/access.html" target="_blank" rel="noopener">tenki.jp</a>／<a href="https://rurubu.jp/andmore/spot/80030752" target="_blank" rel="noopener">るるぶ&amp;more.</a></li>
   </ol>
@@ -1198,9 +1199,9 @@ function zoomInit(key){
 Object.keys(MAPS).forEach(zoomInit);
 $$(".zoomctl button").forEach(b=>b.onclick=()=>{ const z=b.dataset.z; if(z==="in") zoomBy(curMap,1/1.6); else if(z==="out") zoomBy(curMap,1.6); else zoomReset(curMap); });
 
-/* ---------- 3D 地形図（標高：AWS Terrain Tiles／写真：Copernicus Sentinel-2 2024年2月） ----------
-   線の位置：4月の衛星写真で圧雪の残るコースの帯と、リフトの長さ・標高差（公式）から合わせた おおよその位置 */
-const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[722,366],[567,212]],"lift2":[[567,212],[438,223]],"lift3":[[627,210],[499,190]],"lift4":[[770,358],[629,208]]},"courses":{"centerA":[[440,229],[466,235],[492,241],[518,246],[542,250]],"higashioneshita":[[444,219],[464,212],[486,205],[508,200],[530,200],[550,205],[563,210]],"higashione":[[440,220],[457,203],[475,186],[503,177],[534,180],[565,187],[594,191],[616,199],[628,210]],"centerB":[[572,219],[582,231],[593,244],[604,257],[612,267]],"centerC":[[626,216],[634,232],[632,248],[622,262],[612,272]],"centerD":[[612,272],[630,290],[650,310],[670,330],[690,348],[710,362],[720,370]],"champion":[[640,222],[662,244],[685,269],[708,296],[730,323],[749,345],[763,362]],"beginner":[[502,196],[530,204],[560,206],[590,209],[612,217],[626,226],[638,222]],"kyogiB":[[462,262],[480,280],[502,298],[528,312]],"chibikko":[[724,310],[716,328],[714,348],[720,368]]},"ridge":[[438,223],[455,200],[470,178],[500,165],[530,170],[560,179],[600,183],[635,180],[660,188]],"marks":{"summit":[438,223],"mid":[567,212],"cafe":[632,214],"base":[735,381],"hachibuse":[31,98],"sv":[620,120]}};
+/* ---------- 3D 地形図（国土地理院：数値標高モデル5mメッシュ・全国最新写真・標準地図の索道） ----------
+   リフト：地理院地図の索道の線（5mメッシュでの標高差は公式とほぼ同じ）。コース：航空写真のゲレンデの形と公式の説明から合わせた おおよその位置 */
+const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[733.75,368.75],[552.5,252.5]],"lift2":[[555.0,233.0],[426.5,220.25]],"lift3":[[635.0,212.0],[505.0,222.5]],"lift4":[[792.5,350.0],[623.75,237.0]]},"courses":{"centerA":[[430,225],[445,234],[465,243],[488,250],[512,254],[534,256],[548,257]],"higashioneshita":[[432,217],[446,209],[458,203],[470,205],[480,212],[492,218],[507,225],[530,230],[550,233]],"higashione":[[430,216],[442,204],[455,192],[472,184],[495,180],[522,181],[550,184],[578,187],[605,189],[624,196],[636,208],[640,218]],"centerB":[[556,258],[563,271],[572,284],[584,295],[600,304],[617,310],[632,315]],"centerC":[[640,220],[636,235],[634,252],[636,270],[639,288],[640,304],[636,315]],"centerD":[[636,315],[652,324],[670,335],[688,346],[706,356],[722,365],[732,373]],"champion":[[642,223],[660,238],[680,255],[700,272],[720,290],[740,308],[760,325],[776,338],[788,347]],"beginner":[[507,225],[518,233],[534,239],[555,243],[575,239],[593,230],[608,219],[622,208],[634,203],[642,209]],"kyogiB":[[436,232],[446,248],[456,265],[468,282],[482,298]],"chibikko":[[720,290],[728,306],[740,321],[754,333],[768,343]]},"marks":{"summit":[426.5,220.25],"cafe":[629,228],"base":[748,366],"hachibuse":[31,98],"sv":[585,142],"open":[480,196]}};
 const C3D={"初級":"#1f9d55","中級":"#2a8fd6","上級":"#d63b3b","道":"#e08a00"};
 const RUN3D={centerB:["centerB","centerD"],centerC:["centerC","centerD"],higashione:["higashione","champion"],openbahn:[],kids:[]};
 var view3d=false, T3D=null, t3dLoading=null;
@@ -1277,7 +1278,15 @@ function build3D(THREE,img){
   for(let j=0;j<gh-1;j++) for(let i=0;i<gw-1;i++){ const a=j*gw+i,b=a+1,c=a+gw,d=c+1; idx[n++]=a; idx[n++]=c; idx[n++]=b; idx[n++]=b; idx[n++]=c; idx[n++]=d; }
   const tg=new THREE.BufferGeometry(); tg.setAttribute("position",new THREE.BufferAttribute(pos,3)); tg.setAttribute("uv",new THREE.BufferAttribute(uv,2)); tg.setIndex(new THREE.BufferAttribute(idx,1)); tg.computeVertexNormals();
   const tex=new THREE.TextureLoader().load("img/sat3d.jpg"); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
-  const terrain=new THREE.Mesh(tg,new THREE.MeshStandardMaterial({map:tex,roughness:1,metalness:0}));
+  const snowU={value:store.get("snow3d",true)?1:0}, terrainMat=new THREE.MeshStandardMaterial({map:tex,roughness:1,metalness:0});
+  terrainMat.onBeforeCompile=sh=>{ sh.uniforms.uSnow=snowU;
+    sh.fragmentShader="uniform float uSnow;\n"+sh.fragmentShader.replace("#include <map_fragment>",`#include <map_fragment>
+    { vec3 c=diffuseColor.rgb; float l=dot(c,vec3(.2126,.7152,.0722)), gr=c.g-max(c.r,c.b);
+      float open=smoothstep(.09,.24,l)*(1.-smoothstep(.06,.16,gr));
+      vec3 snow=vec3(.84,.88,.95)+vec3(.12)*smoothstep(.12,.5,l);
+      vec3 w=mix(c,snow,open); w=mix(w,vec3(.78,.83,.9),.14*(1.-open));
+      diffuseColor.rgb=mix(c,w,uSnow); }`); };
+  const terrain=new THREE.Mesh(tg,terrainMat);
   scene.add(terrain);
   const BASE=-60, sidePos=[], sideIdx=[];
   const edge=(list)=>{ const s=sidePos.length/3; list.forEach(k=>{ sidePos.push(pos[k*3],pos[k*3+1],pos[k*3+2], pos[k*3],BASE,pos[k*3+2]); });
@@ -1340,6 +1349,7 @@ function build3D(THREE,img){
   const LABELS=[
     {d:mk(`山頂（約${rnd10(elev(...mk2.summit)).toLocaleString()}m）`,"big"),p:P3(...mk2.summit,40)},
     {d:mk("カフェテリア"),p:P3(...mk2.cafe,26)},
+    {d:mk("山頂オープンバーン"),p:P3(...mk2.open,30)},
     {d:mk(`ふもと・駐車場（約${rnd10(elev(...mk2.base)).toLocaleString()}m）`,"big"),p:P3(...mk2.base,26)},
     {d:mk("鉢伏山 1,221m","peak"),p:P3(...mk2.hachibuse,40)},
     {d:mk("スカイバレイ側（共通券）","sv"),p:P3(...mk2.sv,40)},
@@ -1358,7 +1368,7 @@ function build3D(THREE,img){
     if(reduce||ms===0){ camera.position.copy(end); controls.target.copy(target); controls.update(); tw=null; return; }
     tw={t0:performance.now(),ms,p0:camera.position.clone(),p1:end,q0:controls.target.clone(),q1:target.clone()}; }
   const AZ=Math.atan2(549+66,1071+86); // ふもと（南東）から山頂を見上げる向き
-  function home(ms){ follow=false; flyTo(P3(590,262,0),2450,AZ,.98,ms); }
+  function home(ms){ follow=false; flyTo(P3(605,268,0),2350,AZ,.98,ms); }
   function frameXY(list,ms){ let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; list.forEach(([x,y])=>{ x1=Math.min(x1,x); y1=Math.min(y1,y); x2=Math.max(x2,x); y2=Math.max(y2,y); });
     const cx=(x1+x2)/2, cy=(y1+y2)/2, ext=Math.max(x2-x1,y2-y1)*M; flyTo(P3(cx,cy,0),Math.max(560,ext*1.55+260),AZ,.98,ms); }
 
@@ -1417,6 +1427,9 @@ function build3D(THREE,img){
     const dt=Math.min(.1,(now-last)/1000||0); last=now; update(now,dt); controls.update(); renderer.render(scene,camera); placeLabels(); }
   controls.addEventListener("start",()=>{ tw=null; if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); } });
   $("#homeBtn3d").onclick=()=>home();
+  const snowLabel=()=>{ const on=snowU.value>.5; $("#snowBtn").textContent=on?"❄ 冬":"☀ 写真"; $("#snowBtn").setAttribute("aria-pressed",String(on)); };
+  $("#snowBtn").onclick=()=>{ snowU.value=snowU.value>.5?0:1; store.set("snow3d",snowU.value>.5); snowLabel(); };
+  snowLabel();
   $("#povBtn").onclick=()=>{ if(!lastMove){ toast("コースかリフトを選ぶと、その目線で見られます"); return; } follow=true; $("#povBtn").classList.toggle("on",true); lastMove(); };
   theme(); resize(); home(0);
   return { start(){ if(running) return; resize(); running=true; last=performance.now(); requestAnimationFrame(loop); }, stop(){ running=false; },
