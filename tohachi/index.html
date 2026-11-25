@@ -174,7 +174,8 @@ nav.toc a.on{ background:var(--text); color:var(--bg); }
 .course.hit{ stroke:transparent; stroke-width:22; pointer-events:none; }
 .course.hit.on{ pointer-events:stroke; }
 .course.vis, .course.case{ opacity:0; pointer-events:none; }
-.course.vis.on, .course.case.on{ opacity:1; }
+.course.vis.on{ opacity:.72; }
+.course.case.on{ opacity:.5; }
 .course.case{ stroke:var(--mapsnow); }
 .course.vis.sel{ filter:drop-shadow(0 1px 3px rgba(0,0,0,.25)); }
 .flow{ fill:none; stroke:#fff; stroke-width:2; stroke-linecap:round; stroke-dasharray:1 9; opacity:0; pointer-events:none; animation:flow .9s linear infinite; }
@@ -1175,8 +1176,8 @@ function buildMap(key){
     b.addEventListener("click",()=>select(L.id,true)); bdg.appendChild(b);
   });
   M.courses.forEach(c=>{
-    const vis=el("path",{class:"course vis",id:"cv-"+c.id,"data-id":c.id,d:c.d,"stroke-width":c.w,style:`stroke:${LVC[c.lv]}`+(c.dash?";stroke-dasharray:"+c.dash:"")});
-    cg.appendChild(el("path",{class:"course case",id:"cc-"+c.id,d:c.d,"stroke-width":c.w+4})); // 線のふちどり（見やすく）
+    const vis=el("path",{class:"course vis",id:"cv-"+c.id,"data-id":c.id,d:c.d,"stroke-width":c.w*.6,style:`stroke:${LVC[c.lv]}`+(c.dash?";stroke-dasharray:"+c.dash:"")});
+    cg.appendChild(el("path",{class:"course case",id:"cc-"+c.id,d:c.d,"stroke-width":c.w*.6+2.4})); // 線のふちどり（見やすく）
     cg.appendChild(vis);
     if(c.run) rp.appendChild(el("path",{id:"run-"+c.id,class:"runline",d:c.run,"stroke-width":3.5,"stroke-dasharray":"0.1 7",style:`stroke:${LVC[c.lv]}`})); // 下まで続けて滑る道（点線）
     let x=null,y,a;
@@ -1320,7 +1321,7 @@ function build3D(THREE,img){
     return HGT[k]*(1-fx)*(1-fy)+HGT[k+1]*fx*(1-fy)+HGT[k+G.gw]*(1-fx)*fy+HGT[k+G.gw+1]*fx*fy; };
   const P3=(x,y,up=0)=>new THREE.Vector3((x-W2)*M,(elev(x,y)-hmin)*EX+up,(y-H2)*M);
 
-  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:"high-performance"});
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,stencil:true,powerPreference:"high-performance"});
   renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
   renderer.domElement.className="m3d-canvas"; box.prepend(renderer.domElement);
   const scene=new THREE.Scene();
@@ -1373,14 +1374,33 @@ function build3D(THREE,img){
     return new THREE.Mesh(g,m);
   }
   const lenPx=sp=>{ let s=0; for(let i=1;i<sp.length;i++) s+=Math.hypot(sp[i][0]-sp[i-1][0],sp[i][1]-sp[i-1][1]); return s; };
-  const courseObj={}, cW=c=>c.id==="centerB"?34:(c.route?10:15);
+  // コースの線：半透明の細い帯（下の斜面が見える）＋ どの距離でも同じ太さに見える中心の線
+  const courseObj={}, cW=c=>c.id==="centerB"?22:(c.route?7:10), CIDX={}; COURSES.forEach((c,i)=>{ CIDX[c.id]=i; });
   const dispose=g=>g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); });
+  const LK={value:.001}; // カメラから距離1の所で、画面の1pxが何mか（大きさが変わるたびに計算）
+  // 帯や線が折れて重なっても、そこだけ濃くならないように
+  const stencil=(m,ref)=>{ m.stencilWrite=true; m.stencilRef=ref; m.stencilFunc=THREE.NotEqualStencilFunc; m.stencilZPass=THREE.ReplaceStencilOp; return m; };
+  const lineMat=(color,halfPx,op)=>new THREE.ShaderMaterial({
+    uniforms:{uColor:{value:new THREE.Color(color)},uOp:{value:op},uHalf:{value:halfPx},uK:LK},
+    vertexShader:"attribute float side;\nattribute vec3 perp;\nuniform float uHalf;\nuniform float uK;\nvoid main(){ vec4 wp=modelMatrix*vec4(position,1.0); float d=max(1.0,-(viewMatrix*wp).z); wp.xyz+=perp*side*uHalf*uK*d; gl_Position=projectionMatrix*viewMatrix*wp; }",
+    fragmentShader:"uniform vec3 uColor;\nuniform float uOp;\nvoid main(){ gl_FragColor=vec4(uColor,uOp);\n#include <colorspace_fragment>\n}",
+    transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6});
+  function lineGeo(sp,up){ const L=sp.length, pos=new Float32Array(L*6), prp=new Float32Array(L*6), sd=new Float32Array(L*2), ix=[];
+    for(let i=0;i<L;i++){ const a=sp[Math.max(0,i-1)], b=sp[Math.min(L-1,i+1)]; let tx=b[0]-a[0], ty=b[1]-a[1]; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;
+      const v=P3(sp[i][0],sp[i][1],up);
+      for(let o=0;o<2;o++){ const k=i*2+o; pos[k*3]=v.x; pos[k*3+1]=v.y; pos[k*3+2]=v.z; prp[k*3]=-ty; prp[k*3+2]=tx; sd[k]=o?1:-1; }
+      if(i<L-1){ const q=i*2; ix.push(q,q+2,q+1, q+1,q+2,q+3); } }
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(pos,3)); g.setAttribute("perp",new THREE.BufferAttribute(prp,3)); g.setAttribute("side",new THREE.BufferAttribute(sd,1)); g.setIndex(ix); return g; }
+  function routeLine(sp,col,up,ref,ro){ const g=lineGeo(sp,up), grp=new THREE.Group();
+    const cas=new THREE.Mesh(g,stencil(lineMat(0xffffff,2.6,.8),ref)), ln=new THREE.Mesh(g,lineMat(col,1.5,.95));
+    cas.frustumCulled=ln.frustumCulled=false; cas.renderOrder=ro; ln.renderOrder=ro+1; grp.add(cas,ln); return {grp,cas,ln}; }
   function buildCourse(c){ const old=courseObj[c.id], raw=G.courses[c.id]; if(old){ scene.remove(old.grp); dispose(old.grp); delete courseObj[c.id]; }
     if(!raw||raw.length<2) return;
-    const sp=smooth(raw), w=cW(c), grp=new THREE.Group();
-    const out=ribbon(sp,w+9,0xffffff,.85,3.2), fill=ribbon(sp,w,new THREE.Color(C3D[c.lv]||"#2a8fd6"),.95,3.6);
-    out.renderOrder=2; fill.renderOrder=3; grp.add(out,fill); grp.visible=old?old.grp.visible:false; scene.add(grp);
-    const o={c,sp,grp,op:old?old.op:1,set:(v)=>{ o.op=v; fill.material.opacity=.95*v; out.material.opacity=.85*v; }}; o.set(o.op); courseObj[c.id]=o; }
+    const sp=smooth(raw), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"), grp=new THREE.Group(), ref=1+CIDX[c.id]*2;
+    const band=ribbon(sp,cW(c),col,.34,3.4); stencil(band.material,ref); band.renderOrder=2;
+    const L=routeLine(sp,col,4.6,ref+1,3);
+    grp.add(band,L.grp); grp.visible=old?old.grp.visible:false; scene.add(grp);
+    const o={c,sp,grp,op:old?old.op:1,set:(v)=>{ o.op=v; band.material.opacity=.34*v; L.cas.material.uniforms.uOp.value=.8*v; L.ln.material.uniforms.uOp.value=.95*v; }}; o.set(o.op); courseObj[c.id]=o; }
   COURSES.forEach(buildCourse);
 
   // リフト：塔・ワイヤー・動くいす
@@ -1503,9 +1523,11 @@ function build3D(THREE,img){
     const last=ed.pts.length-1;
     ed.pts.forEach((p,i)=>{ const sp=ed.markers[i], k=i===ed.sel?"sel":(i===0?"s":(i===last?"g":"n")), sc=k==="sel"?.046:(k==="n"?.028:.04);
       sp.position.copy(P3(p[0],p[1],5)); if(sp.material.map!==DT[k]){ sp.material.map=DT[k]; sp.material.needsUpdate=true; } sp.scale.set(sc,sc,1); });
-    if(edRibbon){ edGroup.remove(edRibbon); edRibbon.geometry.dispose(); edRibbon.material.dispose(); edRibbon=null; }
+    if(edRibbon){ edGroup.remove(edRibbon); dispose(edRibbon); edRibbon=null; }
     const c=COURSES.find(x=>x.id===ed.id);
-    if(c&&ed.pts.length>=2){ edRibbon=ribbon(smooth(ed.pts),cW(c),new THREE.Color(C3D[c.lv]||"#2a8fd6"),.85,3.6); edRibbon.renderOrder=4; edGroup.add(edRibbon); }
+    if(c&&ed.pts.length>=2){ const sp=smooth(ed.pts), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"); edRibbon=new THREE.Group();
+      const band=ribbon(sp,cW(c),col,.24,3.4); stencil(band.material,251); band.renderOrder=5;
+      const L=routeLine(sp,col,5,252,6); edRibbon.add(band,L.grp); edGroup.add(edRibbon); }
     $("#edN").textContent=`点 ${ed.pts.length}`; $("#edDel").disabled=ed.sel<0; $("#edUndo").disabled=!ed.hist.length; $("#edClear").disabled=!ed.pts.length;
     $("#edReset").hidden=!ovr3d[ed.id]; edHelp();
   }
@@ -1582,7 +1604,7 @@ function build3D(THREE,img){
   function refreshCourse(id){ const c=COURSES.find(x=>x.id===id); if(!c) return; buildCourse(c);
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
-  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; }
   new ResizeObserver(resize).observe(box);
   function theme(){ const dk=isDark(); hemi.intensity=dk?.95:1.25; sun.intensity=dk?1.4:1.9; sideMat.color.set(dk?0x2a3a4e:0x8b98a8); scene.fog.color.set(dk?0x22374f:0xdfeaf5); }
   let running=false, last=0;
@@ -1736,7 +1758,7 @@ function select(id,fromMap,extra,quiet){
   showCourses(f.map,show); curShow=show;
   svg.querySelectorAll(".runline").forEach(p=>p.classList.toggle("on",p.id==="run-"+id));
   zoomShow(f.map, show.map(i=>document.getElementById("run-"+i)||document.getElementById("cv-"+i)||document.getElementById("lp-"+i)).filter(Boolean).concat(f.kind==="lift"?[document.getElementById("lp-"+id)]:[]));
-  M.courses.forEach(c=>{ const p=document.getElementById("cv-"+c.id), on=c.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w+2:c.w); });
+  M.courses.forEach(c=>{ const p=document.getElementById("cv-"+c.id), on=c.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w*.6+1:c.w*.6); });
   Object.keys(MAPS).forEach(k=>placeSG(k,null));
   svg.querySelectorAll(".lift").forEach(p=>p.classList.toggle("sel",p.dataset.id===id));
   svg.querySelectorAll(".badge").forEach(b=>b.classList.toggle("sel",b.dataset.id===id));
