@@ -460,6 +460,35 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
 .subnav button{ flex:none; border:1px solid var(--line); background:var(--panel); border-radius:99px; padding:7px 14px; font-size:.84rem; font-weight:700; cursor:pointer; white-space:nowrap; }
 .subnav button:hover{ border-color:var(--text); }
 .subnav + section{ padding-top:8px; }
+
+/* ===== 3D 地形図 ===== */
+.map3d{ display:none; position:relative; width:100%; height:min(50vh,520px); overflow:hidden; touch-action:none; background:linear-gradient(#9fc0e4, #dfeaf5 62%, #eef3f8); }
+@media (min-width:900px){ .map3d{ height:min(640px, calc(100vh - var(--head) - 72px)); } }
+:root[data-theme="dark"] .map3d{ background:linear-gradient(#0b1728, #22374f 62%, #2b3f57); }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .map3d{ background:linear-gradient(#0b1728, #22374f 62%, #2b3f57); } }
+.map.is3d .map3d{ display:block; }
+.map.is3d > svg, .map.is3d .zoomctl, .map.is3d .zoomhint{ display:none !important; }
+.m3d-canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; outline:none; }
+.m3d-labels{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.m3d-lab{ position:absolute; left:0; top:0; white-space:nowrap; font-size:.7rem; font-weight:700; color:#0f1d2e; background:rgba(255,255,255,.9); padding:2px 8px; border-radius:99px; box-shadow:0 2px 8px rgba(0,0,0,.2); transition:opacity .2s; will-change:transform; }
+.m3d-lab::after{ content:""; position:absolute; left:50%; bottom:-5px; width:2px; height:5px; margin-left:-1px; background:inherit; }
+.m3d-lab.big{ font-size:.74rem; }
+.m3d-lab.peak{ background:rgba(15,29,46,.78); color:#fff; }
+.m3d-lab.sv{ background:rgba(180,122,4,.92); color:#fff; }
+.m3d-lab.lift{ width:22px; height:22px; padding:0; display:grid; place-items:center; border-radius:50%; background:#0f1d2e; color:#fff; font-family:var(--f-num); font-size:.72rem; }
+.m3d-lab.lift.on{ background:#2a7bd6; transform-origin:center; }
+.m3d-lab.sel{ background:#e5484d; color:#fff; font-size:.78rem; }
+.m3d-ui{ position:absolute; right:10px; bottom:10px; z-index:3; display:flex; flex-direction:column; gap:6px; }
+.m3d-ui button, .viewbtn{ height:38px; padding:0 12px; border-radius:11px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); color:var(--text); font-size:.8rem; font-weight:700; cursor:pointer; box-shadow:var(--shadow); white-space:nowrap; }
+.m3d-ui button.on{ background:#e5484d; border-color:#e5484d; color:#fff; }
+.viewbtn{ position:absolute; z-index:4; right:10px; top:62px; min-width:48px; background:linear-gradient(140deg,var(--acc),var(--acc2)); color:#fff; border:none; font-family:var(--f-num); font-size:.86rem; letter-spacing:.04em; }
+.m3d-hint{ position:absolute; left:10px; bottom:10px; right:110px; margin:0; pointer-events:none; font-size:.7rem; color:var(--sub); }
+.m3d-hint span{ background:color-mix(in srgb, var(--panel) 88%, transparent); padding:3px 8px; border-radius:99px; }
+.m3d-compass{ position:absolute; left:10px; top:10px; width:34px; height:34px; border-radius:50%; background:color-mix(in srgb, var(--panel) 88%, transparent); box-shadow:var(--shadow); display:grid; place-items:center; pointer-events:none; }
+.m3d-compass::before{ content:""; position:absolute; top:3px; left:50%; margin-left:-4px; border:4px solid transparent; border-bottom:7px solid #e5484d; border-top:0; }
+.m3d-compass i{ font-style:normal; font-family:var(--f-num); font-weight:800; font-size:.7rem; color:var(--text); margin-top:5px; }
+.m3d-msg{ position:absolute; left:16px; right:16px; top:45%; margin:0; text-align:center; font-size:.86rem; font-weight:700; color:var(--text); }
+.tile.t3d{ background:linear-gradient(150deg, color-mix(in srgb, var(--acc2) 20%, var(--panel)), var(--panel) 70%); }
 </style>
 </head>
 <body>
@@ -520,6 +549,7 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
 <section id="quick">
   <div class="sechead"><h2>あそびかたを探す</h2></div>
   <div class="tiles">
+    <button type="button" class="tile t3d" data-go3d="1"><span class="ti">🏔</span><b>3Dマップ</b><span>本物の地形で見る</span></button>
     <button type="button" class="tile" data-go="slope"><span class="ti">📐</span><b>斜度を体感</b><span>43°ってどのくらい？</span></button>
     <button type="button" class="tile" data-go="quiz"><span class="ti">🎯</span><b>30秒診断</b><span>合うコースがわかる</span></button>
     <button type="button" class="tile" data-go="basic"><span class="ti">🔰</span><b>はじめての人へ</b><span>止まる・曲がる</span></button>
@@ -554,6 +584,14 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
       <div class="nowbar" id="nowbar" aria-live="polite"></div>
       <div class="zoomctl" role="group" aria-label="図の拡大・縮小"><button type="button" data-z="in" aria-label="拡大" title="拡大">＋</button><button type="button" data-z="out" aria-label="縮小" title="縮小">－</button><button type="button" data-z="reset" aria-label="もとの大きさ" title="もとの大きさ">⟲</button></div>
       <p class="zoomhint" id="zoomhint"><span>ピンチ・＋で拡大／ドラッグで移動</span></p>
+      <button type="button" class="viewbtn" id="viewBtn" aria-label="3Dの地形で見る">3D</button>
+      <div class="map3d" id="map3d" role="img" aria-label="ハイパーボウル東鉢の3D地形図。本物の標高と衛星写真に、コースとリフトを重ねています">
+        <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
+        <div class="m3d-ui"><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
+        <p class="m3d-hint"><span>1本指で回す・2本指で拡大と移動</span></p>
+        <div class="m3d-compass" id="m3dCompass" aria-hidden="true"><i>N</i></div>
+        <p class="m3d-msg" id="m3dMsg" hidden></p>
+      </div>
       <svg id="mapSvg" viewBox="30 0 290 372" role="img" aria-label="ハイパーボウル東鉢のゲレンデマップ。上が山頂、左下がふもとの駐車場、右がスカイバレイ。選んだコースだけ線が出ます。">
         <rect class="mapout" x="-200" y="-200" width="900" height="800"/>
         <image class="mapimg" href="img/map.jpg" x="0" y="0" width="499.5" height="395" preserveAspectRatio="none"/>
@@ -586,7 +624,7 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
     </div>
   </div>
   <div class="stage-side">
-      <div class="seg maptabs" id="mapTabs" role="group" aria-label="図の切りかえ"><button aria-pressed="true" data-m="tohachi">東鉢側</button><button aria-pressed="false" data-m="sv">スカイバレイ側（共通券）</button></div>
+      <div class="seg maptabs" id="mapTabs" role="group" aria-label="図の切りかえ"><button aria-pressed="true" data-m="tohachi">東鉢側</button><button aria-pressed="false" data-m="sv">スカイバレイ側（共通券）</button><button aria-pressed="false" data-m="3d">3D 地形</button></div>
       <div class="chiprow" id="chipsCourse"><span>Courses</span></div>
       <div class="chiprow" id="chipsOther"><span>Areas & Lifts</span></div>
       <div class="detail" id="detail" aria-live="polite"></div>
@@ -602,6 +640,7 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
   <p class="note" data-note="tohachi">※ 図は、ゲレンデマップ（パンフレット）の上に、選んだコースの線を重ねたものです。線の位置はおおよそです。今はない施設（3号リフト上の「ミニスノーパーク」、1号リフト終点の休憩所）は図から消し、スカイバレイのリフトは今の「ベアトリプルリフト」に直してあります。また、このマップは今のシーズンとコース名がちがう所があります（例：②「競技Aコース」の位置が、今の「東尾根下コース」）。コースの長さ・斜度・リフトの時間は公式サイトの数字です。最新のマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデマップ</a>で。</p>
+  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は AWS Terrain Tiles、写真は Copernicus Sentinel-2 の衛星写真（2024年2月）。高さは見やすいように1.35倍にしています。コースとリフトの線は、春の衛星写真に残る圧雪のあとと、公式のリフトの長さ・標高差から合わせた<b>おおよその位置</b>です。</p>
   <p class="note" data-note="sv" hidden>※ 同じゲレンデマップの右側（スカイバレイ側）です。線の位置はおおよそ。コースの長さ・斜度はスカイバレイの公式マップより。</p>
   </div>
   </div>
@@ -848,6 +887,7 @@ body{ padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 8px);
   <ol>
     <li>ハイパーボウル東鉢 公式：<a href="https://tohachi.jp/area" target="_blank" rel="noopener">ゲレンデ案内・ゲレンデマップ</a>／<a href="https://tohachi.jp/lift" target="_blank" rel="noopener">リフト料金</a>／<a href="https://tohachi.jp/facility" target="_blank" rel="noopener">施設</a>／<a href="https://tohachi.jp/rental" target="_blank" rel="noopener">レンタル</a>／<a href="https://tohachi.jp/school" target="_blank" rel="noopener">スクール</a>／<a href="https://tohachi.jp/access" target="_blank" rel="noopener">アクセス</a>／<a href="https://tohachi.jp/parking" target="_blank" rel="noopener">駐車場</a>／<a href="https://tohachi.jp/safety" target="_blank" rel="noopener">安全対策</a></li>
     <li><a href="https://skyvalley.jp/area" target="_blank" rel="noopener">スカイバレイ 公式 ゲレンデ案内</a></li>
+    <li>3D地形：標高 <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles</a>／衛星写真 Contains modified Copernicus Sentinel data 2024（<a href="https://registry.opendata.aws/sentinel-2-l2a-cogs/" target="_blank" rel="noopener">Sentinel-2 L2A</a>）／描画 <a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a></li>
     <li>ICからのルート：Googleマップのルート（経由地あり）と同じ点を通るように計算。道路データ © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>（経路計算 OSRM）</li>
     <li>口コミ・旅行サイト：<a href="https://snoway.jp/gelande/10466/" target="_blank" rel="noopener">Snoway</a>／<a href="https://surfsnow.jp/guide/htm/r0897s.htm" target="_blank" rel="noopener">SURF&amp;SNOW</a>／<a href="https://www.jalan.net/kankou/spt_28604ca3470058256/" target="_blank" rel="noopener">じゃらんnet</a>／<a href="https://tenki.jp/season/ski/6/31/16503/access.html" target="_blank" rel="noopener">tenki.jp</a>／<a href="https://rurubu.jp/andmore/spot/80030752" target="_blank" rel="noopener">るるぶ&amp;more.</a></li>
   </ol>
@@ -873,7 +913,7 @@ const root=document.documentElement;
 const th=store.get("theme",null); if(th) root.dataset.theme=th;
 $("#themeBtn").onclick=()=>{
   const dark=root.dataset.theme? root.dataset.theme==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  root.dataset.theme=dark?"light":"dark"; store.set("theme",root.dataset.theme); paintScene(); if(reduce) heroFrame(3500);
+  root.dataset.theme=dark?"light":"dark"; store.set("theme",root.dataset.theme); paintScene(); if(T3D) T3D.theme(); if(reduce) heroFrame(3500);
 };
 
 /* ---------- データ（公式サイト・公式マップより） ---------- */
@@ -1125,6 +1165,7 @@ function zoomBy(key,f){ const Z=ZOOM[key], cx0=Z.x+Z.w/2, cy0=Z.y+Z.h/2, w=Math.
 function zoomReset(key){ const Z=ZOOM[key]; zoomTween(key,Z.x0,Z.y0,Z.w0); }
 // 拡大しているときに選んだ線が見えなければ、見える所まで動かす
 function zoomShow(key,els){
+  if(view3d) return;
   const Z=ZOOM[key]; if(!Z||Z.w>=Z.w0-.5||!els.length) return;
   let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; els.forEach(e=>{ const b=e.getBBox(); x1=Math.min(x1,b.x); y1=Math.min(y1,b.y); x2=Math.max(x2,b.x+b.width); y2=Math.max(y2,b.y+b.height); });
   if(x1>=Z.x&&y1>=Z.y&&x2<=Z.x+Z.w&&y2<=Z.y+Z.h) return;
@@ -1157,6 +1198,231 @@ function zoomInit(key){
 Object.keys(MAPS).forEach(zoomInit);
 $$(".zoomctl button").forEach(b=>b.onclick=()=>{ const z=b.dataset.z; if(z==="in") zoomBy(curMap,1/1.6); else if(z==="out") zoomBy(curMap,1.6); else zoomReset(curMap); });
 
+/* ---------- 3D 地形図（標高：AWS Terrain Tiles／写真：Copernicus Sentinel-2 2024年2月） ----------
+   線の位置：4月の衛星写真で圧雪の残るコースの帯と、リフトの長さ・標高差（公式）から合わせた おおよその位置 */
+const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[722,366],[567,212]],"lift2":[[567,212],[438,223]],"lift3":[[627,210],[499,190]],"lift4":[[770,358],[629,208]]},"courses":{"centerA":[[440,229],[466,235],[492,241],[518,246],[542,250]],"higashioneshita":[[444,219],[464,212],[486,205],[508,200],[530,200],[550,205],[563,210]],"higashione":[[440,220],[457,203],[475,186],[503,177],[534,180],[565,187],[594,191],[616,199],[628,210]],"centerB":[[572,219],[582,231],[593,244],[604,257],[612,267]],"centerC":[[626,216],[634,232],[632,248],[622,262],[612,272]],"centerD":[[612,272],[630,290],[650,310],[670,330],[690,348],[710,362],[720,370]],"champion":[[640,222],[662,244],[685,269],[708,296],[730,323],[749,345],[763,362]],"beginner":[[502,196],[530,204],[560,206],[590,209],[612,217],[626,226],[638,222]],"kyogiB":[[462,262],[480,280],[502,298],[528,312]],"chibikko":[[724,310],[716,328],[714,348],[720,368]]},"ridge":[[438,223],[455,200],[470,178],[500,165],[530,170],[560,179],[600,183],[635,180],[660,188]],"marks":{"summit":[438,223],"mid":[567,212],"cafe":[632,214],"base":[735,381],"hachibuse":[31,98],"sv":[620,120]}};
+const C3D={"初級":"#1f9d55","中級":"#2a8fd6","上級":"#d63b3b","道":"#e08a00"};
+const RUN3D={centerB:["centerB","centerD"],centerC:["centerC","centerD"],higashione:["higashione","champion"],openbahn:[],kids:[]};
+var view3d=false, T3D=null, t3dLoading=null;
+function load3D(){
+  if(t3dLoading) return t3dLoading;
+  const msg=$("#m3dMsg"); msg.hidden=false; msg.textContent="3Dの地形を読みこみ中…";
+  t3dLoading=(async()=>{
+    const THREE=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js");
+    const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error("terrain")); im.src="img/terrain.png"; });
+    T3D=build3D(THREE,img); msg.hidden=true; return T3D;
+  })();
+  t3dLoading.catch(e=>{ console.error("3D:",e); t3dLoading=null; msg.hidden=false; msg.textContent="この端末・ブラウザでは3Dを表示できませんでした（2Dの図をお使いください）"; });
+  return t3dLoading;
+}
+function set3D(on){
+  view3d=on;
+  $(".stage-map .map").classList.toggle("is3d",on);
+  $("#viewBtn").textContent=on?"2D":"3D"; $("#viewBtn").setAttribute("aria-label",on?"2Dの図にもどす":"3Dの地形で見る");
+  $$("#mapTabs button").forEach(b=>b.setAttribute("aria-pressed",String(on?b.dataset.m==="3d":b.dataset.m===curMap)));
+  $("#note3d").hidden=!on;
+  if(on){
+    if(curMap!=="tohachi"){ select((LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0],false,null,true); }
+    load3D().then(T=>{ T.start(); const f=selected&&findItem(selected); if(f&&f.map==="tohachi") T.select(selected,curShow,false); else T.home(); }).catch(()=>{});
+  } else if(T3D) T3D.stop();
+}
+var curShow=[];
+// 指・マウスで回す／拡大／移動（1本指：回す、2本指：拡大と移動、右ドラッグやShift：移動、ホイール：拡大）
+function orbit3D(THREE,camera,dom,o){
+  const target=new THREE.Vector3(), fns=[], ptr=new Map(), sph=new THREE.Spherical(), off=new THREE.Vector3(); let last=null, pinch=null;
+  const C={target, addEventListener(t,f){ if(t==="start") fns.push(f); }, update(){ camera.lookAt(target); }};
+  const fire=()=>fns.forEach(f=>f());
+  const rotate=(dx,dy)=>{ off.copy(camera.position).sub(target); sph.setFromVector3(off); sph.theta-=dx*.0065; sph.phi=Math.max(.12,Math.min(o.maxPolar,sph.phi-dy*.0065)); off.setFromSpherical(sph); camera.position.copy(target).add(off); };
+  const zoom=f=>{ off.copy(camera.position).sub(target); off.setLength(Math.max(o.min,Math.min(o.max,off.length()*f))); camera.position.copy(target).add(off); };
+  const pan=(dx,dy)=>{ camera.updateMatrixWorld(); const r=camera.position.distanceTo(target), k=2*r*Math.tan(camera.fov*Math.PI/360)/(dom.clientHeight||1);
+    const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0); right.y=0; right.normalize(); const fwd=new THREE.Vector3().subVectors(target,camera.position); fwd.y=0; fwd.normalize();
+    const mv=right.multiplyScalar(-dx*k).add(fwd.multiplyScalar(dy*k)); target.add(mv); camera.position.add(mv); };
+  dom.addEventListener("pointerdown",e=>{ try{ dom.setPointerCapture(e.pointerId); }catch(_){} ptr.set(e.pointerId,{x:e.clientX,y:e.clientY,pan:e.button===2||e.shiftKey});
+    last=[e.clientX,e.clientY]; if(ptr.size===2){ const [a,b]=[...ptr.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,m:[(a.x+b.x)/2,(a.y+b.y)/2]}; } fire(); });
+  dom.addEventListener("pointermove",e=>{ const p=ptr.get(e.pointerId); if(!p) return; p.x=e.clientX; p.y=e.clientY;
+    if(ptr.size>=2&&pinch){ const [a,b]=[...ptr.values()], d=Math.hypot(a.x-b.x,a.y-b.y)||1, m=[(a.x+b.x)/2,(a.y+b.y)/2]; zoom(pinch.d/d); pan(m[0]-pinch.m[0],m[1]-pinch.m[1]); pinch={d,m}; return; }
+    const dx=e.clientX-last[0], dy=e.clientY-last[1]; last=[e.clientX,e.clientY]; if(p.pan||e.ctrlKey||e.metaKey) pan(dx,dy); else rotate(dx,dy); });
+  const up=e=>{ ptr.delete(e.pointerId); pinch=null; if(ptr.size===1){ const q=[...ptr.values()][0]; last=[q.x,q.y]; } };
+  ["pointerup","pointercancel"].forEach(t=>dom.addEventListener(t,up));
+  dom.addEventListener("wheel",e=>{ e.preventDefault(); fire(); zoom(Math.exp(e.deltaY*.0012)); },{passive:false});
+  dom.addEventListener("contextmenu",e=>e.preventDefault());
+  return C;
+}
+function build3D(THREE,img){
+  const G=GEO3D, box=$("#map3d"), EX=1.35, M=G.mpp, W2=G.w/2, H2=G.h/2;
+  // 標高（PNGの赤・緑に 0.1m 単位で入れてある）
+  const hc=document.createElement("canvas"); hc.width=G.gw; hc.height=G.gh;
+  const hx=hc.getContext("2d",{willReadFrequently:true}); hx.drawImage(img,0,0);
+  const px=hx.getImageData(0,0,G.gw,G.gh).data, HGT=new Float32Array(G.gw*G.gh); let hmin=1e9;
+  for(let i=0;i<HGT.length;i++){ const v=(px[i*4]*256+px[i*4+1])/10; HGT[i]=v; if(v<hmin) hmin=v; }
+  const elev=(x,y)=>{ const gx=Math.max(0,Math.min(G.gw-1.001,x/G.step)), gy=Math.max(0,Math.min(G.gh-1.001,y/G.step)), i=Math.floor(gx), j=Math.floor(gy), fx=gx-i, fy=gy-j, k=j*G.gw+i;
+    return HGT[k]*(1-fx)*(1-fy)+HGT[k+1]*fx*(1-fy)+HGT[k+G.gw]*(1-fx)*fy+HGT[k+G.gw+1]*fx*fy; };
+  const P3=(x,y,up=0)=>new THREE.Vector3((x-W2)*M,(elev(x,y)-hmin)*EX+up,(y-H2)*M);
+
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:"high-performance"});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+  renderer.domElement.className="m3d-canvas"; box.prepend(renderer.domElement);
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(42,1,5,30000);
+  const controls=orbit3D(THREE,camera,renderer.domElement,{maxPolar:Math.PI*.47,min:90,max:5200});
+  scene.fog=new THREE.Fog(0xdfeaf5,3200,9500);
+  const hemi=new THREE.HemisphereLight(0xe8f0fa,0x3a4636,1.25); scene.add(hemi);
+  const sun=new THREE.DirectionalLight(0xfff3df,1.9); sun.position.set(900,1600,1700); scene.add(sun);
+
+  // 地形（写真をはった面）と、まわりの側面（模型のような台）
+  const gw=G.gw, gh=G.gh, pos=new Float32Array(gw*gh*3), uv=new Float32Array(gw*gh*2);
+  for(let j=0;j<gh;j++) for(let i=0;i<gw;i++){ const k=j*gw+i, x=i*G.step, y=j*G.step;
+    pos[k*3]=(x-W2)*M; pos[k*3+1]=(HGT[k]-hmin)*EX; pos[k*3+2]=(y-H2)*M; uv[k*2]=x/G.w; uv[k*2+1]=1-y/G.h; }
+  const idx=new Uint32Array((gw-1)*(gh-1)*6); let n=0;
+  for(let j=0;j<gh-1;j++) for(let i=0;i<gw-1;i++){ const a=j*gw+i,b=a+1,c=a+gw,d=c+1; idx[n++]=a; idx[n++]=c; idx[n++]=b; idx[n++]=b; idx[n++]=c; idx[n++]=d; }
+  const tg=new THREE.BufferGeometry(); tg.setAttribute("position",new THREE.BufferAttribute(pos,3)); tg.setAttribute("uv",new THREE.BufferAttribute(uv,2)); tg.setIndex(new THREE.BufferAttribute(idx,1)); tg.computeVertexNormals();
+  const tex=new THREE.TextureLoader().load("img/sat3d.jpg"); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+  const terrain=new THREE.Mesh(tg,new THREE.MeshStandardMaterial({map:tex,roughness:1,metalness:0}));
+  scene.add(terrain);
+  const BASE=-60, sidePos=[], sideIdx=[];
+  const edge=(list)=>{ const s=sidePos.length/3; list.forEach(k=>{ sidePos.push(pos[k*3],pos[k*3+1],pos[k*3+2], pos[k*3],BASE,pos[k*3+2]); });
+    for(let q=0;q<list.length-1;q++){ const a=s+q*2; sideIdx.push(a,a+1,a+2, a+2,a+1,a+3); } };
+  edge([...Array(gw).keys()].map(i=>i)); edge([...Array(gw).keys()].map(i=>(gh-1)*gw+i).reverse());
+  edge([...Array(gh).keys()].map(j=>j*gw).reverse()); edge([...Array(gh).keys()].map(j=>j*gw+gw-1));
+  const sg=new THREE.BufferGeometry(); sg.setAttribute("position",new THREE.Float32BufferAttribute(sidePos,3)); sg.setIndex(sideIdx); sg.computeVertexNormals();
+  const sideMat=new THREE.MeshStandardMaterial({color:0x8b98a8,roughness:1,side:THREE.DoubleSide});
+  scene.add(new THREE.Mesh(sg,sideMat));
+
+  // 線をなめらかに（画素で約3pxごと）
+  const smooth=(pts)=>{ const out=[]; for(let i=0;i<pts.length-1;i++){ const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+      const m=Math.max(2,Math.ceil(Math.hypot(p2[0]-p1[0],p2[1]-p1[1])/3));
+      for(let k=0;k<m;k++){ const t=k/m,t2=t*t,t3=t2*t; out.push([0,1].map(q=>.5*((2*p1[q])+(-p0[q]+p2[q])*t+(2*p0[q]-5*p1[q]+4*p2[q]-p3[q])*t2+(-p0[q]+3*p1[q]-3*p2[q]+p3[q])*t3))); } }
+    out.push(pts[pts.length-1]); return out; };
+  // 斜面にそわせた帯（コース）
+  function ribbon(sp,wM,color,op,up){
+    const L=sp.length, p=new Float32Array(L*6), ix=[];
+    for(let i=0;i<L;i++){ const a=sp[Math.max(0,i-1)], b=sp[Math.min(L-1,i+1)]; let tx=b[0]-a[0], ty=b[1]-a[1]; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;
+      const hw=wM/2/M; [-1,1].forEach((s,o)=>{ const v=P3(sp[i][0]-ty*hw*s, sp[i][1]+tx*hw*s, up); p.set([v.x,v.y,v.z],(i*2+o)*3); });
+      if(i<L-1){ const q=i*2; ix.push(q,q+2,q+1, q+1,q+2,q+3); } }
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(p,3)); g.setIndex(ix);
+    const m=new THREE.MeshBasicMaterial({color,transparent:true,opacity:op,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
+    return new THREE.Mesh(g,m);
+  }
+  const lenPx=sp=>{ let s=0; for(let i=1;i<sp.length;i++) s+=Math.hypot(sp[i][0]-sp[i-1][0],sp[i][1]-sp[i-1][1]); return s; };
+  const courseObj={};
+  COURSES.forEach(c=>{ const raw=G.courses[c.id]; if(!raw) return;
+    const sp=smooth(raw), w=c.id==="centerB"?34:(c.route?10:15), grp=new THREE.Group();
+    const out=ribbon(sp,w+9,0xffffff,.85,3.2), fill=ribbon(sp,w,new THREE.Color(C3D[c.lv]||"#2a8fd6"),.95,3.6);
+    out.renderOrder=2; fill.renderOrder=3; grp.add(out,fill); grp.visible=false; scene.add(grp);
+    courseObj[c.id]={c,sp,grp,set:(o)=>{ fill.material.opacity=.95*o; out.material.opacity=.85*o; }}; });
+
+  // リフト：塔・ワイヤー・動くいす
+  const towerMat=new THREE.MeshStandardMaterial({color:0x545e6b,roughness:.8}), selMat=new THREE.MeshStandardMaterial({color:0x2a7bd6,roughness:.6,emissive:0x0d3a7a,emissiveIntensity:.5});
+  const stationMat=new THREE.MeshStandardMaterial({color:0x7a5236,roughness:.9}), roofMat=new THREE.MeshStandardMaterial({color:0xf2f5f8,roughness:.9});
+  const chairMats=[0xd63b3b,0x2a6fd6,0xe0a020].map(c=>new THREE.MeshStandardMaterial({color:c,roughness:.7}));
+  const hangGeo=new THREE.CylinderGeometry(.18,.18,3.4,5), seatGeo=new THREE.BoxGeometry(3.2,.45,1.5), backGeo=new THREE.BoxGeometry(3.2,1.7,.3);
+  const mkChair=mat=>{ const g=new THREE.Group(), h=new THREE.Mesh(hangGeo,towerMat); h.position.y=-1.7; const st=new THREE.Mesh(seatGeo,mat); st.position.set(0,-3.5,.2); const bk=new THREE.Mesh(backGeo,mat); bk.position.set(0,-2.6,-.55); g.add(h,st,bk); return g; };
+  const liftObj={};
+  LIFTS.forEach(Lf=>{ const ab=G.lifts[Lf.id]; if(!ab) return; const [a,b]=ab;
+    const lenM=Math.hypot(b[0]-a[0],b[1]-a[1])*M, nT=Math.max(3,Math.round(lenM/95)), grp=new THREE.Group(), pts=[];
+    const ga=P3(a[0],a[1],0), gb=P3(b[0],b[1],0), ya=ga.y+11, yb=gb.y+11;
+    for(let k=0;k<=nT;k++){ const t=k/nT, x=a[0]+(b[0]-a[0])*t, y=a[1]+(b[1]-a[1])*t, g0=P3(x,y,0);
+      const yc=Math.max(ya+(yb-ya)*t, g0.y+9); pts.push(new THREE.Vector3(g0.x,yc,g0.z));
+      if(k>0&&k<nT){ const h=yc-g0.y+1.5, tw=new THREE.Mesh(new THREE.CylinderGeometry(.9,1.3,h,6),towerMat); tw.position.set(g0.x,g0.y+h/2-1,g0.z); grp.add(tw);
+        const arm=new THREE.Mesh(new THREE.BoxGeometry(9,.8,.8),towerMat); arm.position.set(g0.x,yc+.4,g0.z); arm.rotation.y=-Math.atan2(gb.z-ga.z,gb.x-ga.x)+Math.PI/2; grp.add(arm); } }
+    [ga,gb].forEach((g,i)=>{ const st=new THREE.Mesh(new THREE.BoxGeometry(16,8,12),stationMat); st.position.set(g.x,g.y+4,g.z); st.rotation.y=-Math.atan2(gb.z-ga.z,gb.x-ga.x); grp.add(st);
+      const rf=new THREE.Mesh(new THREE.BoxGeometry(18,1.6,14),roofMat); rf.position.set(g.x,g.y+8.8,g.z); rf.rotation.y=st.rotation.y; grp.add(rf); });
+    const curve=new THREE.CatmullRomCurve3(pts,false,"catmullrom",0), cable=new THREE.Mesh(new THREE.TubeGeometry(curve,nT*6,.9,5,false),towerMat); grp.add(cable);
+    const side=new THREE.Vector3(-(gb.z-ga.z),0,gb.x-ga.x).normalize().multiplyScalar(2.6), chairs=[], nC=Math.max(6,Math.round(lenM/70));
+    const yaw=-Math.atan2(side.z,side.x);
+    for(let k=0;k<nC;k++) for(const dir of [1,-1]){ const ch=mkChair(chairMats[(k+(dir>0?0:1))%3]); ch.rotation.y=yaw+(dir>0?0:Math.PI); grp.add(ch); chairs.push({m:ch,u:k/nC,dir}); }
+    scene.add(grp); liftObj[Lf.id]={Lf,curve,cable,side,chairs,lenM,a,b,set:(on)=>{ cable.material=on?selMat:towerMat; }}; });
+
+  // 文字（画面の上に重ねる）
+  const lab=$("#m3dLabels"); lab.innerHTML="";
+  const mk=(t,cls)=>{ const d=document.createElement("div"); d.className="m3d-lab "+(cls||""); d.textContent=t; lab.appendChild(d); return d; };
+  const rnd10=v=>Math.round(v/10)*10, mk2=G.marks;
+  const LABELS=[
+    {d:mk(`山頂（約${rnd10(elev(...mk2.summit)).toLocaleString()}m）`,"big"),p:P3(...mk2.summit,40)},
+    {d:mk("カフェテリア"),p:P3(...mk2.cafe,26)},
+    {d:mk(`ふもと・駐車場（約${rnd10(elev(...mk2.base)).toLocaleString()}m）`,"big"),p:P3(...mk2.base,26)},
+    {d:mk("鉢伏山 1,221m","peak"),p:P3(...mk2.hachibuse,40)},
+    {d:mk("スカイバレイ側（共通券）","sv"),p:P3(...mk2.sv,40)},
+  ];
+  LIFTS.forEach(Lf=>{ const o=liftObj[Lf.id]; if(!o) return; const m=o.curve.getPoint(.5); LABELS.push({d:mk(String(Lf.n),"lift"),p:m.clone().add(new THREE.Vector3(0,14,0)),lift:Lf.id}); });
+  const selLab=mk("","sel"); selLab.hidden=true; let selP=null; const compass=$("#m3dCompass");
+  // 滑る人（どの距離でも同じ大きさで見える点）
+  const dot=(col)=>{ const c=document.createElement("canvas"); c.width=c.height=64; const x=c.getContext("2d"); x.beginPath(); x.arc(32,32,24,0,6.283); x.fillStyle="#fff"; x.fill(); x.beginPath(); x.arc(32,32,17,0,6.283); x.fillStyle=col; x.fill();
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,sizeAttenuation:false})); s.scale.set(.045,.045,1); s.renderOrder=10; s.visible=false; scene.add(s); return s; };
+  const skier=dot("#ff4d4f"), rider=dot("#2a7bd6");
+
+  // カメラ
+  let tw=null; const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+  function flyTo(target,dist,az,pol,ms=1100){
+    const end=new THREE.Vector3(target.x+dist*Math.sin(pol)*Math.cos(az), target.y+dist*Math.cos(pol), target.z+dist*Math.sin(pol)*Math.sin(az));
+    if(reduce||ms===0){ camera.position.copy(end); controls.target.copy(target); controls.update(); tw=null; return; }
+    tw={t0:performance.now(),ms,p0:camera.position.clone(),p1:end,q0:controls.target.clone(),q1:target.clone()}; }
+  const AZ=Math.atan2(549+66,1071+86); // ふもと（南東）から山頂を見上げる向き
+  function home(ms){ follow=false; flyTo(P3(590,262,0),2450,AZ,.98,ms); }
+  function frameXY(list,ms){ let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9; list.forEach(([x,y])=>{ x1=Math.min(x1,x); y1=Math.min(y1,y); x2=Math.max(x2,x); y2=Math.max(y2,y); });
+    const cx=(x1+x2)/2, cy=(y1+y2)/2, ext=Math.max(x2-x1,y2-y1)*M; flyTo(P3(cx,cy,0),Math.max(560,ext*1.55+260),AZ,.98,ms); }
+
+  // 動き：コースを滑る／リフトに乗る
+  let anim=null, follow=false, lastMove=null;
+  function along(sp,up){ const cum=[0]; for(let i=1;i<sp.length;i++) cum.push(cum[i-1]+Math.hypot(sp[i][0]-sp[i-1][0],sp[i][1]-sp[i-1][1])); return {sp,cum,len:cum[cum.length-1],up}; }
+  function at(A,u){ const d=u*A.len; let i=1; while(i<A.cum.length-1&&A.cum[i]<d) i++; const k=(d-A.cum[i-1])/((A.cum[i]-A.cum[i-1])||1), p=A.sp[i-1], q=A.sp[i];
+    return {x:p[0]+(q[0]-p[0])*k, y:p[1]+(q[1]-p[1])*k, dx:q[0]-p[0], dy:q[1]-p[1]}; }
+  function startSki(ids){ const sp=[]; ids.forEach(id=>{ const o=courseObj[id]; if(o) sp.push(...(sp.length?o.sp.slice(1):o.sp)); }); if(sp.length<2) return;
+    const A=along(sp,6); anim={kind:"ski",A,snap:follow,t0:performance.now(),dur:Math.min(16000,Math.max(6000,A.len*M/95*1000))}; skier.visible=true; rider.visible=false; }
+  function startRide(id){ const o=liftObj[id]; if(!o) return; anim={kind:"ride",o,snap:follow,t0:performance.now(),dur:Math.max(6000,o.lenM/110*1000)}; rider.visible=true; skier.visible=false; }
+  function update(now,dt){
+    if(tw){ const k=Math.min(1,(now-tw.t0)/tw.ms), e=ease(k); camera.position.lerpVectors(tw.p0,tw.p1,e); controls.target.lerpVectors(tw.q0,tw.q1,e); if(k>=1) tw=null; }
+    if(!reduce) Object.values(liftObj).forEach(o=>o.chairs.forEach(c=>{ c.u=(c.u+dt*4.2/o.lenM*c.dir+1)%1; const p=o.curve.getPoint(c.u); c.m.position.set(p.x+o.side.x*c.dir,p.y,p.z+o.side.z*c.dir); }));
+    if(anim){ let k=Math.min(1,(now-anim.t0)/anim.dur); if(reduce) k=1; const e=anim.kind==="ski"?k:ease(k);
+      let pos3, fwd;
+      if(anim.kind==="ski"){ const q=at(anim.A,e); pos3=P3(q.x,q.y,anim.A.up); skier.position.copy(pos3); const q2=at(anim.A,Math.min(1,e+.03)); const p2=P3(q2.x,q2.y,anim.A.up); fwd=p2.sub(pos3); }
+      else { const p=anim.o.curve.getPoint(e); pos3=p.clone().add(new THREE.Vector3(anim.o.side.x,-3,anim.o.side.z)); rider.position.copy(pos3).add(new THREE.Vector3(0,-1,0)); fwd=anim.o.curve.getTangent(e); }
+      if(follow&&fwd&&fwd.lengthSq()>0){ fwd.y=0; fwd.normalize(); const ski=anim.kind==="ski";
+        const want=pos3.clone().addScaledVector(fwd,ski?-150:-70); want.y=pos3.y+(ski?70:30);
+        const g=elev(want.x/M+W2,want.z/M+H2); want.y=Math.max(want.y,(g-hmin)*EX+20);
+        const look=pos3.clone().addScaledVector(fwd,ski?160:130); look.y=ski?pos3.y-25:pos3.y+18;
+        const a=anim.snap?1:1-Math.exp(-dt*4); anim.snap=false; camera.position.lerp(want,a); controls.target.lerp(look,a); }
+      if(k>=1){ anim=null; follow=false; $("#povBtn").classList.toggle("on",false); }
+    }
+  }
+  function placeLabels(){
+    const w=box.clientWidth, h=box.clientHeight, v=new THREE.Vector3(); const cam=camera.position;
+    const show=(d,p)=>{ v.copy(p).project(camera); const vis=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05; d.style.opacity=vis?"":"0"; if(vis) d.style.transform=`translate(${((v.x+1)/2*w).toFixed(1)}px,${((1-v.y)/2*h).toFixed(1)}px) translate(-50%,-100%)`; };
+    LABELS.forEach(L=>show(L.d,L.p)); if(selP){ selLab.hidden=false; show(selLab,selP); } else selLab.hidden=true;
+    const fx=controls.target.x-cam.x, fz=controls.target.z-cam.z, th=Math.atan2(-fx,-fz)*180/Math.PI; compass.style.transform=`rotate(${th.toFixed(1)}deg)`;
+  }
+  // 選ぶ
+  function select(id,showIds,quiet){
+    const f=findItem(id); if(!f) return;
+    const run=RUN3D[id]||[id], showSet=new Set((showIds||[]).concat(run));
+    Object.entries(courseObj).forEach(([cid,o])=>{ o.grp.visible=showSet.has(cid); o.set(cid===id||!run.includes(cid)?1:.6); });
+    Object.entries(liftObj).forEach(([lid,o])=>o.set(lid===id));
+    LABELS.forEach(L=>{ if(L.lift) L.d.classList.toggle("on",L.lift===id); });
+    anim=null; follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null;
+    if(f.kind==="course"&&courseObj[id]){ const o=courseObj[id], allSp=[].concat(...run.map(c=>courseObj[c]?courseObj[c].sp:[]));
+      frameXY(allSp.length?allSp:o.sp, quiet?0:1100); const mid=o.sp[Math.floor(o.sp.length/2)]; selP=P3(mid[0],mid[1],34); selLab.textContent=f.item.name;
+      lastMove=()=>startSki(run.filter(c=>courseObj[c])); if(!quiet) setTimeout(()=>{ if(lastMove) lastMove(); },reduce?0:1150); }
+    else if(f.kind==="lift"&&liftObj[id]){ const o=liftObj[id]; frameXY([o.a,o.b],quiet?0:1100); lastMove=()=>startRide(id); if(!quiet) setTimeout(()=>lastMove&&lastMove(),reduce?0:1150); }
+    else { lastMove=null; const ids=[...showSet].filter(c=>courseObj[c]);
+      if(id==="skyvalley"){ flyTo(P3(...G.marks.sv,0),1500,AZ-.5,.95); }
+      else if(ids.length){ frameXY([].concat(...ids.map(c=>courseObj[c].sp)),quiet?0:1100); }
+      else home(); }
+  }
+  // 大きさ
+  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+  new ResizeObserver(resize).observe(box);
+  function theme(){ const dk=isDark(); hemi.intensity=dk?.95:1.25; sun.intensity=dk?1.4:1.9; sideMat.color.set(dk?0x2a3a4e:0x8b98a8); scene.fog.color.set(dk?0x22374f:0xdfeaf5); }
+  let running=false, last=0;
+  function loop(now){ if(!running) return; if(!box.offsetParent){ running=false; return; } requestAnimationFrame(loop);
+    const dt=Math.min(.1,(now-last)/1000||0); last=now; update(now,dt); controls.update(); renderer.render(scene,camera); placeLabels(); }
+  controls.addEventListener("start",()=>{ tw=null; if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); } });
+  $("#homeBtn3d").onclick=()=>home();
+  $("#povBtn").onclick=()=>{ if(!lastMove){ toast("コースかリフトを選ぶと、その目線で見られます"); return; } follow=true; $("#povBtn").classList.toggle("on",true); lastMove(); };
+  theme(); resize(); home(0);
+  return { start(){ if(running) return; resize(); running=true; last=performance.now(); requestAnimationFrame(loop); }, stop(){ running=false; },
+    select, home, theme, replay(){ if(lastMove) lastMove(); } };
+}
+
 /* 図の切りかえ（東鉢側／スカイバレイ側） */
 let curMap="tohachi";
 function setMap(key){
@@ -1167,9 +1433,14 @@ function setMap(key){
   $$(".legend [data-only]").forEach(s=>{ s.hidden=s.dataset.only!==key; });
   $$("[data-note]").forEach(n=>{ n.hidden=n.dataset.note!==key; });
   buildChips();
+  if(view3d) $$("#mapTabs button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m==="3d")));
 }
-$$("#mapTabs button").forEach(b=>b.onclick=()=>{ if(b.dataset.m===curMap) return;
-  select(b.dataset.m==="sv"?"sv_signHub":(LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0],false); });
+$$("#mapTabs button").forEach(b=>b.onclick=()=>{ const m=b.dataset.m;
+  if(m==="3d"){ if(!view3d) set3D(true); return; }
+  if(view3d) set3D(false);
+  if(m===curMap) return;
+  select(m==="sv"?"sv_signHub":(LEVELS.find(x=>x.id===level)||LEVELS[0]).rec[0],false); });
+$("#viewBtn").onclick=()=>set3D(!view3d);
 
 /* チップ（ボタン）：いま見ている図のコース・エリア・リフト。★はいまのレベルのおすすめ */
 const mkChip=(box,id,label,lv,cls,color)=>{ const b=document.createElement("button"); b.className="chip"; b.dataset.id=id; b.setAttribute("aria-pressed","false");
@@ -1227,7 +1498,7 @@ function courseViz(c){
 function setNow(color,name,meta,replay){
   const bar=$("#nowbar");
   bar.innerHTML=`<div class="pill"><span class="dot" style="background:${color}"></span><b>${esc(name)}</b>${meta?`<span class="meta">${esc(meta)}</span>`:""}${replay?'<button type="button" id="replayBtn">もう一度</button>':""}</div>`;
-  if(replay) $("#replayBtn").onclick=replay;
+  if(replay) $("#replayBtn").onclick=()=>{ if(view3d&&T3D) T3D.replay(); else replay(); };
 }
 // スタート・ゴールの印と、滑る向きに流れる点
 function placeSG(key,c){
@@ -1242,6 +1513,7 @@ function placeSG(key,c){
 }
 function select(id,fromMap,extra,quiet){
   const f=findItem(id); if(!f) return;
+  if(view3d&&f.map!=="tohachi") set3D(false); // スカイバレイ側は2Dの図で
   if(f.map!==curMap) setMap(f.map);
   if(!quiet){ // 図がはみ出していたら、図ぜんたいが見えるところまで少しだけスクロール
     const r=$(".stage-map .map").getBoundingClientRect(), head=$("header.top").getBoundingClientRect().bottom+8;
@@ -1252,7 +1524,7 @@ function select(id,fromMap,extra,quiet){
   // コースならそのコース、リフトなら そのリフトで行けるコース、エリアなら関係するコースだけ線を出す
   let show= f.kind==="course"?[id] : (f.kind==="lift"?(f.item.serves||[]):(f.item.show||[]));
   if(extra) show=show.concat(extra);
-  showCourses(f.map,show);
+  showCourses(f.map,show); curShow=show;
   svg.querySelectorAll(".runline").forEach(p=>p.classList.toggle("on",p.id==="run-"+id));
   zoomShow(f.map, show.map(i=>document.getElementById("run-"+i)||document.getElementById("cv-"+i)||document.getElementById("lp-"+i)).filter(Boolean).concat(f.kind==="lift"?[document.getElementById("lp-"+id)]:[]));
   M.courses.forEach(c=>{ const p=document.getElementById("cv-"+c.id), on=c.id===id; p.classList.toggle("sel",on); p.setAttribute("stroke-width",on?c.w+2:c.w); });
@@ -1261,10 +1533,11 @@ function select(id,fromMap,extra,quiet){
   svg.querySelectorAll(".badge").forEach(b=>b.classList.toggle("sel",b.dataset.id===id));
   svg.querySelectorAll("[data-area]").forEach(a=>a.classList.toggle("sel",a.dataset.area===id));
   markChips();
+  if(view3d&&f.map==="tohachi") load3D().then(T=>T.select(id,show,quiet)).catch(()=>{});
   const c=f.kind==="course"?f.item:null, L=f.kind==="lift"?f.item:null, a=f.kind==="area"?f.item:null, box=$("#detail");
   const who=LEVELS.filter(v=>v.rec.includes(id)||(v.svrec||[]).includes(id)).map(v=>v.n).join("・");
   const whoLine=who?`<p class="note">こんな人に：${esc(who)}</p>`:"";
-  const later=fn=>{ if(quiet) return; setTimeout(()=>{ if(tk===selTok) fn(); }, reduce?0:650); }; // 線を描き終わってから動かす
+  const later=fn=>{ if(quiet||view3d) return; setTimeout(()=>{ if(tk===selTok) fn(); }, reduce?0:650); }; // 線を描き終わってから動かす
   if(c){
     placeSG(f.map,c);
     setNow(LVC[c.lv],c.name,c.route?tagOf(c):`${c.len.toLocaleString()}m・最大${c.max}°`,()=>runCourse(c));
@@ -1361,6 +1634,7 @@ function showTab(t,keep){
   curTab=t; document.documentElement.style.scrollBehavior="auto"; scrollTo(0,keep?(tabScroll[t]||0):0); document.documentElement.style.scrollBehavior="";
   try{ history.replaceState(null,"","#"+t); }catch(e){}
   if(t==="home") requestAnimationFrame(()=>{ paintScene(); if(reduce) heroFrame(3500); });
+  if(t==="map"&&view3d&&T3D) requestAnimationFrame(()=>T3D.start());
 }
 // 画面の中の節へ（その節がある画面を開いてから）
 function goTo(id){
@@ -1370,6 +1644,7 @@ function goTo(id){
 }
 $$("#tabbar button").forEach(b=>b.onclick=()=>{ try{ navigator.vibrate&&navigator.vibrate(8); }catch(e){} showTab(b.dataset.tab,true); });
 $$(".tile[data-go], .subnav [data-go]").forEach(b=>b.onclick=()=>goTo(b.dataset.go));
+$$(".tile[data-go3d]").forEach(b=>b.onclick=()=>{ showTab("map"); setTimeout(()=>set3D(true),60); });
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.remove("on"); void t.offsetWidth; t.classList.add("on"); clearTimeout(toast.tm); toast.tm=setTimeout(()=>t.classList.remove("on"),2400); }
 
 /* ---------- コース制覇スタンプ ---------- */
