@@ -475,18 +475,19 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 .m3d-canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; outline:none; }
 .m3d-labels{ position:absolute; inset:0; pointer-events:none; overflow:hidden; transition:opacity .3s; }
 .m3d-labels.hide{ opacity:0; }
-.m3d-lab{ position:absolute; left:0; top:0; white-space:nowrap; font-size:.7rem; font-weight:700; color:#0f1d2e; background:rgba(255,255,255,.9); padding:2px 8px; border-radius:99px; box-shadow:0 2px 8px rgba(0,0,0,.2); transition:opacity .2s; will-change:transform; }
-.m3d-lab::after{ content:""; position:absolute; left:50%; bottom:-5px; width:2px; height:5px; margin-left:-1px; background:inherit; }
-.m3d-lab.big{ font-size:.74rem; }
+.m3d-lab{ position:absolute; left:0; top:0; white-space:nowrap; font-size:.6rem; line-height:1.45; font-weight:700; color:#0f1d2e; background:rgba(255,255,255,.84); padding:1px 6px; border-radius:99px; box-shadow:0 1px 3px rgba(0,0,0,.18); transition:opacity .2s; will-change:transform; }
+.m3d-lab::after{ content:""; position:absolute; left:50%; bottom:-4px; width:2px; height:4px; margin-left:-1px; background:inherit; }
 .m3d-lab.peak{ background:rgba(15,29,46,.78); color:#fff; }
 .m3d-lab.sv{ background:rgba(180,122,4,.92); color:#fff; }
-.m3d-lab.lift{ width:22px; height:22px; padding:0; display:grid; place-items:center; border-radius:50%; background:#0f1d2e; color:#fff; font-family:var(--f-num); font-size:.72rem; }
+.m3d-lab.lift{ width:17px; height:17px; padding:0; display:grid; place-items:center; border-radius:50%; background:#0f1d2e; color:#fff; font-family:var(--f-num); font-size:.6rem; }
 .m3d-lab.lift.on{ background:#2a7bd6; transform-origin:center; }
-.m3d-lab.sel{ background:#e5484d; color:#fff; font-size:.78rem; }
+.m3d-lab.sel{ background:#e5484d; color:#fff; font-size:.64rem; }
+.m3d-lab.sel::after{ display:none; }
 .m3d-ui{ position:absolute; left:10px; right:60px; bottom:10px; z-index:3; display:flex; flex-wrap:wrap; gap:6px; }
 .m3d-ui button{ height:36px; padding:0 11px; }
 .m3d-ui button, .viewbtn{ height:38px; padding:0 12px; border-radius:11px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 90%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); color:var(--text); font-size:.8rem; font-weight:700; cursor:pointer; box-shadow:var(--shadow); white-space:nowrap; }
 #snowBtn[aria-pressed="false"]{ background:color-mix(in srgb, var(--gold) 22%, var(--panel)); }
+.speedbtn{ position:absolute; z-index:4; top:10px; left:50%; transform:translateX(-50%); height:36px; padding:0 14px; border-radius:99px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); color:var(--text); font-size:.8rem; font-weight:700; box-shadow:var(--shadow); cursor:pointer; white-space:nowrap; }
 .m3d-ui button.on{ background:#e5484d; border-color:#e5484d; color:#fff; }
 .viewbtn{ position:absolute; z-index:4; right:10px; top:62px; min-width:48px; background:linear-gradient(140deg,var(--acc),var(--acc2)); color:#fff; border:none; font-family:var(--f-num); font-size:.86rem; letter-spacing:.04em; }
 .m3d-hint{ position:absolute; left:10px; bottom:54px; right:60px; margin:0; pointer-events:none; font-size:.7rem; line-height:1.9; color:var(--sub); transition:opacity .5s; }
@@ -640,6 +641,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
         <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
         <p class="m3d-hint" id="m3dHint"><span></span></p>
+        <button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button>
         <button type="button" class="m3d-compass" id="m3dCompass" aria-label="北を上にする" title="北を上にする"><i>N</i></button>
         <div class="m3d-nav" id="m3dNav" role="group" aria-label="地図の操作"><button type="button" data-nav="in" aria-label="拡大" title="拡大"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" data-nav="out" aria-label="縮小" title="縮小"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><button type="button" data-nav="left" aria-label="左に回す" title="左に回す"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button><button type="button" data-nav="right" aria-label="右に回す" title="右に回す"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button><button type="button" data-nav="tilt" aria-label="真上から見る／ななめから見る" title="真上から／ななめから"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 19 7 7h10l4.5 12z"/><path d="M12 7v12M4.8 13h14.4"/></svg></button></div>
         <button type="button" class="fsbtn" id="fsBtn" aria-label="全画面で見る" title="全画面">⛶</button>
@@ -1633,15 +1635,15 @@ function build3D(THREE,img){
   const mk=(t,cls)=>{ const d=document.createElement("div"); d.className="m3d-lab "+(cls||""); d.textContent=t; lab.appendChild(d); return d; };
   const rnd10=v=>Math.round(v/10)*10, mk2=G.marks;
   const LABELS=[
-    {d:mk(`山頂（約${rnd10(elev(...mk2.summit)).toLocaleString()}m）`,"big"),p:P3(...mk2.summit,40)},
-    {d:mk("カフェテリア"),p:P3(...mk2.cafe,26)},
-    {d:mk("山頂オープンバーン"),p:P3(...mk2.open,30)},
-    {d:mk(`ふもと・駐車場（約${rnd10(elev(...mk2.base)).toLocaleString()}m）`,"big"),p:P3(...mk2.base,26)},
-    {d:mk("鉢伏山 1,221m","peak"),p:P3(...mk2.hachibuse,40)},
-    {d:mk("スカイバレイ側（共通券）","sv"),p:P3(...mk2.sv,40)},
+    {d:mk(`山頂 ${rnd10(elev(...mk2.summit)).toLocaleString()}m`),p:P3(...mk2.summit,22)},
+    {d:mk("カフェテリア"),p:P3(...mk2.cafe,14)},
+    {d:mk("オープンバーン"),p:P3(...mk2.open,16)},
+    {d:mk(`ふもと ${rnd10(elev(...mk2.base)).toLocaleString()}m`),p:P3(...mk2.base,14)},
+    {d:mk("鉢伏山 1,221m","peak"),p:P3(...mk2.hachibuse,30)},
+    {d:mk("スカイバレイ側","sv"),p:P3(...mk2.sv,24)},
   ];
-  LIFTS.forEach(Lf=>{ const o=liftObj[Lf.id]; if(!o) return; const m=o.curve.getPoint(.5); LABELS.push({d:mk(String(Lf.n),"lift"),p:m.clone().add(new THREE.Vector3(0,14,0)),lift:Lf.id}); });
-  const selLab=mk("","sel"); selLab.hidden=true; let selP=null; const compass=$("#m3dCompass");
+  LIFTS.forEach(Lf=>{ const o=liftObj[Lf.id]; if(!o) return; const m=o.curve.getPoint(.5); LABELS.push({d:mk(String(Lf.n),"lift"),p:m.clone().add(new THREE.Vector3(0,10,0)),lift:Lf.id}); });
+  const selLab=mk("","sel"); selLab.hidden=true; let selP=null, selP2=null; const compass=$("#m3dCompass");
   // 画面の上で、いつも同じ大きさ（px）に見える丸
   function pxSize(sp,px){ sp.userData.px=px; const v=px*LK.value; sp.scale.set(v,v,1); }
   // 滑る人（どの距離でも同じ大きさで見える点）
@@ -1674,13 +1676,15 @@ function build3D(THREE,img){
   function at(A,u){ const d=u*A.len; let i=1; while(i<A.cum.length-1&&A.cum[i]<d) i++; const k=(d-A.cum[i-1])/((A.cum[i]-A.cum[i-1])||1), p=A.sp[i-1], q=A.sp[i];
     return {x:p[0]+(q[0]-p[0])*k, y:p[1]+(q[1]-p[1])*k, dx:q[0]-p[0], dy:q[1]-p[1]}; }
   function startSki(ids){ const sp=[]; ids.forEach(id=>{ const o=courseObj[id]; if(o) sp.push(...(sp.length?o.sp.slice(1):o.sp)); }); if(sp.length<2) return;
-    const A=along(sp,6); anim={kind:"ski",A,snap:follow,t0:performance.now(),dur:Math.min(16000,Math.max(6000,A.len*M/95*1000))}; skier.visible=true; rider.visible=false; }
+    const A=along(sp,6), lenM=A.len*M; // 目線のときは、ゆっくり（約28m/秒）。ふだんは早送り
+    anim={kind:"ski",A,snap:follow,k:0,dur:follow?Math.min(100000,Math.max(14000,lenM/28*1000)):Math.min(16000,Math.max(6000,lenM/95*1000))}; skier.visible=true; rider.visible=false;
+    if(follow) lab.classList.add("hide"); }
   function startRide(id){ const o=liftObj[id]; if(!o) return; stopRide();
     if(follow&&!reduce){ // ふもとの滑車をまわって来る いすに乗る
       let best=null, bd=1e9; chairs.forEach(c=>{ if(c.o!==o) return; const dd=(o.L-sOf(c))%o.L; if(dd<bd){ bd=dd; best=c; } });
       const T=Math.min(20,Math.max(10,o.upLen/42)); o.mul=(o.upLen+bd)/T/LIFT_V; rideChair=best; o.set(false); lab.classList.add("hide"); camera.near=1.2; camera.updateProjectionMatrix();
       anim={kind:"ride",fp:true,o,c:best,snap:true,t0:performance.now(),dur:T*1000}; rider.visible=skier.visible=false; return; }
-    anim={kind:"ride",o,snap:follow,t0:performance.now(),dur:Math.max(6000,o.lenM/110*1000)}; rider.visible=true; skier.visible=false; }
+    anim={kind:"ride",o,snap:follow,k:0,dur:Math.max(6000,o.lenM/110*1000)}; rider.visible=true; skier.visible=false; }
   function stopRide(){ lifts.forEach(o=>{ o.mul=1; }); rideChair=null; lab.classList.remove("hide"); if(camera.near!==5){ camera.near=5; camera.updateProjectionMatrix(); } }
   const eyeP=new THREE.Vector3(), eyeT=new THREE.Vector3(), lookP=new THREE.Vector3();
   function update(now,dt){
@@ -1693,7 +1697,7 @@ function build3D(THREE,img){
       if(tw.sph){ const a=tw.s0, b=tw.s1; controls.target.copy(tw.q); camera.position.copy(tw.q).add(v3.setFromSphericalCoords(a.r+(b.r-a.r)*e,a.phi+(b.phi-a.phi)*e,a.th+(b.th-a.th)*e)); controls.clamp(); }
       else { camera.position.lerpVectors(tw.p0,tw.p1,e); controls.target.lerpVectors(tw.q0,tw.q1,e); }
       if(k>=1) tw=null; }
-    if(anim&&!anim.fp){ let k=Math.max(0,Math.min(1,(now-anim.t0)/anim.dur)); if(reduce) k=1; const e=anim.kind==="ski"?k:ease(k);
+    if(anim&&!anim.fp){ if(anim.k==null) anim.k=0; anim.k=Math.min(1,anim.k+dt*1000/anim.dur*(follow&&anim.kind==="ski"?SPEEDS[spIdx][0]:1)); let k=anim.k; if(reduce) k=1; const e=anim.kind==="ski"?k:ease(k);
       let pos3, fwd;
       if(anim.kind==="ski"){ const q=at(anim.A,e); pos3=P3(q.x,q.y,anim.A.up); skier.position.copy(pos3); const q2=at(anim.A,Math.min(1,e+.03)); const p2=P3(q2.x,q2.y,anim.A.up); fwd=p2.sub(pos3); }
       else { const p=anim.o.curve.getPoint(e); pos3=p.clone().add(new THREE.Vector3(anim.o.side.x,-3,anim.o.side.z)); rider.position.copy(pos3).add(new THREE.Vector3(0,-1,0)); fwd=anim.o.curve.getTangent(e); }
@@ -1702,13 +1706,36 @@ function build3D(THREE,img){
         const g=elev(want.x/M+W2,want.z/M+H2); want.y=Math.max(want.y,(g-hmin)*EX+20);
         const look=pos3.clone().addScaledVector(fwd,ski?160:130); look.y=ski?pos3.y-25:pos3.y+18;
         const a=anim.snap?1:1-Math.exp(-dt*4); anim.snap=false; camera.position.lerp(want,a); controls.target.lerp(look,a); }
-      if(k>=1){ anim=null; follow=false; $("#povBtn").classList.toggle("on",false); controls.repivot(); }
+      if(k>=1){ anim=null; follow=false; $("#povBtn").classList.toggle("on",false); lab.classList.remove("hide"); controls.repivot(); }
     }
   }
+  // 札が、画面に出ているコースの線にかかっているか（線の区切りと札の四角が重なるか）
+  function segHit(x1,y1,x2,y2,r){ let t0=0, t1=1; const dx=x2-x1, dy=y2-y1, P=[-dx,dx,-dy,dy], Q=[x1-r[0],r[2]-x1,y1-r[1],r[3]-y1];
+    for(let i=0;i<4;i++){ if(P[i]===0){ if(Q[i]<0) return false; } else { const t=Q[i]/P[i]; if(P[i]<0){ if(t>t1) return false; if(t>t0) t0=t; } else { if(t<t0) return false; if(t<t1) t1=t; } } }
+    return true; }
+  const lines=[], pv=new THREE.Vector3();
+  function screenLines(w,h){ lines.length=0;
+    const add=pts=>{ const L=[]; for(const q of pts){ pv.copy(q).project(camera); L.push(pv.z<1?(pv.x+1)/2*w:NaN,(1-pv.y)/2*h); } lines.push(L); };
+    Object.values(courseObj).forEach(o=>{ if(!o.grp.visible) return; if(!o.s3) o.s3=o.sp.filter((p,i)=>i%2===0||i===o.sp.length-1).map(p=>P3(p[0],p[1],4)); add(o.s3); });
+    if(ed.on&&ed.pts.length>1) add(smooth(ed.pts).filter((p,i)=>i%2===0).map(p=>P3(p[0],p[1],4))); }
+  function hits(r){ for(const L of lines) for(let i=2;i<L.length;i+=2){ const x1=L[i-2], x2=L[i]; if(x1!==x1||x2!==x2) continue; if(segHit(x1,L[i-1],x2,L[i+1],r)) return true; } return false; }
   function placeLabels(){
-    const w=vw, h=vh, v=new THREE.Vector3(); const cam=camera.position;
-    const show=(d,p)=>{ v.copy(p).project(camera); const vis=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05; d.style.opacity=vis?"":"0"; if(vis) d.style.transform=`translate(${((v.x+1)/2*w).toFixed(1)}px,${((1-v.y)/2*h).toFixed(1)}px) translate(-50%,-100%)`; };
-    LABELS.forEach(L=>show(L.d,L.p)); if(selP){ selLab.hidden=false; show(selLab,selP); } else selLab.hidden=true;
+    const w=vw, h=vh, v=new THREE.Vector3(); const cam=camera.position, M2=5;
+    screenLines(w,h);
+    const show=(d,p)=>{ v.copy(p).project(camera); const vis=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05;
+      if(!vis){ d.style.opacity="0"; return; }
+      const x=(v.x+1)/2*w, y=(1-v.y)/2*h; if(!d._w){ d._w=d.offsetWidth; d._h=d.offsetHeight; }
+      const over=lines.length&&hits([x-d._w/2-M2,y-d._h-M2,x+d._w/2+M2,y+4+M2]);
+      d.style.opacity=over?".16":""; d.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px) translate(-50%,-100%)`; };
+    LABELS.forEach(L=>show(L.d,L.p));
+    if(selP){ selLab.hidden=false; v.copy(selP).project(camera); const a=[(v.x+1)/2*w,(1-v.y)/2*h], ok=v.z<1&&Math.abs(v.x)<1.05&&Math.abs(v.y)<1.05;
+      v.copy(selP2).project(camera); let tx=(v.x+1)/2*w-a[0], ty=(1-v.y)/2*h-a[1]; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;
+      if(!selLab._w){ selLab._w=selLab.offsetWidth; selLab._h=selLab.offsetHeight; }
+      const W2l=selLab._w/2, H2l=selLab._h/2, gap=Math.abs(-ty)*W2l+Math.abs(tx)*H2l+8; let best=null;
+      for(const sg of [1,-1]){ const cx=a[0]-ty*gap*sg, cy=a[1]+tx*gap*sg, r=[cx-W2l,cy-H2l,cx+W2l,cy+H2l];
+        const score=(hits(r)?2:0)+((r[0]<4||r[2]>w-4||r[1]<4||r[3]>h-4)?1:0); if(!best||score<best.s) best={s:score,cx,cy}; }
+      selLab.style.opacity=ok?"":"0"; selLab.style.transform=`translate(${best.cx.toFixed(1)}px,${best.cy.toFixed(1)}px) translate(-50%,-50%)`; }
+    else selLab.hidden=true;
     const fx=controls.target.x-cam.x, fz=controls.target.z-cam.z, th=Math.atan2(-fx,-fz)*180/Math.PI; compass.style.transform=`rotate(${th.toFixed(1)}deg)`;
   }
   // 選ぶ
@@ -1722,7 +1749,7 @@ function build3D(THREE,img){
     LABELS.forEach(L=>{ if(L.lift) L.d.classList.toggle("on",L.lift===id); });
     anim=null; stopRide(); follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null;
     if(f.kind==="course"&&courseObj[id]){ const o=courseObj[id], allSp=[].concat(...run.map(c=>courseObj[c]?courseObj[c].sp:[]));
-      frameXY(allSp.length?allSp:o.sp, quiet?0:1100); const mid=o.sp[Math.floor(o.sp.length/2)]; selP=P3(mid[0],mid[1],34); selLab.textContent=f.item.name;
+      frameXY(allSp.length?allSp:o.sp, quiet?0:1100); const mi=Math.floor(o.sp.length/2), mid=o.sp[mi], mid2=o.sp[Math.min(o.sp.length-1,mi+4)]; selP=P3(mid[0],mid[1],4); selP2=P3(mid2[0],mid2[1],4); selLab.textContent=f.item.name; selLab._w=0;
       lastMove=()=>startSki(run.filter(c=>courseObj[c])); if(!quiet) setTimeout(()=>{ if(lastMove) lastMove(); },reduce?0:1150); }
     else if(f.kind==="lift"&&liftObj[id]){ const o=liftObj[id]; frameXY([o.a,o.b],quiet?0:1100); lastMove=()=>startRide(id); if(!quiet) setTimeout(()=>lastMove&&lastMove(),reduce?0:1150); }
     else { lastMove=null; const ids=[...showSet].filter(c=>courseObj[c]);
@@ -1828,13 +1855,13 @@ function build3D(THREE,img){
   function refreshCourse(id){ const c=COURSES.find(x=>x.id===id); if(!c) return; buildCourse(c); needDraw=true;
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
-  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
+  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; LABELS.concat([{d:selLab}]).forEach(L=>{ L.d._w=0; }); vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
   new ResizeObserver(resize).observe(box);
   function theme(){ const dk=isDark(); hemi.intensity=dk?.95:1.25; sun.intensity=dk?1.4:1.9; sideMat.color.set(dk?0x2a3a4e:0x8b98a8); scene.fog.color.set(dk?0x22374f:0xdfeaf5); needDraw=true; }
   // 描く：カメラが動いたとき・動きがあるときだけ（止まっている間は描かない。近くで見ている間は、いすを動かすため少しずつ）
   let running=false, last=0, lastR=0, chairT=0, prevBusy=false, slowN=0, slowT=0; const pc=new THREE.Vector3(), pt=new THREE.Vector3();
   function loop(now){ if(!running) return; if(!view3d||curTab!=="map"){ running=false; return; } requestAnimationFrame(loop);
-    const dt=Math.min(.1,(now-last)/1000||0); last=now; update(now,dt); controls.update(dt);
+    const dt=Math.min(.1,(now-last)/1000||0); last=now; const spOn=!!(follow&&anim&&anim.kind==="ski"); if(spBtn.hidden===spOn) spBtn.hidden=!spOn; const hideL=!!(follow&&anim); if(lab.classList.contains("hide")!==hideL) lab.classList.toggle("hide",hideL); /* 札は、目線のあいだだけ かくす */ update(now,dt); controls.update(dt);
     const moved=!camera.position.equals(pc)||!controls.target.equals(pt), busy=moved||!!tw||!!anim, near=!reduce&&camera.position.distanceTo(controls.target)<2000;
     if(!(busy||needDraw||(near&&now-lastR>50))){ prevBusy=false; return; }
     // 重い端末では、動かしている間の速さを見て、画面の細かさを少し下げる
@@ -1842,7 +1869,11 @@ function build3D(THREE,img){
     prevBusy=busy; pc.copy(camera.position); pt.copy(controls.target); needDraw=false;
     moveChairs();
     lastR=now; renderer.render(scene,camera); placeLabels(); }
-  controls.addEventListener("start",()=>{ tw=null; if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); } $("#m3dHint").classList.add("gone"); });
+  controls.addEventListener("start",()=>{ tw=null; if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); lab.classList.remove("hide"); } $("#m3dHint").classList.add("gone"); });
+  // 速さのボタン（目線で滑っているあいだだけ出る）
+  const SPEEDS=[[.5,"🐢 ゆっくり"],[1,"⛷ ふつう"],[2,"🐇 はやい"]]; let spIdx=Math.max(0,Math.min(2,store.get("skiSpeed",1)|0));
+  const spBtn=$("#speedBtn"), spLabel=()=>{ spBtn.textContent=SPEEDS[spIdx][1]; }; spLabel();
+  spBtn.onclick=()=>{ spIdx=(spIdx+1)%SPEEDS.length; store.set("skiSpeed",spIdx); spLabel(); };
   $("#homeBtn3d").onclick=()=>home();
   // ＋－・回す・傾き・方位のボタン
   const wrapA=a=>Math.atan2(Math.sin(a),Math.cos(a));
