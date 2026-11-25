@@ -624,8 +624,17 @@ function popOpen(html, kind, id){
   el.addEventListener('mousedown', ev=>{ if(ev.target===el) popClose(); });
   host.appendChild(el);
   pop={el, kind, id, rel:()=>{}};
+  popFit();
   const me=pop; if(typeof modalBack==='function') pop.rel=modalBack(()=>{ if(pop===me){ pop=null; el.remove(); } });   // 端末の「戻る」は この窓だけ 閉じる
 }
+/* キーボード・時刻の 画面が 下を ふさいでも 窓が その 上に 出る ように（v702） */
+function popFit(){
+  if(!pop) return; const vv=window.visualViewport, el=pop.el;
+  const hide=vv ? Math.max(0, Math.round(innerHeight-vv.height-vv.offsetTop)) : 0;
+  el.style.paddingBottom=hide>40 ? hide+'px' : '';
+  const f=document.activeElement; if(hide>40 && f && el.contains(f) && f.scrollIntoView) f.scrollIntoView({block:'nearest'});
+}
+if(window.visualViewport){ visualViewport.addEventListener('resize', popFit); visualViewport.addEventListener('scroll', popFit); }
 function popClose(){ if(!pop) return; const p=pop; pop=null; p.rel(); p.el.remove(); }
 const ph=t=>'<div class="tb-ph"><b>'+t+'</b><button type="button" class="tb-x" onclick="TABETA.close()" aria-label="閉じる">✕</button></div>';
 function openItem(id){
@@ -637,7 +646,7 @@ function openItem(id){
     +'<label class="tb-f"><span>カロリー</span><input id="tbEK" type="number" inputmode="numeric" min="0" max="20000" step="1" value="'+(x.k!=null ? x.k : '')+'" placeholder="'+(au ? String(au.k) : 'わからない')+'"><em>kcal</em></label>'
     +'<p class="tb-note" id="tbEKn">'+(au ? (au.by==='自分' ? '前に 自分で 入れた 値から' : '「'+esc(au.name)+'」として')+' 約'+kcText(au.k)+'（目安）。' : 'この 物の カロリーは 自動では わかりません。')+'数字を 入れると その 値に なり、次から 同じ 名前は その 値で 入ります。空に すると 自動に もどります。</p>'
     +'<label class="tb-f"><span>日</span><input id="tbED" type="date" value="'+ymd(d)+'"></label>'
-    +'<label class="tb-f"><span>時刻</span><input id="tbET" type="time" value="'+pad2(d.getHours())+':'+pad2(d.getMinutes())+'"></label>'
+    +'<div class="tb-f"><span>時刻</span><input id="tbET" type="time" value="'+pad2(d.getHours())+':'+pad2(d.getMinutes())+'" aria-label="時刻"><button type="button" class="tb-b pri tb-ok" onclick="TABETA.saveItem(\''+x.i+'\')">✓ 決定</button></div>'
     +'<div class="tb-f"><span>食事</span><div class="tb-seg" id="tbEM">'+MEALS.map(m=>'<button type="button" data-m="'+m[0]+'" class="'+(x.m===m[0]?'on':'')+'" onclick="TABETA.pickMeal(this)">'+m[1]+' '+m[2]+'</button>').join('')+'</div></div>'
     +'<div class="tb-acts"><button type="button" class="tb-b pri" onclick="TABETA.saveItem(\''+x.i+'\')">✓ 直す</button><button type="button" class="tb-b" onclick="TABETA.again(\''+x.i+'\')">🔁 もう一度 食べた（いま 入れる）</button><button type="button" class="tb-b warn" onclick="TABETA.del(\''+x.i+'\')">🗑 消す</button></div>', 'item', x.i);
 }
@@ -666,12 +675,12 @@ function openWhen(){
   const T=dayStart(now()), cur=when||{day:ymd(T), meal:null, time:null};
   const dayBtn=(n,t)=>{ const d=new Date(T.getFullYear(), T.getMonth(), T.getDate()-n), k=ymd(d); return '<button type="button" class="'+(cur.day===k?'on':'')+'" onclick="TABETA.setWhen(\'day\',\''+k+'\')">'+t+'</button>'; };
   popOpen(ph('🕘 いつ 食べた？')
-    +'<p class="tb-note">あとから 入れる ときに。決めた 日・食事で、もどすまで 続けて 入れられます。</p>'
+    +'<p class="tb-note">あとから 入れる ときに。決めた 日・食事で、もどすまで 続けて 入れられます（時刻は なくても よい）。</p>'
     +'<div class="tb-f"><span>日</span><div class="tb-seg">'+dayBtn(0,'きょう')+dayBtn(1,'きのう')+dayBtn(2,'おととい')+'</div></div>'
     +'<label class="tb-f"><span></span><input id="tbWD" type="date" value="'+esc(cur.day)+'" max="'+ymd(T)+'" onchange="TABETA.setWhen(\'day\',this.value)"></label>'
-    +'<div class="tb-f"><span>食事</span><div class="tb-seg">'+MEALS.map(m=>'<button type="button" class="'+(cur.meal===m[0]?'on':'')+'" onclick="TABETA.setWhen(\'meal\',\''+m[0]+'\')">'+m[1]+' '+m[2]+'</button>').join('')+'</div></div>'
-    +'<label class="tb-f"><span>時刻</span><input id="tbWT" type="time" value="'+esc(cur.time||'')+'" onchange="TABETA.setWhen(\'time\',this.value)"><em>（なくても よい）</em></label>'
-    +'<div class="tb-acts"><button type="button" class="tb-b pri" onclick="TABETA.close()">✓ これで 入れる</button><button type="button" class="tb-b" onclick="TABETA.setWhen(\'now\')">🕘 いまに もどす</button></div>', 'when');
+    +'<div class="tb-f"><span>食事</span><div class="tb-seg" id="tbWM">'+MEALS.map(m=>'<button type="button" data-m="'+m[0]+'" class="'+(cur.meal===m[0]?'on':'')+'" onclick="TABETA.setWhen(\'meal\',\''+m[0]+'\')">'+m[1]+' '+m[2]+'</button>').join('')+'</div></div>'
+    +'<div class="tb-f"><span>時刻</span><input id="tbWT" type="time" value="'+esc(cur.time||'')+'" aria-label="時刻" onchange="TABETA.setWhen(\'time\',this.value)"><button type="button" class="tb-b pri tb-ok" onclick="TABETA.whenOk()">✓ 決定</button></div>'
+    +'<div class="tb-acts"><button type="button" class="tb-b pri" onclick="TABETA.whenOk()">✓ これで 入れる</button><button type="button" class="tb-b" onclick="TABETA.setWhen(\'now\')">🕘 いまに もどす</button></div>', 'when');
 }
 function setWhen(k, v){
   const T=dayStart(now());
@@ -681,7 +690,17 @@ function setWhen(k, v){
   else if(k==='meal'){ w.meal=MEALS.some(m=>m[0]===v) ? v : null; w.time=null; }
   else if(k==='time'){ w.time=/^\d{1,2}:\d\d$/.test(String(v)) ? String(v) : null; if(w.time) w.meal=mealOf(new Date(2000,0,1,+w.time.split(':')[0],+w.time.split(':')[1])); }
   w.seq=0; when=w; renderDock();
-  if(pop && pop.kind==='when') openWhen();
+  if(pop && pop.kind==='when'){
+    if(k==='time'){ document.querySelectorAll('#tbWM button').forEach(b=>b.classList.toggle('on', b.dataset.m===w.meal)); return; }
+    openWhen();
+  }
+}
+/* ✓ 決定（v702）：打った 時刻を 入れて 閉じる（change が まだ 来て いない 端末でも 欄の 値を 読む） */
+function whenOk(){
+  const i=$('tbWT'), v=i ? String(i.value||'') : '';
+  if(/^\d{1,2}:\d\d$/.test(v) && (!when || when.time!==v)) setWhen('time', v);
+  popClose();
+  if(when) toastS(whenText()+' で 入れます');
 }
 function whenTap(){ if(when){ when=null; renderDock(); toastS('いまの 時刻で 入れます'); } else openWhen(); }
 function openMenu(){
@@ -1099,6 +1118,8 @@ body.dark .tb-kc{ color:#ffab91; } body.dark .tb-kc.my{ color:#ce93d8; }
 .tb-seg button{ min-height:40px; padding:0 12px; border-radius:20px; border:1px solid rgba(120,132,156,.45); background:transparent; color:var(--text,#222); font-size:14px; cursor:pointer; }
 .tb-seg button.on{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); font-weight:bold; }
 .tb-acts{ display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; } .tb-acts.col{ flex-direction:column; }
+.tb-pop > .tb-acts:last-child:not(.col){ position:sticky; bottom:calc(-14px - var(--safe-bottom,0px)); margin:10px -14px calc(-14px - var(--safe-bottom,0px)); padding:8px 14px calc(10px + var(--safe-bottom,0px)); background:var(--modal-bg,#fff); box-shadow:0 -4px 10px rgba(0,0,0,.08); z-index:1; }
+.tb-f .tb-ok{ flex:none; min-height:44px; padding:0 12px; }
 .tb-b{ min-height:46px; padding:0 14px; border-radius:12px; border:1px solid rgba(120,132,156,.45); background:rgba(120,132,156,.08); color:var(--text,#222); font-size:15px; font-weight:bold; cursor:pointer; }
 .tb-b.pri{ background:var(--acc); border-color:var(--acc); color:var(--on-acc,#fff); } .tb-b.warn{ color:#e53935; border-color:rgba(229,57,53,.5); background:transparent; }
 .tb-pop.big{ max-width:780px; height:92%; max-height:92%; }
@@ -1165,7 +1186,7 @@ function cleanup(){ popClose(); micStop(); clearTimeout(undoT); undo=null; const
 function openTabeta(){ ensureDom(); load(); q=''; shown=SHOW_N; const f=$('tbFind'); if(f) f.value=''; openDlg('tabetaOverlay', cleanup); render(true); }
 function closeTabeta(){ if(!$('tabetaOverlay') || !isDlgOpen('tabetaOverlay')) return; closeDlg('tabetaOverlay', cleanup); }
 
-window.TABETA={ go:addGo, chip, undo:undoDo, open:openItem, close:popClose, pickMeal, saveItem, del:delItem, again, whenTap, setWhen, openWhen, menu:openMenu, out, csv, wipe, setSplit, setCal, setPmShow, pm:openPm, graphPm, more, prof:openProf, saveProf, delProf, profCalc, pickSeg, graph:openGraph, grSet, grSel:i=>grSel(+i), importClick, importFile, importText, appHelp, find, mic,
+window.TABETA={ go:addGo, chip, undo:undoDo, open:openItem, close:popClose, pickMeal, saveItem, del:delItem, again, whenTap, setWhen, whenOk, openWhen, menu:openMenu, out, csv, wipe, setSplit, setCal, setPmShow, pm:openPm, graphPm, more, prof:openProf, saveProf, delProf, profCalc, pickSeg, graph:openGraph, grSet, grSel:i=>grSel(+i), importClick, importFile, importText, appHelp, find, mic,
   // ためす とき 用
   now:s=>{ fixedNow=s ? String(s) : null; if(st) render(true); }, add:(t, voice)=>addText(t, !!voice).length, state:()=>JSON.parse(JSON.stringify(st)), split:(t, v)=>splitFoods(t, v!==false), mealOf:s=>mealOf(new Date(s)),
   text, rows, chips:chipList, clean:cleanE, heard, bmr:p=>bmrOf(cleanProf(p)), burn:p=>burnOf(cleanProf(p)), grData:()=>{ const D=grData(); return {from:ymd(D.from), to:ymd(D.to), nd:D.nd, unit:D.unit, rec:D.rec, sum:Math.round(D.sum), avg:D.avg==null ? null : Math.round(D.avg), bn:D.bn, pmSum:D.pmSum==null ? null : Math.round(D.pmSum), unk:D.unk, bk:D.bk.map(b=>[b.label, b.v==null ? null : Math.round(b.v), b.pm==null ? null : Math.round(b.pm), b.items])}; }, gr:()=>Object.assign({}, gr), kcal:(n, q)=>{ const a=kcAuto(String(n||''), String(q||'')); return a ? a.k : null; }, kcalOf:id=>{ const x=eOf(id); return x ? kcalOf(x) : null; }, qty:t=>qtyOf(t), when:()=>when ? Object.assign({}, when) : null };
