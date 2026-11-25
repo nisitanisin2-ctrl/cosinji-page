@@ -473,7 +473,8 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 .map.is3d .map3d{ display:block; }
 .map.is3d > svg, .map.is3d .zoomctl, .map.is3d .zoomhint{ display:none !important; }
 .m3d-canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; outline:none; }
-.m3d-labels{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.m3d-labels{ position:absolute; inset:0; pointer-events:none; overflow:hidden; transition:opacity .3s; }
+.m3d-labels.hide{ opacity:0; }
 .m3d-lab{ position:absolute; left:0; top:0; white-space:nowrap; font-size:.7rem; font-weight:700; color:#0f1d2e; background:rgba(255,255,255,.9); padding:2px 8px; border-radius:99px; box-shadow:0 2px 8px rgba(0,0,0,.2); transition:opacity .2s; will-change:transform; }
 .m3d-lab::after{ content:""; position:absolute; left:50%; bottom:-5px; width:2px; height:5px; margin-left:-1px; background:inherit; }
 .m3d-lab.big{ font-size:.74rem; }
@@ -1428,7 +1429,7 @@ function build3D(THREE,img){
   const controls=mapControls3D(THREE,camera,renderer.domElement,{groundRay,heightAt:hAt,bounds:{x0:-XB+80,x1:XB-80,z0:-ZB+60,z1:ZB-60},minR:60,maxR:6000,minPhi:.04,maxPhi:1.4,clear:14});
   scene.fog=new THREE.Fog(0xdfeaf5,3200,9500);
   const hemi=new THREE.HemisphereLight(0xe8f0fa,0x3a4636,1.25); scene.add(hemi);
-  const sun=new THREE.DirectionalLight(0xfff3df,1.9); sun.position.set(900,1600,1700); scene.add(sun);
+  const sun=new THREE.DirectionalLight(0xfff3df,1.9); sun.position.set(300,1600,1800); scene.add(sun);
 
   // 地形（写真をはった面）と、まわりの側面（模型のような台）
   const gw=G.gw, gh=G.gh, pos=new Float32Array(gw*gh*3), uv=new Float32Array(gw*gh*2);
@@ -1501,38 +1502,131 @@ function build3D(THREE,img){
     const o={c,sp,grp,op:old?old.op:1,set:(v)=>{ o.op=v; band.material.opacity=.34*v; L.cas.material.uniforms.uOp.value=.8*v; L.ln.material.uniforms.uOp.value=.95*v; }}; o.set(o.op); courseObj[c.id]=o; }
   COURSES.forEach(buildCourse);
 
-  // リフト：塔・ワイヤー・動くいす（数が多いので、同じ形のものはまとめて1回で描く）
-  const towerMat=new THREE.MeshStandardMaterial({color:0x545e6b,roughness:.8}), selMat=new THREE.MeshStandardMaterial({color:0x2a7bd6,roughness:.6,emissive:0x0d3a7a,emissiveIntensity:.5});
-  const stationMat=new THREE.MeshStandardMaterial({color:0x7a5236,roughness:.9}), roofMat=new THREE.MeshStandardMaterial({color:0xf2f5f8,roughness:.9});
-  const chairMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.7}), chairCols=[0xd63b3b,0x2a6fd6,0xe0a020].map(c=>new THREE.Color(c));
-  const liftObj={}, towers=[], arms=[], stations=[], chairs=[], dm=new THREE.Object3D();
+  // ===== リフト（ペアリフト）：本物に近い形 =====
+  //  支柱：くつ（コンクリート）・柱・腕・点検の足場・はしご・滑車（両はしに4こずつ）
+  //  ワイヤー：上りと下りの2本（4.8m はなれている）。支柱のあいだで少したるむ
+  //  駅：大きな滑車（ブルホイール）・機械のはこ・屋根・係員の小屋・乗り場
+  //  いす：2人乗り（つり棒・座面・背もたれ・ひじかけ・安全バー・足のせ）。色はリフトごと。上りには人が乗っている
+  const GAUGE=4.8, HR=GAUGE/2, SAG=.022, CH_GAP=14.4, LIFT_V=2.3, HB=3.6;
+  const CHAIR_COL=0x8d3a2e; // 写真のいす：こい灰色のわく、えんじ色の座面
+  const mSteel=new THREE.MeshStandardMaterial({color:0x808b97,roughness:.5,metalness:.45}), mSteelD=new THREE.MeshStandardMaterial({color:0x3e454e,roughness:.55,metalness:.5});
+  const mConc=new THREE.MeshStandardMaterial({color:0xb9bdc2,roughness:.95}), mWall=new THREE.MeshStandardMaterial({color:0xece4d3,roughness:.9}), mRoof=new THREE.MeshStandardMaterial({color:0x8a2f25,roughness:.75});
+  const mDeck=new THREE.MeshStandardMaterial({color:0x8e7657,roughness:.95}), mGlass=new THREE.MeshStandardMaterial({color:0x1f2c38,roughness:.25,metalness:.3});
+  const UPV=new THREE.Vector3(0,1,0), BX=new THREE.BoxGeometry(1,1,1), POLE=new THREE.CylinderGeometry(.3,.42,1,12), CYL=new THREE.CylinderGeometry(1,1,1,10);
+  const WHEEL=new THREE.CylinderGeometry(.27,.27,.1,14), BULL=new THREE.TorusGeometry(HR,.14,8,48), SPH=new THREE.SphereGeometry(1,8,6);
+  const batch=new Map(), _q=new THREE.Quaternion(), _e=new THREE.Euler(), _m=new THREE.Matrix4(), _l=new THREE.Matrix4(), _p=new THREE.Vector3(), _s=new THREE.Vector3();
+  function frameAt(x,y,z,yaw){ return new THREE.Matrix4().compose(new THREE.Vector3(x,y,z),new THREE.Quaternion().setFromAxisAngle(UPV,yaw),new THREE.Vector3(1,1,1)); }
+  function part(geo,p,s,r){ const g=geo.index?geo.toNonIndexed():geo.clone(); _e.set(r?r[0]:0,r?r[1]:0,r?r[2]:0);
+    _l.compose(_p.set(p[0],p[1],p[2]),_q.setFromEuler(_e),_s.set(s?s[0]:1,s?s[1]:1,s?s[2]:1)); return g.applyMatrix4(_l); }
+  function put(mat,geo,F,p,s,r){ const g=part(geo,p,s,r).applyMatrix4(F); if(!batch.has(mat)) batch.set(mat,[]); batch.get(mat).push(g); }
+  function merge(list,withColor){ let n=0; list.forEach(g=>n+=g.attributes.position.count); const pos=new Float32Array(n*3), nor=new Float32Array(n*3), col=withColor?new Float32Array(n*3):null; let o=0;
+    list.forEach(g=>{ const c=g.attributes.position.count; pos.set(g.attributes.position.array,o*3); nor.set(g.attributes.normal.array,o*3); if(col) for(let i=0;i<c;i++) col.set(g.userData.col,(o+i)*3); o+=c; g.dispose(); });
+    const out=new THREE.BufferGeometry(); out.setAttribute("position",new THREE.BufferAttribute(pos,3)); out.setAttribute("normal",new THREE.BufferAttribute(nor,3)); if(col) out.setAttribute("color",new THREE.BufferAttribute(col,3)); return out; }
+  const gLocal=(F,lx,lz)=>{ _p.set(lx,0,lz).applyMatrix4(F); return hAt(_p.x,_p.z)-F.elements[13]; }; // 駅の部品の下の地面の高さ（駅の足もとから）
+  const shB=[], shS=[], SUN=[-.164,-.986]; // 影：まるい影／支柱の細長い影（日の光と同じ向き）
+  function tower(x,z,g,h,yaw){ const F=frameAt(x,g,z,yaw);
+    put(mConc,BX,F,[0,.2,0],[1.7,1,1.7]);
+    put(mSteel,POLE,F,[0,h/2,0],[1,h,1]);
+    put(mSteel,BX,F,[0,h-.95,0],[GAUGE+1.7,.42,.45]);
+    put(mSteelD,BX,F,[0,h-1.3,.62],[GAUGE+1.1,.05,.75]);
+    put(mSteelD,BX,F,[0,(h-1.3)/2,.4],[.05,h-1.3,.3]);
+    for(const sx of [-HR,HR]){ put(mSteel,BX,F,[sx,h-.62,0],[.2,.45,.22]); put(mSteelD,BX,F,[sx,h-.45,0],[.16,.14,3.4]);
+      for(const sz of [-1.25,-.42,.42,1.25]) put(mSteelD,WHEEL,F,[sx,h-.27,sz],null,[0,0,Math.PI/2]); }
+    shB.push([x,z,1.5]); shS.push([x,z,h*1.14,.8]); }
+  function terminal(x,z,g,yaw,top){ const F=frameAt(x,g,z,yaw), sg=top?1:-1;
+    put(mSteelD,BULL,F,[0,HB,0],null,[Math.PI/2,0,0]);
+    put(mSteel,BX,F,[0,HB,0],[GAUGE-.1,.09,.14]); put(mSteel,BX,F,[0,HB,0],[GAUGE-.1,.09,.14],[0,Math.PI/2,0]);
+    put(mSteelD,CYL,F,[0,HB+.9,0],[.22,1.8,.22]);
+    put(mSteel,BX,F,[0,HB+2.05,0],[2.1,1.1,2.1]);
+    put(mSteel,BX,F,[0,HB+2.05,2.4],[.6,.6,4.3]);
+    const cb=gLocal(F,0,4.5); put(mSteel,POLE,F,[0,(cb+HB+2.9)/2,4.5],[1.35,HB+2.9-cb,1.35]);
+    for(const sx of [-3.7,3.7]){ const pb=gLocal(F,sx,-3.7); put(mSteelD,CYL,F,[sx,(pb+HB+2.9)/2,-3.7],[.12,HB+2.9-pb,.12]); }
+    put(mRoof,BX,F,[0,HB+3,.4],[8.2,.22,9.6]);
+    const hx=sg*6.6, hz=-1.6, hb=gLocal(F,hx,hz);
+    put(mConc,BX,F,[hx,hb+.1,hz],[2.9,.4,3.1]); put(mWall,BX,F,[hx,hb+1.35,hz],[2.6,2.3,2.8]); put(mGlass,BX,F,[hx-sg*1.31,hb+1.6,hz],[.04,.75,2]);
+    for(const s of [-1,1]) put(mRoof,BX,F,[hx+s*.72,hb+2.85,hz],[1.75,.12,3.2],[0,0,-s*.5]);
+    const db=gLocal(F,sg*HR,-4.2); put(mDeck,BX,F,[sg*HR,db+.47,-4.2],[2.3,.95,6.4]);
+    shB.push([x,z,7]); _p.set(hx,0,hz).applyMatrix4(F); shB.push([_p.x,_p.z,3]); }
+  // 画面の上で同じ太さに見える線（ワイヤー）。どの向きから見ても細い線のまま
+  const RES={value:new THREE.Vector2(1,1)};
+  const ropeMat=(color,half,op)=>new THREE.ShaderMaterial({uniforms:{uColor:{value:new THREE.Color(color)},uOp:{value:op},uHalf:{value:half},uRes:RES},
+    vertexShader:"attribute vec3 nxt;\nattribute float side;\nuniform vec2 uRes;\nuniform float uHalf;\nvoid main(){ mat4 m=projectionMatrix*modelViewMatrix; vec4 a=m*vec4(position,1.0), b=m*vec4(nxt,1.0); vec2 d=(b.xy/max(b.w,1e-3)-a.xy/max(a.w,1e-3))*uRes; float l=length(d); d=l>1e-5?d/l:vec2(1.0,0.0); a.xy+=vec2(-d.y,d.x)*side*uHalf*2.0/uRes*a.w; gl_Position=a; }",
+    fragmentShader:"uniform vec3 uColor;\nuniform float uOp;\nvoid main(){ gl_FragColor=vec4(uColor,uOp);\n#include <colorspace_fragment>\n}",
+    transparent:true,depthWrite:false,side:THREE.DoubleSide});
+  function ropeGeo(P){ const m=P.length, pos=new Float32Array(m*6), nx=new Float32Array(m*6), sd=new Float32Array(m*2), ix=[];
+    for(let i=0;i<m;i++){ const a=P[i], b=P[(i+1)%m], j=(i+1)%m;
+      for(let k=0;k<2;k++){ const q=(i*2+k)*3; pos[q]=a.x; pos[q+1]=a.y; pos[q+2]=a.z; nx[q]=b.x; nx[q+1]=b.y; nx[q+2]=b.z; sd[i*2+k]=k?1:-1; }
+      ix.push(i*2,j*2,i*2+1, i*2+1,j*2,j*2+1); }
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.BufferAttribute(pos,3)); g.setAttribute("nxt",new THREE.BufferAttribute(nx,3)); g.setAttribute("side",new THREE.BufferAttribute(sd,1)); g.setIndex(ix); return g; }
+  const liftObj={}, lifts=[], chairs=[];
   LIFTS.forEach(Lf=>{ const ab=G.lifts[Lf.id]; if(!ab) return; const [a,b]=ab;
-    const lenM=Math.hypot(b[0]-a[0],b[1]-a[1])*M, nT=Math.max(3,Math.round(lenM/95)), pts=[];
-    const ga=P3(a[0],a[1],0), gb=P3(b[0],b[1],0), ya=ga.y+11, yb=gb.y+11, yawL=-Math.atan2(gb.z-ga.z,gb.x-ga.x);
-    for(let k=0;k<=nT;k++){ const t=k/nT, x=a[0]+(b[0]-a[0])*t, y=a[1]+(b[1]-a[1])*t, g0=P3(x,y,0);
-      const yc=Math.max(ya+(yb-ya)*t, g0.y+9); pts.push(new THREE.Vector3(g0.x,yc,g0.z));
-      if(k>0&&k<nT){ const h=yc-g0.y+1.5; towers.push([g0.x,g0.y+h/2-1,g0.z,h]); arms.push([g0.x,yc+.4,g0.z,yawL+Math.PI/2]); } }
-    [ga,gb].forEach(g=>stations.push([g.x,g.y,g.z,yawL]));
-    const curve=new THREE.CatmullRomCurve3(pts,false,"catmullrom",0), cable=new THREE.Mesh(new THREE.TubeGeometry(curve,nT*6,.9,5,false),towerMat); scene.add(cable);
-    const side=new THREE.Vector3(-(gb.z-ga.z),0,gb.x-ga.x).normalize().multiplyScalar(2.6), nC=Math.max(6,Math.round(lenM/70)), yaw=-Math.atan2(side.z,side.x);
-    const o={Lf,curve,cable,side,lenM,a,b,set:(on)=>{ cable.material=on?selMat:towerMat; }};
-    for(let k=0;k<nC;k++) for(const dir of [1,-1]) chairs.push({o,u:k/nC,dir,yaw:yaw+(dir>0?0:Math.PI),col:(k+(dir>0?0:1))%3});
-    liftObj[Lf.id]=o; });
-  const inst=(geo,mat,list,fn)=>{ const m=new THREE.InstancedMesh(geo,mat,Math.max(1,list.length)); m.count=list.length; m.frustumCulled=false;
-    list.forEach((v,i)=>{ dm.rotation.set(0,0,0); dm.scale.set(1,1,1); fn(v); dm.updateMatrix(); m.setMatrixAt(i,dm.matrix); }); scene.add(m); return m; };
-  inst(new THREE.CylinderGeometry(.9,1.3,1,6),towerMat,towers,v=>{ dm.position.set(v[0],v[1],v[2]); dm.scale.set(1,v[3],1); });
-  inst(new THREE.BoxGeometry(9,.8,.8),towerMat,arms,v=>{ dm.position.set(v[0],v[1],v[2]); dm.rotation.set(0,v[3],0); });
-  inst(new THREE.BoxGeometry(16,8,12),stationMat,stations,v=>{ dm.position.set(v[0],v[1]+4,v[2]); dm.rotation.set(0,v[3],0); });
-  inst(new THREE.BoxGeometry(18,1.6,14),roofMat,stations,v=>{ dm.position.set(v[0],v[1]+8.8,v[2]); dm.rotation.set(0,v[3],0); });
-  const hangIM=new THREE.InstancedMesh(new THREE.CylinderGeometry(.18,.18,3.4,5),towerMat,chairs.length), seatIM=new THREE.InstancedMesh(new THREE.BoxGeometry(3.2,.45,1.5),chairMat,chairs.length), backIM=new THREE.InstancedMesh(new THREE.BoxGeometry(3.2,1.7,.3),chairMat,chairs.length);
-  chairs.forEach((c,i)=>{ seatIM.setColorAt(i,chairCols[c.col]); backIM.setColorAt(i,chairCols[c.col]); });
-  [hangIM,seatIM,backIM].forEach(m=>{ m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled=false; scene.add(m); });
-  const mC=new THREE.Matrix4(), mT=new THREE.Matrix4(), offH=new THREE.Matrix4().makeTranslation(0,-1.7,0), offS=new THREE.Matrix4().makeTranslation(0,-3.5,.2), offB=new THREE.Matrix4().makeTranslation(0,-2.6,-.55), cp=new THREE.Vector3();
-  function moveChairs(dt){ chairs.forEach((c,i)=>{ const o=c.o; c.u=((c.u+dt*4.2/o.lenM*c.dir)%1+1)%1; o.curve.getPoint(c.u,cp);
-      mC.makeRotationY(c.yaw).setPosition(cp.x+o.side.x*c.dir,cp.y,cp.z+o.side.z*c.dir);
-      hangIM.setMatrixAt(i,mT.multiplyMatrices(mC,offH)); seatIM.setMatrixAt(i,mT.multiplyMatrices(mC,offS)); backIM.setMatrixAt(i,mT.multiplyMatrices(mC,offB)); });
-    hangIM.instanceMatrix.needsUpdate=seatIM.instanceMatrix.needsUpdate=backIM.instanceMatrix.needsUpdate=true; }
-  moveChairs(0);
+    const ga=P3(a[0],a[1],0), gb=P3(b[0],b[1],0), d=new THREE.Vector3(gb.x-ga.x,0,gb.z-ga.z), lenH=d.length(); d.normalize();
+    const n=new THREE.Vector3(-d.z,0,d.x), yawL=Math.atan2(d.x,d.z), nT=Math.max(2,Math.round(lenH/92));
+    // 支え（駅と支柱）の場所と、ワイヤーの高さ
+    const sup=[]; for(let k=0;k<=nT;k++){ const t=k/nT, x=ga.x+(gb.x-ga.x)*t, z=ga.z+(gb.z-ga.z)*t, g=hAt(x,z), yl=ga.y+HB+(gb.y-ga.y)*t;
+      sup.push({x,z,g,y:k===0?ga.y+HB:(k===nT?gb.y+HB:Math.max(yl,g+10))}); }
+    // たるんだワイヤー（といす）が地面に近づきすぎないよう、支柱を高くする
+    for(let it=0;it<4;it++) for(let k=0;k<nT;k++){ const p=sup[k], q=sup[k+1], sag=Math.hypot(q.x-p.x,q.z-p.z)*SAG;
+      for(let f=.15;f<.9;f+=.15){ const x=p.x+(q.x-p.x)*f, z=p.z+(q.z-p.z)*f, y=p.y+(q.y-p.y)*f-4*sag*f*(1-f), cl=(k===0&&f<.4)||(k+1===nT&&f>.6)?4.2:6.5, need=hAt(x,z)+cl-y;
+        if(need>.05){ if(k>0) p.y+=need*(k+1<nT?.55:1); if(k+1<nT) q.y+=need*(k>0?.55:1); } } }
+    for(let k=1;k<nT;k++) tower(sup[k].x,sup[k].z,sup[k].g,sup[k].y-sup[k].g,yawL);
+    terminal(ga.x,ga.z,ga.y,yawL+Math.PI,false); terminal(gb.x,gb.z,gb.y,yawL,true);
+    // ワイヤーの通り道：上り → 山頂の滑車 → 下り → ふもとの滑車（ひと回り）
+    const side=sgn=>{ const pts=[]; for(let k=0;k<nT;k++){ const p=sup[k], q=sup[k+1], span=Math.hypot(q.x-p.x,q.z-p.z), m=Math.max(6,Math.ceil(span/3)), sag=span*SAG;
+        for(let i=0;i<m;i++){ const f=i/m; pts.push(new THREE.Vector3(p.x+(q.x-p.x)*f+n.x*HR*sgn,p.y+(q.y-p.y)*f-4*sag*f*(1-f),p.z+(q.z-p.z)*f+n.z*HR*sgn)); } }
+      const e=sup[nT]; pts.push(new THREE.Vector3(e.x+n.x*HR*sgn,e.y,e.z+n.z*HR*sgn)); return pts; };
+    const upP=side(-1), loop=upP.slice(), ct=sup[nT], cb=sup[0];
+    for(let i=1;i<24;i++){ const th=Math.PI*i/24; loop.push(new THREE.Vector3(ct.x+HR*(-Math.cos(th)*n.x+Math.sin(th)*d.x),ct.y,ct.z+HR*(-Math.cos(th)*n.z+Math.sin(th)*d.z))); }
+    loop.push(...side(1).reverse());
+    for(let i=1;i<24;i++){ const th=Math.PI*i/24; loop.push(new THREE.Vector3(cb.x+HR*(Math.cos(th)*n.x-Math.sin(th)*d.x),cb.y,cb.z+HR*(Math.cos(th)*n.z-Math.sin(th)*d.z))); }
+    const cum=[0]; for(let i=1;i<=loop.length;i++) cum.push(cum[i-1]+loop[i%loop.length].distanceTo(loop[i-1]));
+    let upLen=0; for(let i=1;i<upP.length;i++) upLen+=upP[i].distanceTo(upP[i-1]);
+    const rope=new THREE.Mesh(ropeGeo(loop),ropeMat(0x2b3138,.7,.9)); rope.frustumCulled=false; rope.renderOrder=6; scene.add(rope);
+    const curve=new THREE.CatmullRomCurve3(upP.filter((p,i)=>i%3===0||i===upP.length-1),false,"centripetal");
+    const o={Lf,a,b,lenM:lenH,curve,side:new THREE.Vector3(),pts:loop,cum,L:cum[cum.length-1],upLen,off:0,mul:1,
+      set:on=>{ const u=rope.material.uniforms; u.uColor.value.set(on?0x2a7bd6:0x2b3138); u.uHalf.value=on?1.15:.7; u.uOp.value=on?1:.9; }};
+    const N=Math.max(8,Math.floor(o.L/CH_GAP)); for(let i=0;i<N;i++) chairs.push({o,base:i*o.L/N,col:CHAIR_COL,riders:[]});
+    liftObj[Lf.id]=o; lifts.push(o); });
+  // 支柱・駅は動かないので、材料ごとに1つにまとめる
+  batch.forEach((list,mat)=>{ const mesh=new THREE.Mesh(merge(list),mat); mesh.frustumCulled=false; scene.add(mesh); });
+  // 影（雪の上に、地面の形にそわせて）
+  const shadowMat=draw=>{ const c=document.createElement("canvas"); c.width=c.height=64; draw(c.getContext("2d")); const t=new THREE.CanvasTexture(c);
+    return new THREE.MeshBasicMaterial({map:t,color:0x0e1822,transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}); };
+  function drape(list,mat){ const P=[],U=[],I=[];
+    list.forEach(q=>{ const b0=P.length/3; for(let j=0;j<=q.nj;j++) for(let i=0;i<=q.ni;i++){ const [x,z]=q.at(i/q.ni,j/q.nj); P.push(x,hAt(x,z)+.9,z); U.push(i/q.ni,1-j/q.nj); }
+      for(let j=0;j<q.nj;j++) for(let i=0;i<q.ni;i++){ const a=b0+j*(q.ni+1)+i; I.push(a,a+q.ni+1,a+1,a+1,a+q.ni+1,a+q.ni+2); } });
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("uv",new THREE.Float32BufferAttribute(U,2)); g.setIndex(I);
+    const m=new THREE.Mesh(g,mat); m.renderOrder=1; m.frustumCulled=false; scene.add(m); }
+  drape(shB.map(([x,z,r])=>({ni:6,nj:6,at:(u,v)=>[x+(u-.5)*2*r,z+(v-.5)*2*r]})),shadowMat(x=>{ const g=x.createRadialGradient(32,32,1,32,32,31); g.addColorStop(0,"rgba(255,255,255,.5)"); g.addColorStop(1,"rgba(255,255,255,0)"); x.fillStyle=g; x.fillRect(0,0,64,64); }));
+  drape(shS.map(([x,z,len,w])=>({ni:1,nj:Math.max(2,Math.ceil(len/3)),at:(u,v)=>[x+SUN[0]*len*v-SUN[1]*(u-.5)*w,z+SUN[1]*len*v+SUN[0]*(u-.5)*w]})),
+    shadowMat(x=>{ const im=x.createImageData(64,64); for(let j=0;j<64;j++) for(let i=0;i<64;i++){ const u=Math.abs(i/63-.5)*2, k=(j*64+i)*4; im.data[k]=im.data[k+1]=im.data[k+2]=255; im.data[k+3]=255*(1-u*u*u)*(.4*(1-j/63)+.05); } x.putImageData(im,0,0); }));
+  // いす（2人乗り）と、乗っている人
+  const shape=(parts,withColor)=>merge(parts.map(([geo,p,s,r,col])=>{ const g=part(geo,p,s,r); g.userData.col=col; return g; }),withColor);
+  const HOOK=new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0,-.05,0],[0,-.62,-.05],[.06,-.86,-.1],[.26,-1.04,-.14],[.47,-1.17,-.16],[.61,-1.31,-.16],[.56,-1.48,-.16]].map(p=>new THREE.Vector3(...p))),12,.045,5,false);
+  const gFrame=shape([[BX,[0,-.04,0],[.14,.18,.42]],[HOOK,[0,0,0]],[BX,[0,-1.48,-.16],[1.17,.05,.05]],
+    [BX,[-.56,-1.9,-.16],[.05,.84,.05]],[BX,[.56,-1.9,-.16],[.05,.84,.05]],[BX,[-.56,-2.02,.07],[.05,.05,.48]],[BX,[.56,-2.02,.07],[.05,.05,.48]],
+    [BX,[-.56,-2.17,.3],[.05,.3,.05]],[BX,[.56,-2.17,.3],[.05,.3,.05]],[BX,[0,-2.37,-.14],[1.12,.05,.05]],[BX,[0,-2.37,.28],[1.12,.05,.05]]]);
+  const gSeat=shape([[BX,[0,-2.32,.07],[1.1,.07,.48]],[BX,[0,-2.13,-.165],[1.08,.11,.035]],[BX,[0,-1.93,-.165],[1.08,.11,.035]]]);
+  const W=[1,1,1], PNT=[.17,.18,.22], HEL=[.92,.92,.94], SKI=[.78,.78,.8], BOOT=[.2,.2,.22];
+  const gRider=shape([[BX,[0,.36,-.04],[.42,.6,.28],[-.08,0,0],W],[BX,[0,.33,.12],[.56,.13,.3],null,W],[SPH,[0,.8,-.02],[.135,.14,.135],null,HEL],
+    [BX,[0,.08,.22],[.38,.15,.48],null,PNT],[BX,[0,-.2,.44],[.34,.5,.14],null,PNT],[BX,[0,-.47,.5],[.36,.14,.3],null,BOOT],
+    [BX,[-.1,-.56,.6],[.09,.03,1.6],[-.05,0,0],SKI],[BX,[.1,-.56,.6],[.09,.03,1.6],[-.05,0,0],SKI]],true);
+  const R=rng(20261125), JK=[0xd83a34,0x2c6fd1,0xf08c1a,0x2e9b57,0x7b4bc4,0x1d2530,0xf2f2f2,0xf2c61f,0xe25c9a,0x16a3b3]; let rCount=0;
+  chairs.forEach(c=>{ const r=R(), k=r<.38?0:(r<.72?1:2), slots=k===2?[-.28,.28]:(k===1?[R()<.5?-.28:.28]:[]);
+    slots.forEach(x=>c.riders.push({x,col:JK[Math.floor(R()*JK.length)],idx:rCount++,local:new THREE.Matrix4().makeTranslation(x,-2.285,.05)})); });
+  const mSeat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.6}), mRider=new THREE.MeshStandardMaterial({color:0xffffff,roughness:.8,vertexColors:true});
+  const frameIM=new THREE.InstancedMesh(gFrame,mSteel,chairs.length), seatIM=new THREE.InstancedMesh(gSeat,mSeat,chairs.length), riderIM=new THREE.InstancedMesh(gRider,mRider,Math.max(1,rCount));
+  const cTmp=new THREE.Color(); chairs.forEach((c,i)=>{ seatIM.setColorAt(i,cTmp.set(c.col)); c.riders.forEach(r=>riderIM.setColorAt(r.idx,cTmp.set(r.col))); });
+  [frameIM,seatIM,riderIM].forEach(m=>{ m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled=false; scene.add(m); });
+  // いすを動かす（ワイヤーにそって進み、駅では滑車のまわりを回る。人が乗っているのは上りだけ）
+  let rideChair=null; const tP=new THREE.Vector3(), tT=new THREE.Vector3(), qC=new THREE.Quaternion(), ONE=new THREE.Vector3(1,1,1), mCh=new THREE.Matrix4(), mRd=new THREE.Matrix4(), ZERO=new THREE.Matrix4().makeScale(0,0,0);
+  function atS(o,s,P,T){ const c=o.cum; let lo=0, hi=c.length-1; while(hi-lo>1){ const m=(lo+hi)>>1; if(c[m]<=s) lo=m; else hi=m; }
+    const a=o.pts[lo], b=o.pts[(lo+1)%o.pts.length], f=(s-c[lo])/((c[lo+1]-c[lo])||1); P.lerpVectors(a,b,f); if(T) T.subVectors(b,a); }
+  const sOf=c=>((c.base+c.o.off)%c.o.L+c.o.L)%c.o.L;
+  function moveChairs(){ chairs.forEach((c,i)=>{ const o=c.o, s=sOf(c); atS(o,s,tP,tT); qC.setFromAxisAngle(UPV,Math.atan2(tT.x,tT.z)); mCh.compose(tP,qC,ONE);
+      frameIM.setMatrixAt(i,mCh); seatIM.setMatrixAt(i,mCh);
+      const on=s>3&&s<o.upLen-2&&c!==rideChair; c.riders.forEach(r=>riderIM.setMatrixAt(r.idx,on?mRd.multiplyMatrices(mCh,r.local):ZERO)); });
+    frameIM.instanceMatrix.needsUpdate=seatIM.instanceMatrix.needsUpdate=riderIM.instanceMatrix.needsUpdate=true; }
 
   // 文字（画面の上に重ねる）
   const lab=$("#m3dLabels"); lab.innerHTML="";
@@ -1581,13 +1675,25 @@ function build3D(THREE,img){
     return {x:p[0]+(q[0]-p[0])*k, y:p[1]+(q[1]-p[1])*k, dx:q[0]-p[0], dy:q[1]-p[1]}; }
   function startSki(ids){ const sp=[]; ids.forEach(id=>{ const o=courseObj[id]; if(o) sp.push(...(sp.length?o.sp.slice(1):o.sp)); }); if(sp.length<2) return;
     const A=along(sp,6); anim={kind:"ski",A,snap:follow,t0:performance.now(),dur:Math.min(16000,Math.max(6000,A.len*M/95*1000))}; skier.visible=true; rider.visible=false; }
-  function startRide(id){ const o=liftObj[id]; if(!o) return; anim={kind:"ride",o,snap:follow,t0:performance.now(),dur:Math.max(6000,o.lenM/110*1000)}; rider.visible=true; skier.visible=false; }
+  function startRide(id){ const o=liftObj[id]; if(!o) return; stopRide();
+    if(follow&&!reduce){ // ふもとの滑車をまわって来る いすに乗る
+      let best=null, bd=1e9; chairs.forEach(c=>{ if(c.o!==o) return; const dd=(o.L-sOf(c))%o.L; if(dd<bd){ bd=dd; best=c; } });
+      const T=Math.min(20,Math.max(10,o.upLen/42)); o.mul=(o.upLen+bd)/T/LIFT_V; rideChair=best; o.set(false); lab.classList.add("hide"); camera.near=1.2; camera.updateProjectionMatrix();
+      anim={kind:"ride",fp:true,o,c:best,snap:true,t0:performance.now(),dur:T*1000}; rider.visible=skier.visible=false; return; }
+    anim={kind:"ride",o,snap:follow,t0:performance.now(),dur:Math.max(6000,o.lenM/110*1000)}; rider.visible=true; skier.visible=false; }
+  function stopRide(){ lifts.forEach(o=>{ o.mul=1; }); rideChair=null; lab.classList.remove("hide"); if(camera.near!==5){ camera.near=5; camera.updateProjectionMatrix(); } }
+  const eyeP=new THREE.Vector3(), eyeT=new THREE.Vector3(), lookP=new THREE.Vector3();
   function update(now,dt){
-    if(tw){ const k=Math.min(1,(now-tw.t0)/tw.ms), e=ease(k);
+    if(!reduce) lifts.forEach(o=>{ o.off+=dt*LIFT_V*o.mul; if(o.off>=o.L) o.off-=o.L; });
+    if(anim&&anim.fp){ const o=anim.o, sc=sOf(anim.c);
+      if((sc>o.upLen+1&&sc<o.upLen+40)||now-anim.t0>anim.dur*1.6){ anim=null; stopRide(); o.set(selected===o.Lf.id); if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); controls.repivot(); } }
+      else if(follow){ atS(o,sc,eyeP,eyeT); eyeT.normalize(); eyeP.y-=1.2; eyeP.addScaledVector(eyeT,-.1); camera.position.copy(eyeP);
+        lookP.copy(eyeP).addScaledVector(eyeT,60); lookP.y-=6; controls.target.lerp(lookP,anim.snap?1:1-Math.exp(-dt*6)); anim.snap=false; } }
+    if(tw){ const k=Math.max(0,Math.min(1,(now-tw.t0)/tw.ms)), e=ease(k);
       if(tw.sph){ const a=tw.s0, b=tw.s1; controls.target.copy(tw.q); camera.position.copy(tw.q).add(v3.setFromSphericalCoords(a.r+(b.r-a.r)*e,a.phi+(b.phi-a.phi)*e,a.th+(b.th-a.th)*e)); controls.clamp(); }
       else { camera.position.lerpVectors(tw.p0,tw.p1,e); controls.target.lerpVectors(tw.q0,tw.q1,e); }
       if(k>=1) tw=null; }
-    if(anim){ let k=Math.min(1,(now-anim.t0)/anim.dur); if(reduce) k=1; const e=anim.kind==="ski"?k:ease(k);
+    if(anim&&!anim.fp){ let k=Math.max(0,Math.min(1,(now-anim.t0)/anim.dur)); if(reduce) k=1; const e=anim.kind==="ski"?k:ease(k);
       let pos3, fwd;
       if(anim.kind==="ski"){ const q=at(anim.A,e); pos3=P3(q.x,q.y,anim.A.up); skier.position.copy(pos3); const q2=at(anim.A,Math.min(1,e+.03)); const p2=P3(q2.x,q2.y,anim.A.up); fwd=p2.sub(pos3); }
       else { const p=anim.o.curve.getPoint(e); pos3=p.clone().add(new THREE.Vector3(anim.o.side.x,-3,anim.o.side.z)); rider.position.copy(pos3).add(new THREE.Vector3(0,-1,0)); fwd=anim.o.curve.getTangent(e); }
@@ -1614,7 +1720,7 @@ function build3D(THREE,img){
     Object.entries(courseObj).forEach(([cid,o])=>{ o.grp.visible=showSet.has(cid); o.set(cid===id||!run.includes(cid)?1:.6); });
     Object.entries(liftObj).forEach(([lid,o])=>o.set(lid===id));
     LABELS.forEach(L=>{ if(L.lift) L.d.classList.toggle("on",L.lift===id); });
-    anim=null; follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null;
+    anim=null; stopRide(); follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null;
     if(f.kind==="course"&&courseObj[id]){ const o=courseObj[id], allSp=[].concat(...run.map(c=>courseObj[c]?courseObj[c].sp:[]));
       frameXY(allSp.length?allSp:o.sp, quiet?0:1100); const mid=o.sp[Math.floor(o.sp.length/2)]; selP=P3(mid[0],mid[1],34); selLab.textContent=f.item.name;
       lastMove=()=>startSki(run.filter(c=>courseObj[c])); if(!quiet) setTimeout(()=>{ if(lastMove) lastMove(); },reduce?0:1150); }
@@ -1667,7 +1773,7 @@ function build3D(THREE,img){
   function edStart(id){
     if(!COURSE_IDS.has(id)) id=COURSES[0].id;
     ed.on=true; box.classList.add("editing"); $(".stage-map .map").classList.add("editing3d"); edBox.hidden=false; controls.tapZoom=false;
-    anim=null; follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null;
+    anim=null; stopRide(); follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null;
     Object.values(liftObj).forEach(o=>o.set(false));
     Object.values(courseObj).forEach(o=>{ o.grp.visible=true; o.set(.35); }); edGroup.visible=true; edOpen(id);
   }
@@ -1722,7 +1828,7 @@ function build3D(THREE,img){
   function refreshCourse(id){ const c=COURSES.find(x=>x.id===id); if(!c) return; buildCourse(c); needDraw=true;
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
-  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
+  function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
   new ResizeObserver(resize).observe(box);
   function theme(){ const dk=isDark(); hemi.intensity=dk?.95:1.25; sun.intensity=dk?1.4:1.9; sideMat.color.set(dk?0x2a3a4e:0x8b98a8); scene.fog.color.set(dk?0x22374f:0xdfeaf5); needDraw=true; }
   // 描く：カメラが動いたとき・動きがあるときだけ（止まっている間は描かない。近くで見ている間は、いすを動かすため少しずつ）
@@ -1734,7 +1840,7 @@ function build3D(THREE,img){
     // 重い端末では、動かしている間の速さを見て、画面の細かさを少し下げる
     if(busy&&prevBusy){ slowT+=Math.min(500,now-lastR); if(++slowN>=40){ if(slowT/slowN>30&&pr>1){ pr=Math.max(1,pr-.25); renderer.setPixelRatio(pr); resize(); } slowN=0; slowT=0; } }
     prevBusy=busy; pc.copy(camera.position); pt.copy(controls.target); needDraw=false;
-    if(!reduce){ moveChairs(Math.min(.2,(now-chairT)/1000)); chairT=now; }
+    moveChairs();
     lastR=now; renderer.render(scene,camera); placeLabels(); }
   controls.addEventListener("start",()=>{ tw=null; if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); } $("#m3dHint").classList.add("gone"); });
   $("#homeBtn3d").onclick=()=>home();
