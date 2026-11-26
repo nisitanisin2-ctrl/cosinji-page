@@ -665,7 +665,6 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <span><i style="background:var(--lv2)"></i>中級</span>
         <span><i style="background:var(--lv3)"></i>上級</span>
         <span><i style="background:var(--lv0)"></i>初心者コース・道</span>
-        <span><i style="background:color-mix(in srgb, var(--lv1) 45%, transparent)"></i>うすい線＝そのまま続けて ふもとへ</span>
         <span><i class="box" style="background:#0f1d2e"></i>数字＝リフト</span>
       </div>
   <p class="note" id="note3d">※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、航空写真から林と開けた所を分けて、開けた所（ゲレンデ・田畑など）を雪の白に、近くの林には雪をかぶった木を立てた見た目です（遠くの林は写真のまま。「☀ 写真」で元の写真）。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。目線のあいだは、1本指（マウス）のドラッグで、動きながら まわりを見回せます（🧭 正面 で もどる）。「🎿 目線」をもう一度押すと終わります。コースの長さ・斜度・リフトの時間は公式サイトの数字です（最新のゲレンデマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式サイト</a>で）。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。描く画面の上の「❄ 雪」で雪の白をぬる、「🌲 木」で木を植える、「🚡 リフト」で支柱の間隔と高さを変える こともできます（保存すると、このアプリの3Dの地図に出ます）。</p>
@@ -1147,7 +1146,7 @@ function findItem(id){
    リフト：地理院地図の索道の線（5mメッシュでの標高差は公式とほぼ同じ）。コース：航空写真のゲレンデの形と公式の説明から合わせた おおよその位置 */
 const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[733.75,368.75],[552.5,252.5]],"lift2":[[555.0,233.0],[426.5,220.25]],"lift3":[[635.0,212.0],[505.0,222.5]],"lift4":[[792.5,350.0],[623.75,237.0]],"svl_sanchou":[[662.0,82.53],[469.66,155.06]],"svl_bear":[[719.66,96.22],[575.78,157.09]],"svl_rabbit":[[728.62,106.25],[663.56,188.06]],"svl_touko":[[879.59,47.06],[738.59,98.47]]},"courses":{"centerA":[[430,225],[445,234],[465,243],[488,250],[512,254],[534,256],[548,257]],"higashioneshita":[[432,217],[446,209],[458,203],[470,205],[480,212],[492,218],[507,225],[530,230],[550,233]],"higashione":[[430,216],[442,204],[455,192],[472,184],[495,180],[522,181],[550,184],[578,187],[605,189],[624,196],[636,208],[640,218]],"centerB":[[556,258],[563,271],[572,284],[584,295],[600,304],[617,310],[632,315]],"centerC":[[640,220],[636,235],[634,252],[636,270],[639,288],[640,304],[636,315]],"centerD":[[636,315],[652,324],[670,335],[688,346],[706,356],[722,365],[732,373]],"champion":[[642,223],[660,238],[680,255],[700,272],[720,290],[740,308],[760,325],[776,338],[788,347]],"beginner":[[507,225],[518,233],[534,239],[555,243],[575,239],[593,230],[608,219],[622,208],[634,203],[642,209]],"kyogiB":[[436,232],[446,248],[456,265],[468,282],[482,298]],"chibikko":[[720,290],[728,306],[740,321],[754,333],[768,343]],"sv_dia":[[476,162],[495,168],[518,171],[542,172],[560,168],[578,162]],"sv_back":[[476,162],[495,168],[518,171],[536,175],[550,181],[565,187],[594,191],[616,199],[628,210]],"sv_thunder":[[474,158],[490,153],[508,146],[528,139],[550,132],[572,125],[594,118],[612,112]],"sv_eagle":[[468,147],[476,136],[488,126],[502,118],[516,112],[528,109]],"sv_fox":[[528,109],[550,105],[572,100],[595,96],[616,91],[636,86],[656,82]],"sv_bear":[[578,162],[598,160],[616,152],[632,140],[652,134],[672,127],[688,116],[705,108],[718,101]],"sv_rabbit":[[662,184],[671,172],[681,160],[692,147],[703,134],[714,121],[724,110]],"sv_raku":[[629,228],[637,218],[645,208],[652,200],[660,194],[666,189]],"sv_wakaba":[[667,188],[682,181],[697,174],[710,166],[718,154],[722,140],[726,126],[730,113]],"sv_gezan":[[668,190],[686,182],[705,172],[722,162],[740,157],[760,155],[780,152],[800,147],[818,141],[835,136],[850,130],[860,121],[867,111],[875,104],[888,98],[898,88],[902,76],[898,65],[890,57],[884,49]]},"marks":{"summit":[426.5,220.25],"cafe":[629,228],"base":[748,366],"hachibuse":[31,98],"sv":[585,142],"open":[480,196],"svbase":[882,39]}};
 const C3D={"初級":"#1f9d55","中級":"#2a8fd6","上級":"#d63b3b","道":"#e08a00"};
-const RUN3D={centerB:["centerB","centerD"],centerC:["centerC","centerD"],higashione:["higashione","champion"],sv_dia:["sv_dia","sv_bear"],sv_eagle:["sv_eagle","sv_fox"],openbahn:[],kids:[]};
+const RUN3D={openbahn:[],kids:[]}; // コースは、選んだコースだけを滑る（ほかのコースへは つなげない）
 const SHOW3D={skyvalley:["sv_dia","sv_fox","sv_eagle","sv_thunder"]}; // 3Dで、エリアを選んだときに出すコース
 var T3D=null, t3dLoading=null;
 function load3D(){
@@ -2353,8 +2352,7 @@ function select(id,fromMap,extra,quiet){
   }
   selected=id;
   // コースならそのコース、リフトなら そのリフトで行けるコース、エリアなら関係するコースだけ線を出す
-  let show= f.kind==="course"?[id] : (f.kind==="lift"?(f.item.serves||[]):(f.item.show||[]));
-  if(extra) show=show.concat(extra);
+  let show= f.kind==="course"?[id] : (f.kind==="lift"?[]:(f.item.show||[])); // コース：そのコースの線だけ。リフト：線は出さない
   curShow=show;
   markChips();
   if(T3D) T3D.select(id,show,quiet); else if(curTab==="map") load3D().then(T=>T.select(id,show,quiet)).catch(()=>{}); // 3Dは、マップの画面を開いてから読みこむ
@@ -2374,7 +2372,7 @@ function select(id,fromMap,extra,quiet){
     const viz=`<div class="cviz"><div class="cv-row"><span class="cv-k">長さ</span><div class="lenbar"><i style="--w:${Math.round(L.len/900*100)}%"></i></div><span class="cv-v">${L.len}<small>m</small></span></div>`
       +(L.hours?`<div class="cv-row"><span class="cv-k">運行</span><span class="cv-v" style="grid-column:2/4">${L.hours}<small>標高差 ${L.vert}m</small></span></div>`
                :`<div class="cv-row"><span class="cv-k">定員</span><span class="cv-v" style="grid-column:2/4">${L.seats}<small>人乗り</small></span></div>`)+`</div>`;
-    const serves=(L.serves||[]).length?`<p class="note">このリフトで行けるコース（図に表示中）：${L.serves.map(s=>esc(itemName(s))).join("・")}</p>`:"";
+    const serves=(L.serves||[]).length?`<p class="note">このリフトで行けるコース：${L.serves.map(s=>esc(itemName(s))).join("・")}</p>`:"";
     box.innerHTML=`<div class="fade"><h3>${esc(L.name)} <span class="tag t-s">リフト ${esc(L.n||L.ch)}</span></h3>${viz}
       <p>${esc(L.txt)} <span class="src">（${esc(L.src||"公式")}）</span></p>${L.hours?'<p class="note">東鉢の4基はぜんぶペアリフト（2人乗り）。輸送能力は4基で1時間に4,000人。</p>':""}${serves}</div>`;
   } else if(a){
@@ -2672,9 +2670,9 @@ $("#liftAnim").innerHTML=LIFTSVG;
 /* 初心者のおすすめルート：3Dマップへ移って、リフト → コースの順に動かす */
 const STEPS={
   "1":{sel:"beginner", legs:[{lift:"lift3"},{ski:["beginner"]},{lift:"lift3"},{ski:["beginner"]}]}, // 足ならしのループを2周
-  "2":{sel:"centerC", show:["centerD"], legs:[{ski:["centerC","centerD"]}], caution:true}, // 3号の乗り場から1号の方へ → センターDで ふもとへ
+  "2":{sel:"centerC", legs:[{ski:["centerC"]}], caution:true}, // 3号の乗り場から1号の方へ
   "3":{sel:"centerB", legs:[{lift:"lift1"},{ski:["centerB"]}]},
-  "4":{sel:"higashione", legs:[{lift:"lift1"},{lift:"lift2"},{ski:["higashione","champion"]}]},
+  "4":{sel:"higashione", legs:[{lift:"lift1"},{lift:"lift2"},{ski:["higashione"]}]},
 };
 $$("#stepRoute .stepbtn").forEach(b=>b.onclick=()=>{
   const S=STEPS[b.dataset.step];
