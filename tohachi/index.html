@@ -1364,7 +1364,7 @@ function build3D(THREE,img,litImg,forImg,treImg){
   // 雪をぬった所（地形の1マス＝約7.8mごと。透明度が雪の強さ）
   const maskCv=document.createElement("canvas"); maskCv.width=gw; maskCv.height=gh; const mctx=maskCv.getContext("2d",{willReadFrequently:true});
   const maskTex=new THREE.CanvasTexture(maskCv); maskTex.generateMipmaps=false; maskTex.minFilter=THREE.LinearFilter; let maskDirty=false;
-  const landTex=FOR?new THREE.DataTexture(FOR,FW,FH,THREE.RedFormat):null; if(landTex){ landTex.minFilter=landTex.magFilter=THREE.LinearFilter; landTex.needsUpdate=true; }
+  const FORT=FOR?FOR.slice():null, landTex=FOR?new THREE.DataTexture(FORT,FW,FH,THREE.RedFormat):null; // 雪の色わけ用（ゲレンデで木を立てなかった所は 雪に） if(landTex){ landTex.minFilter=landTex.magFilter=THREE.LinearFilter; landTex.needsUpdate=true; }
   const innerU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(IX0,IZ0,IX1,IZ1)},uBlend:{value:170},uPar:{value:new THREE.Vector4(0,0,1,1)},uParTex:{value:blankTex},uParOn:{value:0},uMask:{value:maskTex},uMaskOn:{value:1},uMsz:{value:new THREE.Vector2(gw,gh)},uLand:{value:landTex||blankTex},uLandOn:{value:landTex?1:0},uLmap:{value:new THREE.Vector2(918/920,478/480)}};
   const baseMat=winterMat(tex,innerU);
   // 64x64 マスずつに分ける（細かい写真は、この1つ分ずつ読みこむ）
@@ -1708,7 +1708,17 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     treeIM.count=n; treeIM.instanceMatrix.needsUpdate=true; if(treeIM.instanceColor) treeIM.instanceColor.needsUpdate=true; needDraw=true; }
   // ===== 林の木：航空写真で林と分けた所に、自動で植える（近くだけ見せる。遠くは写真の林のまま）=====
   //  コース・リフトの近く、雪をぬった所、「木を消す」でなぞった所には生えない
-  const AF={n:0,x:null,y:null,s:null,gone:null,ch:null,li:null,grid:new Map(),chunks:[]}, eraseC=[]; // eraseC：木を消した丸 [x,y,半径,...]（地図の座標）
+  const AF={n:0,x:null,y:null,s:null,gone:null,ch:null,li:null,grid:new Map(),chunks:[]};
+  // 木を消した所（絵。1マス＝地図の1px＝約3.9m）。保存は PNG。前の形（丸の一覧）も読める
+  const eraseCv=document.createElement("canvas"); eraseCv.width=FW; eraseCv.height=FH; const ectx=eraseCv.getContext("2d",{willReadFrequently:true}); let eraseA=new Uint8Array(FW*FH);
+  function eraseRead(x0,y0,w,h){ x0=Math.max(0,Math.floor(x0)); y0=Math.max(0,Math.floor(y0)); w=Math.min(FW-x0,Math.ceil(w)+1); h=Math.min(FH-y0,Math.ceil(h)+1); if(w<=0||h<=0) return;
+    const d=ectx.getImageData(x0,y0,w,h).data; for(let j=0;j<h;j++) for(let i=0;i<w;i++) eraseA[(y0+j)*FW+x0+i]=d[(j*w+i)*4+3]; }
+  function eraseDot(x,y,r){ ectx.fillStyle="#000"; ectx.beginPath(); ectx.arc(x,y,Math.max(.75,r),0,6.2832); ectx.fill(); eraseRead(x-r-1,y-r-1,2*r+3,2*r+3); }
+  function eraseLoad(v,done){ ectx.clearRect(0,0,FW,FH); eraseA=new Uint8Array(FW*FH);
+    if(v&&v.e) for(let i=0;i<v.e.length;i+=3) eraseDot(v.e[i],v.e[i+1],v.e[i+2]); // 前の形
+    if(v&&v.em){ const im=new Image(); im.onload=()=>{ ectx.drawImage(im,0,0,FW,FH); eraseRead(0,0,FW,FH); if(done) done(); }; im.onerror=()=>{ if(done) done(); }; im.src=v.em; return; }
+    if(done) done(); }
+  const eraseEmpty=()=>{ for(let i=0;i<eraseA.length;i++) if(eraseA[i]>60) return false; return true; };
   const forestAt=(x,y)=>{ if(!FOR) return 0; const gx=Math.max(0,Math.min(FW-1.001,x-.5)), gy=Math.max(0,Math.min(FH-1.001,y-.5)), i=Math.floor(gx), j=Math.floor(gy), fx=gx-i, fy=gy-j, k=j*FW+i;
     return ((FOR[k]*(1-fx)+FOR[k+1]*fx)*(1-fy)+(FOR[k+FW]*(1-fx)+FOR[k+FW+1]*fx)*fy)/255; };
   function forestGeometry(){ const geos=[];
@@ -1722,10 +1732,10 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const fGeo=forestGeometry(), fMat=new THREE.MeshLambertMaterial({vertexColors:true});
   fMat.onBeforeCompile=sh=>{ sh.vertexShader=sh.vertexShader.replace("#include <begin_vertex>","#include <begin_vertex>\n { vec4 ip=modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.); transformed*=smoothstep(2000.,1100.,distance(ip.xyz,cameraPosition)); }"); };
   // コースの上には木を立てない（片がわ m）：core＝線の近くは必ず、outer＝その外も 開けた所に立つ木は のぞく（林のふちは のこす）
-  const clearW=id=>{ const c=course3d(id); if(c&&(c.route||c.lv==="道")) return {core:5,outer:12}; if(id==="sv_gezan") return {core:6,outer:14}; if(id==="centerB") return {core:10,outer:40}; return {core:7,outer:25}; };
+  const clearW=id=>{ const c=course3d(id); if(c&&(c.route||c.lv==="道")) return {core:5,ski:80}; if(id==="sv_gezan") return {core:6,ski:80}; if(id==="centerB") return {core:10,ski:80}; return {core:7,ski:80}; };
   function clearBand(wide,which){ const c=document.createElement("canvas"); c.width=FW; c.height=FH; const x=c.getContext("2d"); x.strokeStyle="#000"; x.lineCap=x.lineJoin="round";
     Object.keys(G.courses).forEach(id=>{ const p=G.courses[id]; if(!p||p.length<2) return; x.lineWidth=(wide?26:2*clearW(id)[which||"core"])/M; x.beginPath(); x.moveTo(p[0][0],p[0][1]); for(const q of p) x.lineTo(q[0],q[1]); x.stroke(); });
-    x.lineWidth=(which==="outer"?14:22)/M; Object.values(G.lifts).forEach(ab=>{ x.beginPath(); x.moveTo(ab[0][0],ab[0][1]); x.lineTo(ab[1][0],ab[1][1]); x.stroke(); });
+    x.lineWidth=(which==="ski"?160:22)/M; Object.values(G.lifts).forEach(ab=>{ x.beginPath(); x.moveTo(ab[0][0],ab[0][1]); x.lineTo(ab[1][0],ab[1][1]); x.stroke(); });
     const d=x.getImageData(0,0,FW,FH).data, m=new Uint8Array(FW*FH); for(let i=0;i<FW*FH;i++) m[i]=d[i*4+3]>60?1:0; return m; }
   let openCache=null;
   function openArea(){ if(openCache) return openCache; const m=new Uint8Array(FW*FH); if(!FOR){ openCache=m; return m; }
@@ -1733,7 +1743,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     for(let j=0;j<FH;j++){ let s=0; for(let i=-R2;i<=R2;i++) s+=FOR[j*FW+Math.max(0,Math.min(FW-1,i))]; for(let i=0;i<FW;i++){ H1[j*FW+i]=s; const a=Math.min(FW-1,i+R2+1), b=Math.max(0,i-R2); s+=FOR[j*FW+a]-FOR[j*FW+b]; } }
     for(let i=0;i<FW;i++){ let s=0; for(let j=-R2;j<=R2;j++) s+=H1[Math.max(0,Math.min(FH-1,j))*FW+i]; for(let j=0;j<FH;j++){ m[j*FW+i]=s/25/255<.5?1:0; const a=Math.min(FH-1,j+R2+1), b=Math.max(0,j-R2); s+=H1[a*FW+i]-H1[b*FW+i]; } }
     openCache=m; return m; }
-  const inErase=(x,y)=>{ for(let i=0;i<eraseC.length;i+=3){ const dx=x-eraseC[i], dy=y-eraseC[i+1], r=eraseC[i+2]; if(dx*dx+dy*dy<r*r) return true; } return false; };
+  const inErase=(x,y)=>{ const i=Math.floor(x), j=Math.floor(y); return i>=0&&j>=0&&i<FW&&j<FH&&eraseA[j*FW+i]>60; };
   let maskA=null; function maskSnap(){ const d=mctx.getImageData(0,0,gw,gh).data; maskA=new Uint8Array(gw*gh); for(let i=0;i<gw*gh;i++) maskA[i]=d[i*4+3]; }
   function maskRect(X,Y,r){ if(!maskA){ maskSnap(); return; } const x0=Math.max(0,Math.floor((X-r)/G.step)), y0=Math.max(0,Math.floor((Y-r)/G.step)), x1=Math.min(gw,Math.ceil((X+r)/G.step)+1), y1=Math.min(gh,Math.ceil((Y+r)/G.step)+1); if(x1<=x0||y1<=y0) return;
     const w=x1-x0, d=mctx.getImageData(x0,y0,w,y1-y0).data; for(let j=y0;j<y1;j++) for(let i=x0;i<x1;i++) maskA[j*gw+i]=d[((j-y0)*w+(i-x0))*4+3]; }
@@ -1743,18 +1753,24 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function afSet(i){ const ch=AF.chunks[AF.ch[i]], k=AF.li[i];
     if(AF.gone[i]) _fm.makeScale(0,0,0); else { const x=AF.x[i], y=AF.y[i], sc=AF.s[i]; _fq.setFromAxisAngle(UPV,(x*12.9898+y*78.233)%6.2832); _fs.set(sc,sc*(.88+((x*7.13+y*3.31)%1+1)%1*.3),sc); _fm.compose(P3(x,y,-.7),_fq,_fs); }
     ch.im.setMatrixAt(k,_fm); ch.dirty=true; }
-  function afFlush(){ AF.chunks.forEach(c=>{ if(c.dirty){ c.im.instanceMatrix.needsUpdate=true; c.dirty=false; } }); needDraw=true; }
+  // ゲレンデの中の 林の地面：木が見えている所の まわりだけ（木を消したら 雪に）
+  let skiM=null, openM=null, treeN=null, floorDirty=false;
+  function floorCell(q){ FORT[q]=skiM[q]&&(openM[q]||!treeN[q])?0:FOR[q]; }
+  function treeMark(i,d){ if(!treeN) return; const x=Math.floor(AF.x[i]), y=Math.floor(AF.y[i]);
+    for(let j=Math.max(0,y-3);j<=Math.min(FH-1,y+3);j++) for(let k=Math.max(0,x-3);k<=Math.min(FW-1,x+3);k++){ const q=j*FW+k; treeN[q]+=d; floorCell(q); } floorDirty=true; }
+  function afFlush(){ AF.chunks.forEach(c=>{ if(c.dirty){ c.im.instanceMatrix.needsUpdate=true; c.dirty=false; } }); if(floorDirty&&landTex){ landTex.needsUpdate=true; floorDirty=false; } needDraw=true; }
   function afArea(X,Y,r){ if(!AF.n) return; const r2=r*r;
     for(let gx=Math.floor((X-r)/16);gx<=Math.floor((X+r)/16);gx++) for(let gy=Math.floor((Y-r)/16);gy<=Math.floor((Y+r)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
-      for(const i of a){ const dx=AF.x[i]-X, dy=AF.y[i]-Y; if(dx*dx+dy*dy>r2) continue; const g=afGone(i)?1:0; if(g!==AF.gone[i]){ AF.gone[i]=g; afSet(i); } } }
+      for(const i of a){ const dx=AF.x[i]-X, dy=AF.y[i]-Y; if(dx*dx+dy*dy>r2) continue; const g=afGone(i)?1:0; if(g!==AF.gone[i]){ AF.gone[i]=g; afSet(i); treeMark(i,g?-1:1); } } }
     afFlush(); }
-  function afAll(){ if(!AF.n) return; maskSnap(); for(let i=0;i<AF.n;i++){ const g=afGone(i)?1:0; if(g!==AF.gone[i]){ AF.gone[i]=g; afSet(i); } } afFlush(); }
+  function afAll(){ if(!AF.n) return; maskSnap(); for(let i=0;i<AF.n;i++){ const g=afGone(i)?1:0; if(g!==AF.gone[i]){ AF.gone[i]=g; afSet(i); treeMark(i,g?-1:1); } } afFlush(); }
   function genForest(){ AF.chunks.forEach(c=>{ scene.remove(c.im); c.im.dispose(); }); AF.chunks=[]; AF.grid.clear(); AF.n=0; if(!FOR) return;
     const R=rng(424242), X=[], Y=[], S=[], C=[];
     if(TRE){ // 航空写真の こずえの場所に（本当に木がある所だけ。コース・リフトの上は のぞく）
-      const band=clearBand(false,"core"), outer=clearBand(false,"outer"), open=openArea();
+      const band=clearBand(false,"core"), ski=clearBand(false,"ski"), open=openArea();
+      skiM=FORT?ski:null; openM=open; // 林の地面は、木を立てたあとで決める
       for(let j=0;j<FH;j++) for(let i=0;i<FW;i++){ const k=(j*FW+i)*4, v=TRE[k]; if(!v) continue; const x=i+TRE[k+1]/255, y=j+TRE[k+2]/255, q=Math.floor(y)*FW+Math.floor(x);
-        if(band[q]||(outer[q]&&open[q])) continue; X.push(x); Y.push(y); S.push(.5+(v-1)/254); C.push(R()); } }
+        if(band[q]||(ski[q]&&(open[q]||forestAt(x,y)<.5))) continue; X.push(x); Y.push(y); S.push(.5+(v-1)/254); C.push(R()); } }
     else { const SP=15/M, band=clearBand(true); // 予備：林の地図から（コース・リフトの上は のぞく）
       for(let gy=0;gy<FH;gy+=SP) for(let gx=0;gx<FW;gx+=SP){ const x=gx+R()*SP, y=gy+R()*SP, f=forestAt(x,y), r1=R(), r2=R(), r3=R();
         if(f<.5||r1>Math.min(1,(f-.42)*2.5)||x<2||y<2||x>FW-2||y>FH-2||band[Math.floor(y)*FW+Math.floor(x)]) continue; X.push(x); Y.push(y); S.push(.85+r2*.5); C.push(r3); } }
@@ -1767,6 +1783,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const im=new THREE.InstancedMesh(fGeo,fMat,Math.max(1,L.length)); im.count=L.length; im.frustumCulled=false; const box=new THREE.Box3(), ch={im,box,dirty:false,n:L.length}; AF.chunks.push(ch);
       L.forEach((i,k)=>{ AF.gone[i]=afGone(i)?1:0; const v=P3(AF.x[i],AF.y[i],0); box.expandByPoint(v); const t=(.78+C[i]*.3)*(.55+.45*litAt(v.x,v.z)); im.setColorAt(k,_fc.setRGB(t,t,t)); afSet(i); });
       if(!L.length) box.makeEmpty(); else box.expandByScalar(18); im.instanceMatrix.needsUpdate=true; if(im.instanceColor) im.instanceColor.needsUpdate=true; im.visible=false; scene.add(im); });
+    if(skiM&&FORT&&landTex){ treeN=new Uint16Array(FW*FH); // 見えている木の まわり（±3マス）を数える → 林の地面
+      for(let i=0;i<n;i++) if(!AF.gone[i]){ const x=Math.floor(AF.x[i]), y=Math.floor(AF.y[i]); for(let j=Math.max(0,y-3);j<=Math.min(FH-1,y+3);j++) for(let k=Math.max(0,x-3);k<=Math.min(FW-1,x+3);k++) treeN[j*FW+k]++; }
+      for(let q=0;q<FW*FH;q++) floorCell(q); landTex.needsUpdate=true; }
     needDraw=true; }
   let afT=0; const afLater=()=>{ clearTimeout(afT); afT=setTimeout(genForest,600); };
 
@@ -2085,12 +2104,13 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function cutAt(X,Y){ const rp=env.size.trees/M, r2=rp*rp, out=[]; for(let i=0;i<treeArr.length;i+=3){ const dx=treeArr[i]-X, dy=treeArr[i+1]-Y; if(dx*dx+dy*dy>r2) out.push(treeArr[i],treeArr[i+1],treeArr[i+2]); }
     if(out.length!==treeArr.length){ treeArr=out; treesUpd(); treeCount(); }
     // 林の木も：消した丸をおぼえる（近い丸とは まとめる）
-    const n=eraseC.length; if(!(n&&Math.hypot(eraseC[n-3]-X,eraseC[n-2]-Y)<rp*.4&&Math.abs(eraseC[n-1]-rp)<.5)&&eraseC.length<9000){ eraseC.push(Math.round(X*10)/10,Math.round(Y*10)/10,Math.round(rp*10)/10); } afArea(X,Y,rp); }
+    eraseDot(X,Y,rp); afArea(X,Y,rp+1.5); } // 絵の ふち（なめらかにした所）の木も たしかめる
   const treeCount=()=>{ edTreeN.textContent=`${(treeArr.length/3).toLocaleString()}本`; };
   // なぞる（1本指・マウスの左）。2本目の指が来たら、いまの1回は取り消して 地図の操作へ
   let pst=null; const pIds=new Set();
-  function envSnap(){ const k=tk(), h=env.hist[k]; h.push(k==="snow"?mctx.getImageData(0,0,gw,gh):{t:treeArr.slice(),e:eraseC.slice()}); if(h.length>20) h.shift(); }
-  function envRestore(k,v){ if(k==="snow"){ mctx.putImageData(v,0,0); maskDirty=true; afAll(); } else { treeArr=v.t; eraseC.length=0; eraseC.push(...v.e); treesUpd(); treeCount(); afAll(); } }
+  function envSnap(){ const k=tk(), h=env.hist[k]; h.push(k==="snow"?mctx.getImageData(0,0,gw,gh):{t:treeArr.slice(),e:eraseA.slice()}); if(h.length>20) h.shift(); }
+  function envRestore(k,v){ if(k==="snow"){ mctx.putImageData(v,0,0); maskDirty=true; afAll(); }
+    else { treeArr=v.t; const id=ectx.createImageData(FW,FH); for(let i=0;i<v.e.length;i++) id.data[i*4+3]=v.e[i]; ectx.putImageData(id,0,0); eraseA=v.e.slice(); treesUpd(); treeCount(); afAll(); } }
   function paintAt(g){ const k=tk(), add=env.mode[k]==="add", step=Math.max(.8,env.size[k]/M*.35);
     const go=(X,Y)=>{ if(k==="snow"){ stampSnow(X,Y,add); const r=env.size.snow/M; maskRect(X,Y,r); afArea(X,Y,r); } else if(add) plantAt(X,Y); else cutAt(X,Y); };
     if(!pst.last){ go(g[0],g[1]); pst.last=g; }
@@ -2108,7 +2128,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function envUndo(){ const k=tk(), h=env.hist[k]; if(ed.tool==="lift"||!h.length) return; envRestore(k,h.pop()); env.dirty[k]=true; edBar(); }
   async function envSave(){ const jobs=[];
     if(env.dirty.snow) jobs.push(["snow",{png:maskEmpty()?"":maskCv.toDataURL("image/png")}]);
-    if(env.dirty.trees) jobs.push(["trees",{t:treeArr.slice(),e:eraseC.slice()}]);
+    if(env.dirty.trees) jobs.push(["trees",{t:treeArr.slice(),em:eraseEmpty()?"":eraseCv.toDataURL("image/png")}]);
     if(env.dirty.lifts) jobs.push(["lifts",{L:JSON.parse(JSON.stringify(LSET))}]);
     if(!jobs.length){ toast("変えた所は ありません"); return; }
     const b=$("#edSave"); b.disabled=true; b.textContent="保存中…"; let where="db";
@@ -2152,7 +2172,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // 共有のデータが変わったら（編集中の変更は消さない）
   function envChanged(k){ const v=ENV3D[k]; if(ed.on&&env.dirty[k]) return;
     if(k==="snow") loadMask(v&&v.png);
-    else if(k==="trees"){ treeArr=v?v.t.slice():[]; eraseC.length=0; if(v&&v.e) eraseC.push(...v.e); treesUpd(); treeCount(); afAll(); }
+    else if(k==="trees"){ treeArr=v?v.t.slice():[]; treesUpd(); treeCount(); eraseLoad(v,afAll); afAll(); }
     else if(k==="lifts"){ Object.keys(LSET).forEach(id=>{ delete LSET[id]; }); if(v) Object.assign(LSET,JSON.parse(JSON.stringify(v.L))); rebuildLifts(); if(ed.on&&ed.tool==="lift") liftUI(); } }
   $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&(COURSE_IDS.has(selected)||isMy(selected))?selected:"centerB"); };
   function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); needDraw=true; afLater();
@@ -2220,7 +2240,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(!lastMove){ toast("コースかリフトを選ぶと、その目線で見られます"); return; }
     follow=true; lookYaw=lookPitch=0; lookHome=false; baseOK=false; $("#povBtn").classList.toggle("on",true); lastMove();
     const n=store.get("lookTip",0)|0; if(n<2){ store.set("lookTip",n+1); setTimeout(()=>{ if(follow) toast("1本指でドラッグすると、動きながら まわりを見回せます（「🎿 目線」をもう一度押すと終わります）"); },900); } };
-  if(ENV3D.trees){ treeArr=ENV3D.trees.t.slice(); if(ENV3D.trees.e) eraseC.push(...ENV3D.trees.e); treesUpd(); }
+  if(ENV3D.trees){ treeArr=ENV3D.trees.t.slice(); treesUpd(); eraseLoad(ENV3D.trees,afAll); }
   genForest(); if(ENV3D.snow) loadMask(ENV3D.snow.png);
   theme(); resize(); home(0); introPose();
   return { ready:outerReady, start(){ if(running) return; resize(); running=true; needDraw=true; last=performance.now(); requestAnimationFrame(loop); }, stop(){ running=false; },
@@ -2275,8 +2295,9 @@ function envClean(k,v){ try{ if(!v||typeof v!=="object") return null; const at=S
     if(k==="snow"){ const p=v.png; return typeof p==="string"&&(p===""||(p.startsWith("data:image/png;base64,")&&p.length<600000))?{png:p,at}:null; }
     if(k==="trees"){ const t=v.t; if(!Array.isArray(t)||t.length%3||t.length>3*MAXTREE) return null; const out=[];
       for(let i=0;i<t.length;i+=3){ const x=+t[i], y=+t[i+1], z=+t[i+2]; if(isFinite(x)&&isFinite(y)&&isFinite(z)&&x>=0&&y>=0&&x<=GEO3D.w&&y<=GEO3D.h) out.push(x,y,Math.max(.5,Math.min(1.6,z))); }
-      const e=Array.isArray(v.e)&&v.e.length%3===0&&v.e.length<=9000?v.e:[], eo=[]; for(let i=0;i<e.length;i+=3){ const x=+e[i], y=+e[i+1], r=+e[i+2]; if(isFinite(x)&&isFinite(y)&&isFinite(r)&&r>0) eo.push(x,y,Math.min(60,r)); }
-      return {t:out,e:eo,at}; }
+      const e=Array.isArray(v.e)&&v.e.length%3===0&&v.e.length<=30000?v.e:[], eo=[]; for(let i=0;i<e.length;i+=3){ const x=+e[i], y=+e[i+1], r=+e[i+2]; if(isFinite(x)&&isFinite(y)&&isFinite(r)&&r>0) eo.push(x,y,Math.min(60,r)); }
+      const em=typeof v.em==="string"&&v.em.startsWith("data:image/png;base64,")&&v.em.length<600000?v.em:"";
+      return {t:out,e:eo,em,at}; }
     if(k==="lifts"){ const L=v.L; if(!L||typeof L!=="object") return null; const out={};
       Object.entries(L).forEach(([id,o])=>{ if(!GEO3D.lifts[id]||!o||typeof o!=="object") return; const gap=+o.gap, h=+o.h, e={};
         if(isFinite(gap)&&gap>0) e.gap=Math.round(Math.max(30,Math.min(200,gap))); if(isFinite(h)&&h>0) e.h=Math.round(Math.max(5,Math.min(25,h))); if(o.even===true) e.even=true; out[id]=e; }); return {L:out,at}; }
