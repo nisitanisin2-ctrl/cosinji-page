@@ -777,7 +777,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
   <p class="note" data-note="tohachi">※ 図は、ゲレンデマップ（パンフレット）の上に、選んだコースの線を重ねたものです。線の位置はおおよそです。今はない施設（3号リフト上の「ミニスノーパーク」、1号リフト終点の休憩所）は図から消し、スカイバレイのリフトは今の「ベアトリプルリフト」に直してあります。また、このマップは今のシーズンとコース名がちがう所があります（例：②「競技Aコース」の位置が、今の「東尾根下コース」）。コースの長さ・斜度・リフトの時間は公式サイトの数字です。最新のマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデマップ</a>で。</p>
-  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。目線のあいだは、1本指（マウス）のドラッグで、動きながら まわりを見回せます（🧭 正面 で もどる）。「🎿 目線」をもう一度押すと終わります。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。描く画面の上の「❄ 雪」で雪の白をぬる、「🌲 木」で木を植える、「🚡 リフト」で支柱の間隔と高さを変える こともできます（保存すると、このアプリの3Dの地図に出ます）。</p>
+  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、航空写真から林と開けた所を分けて、開けた所（ゲレンデ・田畑など）を雪の白に、近くの林には雪をかぶった木を立てた見た目です（遠くの林は写真のまま。「☀ 写真」で元の写真）。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。目線のあいだは、1本指（マウス）のドラッグで、動きながら まわりを見回せます（🧭 正面 で もどる）。「🎿 目線」をもう一度押すと終わります。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。描く画面の上の「❄ 雪」で雪の白をぬる、「🌲 木」で木を植える、「🚡 リフト」で支柱の間隔と高さを変える こともできます（保存すると、このアプリの3Dの地図に出ます）。</p>
   <p class="note" data-note="sv" hidden>※ 同じゲレンデマップの右側（スカイバレイ側）です。線の位置はおおよそ。コースの長さ・斜度はスカイバレイの公式マップより。</p>
   </div>
   </div>
@@ -1364,8 +1364,9 @@ function load3D(){
   t3dLoading=(async()=>{
     const THREE=await import("https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js");
     const litP=new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src="img/terrain_l.png"; });
+    const forP=new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src="img/forest.png"; });
     const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error("terrain")); im.src="img/terrain.png"; });
-    T3D=build3D(THREE,img,await litP);
+    T3D=build3D(THREE,img,await litP,await forP);
     await Promise.race([T3D.ready,new Promise(r=>setTimeout(r,6000))]); // まわりの山がそろうまで（遅いときは先に出す）
     msg.hidden=true; return T3D;
   })();
@@ -1492,7 +1493,7 @@ function mapControls3D(THREE,camera,dom,o){
     camera.lookAt(target); }
   return C;
 }
-function build3D(THREE,img,litImg){
+function build3D(THREE,img,litImg,forImg){
   const G=GEO3D, box=$("#map3d"), EX=1.35, M=G.mpp, W2=G.w/2, H2=G.h/2;
   let needDraw=true, vw=1, vh=1; // 描きなおしが要るとき true（動いていなければ描かない）
   // 標高（PNGの赤・緑に 0.1m 単位で入れてある）
@@ -1505,6 +1506,9 @@ function build3D(THREE,img,litImg){
     const c=document.createElement("canvas"); c.width=nx; c.height=ny; const x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(im,0,0);
     const d=x.getImageData(0,0,nx,ny).data; for(let i=0;i<nx*ny;i++){ L[i*2]=d[i*4]/255; L[i*2+1]=d[i*4+1]/255; } return L; }
   const LIT=readLit(litImg,G.gw,G.gh);
+  // 林と開けた所（航空写真から分けた地図。1マス＝約3.9m、明るさ＝林らしさ）
+  const FW=920, FH=480; let FOR=null;
+  if(forImg){ const c=document.createElement("canvas"); c.width=FW; c.height=FH; const x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(forImg,0,0,FW,FH); const d=x.getImageData(0,0,FW,FH).data; FOR=new Uint8Array(FW*FH); for(let i=0;i<FW*FH;i++) FOR[i]=d[i*4]; }
   const elev=(x,y)=>{ const gx=Math.max(0,Math.min(G.gw-1.001,x/G.step)), gy=Math.max(0,Math.min(G.gh-1.001,y/G.step)), i=Math.floor(gx), j=Math.floor(gy), fx=gx-i, fy=gy-j, k=j*G.gw+i;
     return HGT[k]*(1-fx)*(1-fy)+HGT[k+1]*fx*(1-fy)+HGT[k+G.gw]*(1-fx)*fy+HGT[k+G.gw+1]*fx*fy; };
   const P3=(x,y,up=0)=>new THREE.Vector3((x-W2)*M,(elev(x,y)-hmin)*EX+up,(y-H2)*M);
@@ -1554,29 +1558,35 @@ function build3D(THREE,img,litImg){
   function winterOBC(sh){ Object.assign(sh.uniforms,this.userData.U);
     sh.vertexShader="uniform float uEX;\nuniform float uHmin;\nuniform vec4 uPar;\nattribute vec2 lit;\nvarying vec2 vLit;\nvarying float vHm;\nvarying float vNy;\nvarying vec2 vWxz;\nvarying vec2 vPar;\n"+sh.vertexShader.replace("#include <begin_vertex>",
       "#include <begin_vertex>\n vLit=lit; vHm=transformed.y/uEX+uHmin; vNy=objectNormal.y; vWxz=transformed.xz; vPar=vec2((transformed.x-uPar.x)/uPar.z,1.0-(transformed.z-uPar.y)/uPar.w);");
-    sh.fragmentShader="uniform float uSnow;\nuniform vec4 uOwn;\nuniform float uBlend;\nuniform sampler2D uParTex;\nuniform float uParOn;\nuniform sampler2D uMask;\nuniform float uMaskOn;\nuniform vec2 uMsz;\nvarying vec2 vLit;\nvarying float vHm;\nvarying float vNy;\nvarying vec2 vWxz;\nvarying vec2 vPar;\n"+sh.fragmentShader
+    sh.fragmentShader="uniform float uSnow;\nuniform vec4 uOwn;\nuniform float uBlend;\nuniform sampler2D uParTex;\nuniform float uParOn;\nuniform sampler2D uMask;\nuniform float uMaskOn;\nuniform vec2 uMsz;\nuniform sampler2D uLand;\nuniform float uLandOn;\nuniform vec2 uLmap;\nvarying vec2 vLit;\nvarying float vHm;\nvarying float vNy;\nvarying vec2 vWxz;\nvarying vec2 vPar;\n"+sh.fragmentShader
       .replace("#include <lights_fragment_begin>",THREE.ShaderChunk.lights_fragment_begin.replace("getDirectionalLightInfo( directionalLight, directLight );","getDirectionalLightInfo( directionalLight, directLight ); directLight.color*=vLit.x;"))
-      .replace("#include <lights_fragment_end>","#if defined( RE_IndirectDiffuse )\n irradiance*=mix(.3,1.,vLit.y);\n#endif\n#include <lights_fragment_end>")
+      .replace("#include <lights_fragment_end>","#if defined( RE_IndirectDiffuse )\n irradiance*=mix(mix(.3,1.,vLit.y),1.12,snowAmt*.8);\n#endif\n#include <lights_fragment_end>")
       .replace("#include <tonemapping_fragment>","{ vec3 c=gl_FragColor.rgb; float m=max(max(c.r,c.g),c.b); if(m>.78){ gl_FragColor.rgb=c*((.78+.22*(1.-exp(-(m-.78)/.22)))/m); } }")
       .replace("#include <map_fragment>",`#include <map_fragment>
+    float snowAmt=0.;
     { vec3 c=diffuseColor.rgb;
       if(uParOn>.5){ float e=min(min(vWxz.x-uOwn.x,uOwn.z-vWxz.x),min(vWxz.y-uOwn.y,uOwn.w-vWxz.y)); float wg=1.-smoothstep(0.,uBlend,e); if(wg>.001) c=mix(c,texture2D(uParTex,vPar).rgb,wg); }
       float l=dot(c,vec3(.2126,.7152,.0722)), gr=c.g-max(c.r,c.b), sea=1.-step(2.,vHm);
       float fl=smoothstep(.93,.99,vNy)*smoothstep(.025,.06,l);
       float open=max(smoothstep(.09,.24,l)*(1.-smoothstep(.06,.16,gr)),fl*.85)*(1.-sea);
+      float lcF=0.;
+      if(uLandOn>.5){ vec2 q2=vec2((vWxz.x-uOwn.x)/(uOwn.z-uOwn.x),(vWxz.y-uOwn.y)/(uOwn.w-uOwn.y)); float fz=texture2D(uLand,q2*uLmap).r, ed=min(min(vWxz.x-uOwn.x,uOwn.z-vWxz.x),min(vWxz.y-uOwn.y,uOwn.w-vWxz.y)), wl=smoothstep(30.,300.,ed), lc=smoothstep(.38,.62,fz);
+        open=mix(open,max((1.-lc)*(1.-sea),open*.7),wl); lcF=lc*wl; }
       if(uMaskOn>.5){ vec2 q=vec2((vWxz.x-uOwn.x)/(uOwn.z-uOwn.x),(vWxz.y-uOwn.y)/(uOwn.w-uOwn.y)); open=max(open,texture2D(uMask,vec2((q.x*(uMsz.x-1.)+.5)/uMsz.x,1.-(q.y*(uMsz.y-1.)+.5)/uMsz.y)).a*(1.-sea)); }
-      vec3 snow=vec3(.84,.88,.95)+vec3(.12)*smoothstep(.12,.5,l);
+      vec3 snow=vec3(.9,.93,.98)*(.95+.05*smoothstep(.04,.35,l));
       float hi=smoothstep(450.,1250.,vHm);
       vec3 fo=mix(c,vec3(l)*vec3(1.12,.98,.88)*1.25,.6*(1.-sea)); fo=mix(fo,vec3(.72,.76,.82),(.05+.14*hi)*(1.-sea));
+      fo=mix(fo,vec3(.6,.64,.7)*(.9+.1*smoothstep(.02,.2,l)),.62*lcF*smoothstep(2000.,1100.,length(vViewPosition)));
       vec3 w=mix(fo,snow,open);
-      diffuseColor.rgb=mix(c,w,uSnow); }`); }
+      diffuseColor.rgb=mix(c,w,uSnow); snowAmt=open*uSnow; }`); }
   const winterMat=(map,U)=>{ const m=new THREE.MeshStandardMaterial({map,roughness:1,metalness:0}); m.userData.U=U; m.onBeforeCompile=winterOBC; return m; };
   const blankTex=new THREE.DataTexture(new Uint8Array([214,224,236,255]),1,1); blankTex.needsUpdate=true;
   const IX0=pos[0], IZ0=pos[2], IX1=pos[(gw-1)*3], IZ1=pos[(gh-1)*gw*3+2];
   // 雪をぬった所（地形の1マス＝約7.8mごと。透明度が雪の強さ）
   const maskCv=document.createElement("canvas"); maskCv.width=gw; maskCv.height=gh; const mctx=maskCv.getContext("2d",{willReadFrequently:true});
   const maskTex=new THREE.CanvasTexture(maskCv); maskTex.generateMipmaps=false; maskTex.minFilter=THREE.LinearFilter; let maskDirty=false;
-  const innerU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(IX0,IZ0,IX1,IZ1)},uBlend:{value:170},uPar:{value:new THREE.Vector4(0,0,1,1)},uParTex:{value:blankTex},uParOn:{value:0},uMask:{value:maskTex},uMaskOn:{value:1},uMsz:{value:new THREE.Vector2(gw,gh)}};
+  const landTex=FOR?new THREE.DataTexture(FOR,FW,FH,THREE.RedFormat):null; if(landTex){ landTex.minFilter=landTex.magFilter=THREE.LinearFilter; landTex.needsUpdate=true; }
+  const innerU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(IX0,IZ0,IX1,IZ1)},uBlend:{value:170},uPar:{value:new THREE.Vector4(0,0,1,1)},uParTex:{value:blankTex},uParOn:{value:0},uMask:{value:maskTex},uMaskOn:{value:1},uMsz:{value:new THREE.Vector2(gw,gh)},uLand:{value:landTex||blankTex},uLandOn:{value:landTex?1:0},uLmap:{value:new THREE.Vector2(918/920,478/480)}};
   const baseMat=winterMat(tex,innerU);
   // 64x64 マスずつに分ける（細かい写真は、この1つ分ずつ読みこむ）
   const CW=64, BPX=CW*G.step, chunks=[];
@@ -1602,6 +1612,8 @@ function build3D(THREE,img,litImg){
     const hDev=renderer.domElement.height||800, LOAD=1.13*hDev, DROP=LOAD*1.7;
     camera.updateMatrixWorld(); mPVD.multiplyMatrices(camera.projectionMatrix,mInvD.copy(camera.matrixWorld).invert()); frusD.setFromProjectionMatrix(mPVD);
     for(const c of chunks){ c.d=c.box.distanceToPoint(camera.position); c.vis=frusD.intersectsBox(c.box); if(c.det&&c.d>DROP) dropDetail(c); }
+    for(const c of AF.chunks){ const d=c.box.isEmpty()?1e9:c.box.distanceToPoint(camera.position), v=snowU.value>.5&&d<2050&&frusD.intersectsBox(c.box); if(c.im.visible!==v){ c.im.visible=v; needDraw=true; }
+      if(v){ const k=Math.max(1,Math.round(c.n*Math.max(.22,Math.min(1,1-(d-500)/1500*.78)))); if(c.im.count!==k){ c.im.count=k; needDraw=true; } } }
     const want=chunks.filter(c=>c.vis&&c.d<LOAD&&!c.det&&!c.loading&&!c.failed).sort((a,b)=>a.d-b.d);
     for(const c of want){ if(detBusy>=2) break;
       if(chunks.filter(x=>x.det||x.loading).length>=DCAP){ const far=chunks.filter(x=>x.det).sort((a,b)=>b.d-a.d)[0]; if(far&&far.d>c.d*1.3) dropDetail(far); else break; }
@@ -1649,9 +1661,9 @@ function build3D(THREE,img,litImg){
     const ldTex=(src,fn)=>{ const t=new THREE.TextureLoader().load(src,()=>{ fn(); needDraw=true; texDone(); },undefined,texDone); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=ANISO; return t; };
     const nearTex=ldTex("img/near3d.jpg",()=>{ innerU.uParOn.value=1; nearMat.visible=true; sideMesh.visible=false; }), midTex=ldTex("img/mid3d.jpg",()=>{ nearU.uParOn.value=1; midMat.visible=true; }), farTex=ldTex("img/far3d.jpg",()=>{ midU.uParOn.value=1; farMat.visible=true; });
     innerU.uParTex.value=nearTex; innerU.uPar.value.set(LN.x0,LN.z0,LN.w,LN.h);
-    const nearU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LN.x0,LN.z0,LN.x0+LN.w,LN.z0+LN.h)},uBlend:{value:900},uPar:{value:new THREE.Vector4(LM.x0,LM.z0,LM.w,LM.h)},uParTex:{value:midTex},uParOn:{value:0},uMask:{value:blankTex},uMaskOn:{value:0},uMsz:{value:new THREE.Vector2(1,1)}};
-    const midU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LM.x0,LM.z0,LM.x0+LM.w,LM.z0+LM.h)},uBlend:{value:1500},uPar:{value:new THREE.Vector4(LF.x0,LF.z0,LF.w,LF.h)},uParTex:{value:farTex},uParOn:{value:0},uMask:{value:blankTex},uMaskOn:{value:0},uMsz:{value:new THREE.Vector2(1,1)}};
-    const farU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LF.x0,LF.z0,LF.x0+LF.w,LF.z0+LF.h)},uBlend:{value:1},uPar:{value:new THREE.Vector4(0,0,1,1)},uParTex:{value:blankTex},uParOn:{value:0},uMask:{value:blankTex},uMaskOn:{value:0},uMsz:{value:new THREE.Vector2(1,1)}};
+    const nearU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LN.x0,LN.z0,LN.x0+LN.w,LN.z0+LN.h)},uBlend:{value:900},uPar:{value:new THREE.Vector4(LM.x0,LM.z0,LM.w,LM.h)},uParTex:{value:midTex},uParOn:{value:0},uMask:{value:blankTex},uMaskOn:{value:0},uMsz:{value:new THREE.Vector2(1,1)},uLand:{value:blankTex},uLandOn:{value:0},uLmap:{value:new THREE.Vector2(1,1)}};
+    const midU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LM.x0,LM.z0,LM.x0+LM.w,LM.z0+LM.h)},uBlend:{value:1500},uPar:{value:new THREE.Vector4(LF.x0,LF.z0,LF.w,LF.h)},uParTex:{value:farTex},uParOn:{value:0},uMask:{value:blankTex},uMaskOn:{value:0},uMsz:{value:new THREE.Vector2(1,1)},uLand:{value:blankTex},uLandOn:{value:0},uLmap:{value:new THREE.Vector2(1,1)}};
+    const farU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(LF.x0,LF.z0,LF.x0+LF.w,LF.z0+LF.h)},uBlend:{value:1},uPar:{value:new THREE.Vector4(0,0,1,1)},uParTex:{value:blankTex},uParOn:{value:0},uMask:{value:blankTex},uMaskOn:{value:0},uMsz:{value:new THREE.Vector2(1,1)},uLand:{value:blankTex},uLandOn:{value:0},uLmap:{value:new THREE.Vector2(1,1)}};
     const nearMat=winterMat(nearTex,nearU), midMat=winterMat(midTex,midU), farMat=winterMat(farTex,farU); nearMat.visible=midMat.visible=farMat.visible=false;
     const hN=holeOf(LN,IX0,IZ0,IX1,IZ1,15), near=gridMesh(LN,hN,nearMat);
     const hM=holeOf(LM,LN.x0,LN.z0,LN.x0+LN.w,LN.z0+LN.h,40), mid=gridMesh(LM,hM,midMat);
@@ -1691,7 +1703,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
 
   // 線をなめらかに（画素で約3pxごと）
   const smooth=(pts)=>{ const out=[]; for(let i=0;i<pts.length-1;i++){ const p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
-      const m=Math.max(2,Math.ceil(Math.hypot(p2[0]-p1[0],p2[1]-p1[1])/3));
+      const m=Math.max(2,Math.ceil(Math.hypot(p2[0]-p1[0],p2[1]-p1[1])/1.5));
       for(let k=0;k<m;k++){ const t=k/m,t2=t*t,t3=t2*t; out.push([0,1].map(q=>.5*((2*p1[q])+(-p0[q]+p2[q])*t+(2*p0[q]-5*p1[q]+4*p2[q]-p3[q])*t2+(-p0[q]+3*p1[q]-3*p2[q]+p3[q])*t3))); } }
     out.push(pts[pts.length-1]); return out; };
   // 斜面にそわせた帯（コース）
@@ -1728,12 +1740,12 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(!raw||raw.length<2) return;
     if(CIDX[c.id]==null) CIDX[c.id]=Math.min(124,Object.keys(CIDX).length);
     const sp=smooth(raw), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"), grp=new THREE.Group(), ref=1+CIDX[c.id]*2;
-    const band=ribbon(sp,cW(c),col,.34,3.4); stencil(band.material,ref); band.renderOrder=2;
-    const L=routeLine(sp,col,4.6,ref+1,3);
+    const band=ribbon(sp,cW(c),col,.34,1.3); stencil(band.material,ref); band.renderOrder=2;
+    const L=routeLine(sp,col,1.8,ref+1,3);
     grp.add(band,L.grp); grp.visible=old?old.grp.visible:false; scene.add(grp);
     const o={c,sp,grp,band,op:old?old.op:1,set:(v)=>{ o.op=v; band.material.opacity=.34*v; L.cas.material.uniforms.uOp.value=.8*v; L.ln.material.uniforms.uOp.value=.95*v; }}; o.set(o.op); courseObj[c.id]=o; }
   COURSES3D.forEach(buildCourse); MY3D.forEach(buildCourse);
-  function removeCourse(id){ const o=courseObj[id]; if(!o) return; scene.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; }
+  function removeCourse(id){ const o=courseObj[id]; if(!o) return; scene.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; afLater(); }
   // 長さ（斜面にそって）・平均と最大の斜度（約30mの区間ごと）。標高は本当の高さで
   function courseStats(pts){ const sp=smooth(pts), H=sp.map(p=>elev(p[0],p[1])), D=[0]; let len=0;
     for(let i=1;i<sp.length;i++){ const d=Math.hypot(sp[i][0]-sp[i-1][0],sp[i][1]-sp[i-1][1])*M; D.push(D[i-1]+d); len+=Math.hypot(d,H[i]-H[i-1]); }
@@ -1806,7 +1818,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // 支柱の間隔と高さ（リフトごと）。決めていなければ ふつう：約92mごと・ワイヤーの高さ10m
   { const L=ENV3D.lifts&&ENV3D.lifts.L; if(L) Object.assign(LSET,JSON.parse(JSON.stringify(L))); }
   function liftLen(id){ const ab=G.lifts[id]; if(!ab) return 0; const p=P3(ab[0][0],ab[0][1],0), q=P3(ab[1][0],ab[1][1],0); return Math.hypot(q.x-p.x,q.z-p.z); }
-  function liftDef(id){ const l=liftLen(id); return {gap:Math.round(l/Math.max(2,Math.round(l/92))),h:10}; }
+  function liftDef(id){ const l=liftLen(id); return {gap:Math.round(l/Math.max(2,Math.round(l/55))),h:10}; }
   function liftSet(id){ const d=liftDef(id), e=LSET[id]||{}; return {gap:e.gap||d.gap,h:e.h||d.h}; }
   function buildLifts(){
     liftParts.forEach(m=>{ scene.remove(m); m.geometry.dispose(); if(m.userData.ownMat) m.material.dispose(); }); liftParts.length=0;
@@ -1898,7 +1910,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     LABELS.forEach(L=>{ if(L.lift&&liftObj[L.lift]) L.p.copy(liftObj[L.lift].curve.getPoint(.5)).add(new THREE.Vector3(0,10,0)); });
     Object.entries(liftObj).forEach(([lid,o])=>o.set(ed.on&&ed.tool==="lift"?lid===edLiftSel.value:lid===selected)); needDraw=true; }
   // ===== 木（雪をかぶった針葉樹）。高さ 約10〜15m。地図の座標で [x,y,大きさ] =====
-  let treeArr=[]; const _tm=new THREE.Matrix4(), _tq=new THREE.Quaternion(), _ts=new THREE.Vector3();
+  let treeArr=[]; const _tm=new THREE.Matrix4(), _tq=new THREE.Quaternion(), _ts=new THREE.Vector3(), _tc=new THREE.Color();
   function treeGeometry(){ const geos=[], add=(g,colf)=>{ const p=g.attributes.position, c=new Float32Array(p.count*3); for(let i=0;i<p.count;i++){ const k=colf(p.getY(i)); c[i*3]=k[0]; c[i*3+1]=k[1]; c[i*3+2]=k[2]; } g.setAttribute("color",new THREE.BufferAttribute(c,3)); geos.push(g); };
     const trunk=new THREE.CylinderGeometry(.22,.34,2.4,6); trunk.translate(0,1.2,0); add(trunk,()=>[.05,.032,.02]);
     [[3.2,4.6,1.8],[2.5,4.1,4.4],[1.75,3.7,6.9],[1,2.8,9.2]].forEach(([r,h,y])=>{ const c=new THREE.ConeGeometry(r,h,7); c.translate(0,y+h/2,0);
@@ -1910,8 +1922,58 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const treeIM=new THREE.InstancedMesh(treeGeometry(),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.92}),MAXTREE); treeIM.count=0; treeIM.frustumCulled=false; scene.add(treeIM);
   function treesUpd(){ const n=Math.min(MAXTREE,Math.floor(treeArr.length/3));
     for(let i=0;i<n;i++){ const x=treeArr[i*3], y=treeArr[i*3+1], k=treeArr[i*3+2], v=P3(x,y,-.5), h=((x*7.13+y*3.31)%1+1)%1;
-      _tq.setFromAxisAngle(UPV,(x*12.9898+y*78.233)%6.2832); _ts.set(k,k*(.9+h*.3),k); _tm.compose(v,_tq,_ts); treeIM.setMatrixAt(i,_tm); }
-    treeIM.count=n; treeIM.instanceMatrix.needsUpdate=true; needDraw=true; }
+      _tq.setFromAxisAngle(UPV,(x*12.9898+y*78.233)%6.2832); _ts.set(k,k*(.9+h*.3),k); _tm.compose(v,_tq,_ts); treeIM.setMatrixAt(i,_tm); const lt=.55+.45*litAt(v.x,v.z); treeIM.setColorAt(i,_tc.setRGB(lt,lt,lt)); }
+    treeIM.count=n; treeIM.instanceMatrix.needsUpdate=true; if(treeIM.instanceColor) treeIM.instanceColor.needsUpdate=true; needDraw=true; }
+  // ===== 林の木：航空写真で林と分けた所に、自動で植える（近くだけ見せる。遠くは写真の林のまま）=====
+  //  コース・リフトの近く、雪をぬった所、「木を消す」でなぞった所には生えない
+  const AF={n:0,x:null,y:null,s:null,gone:null,ch:null,li:null,grid:new Map(),chunks:[]}, eraseC=[]; // eraseC：木を消した丸 [x,y,半径,...]（地図の座標）
+  const forestAt=(x,y)=>{ if(!FOR) return 0; const gx=Math.max(0,Math.min(FW-1.001,x-.5)), gy=Math.max(0,Math.min(FH-1.001,y-.5)), i=Math.floor(gx), j=Math.floor(gy), fx=gx-i, fy=gy-j, k=j*FW+i;
+    return ((FOR[k]*(1-fx)+FOR[k+1]*fx)*(1-fy)+(FOR[k+FW]*(1-fx)+FOR[k+FW+1]*fx)*fy)/255; };
+  function forestGeometry(){ const geos=[];
+    [[3.1,6.6,.9],[2.1,5.2,4.5]].forEach(([r,h,y])=>{ const g=new THREE.ConeGeometry(r,h,6,1,true); g.translate(0,y+h/2,0); const p=g.attributes.position, c=new Float32Array(p.count*3);
+      for(let i=0;i<p.count;i++){ const t=Math.max(0,Math.min(1,(p.getY(i)-y)/h)), w=Math.pow(t,1.8)*.8; c[i*3]=.022+(.5-.022)*w; c[i*3+1]=.045+(.55-.045)*w; c[i*3+2]=.03+(.6-.03)*w; }
+      g.setAttribute("color",new THREE.BufferAttribute(c,3)); geos.push(g); });
+    let n=0, ni=0; geos.forEach(g=>{ n+=g.attributes.position.count; ni+=g.index.count; });
+    const Pp=new Float32Array(n*3), Nn=new Float32Array(n*3), Cc=new Float32Array(n*3), Ii=new Uint32Array(ni); let o=0, oi=0;
+    geos.forEach(g=>{ const c=g.attributes.position.count; Pp.set(g.attributes.position.array,o*3); Nn.set(g.attributes.normal.array,o*3); Cc.set(g.attributes.color.array,o*3); const a=g.index.array; for(let i=0;i<a.length;i++) Ii[oi+i]=a[i]+o; oi+=a.length; o+=c; g.dispose(); });
+    const out=new THREE.BufferGeometry(); out.setAttribute("position",new THREE.BufferAttribute(Pp,3)); out.setAttribute("normal",new THREE.BufferAttribute(Nn,3)); out.setAttribute("color",new THREE.BufferAttribute(Cc,3)); out.setIndex(new THREE.BufferAttribute(Ii,1)); return out; }
+  const fGeo=forestGeometry(), fMat=new THREE.MeshLambertMaterial({vertexColors:true});
+  fMat.onBeforeCompile=sh=>{ sh.vertexShader=sh.vertexShader.replace("#include <begin_vertex>","#include <begin_vertex>\n { vec4 ip=modelMatrix*instanceMatrix*vec4(0.,0.,0.,1.); transformed*=smoothstep(2000.,1100.,distance(ip.xyz,cameraPosition)); }"); };
+  function clearBand(){ const c=document.createElement("canvas"); c.width=FW; c.height=FH; const x=c.getContext("2d"); x.strokeStyle="#000"; x.lineCap=x.lineJoin="round";
+    x.lineWidth=26/M; Object.keys(G.courses).forEach(id=>{ const p=G.courses[id]; if(!p||p.length<2) return; x.beginPath(); x.moveTo(p[0][0],p[0][1]); for(const q of p) x.lineTo(q[0],q[1]); x.stroke(); });
+    x.lineWidth=22/M; Object.values(G.lifts).forEach(ab=>{ x.beginPath(); x.moveTo(ab[0][0],ab[0][1]); x.lineTo(ab[1][0],ab[1][1]); x.stroke(); });
+    const d=x.getImageData(0,0,FW,FH).data, m=new Uint8Array(FW*FH); for(let i=0;i<FW*FH;i++) m[i]=d[i*4+3]>60?1:0; return m; }
+  const inErase=(x,y)=>{ for(let i=0;i<eraseC.length;i+=3){ const dx=x-eraseC[i], dy=y-eraseC[i+1], r=eraseC[i+2]; if(dx*dx+dy*dy<r*r) return true; } return false; };
+  let maskA=null; function maskSnap(){ const d=mctx.getImageData(0,0,gw,gh).data; maskA=new Uint8Array(gw*gh); for(let i=0;i<gw*gh;i++) maskA[i]=d[i*4+3]; }
+  function maskRect(X,Y,r){ if(!maskA){ maskSnap(); return; } const x0=Math.max(0,Math.floor((X-r)/G.step)), y0=Math.max(0,Math.floor((Y-r)/G.step)), x1=Math.min(gw,Math.ceil((X+r)/G.step)+1), y1=Math.min(gh,Math.ceil((Y+r)/G.step)+1); if(x1<=x0||y1<=y0) return;
+    const w=x1-x0, d=mctx.getImageData(x0,y0,w,y1-y0).data; for(let j=y0;j<y1;j++) for(let i=x0;i<x1;i++) maskA[j*gw+i]=d[((j-y0)*w+(i-x0))*4+3]; }
+  const maskAt=(x,y)=>{ if(!maskA) return 0; const i=Math.max(0,Math.min(gw-1,Math.floor(x/G.step))), j=Math.max(0,Math.min(gh-1,Math.floor(y/G.step))); return maskA[j*gw+i]; };
+  const afGone=i=>maskAt(AF.x[i],AF.y[i])>110||inErase(AF.x[i],AF.y[i]);
+  const _fm=new THREE.Matrix4(), _fq=new THREE.Quaternion(), _fs=new THREE.Vector3(), _fc=new THREE.Color();
+  function afSet(i){ const ch=AF.chunks[AF.ch[i]], k=AF.li[i];
+    if(AF.gone[i]) _fm.makeScale(0,0,0); else { const x=AF.x[i], y=AF.y[i], sc=AF.s[i]; _fq.setFromAxisAngle(UPV,(x*12.9898+y*78.233)%6.2832); _fs.set(sc,sc*(.88+((x*7.13+y*3.31)%1+1)%1*.3),sc); _fm.compose(P3(x,y,-.7),_fq,_fs); }
+    ch.im.setMatrixAt(k,_fm); ch.dirty=true; }
+  function afFlush(){ AF.chunks.forEach(c=>{ if(c.dirty){ c.im.instanceMatrix.needsUpdate=true; c.dirty=false; } }); needDraw=true; }
+  function afArea(X,Y,r){ if(!AF.n) return; const r2=r*r;
+    for(let gx=Math.floor((X-r)/16);gx<=Math.floor((X+r)/16);gx++) for(let gy=Math.floor((Y-r)/16);gy<=Math.floor((Y+r)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
+      for(const i of a){ const dx=AF.x[i]-X, dy=AF.y[i]-Y; if(dx*dx+dy*dy>r2) continue; const g=afGone(i)?1:0; if(g!==AF.gone[i]){ AF.gone[i]=g; afSet(i); } } }
+    afFlush(); }
+  function afAll(){ if(!AF.n) return; maskSnap(); for(let i=0;i<AF.n;i++){ const g=afGone(i)?1:0; if(g!==AF.gone[i]){ AF.gone[i]=g; afSet(i); } } afFlush(); }
+  function genForest(){ AF.chunks.forEach(c=>{ scene.remove(c.im); c.im.dispose(); }); AF.chunks=[]; AF.grid.clear(); AF.n=0; if(!FOR) return;
+    const R=rng(424242), SP=15/M, band=clearBand(), X=[], Y=[], S=[], C=[];
+    for(let gy=0;gy<FH;gy+=SP) for(let gx=0;gx<FW;gx+=SP){ const x=gx+R()*SP, y=gy+R()*SP, f=forestAt(x,y), r1=R(), r2=R(), r3=R();
+      if(f<.5||r1>Math.min(1,(f-.42)*2.5)||x<2||y<2||x>FW-2||y>FH-2||band[Math.floor(y)*FW+Math.floor(x)]) continue; X.push(x); Y.push(y); S.push(.85+r2*.5); C.push(r3); }
+    const n=X.length; AF.n=n; AF.x=Float32Array.from(X); AF.y=Float32Array.from(Y); AF.s=Float32Array.from(S); AF.gone=new Uint8Array(n); AF.ch=new Uint16Array(n); AF.li=new Uint32Array(n);
+    const CS=128, ncx=Math.ceil(FW/CS), ncy=Math.ceil(FH/CS), lists=[]; for(let i=0;i<ncx*ncy;i++) lists.push([]);
+    for(let i=0;i<n;i++){ const ci=Math.min(ncy-1,Math.floor(AF.y[i]/CS))*ncx+Math.min(ncx-1,Math.floor(AF.x[i]/CS)); AF.ch[i]=ci; AF.li[i]=lists[ci].length; lists[ci].push(i);
+      const gk=Math.floor(AF.x[i]/16)+","+Math.floor(AF.y[i]/16); let a=AF.grid.get(gk); if(!a) AF.grid.set(gk,a=[]); a.push(i); }
+    maskSnap();
+    lists.forEach(L=>{ for(let i=L.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); [L[i],L[j]]=[L[j],L[i]]; } L.forEach((i,k)=>{ AF.li[i]=k; });
+      const im=new THREE.InstancedMesh(fGeo,fMat,Math.max(1,L.length)); im.count=L.length; im.frustumCulled=false; const box=new THREE.Box3(), ch={im,box,dirty:false,n:L.length}; AF.chunks.push(ch);
+      L.forEach((i,k)=>{ AF.gone[i]=afGone(i)?1:0; const v=P3(AF.x[i],AF.y[i],0); box.expandByPoint(v); const t=(.78+C[i]*.3)*(.55+.45*litAt(v.x,v.z)); im.setColorAt(k,_fc.setRGB(t,t,t)); afSet(i); });
+      if(!L.length) box.makeEmpty(); else box.expandByScalar(18); im.instanceMatrix.needsUpdate=true; if(im.instanceColor) im.instanceColor.needsUpdate=true; im.visible=false; scene.add(im); });
+    needDraw=true; }
+  let afT=0; const afLater=()=>{ clearTimeout(afT); afT=setTimeout(genForest,600); };
 
   // 文字（画面の上に重ねる）
   const lab=$("#m3dLabels"); lab.innerHTML="";
@@ -1967,7 +2029,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function at(A,u){ const d=u*A.len; let i=1; while(i<A.cum.length-1&&A.cum[i]<d) i++; const k=(d-A.cum[i-1])/((A.cum[i]-A.cum[i-1])||1), p=A.sp[i-1], q=A.sp[i];
     return {x:p[0]+(q[0]-p[0])*k, y:p[1]+(q[1]-p[1])*k, dx:q[0]-p[0], dy:q[1]-p[1]}; }
   function startSki(ids){ const sp=[]; ids.forEach(id=>{ const o=courseObj[id]; if(o) sp.push(...(sp.length?o.sp.slice(1):o.sp)); }); if(sp.length<2) return;
-    const A=along(sp,6), lenM=A.len*M; // 目線のときは、ゆっくり（約28m/秒）。ふだんは早送り
+    const A=along(sp,2.5), lenM=A.len*M; // 目線のときは、ゆっくり（約28m/秒）。ふだんは早送り
     anim={kind:"ski",A,snap:follow,k:0,dur:follow?Math.min(100000,Math.max(14000,lenM/28*1000)):Math.min(16000,Math.max(6000,lenM/95*1000))}; skier.visible=true; rider.visible=false;
     if(follow) lab.classList.add("hide"); }
   function startRide(id){ const o=liftObj[id]; if(!o) return; stopRide();
@@ -2007,7 +2069,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       else { const p=anim.o.curve.getPoint(e); pos3=p.clone().add(new THREE.Vector3(anim.o.side.x,-3,anim.o.side.z)); rider.position.copy(pos3).add(new THREE.Vector3(0,-1,0)); fwd=anim.o.curve.getTangent(e); }
       const vm=anim.kind==="ski"?CAMS[camIdx][0]:"far";
       if(follow&&vm==="eye"){ // 滑る人の目の高さから、約45m先を見る
-        const q=at(anim.A,e), la=ahead(anim.A,e,45/M), eye=P3(q.x,q.y,6.5), look=P3(la[0],la[1],8), g=hAny(eye.x,eye.z)+3; if(eye.y<g) eye.y=g;
+        const q=at(anim.A,e), la=ahead(anim.A,e,45/M), eye=P3(q.x,q.y,3), look=P3(la[0],la[1],2.5), g=hAny(eye.x,eye.z)+2.2; if(eye.y<g) eye.y=g;
         if(anim.snap||!baseOK){ baseC.copy(eye); baseT.copy(look); baseOK=true; } else { baseC.lerp(eye,1-Math.exp(-dt*10)); baseT.lerp(look,1-Math.exp(-dt*5)); } anim.snap=false; headTurn(baseC,baseT); }
       else if(follow&&fwd&&fwd.lengthSq()>0){ fwd.y=0; fwd.normalize(); const ski=anim.kind==="ski", nr=vm==="near";
         const want=pos3.clone().addScaledVector(fwd,ski?(nr?-32:-150):-70); want.y=pos3.y+(ski?(nr?13:70):30);
@@ -2121,8 +2183,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(edRibbon){ edGroup.remove(edRibbon); dispose(edRibbon); edRibbon=null; }
     const c=isMy(ed.id)?{id:ed.id,lv:myLv(ed.id)}:COURSES3D.find(x=>x.id===ed.id);
     if(c&&ed.pts.length>=2){ const sp=smooth(ed.pts), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"); edRibbon=new THREE.Group();
-      const band=ribbon(sp,cW(c),col,.24,3.4); stencil(band.material,251); band.renderOrder=5;
-      const L=routeLine(sp,col,5,252,6); edRibbon.add(band,L.grp); edGroup.add(edRibbon); }
+      const band=ribbon(sp,cW(c),col,.24,1.3); stencil(band.material,251); band.renderOrder=5;
+      const L=routeLine(sp,col,2,252,6); edRibbon.add(band,L.grp); edGroup.add(edRibbon); }
     $("#edN").textContent=`点 ${ed.pts.length}`; $("#edDel").disabled=ed.sel<0; $("#edClear").disabled=!ed.pts.length;
     if(ed.tool==="course"){ $("#edUndo").disabled=!ed.hist.length; edHelp(); } $("#edReset").hidden=ed.tool!=="course"||!ovr3d[ed.id];
   }
@@ -2208,7 +2270,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function stampSnow(X,Y,add){ const cx=X/G.step+.5, cy=Y/G.step+.5, r=Math.max(1.2,env.size.snow/(G.step*M)), g=mctx.createRadialGradient(cx,cy,0,cx,cy,r);
     g.addColorStop(0,"rgba(255,255,255,1)"); g.addColorStop(.55,"rgba(255,255,255,.85)"); g.addColorStop(1,"rgba(255,255,255,0)");
     mctx.globalCompositeOperation=add?"source-over":"destination-out"; mctx.fillStyle=g; mctx.beginPath(); mctx.arc(cx,cy,r,0,6.2832); mctx.fill(); mctx.globalCompositeOperation="source-over"; maskDirty=true; }
-  function loadMask(png){ mctx.clearRect(0,0,gw,gh); maskDirty=true; if(!png) return; const im=new Image(); im.onload=()=>{ mctx.clearRect(0,0,gw,gh); mctx.drawImage(im,0,0,gw,gh); maskDirty=true; needDraw=true; }; im.src=png; }
+  function loadMask(png){ mctx.clearRect(0,0,gw,gh); maskDirty=true; afAll(); if(!png) return; const im=new Image(); im.onload=()=>{ mctx.clearRect(0,0,gw,gh); mctx.drawImage(im,0,0,gw,gh); maskDirty=true; needDraw=true; afAll(); }; im.src=png; }
   function maskEmpty(){ const d=mctx.getImageData(0,0,gw,gh).data; for(let i=3;i<d.length;i+=4) if(d[i]) return false; return true; }
   function nearTree(x,y,d){ const d2=d*d; for(let i=0;i<treeArr.length;i+=3){ const dx=treeArr[i]-x, dy=treeArr[i+1]-y; if(dx*dx+dy*dy<d2) return true; } return false; }
   function plantAt(X,Y){ const rp=env.size.trees/M, n=Math.max(1,Math.round(Math.PI*env.size.trees*env.size.trees/220)); let added=0;
@@ -2216,14 +2278,16 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       if(x<1||y<1||x>G.w-1||y>G.h-1||nearTree(x,y,7/M)) continue; treeArr.push(Math.round(x*10)/10,Math.round(y*10)/10,Math.round((.8+Math.random()*.45)*100)/100); added++; }
     if(added){ treesUpd(); treeCount(); } if(treeArr.length/3>=MAXTREE&&pst&&!pst.full){ pst.full=true; toast(`木は ${MAXTREE.toLocaleString()}本までです`); } }
   function cutAt(X,Y){ const rp=env.size.trees/M, r2=rp*rp, out=[]; for(let i=0;i<treeArr.length;i+=3){ const dx=treeArr[i]-X, dy=treeArr[i+1]-Y; if(dx*dx+dy*dy>r2) out.push(treeArr[i],treeArr[i+1],treeArr[i+2]); }
-    if(out.length!==treeArr.length){ treeArr=out; treesUpd(); treeCount(); } }
+    if(out.length!==treeArr.length){ treeArr=out; treesUpd(); treeCount(); }
+    // 林の木も：消した丸をおぼえる（近い丸とは まとめる）
+    const n=eraseC.length; if(!(n&&Math.hypot(eraseC[n-3]-X,eraseC[n-2]-Y)<rp*.4&&Math.abs(eraseC[n-1]-rp)<.5)&&eraseC.length<9000){ eraseC.push(Math.round(X*10)/10,Math.round(Y*10)/10,Math.round(rp*10)/10); } afArea(X,Y,rp); }
   const treeCount=()=>{ edTreeN.textContent=`${(treeArr.length/3).toLocaleString()}本`; };
   // なぞる（1本指・マウスの左）。2本目の指が来たら、いまの1回は取り消して 地図の操作へ
   let pst=null; const pIds=new Set();
-  function envSnap(){ const k=tk(), h=env.hist[k]; h.push(k==="snow"?mctx.getImageData(0,0,gw,gh):treeArr.slice()); if(h.length>20) h.shift(); }
-  function envRestore(k,v){ if(k==="snow"){ mctx.putImageData(v,0,0); maskDirty=true; } else { treeArr=v; treesUpd(); treeCount(); } }
+  function envSnap(){ const k=tk(), h=env.hist[k]; h.push(k==="snow"?mctx.getImageData(0,0,gw,gh):{t:treeArr.slice(),e:eraseC.slice()}); if(h.length>20) h.shift(); }
+  function envRestore(k,v){ if(k==="snow"){ mctx.putImageData(v,0,0); maskDirty=true; afAll(); } else { treeArr=v.t; eraseC.length=0; eraseC.push(...v.e); treesUpd(); treeCount(); afAll(); } }
   function paintAt(g){ const k=tk(), add=env.mode[k]==="add", step=Math.max(.8,env.size[k]/M*.35);
-    const go=(X,Y)=>{ if(k==="snow") stampSnow(X,Y,add); else if(add) plantAt(X,Y); else cutAt(X,Y); };
+    const go=(X,Y)=>{ if(k==="snow"){ stampSnow(X,Y,add); const r=env.size.snow/M; maskRect(X,Y,r); afArea(X,Y,r); } else if(add) plantAt(X,Y); else cutAt(X,Y); };
     if(!pst.last){ go(g[0],g[1]); pst.last=g; }
     else { const [x0,y0]=pst.last, d=Math.hypot(g[0]-x0,g[1]-y0); if(d<step) return; const n=Math.ceil(d/step); for(let i=1;i<=n;i++) go(x0+(g[0]-x0)*i/n,y0+(g[1]-y0)*i/n); pst.last=g; }
     if(!env.dirty[k]){ env.dirty[k]=true; } edBar(); }
@@ -2239,7 +2303,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function envUndo(){ const k=tk(), h=env.hist[k]; if(ed.tool==="lift"||!h.length) return; envRestore(k,h.pop()); env.dirty[k]=true; edBar(); }
   async function envSave(){ const jobs=[];
     if(env.dirty.snow) jobs.push(["snow",{png:maskEmpty()?"":maskCv.toDataURL("image/png")}]);
-    if(env.dirty.trees) jobs.push(["trees",{t:treeArr.slice()}]);
+    if(env.dirty.trees) jobs.push(["trees",{t:treeArr.slice(),e:eraseC.slice()}]);
     if(env.dirty.lifts) jobs.push(["lifts",{L:JSON.parse(JSON.stringify(LSET))}]);
     if(!jobs.length){ toast("変えた所は ありません"); return; }
     const b=$("#edSave"); b.disabled=true; b.textContent="保存中…"; let where="db";
@@ -2280,10 +2344,10 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // 共有のデータが変わったら（編集中の変更は消さない）
   function envChanged(k){ const v=ENV3D[k]; if(ed.on&&env.dirty[k]) return;
     if(k==="snow") loadMask(v&&v.png);
-    else if(k==="trees"){ treeArr=v?v.t.slice():[]; treesUpd(); treeCount(); }
+    else if(k==="trees"){ treeArr=v?v.t.slice():[]; eraseC.length=0; if(v&&v.e) eraseC.push(...v.e); treesUpd(); treeCount(); afAll(); }
     else if(k==="lifts"){ Object.keys(LSET).forEach(id=>{ delete LSET[id]; }); if(v) Object.assign(LSET,JSON.parse(JSON.stringify(v.L))); rebuildLifts(); if(ed.on&&ed.tool==="lift") liftUI(); } }
   $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&(COURSE_IDS.has(selected)||isMy(selected))?selected:"centerB"); };
-  function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); needDraw=true;
+  function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); needDraw=true; afLater();
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
   function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; LABELS.concat([{d:selLab}]).forEach(L=>{ L.d._w=0; }); vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
@@ -2342,13 +2406,14 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   compass.onclick=()=>{ const s=new THREE.Spherical().setFromVector3(v3.copy(camera.position).sub(controls.target)); orbitTo(1,-wrapA(s.theta),null,650); };
   $("#m3dHint").firstElementChild.textContent=matchMedia("(pointer: coarse)").matches?"1本指：移動　2本指：拡大・回転・傾き":"ドラッグ：移動　右ドラッグ：回転・傾き　ホイール：拡大";
   const snowLabel=()=>{ const on=snowU.value>.5; $("#snowBtn").textContent=on?"❄ 冬":"☀ 写真"; $("#snowBtn").setAttribute("aria-pressed",String(on)); };
-  $("#snowBtn").onclick=()=>{ snowU.value=snowU.value>.5?0:1; store.set("snow3d",snowU.value>.5); snowLabel(); needDraw=true; };
+  $("#snowBtn").onclick=()=>{ snowU.value=snowU.value>.5?0:1; store.set("snow3d",snowU.value>.5); snowLabel(); if(snowU.value<.5) AF.chunks.forEach(c=>{ c.im.visible=false; }); detT=0; needDraw=true; };
   snowLabel();
   $("#povBtn").onclick=()=>{ if(follow){ endFollow(); controls.repivot(); return; }
     if(!lastMove){ toast("コースかリフトを選ぶと、その目線で見られます"); return; }
     follow=true; lookYaw=lookPitch=0; lookHome=false; baseOK=false; $("#povBtn").classList.toggle("on",true); lastMove();
     const n=store.get("lookTip",0)|0; if(n<2){ store.set("lookTip",n+1); setTimeout(()=>{ if(follow) toast("1本指でドラッグすると、動きながら まわりを見回せます（「🎿 目線」をもう一度押すと終わります）"); },900); } };
-  if(ENV3D.snow) loadMask(ENV3D.snow.png); if(ENV3D.trees){ treeArr=ENV3D.trees.t.slice(); treesUpd(); }
+  if(ENV3D.trees){ treeArr=ENV3D.trees.t.slice(); if(ENV3D.trees.e) eraseC.push(...ENV3D.trees.e); treesUpd(); }
+  genForest(); if(ENV3D.snow) loadMask(ENV3D.snow.png);
   theme(); resize(); home(0); introPose();
   return { ready:outerReady, start(){ if(running) return; resize(); running=true; needDraw=true; last=performance.now(); requestAnimationFrame(loop); }, stop(){ running=false; },
     select, home, theme, replay(){ if(lastMove) lastMove(); }, refreshCourse, removeCourse, myChanged(){ edBuild(); }, envChanged, endEdit:edEnd, startEdit:(id,tool)=>edStart(id,tool||"course") };
@@ -2401,7 +2466,9 @@ var ENV3D={snow:null,trees:null,lifts:null};
 function envClean(k,v){ try{ if(!v||typeof v!=="object") return null; const at=String(v.at||"");
     if(k==="snow"){ const p=v.png; return typeof p==="string"&&(p===""||(p.startsWith("data:image/png;base64,")&&p.length<600000))?{png:p,at}:null; }
     if(k==="trees"){ const t=v.t; if(!Array.isArray(t)||t.length%3||t.length>3*MAXTREE) return null; const out=[];
-      for(let i=0;i<t.length;i+=3){ const x=+t[i], y=+t[i+1], z=+t[i+2]; if(isFinite(x)&&isFinite(y)&&isFinite(z)&&x>=0&&y>=0&&x<=GEO3D.w&&y<=GEO3D.h) out.push(x,y,Math.max(.5,Math.min(1.6,z))); } return {t:out,at}; }
+      for(let i=0;i<t.length;i+=3){ const x=+t[i], y=+t[i+1], z=+t[i+2]; if(isFinite(x)&&isFinite(y)&&isFinite(z)&&x>=0&&y>=0&&x<=GEO3D.w&&y<=GEO3D.h) out.push(x,y,Math.max(.5,Math.min(1.6,z))); }
+      const e=Array.isArray(v.e)&&v.e.length%3===0&&v.e.length<=9000?v.e:[], eo=[]; for(let i=0;i<e.length;i+=3){ const x=+e[i], y=+e[i+1], r=+e[i+2]; if(isFinite(x)&&isFinite(y)&&isFinite(r)&&r>0) eo.push(x,y,Math.min(60,r)); }
+      return {t:out,e:eo,at}; }
     if(k==="lifts"){ const L=v.L; if(!L||typeof L!=="object") return null; const out={};
       Object.entries(L).forEach(([id,o])=>{ if(!GEO3D.lifts[id]||!o||typeof o!=="object") return; const gap=+o.gap, h=+o.h, e={};
         if(isFinite(gap)&&gap>0) e.gap=Math.round(Math.max(30,Math.min(200,gap))); if(isFinite(h)&&h>0) e.h=Math.round(Math.max(5,Math.min(25,h))); out[id]=e; }); return {L:out,at}; }
