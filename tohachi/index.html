@@ -555,6 +555,16 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 .m3d-nav button:active{ background:color-mix(in srgb, var(--acc) 18%, transparent); }
 .m3d-nav svg{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .map3d.editing .m3d-nav{ top:112px; }
+/* じぶんのコース：名前・レベル */
+.ed-meta{ position:absolute; left:8px; right:8px; top:56px; display:flex; gap:6px; align-items:center; padding:6px; border-radius:14px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:var(--shadow); }
+.ed-meta[hidden]{ display:none; }
+.ed-meta input{ flex:1; min-width:0; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); padding:0 10px; font:inherit; font-size:16px; font-weight:700; }
+.ed-meta input::placeholder{ color:var(--sub); font-weight:500; font-size:.8rem; }
+.ed-meta select{ height:34px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-weight:700; font-size:.84rem; padding:0 4px; }
+.ed-meta button{ height:34px; padding:0 10px; border-radius:10px; border:1px solid color-mix(in srgb, #e5484d 55%, var(--line)); background:var(--panel); color:#e5484d; font-weight:700; font-size:.78rem; cursor:pointer; white-space:nowrap; }
+.ed-meta button.sure{ background:#e5484d; border-color:#e5484d; color:#fff; }
+.map3d.edmine .ed-help{ top:104px; }
+.map3d.editing.edmine .m3d-nav{ top:160px; }
 </style>
 </head>
 <body>
@@ -669,6 +679,11 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
             <button type="button" id="edFull" aria-label="全画面で見る" title="全画面">⛶</button>
             <button type="button" id="edClose" aria-label="描くのを終わる" title="終わる">✕</button>
           </div>
+          <div class="ed-meta" id="edMeta" hidden>
+            <input id="edName" type="text" maxlength="20" placeholder="コースの名前（例：林の中の近道）" aria-label="コースの名前" autocomplete="off" enterkeyhint="done">
+            <select id="edLv" aria-label="コースのレベル（線の色）"><option value="初級">初級</option><option value="中級">中級</option><option value="上級">上級</option><option value="道">道</option></select>
+            <button type="button" id="edDelCourse" title="このコースを消す">消す</button>
+          </div>
           <p class="ed-help" id="edHelp"></p>
           <div class="ed-bar">
             <button type="button" id="edUndo">↶ 戻す</button>
@@ -734,7 +749,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
   <p class="note" data-note="tohachi">※ 図は、ゲレンデマップ（パンフレット）の上に、選んだコースの線を重ねたものです。線の位置はおおよそです。今はない施設（3号リフト上の「ミニスノーパーク」、1号リフト終点の休憩所）は図から消し、スカイバレイのリフトは今の「ベアトリプルリフト」に直してあります。また、このマップは今のシーズンとコース名がちがう所があります（例：②「競技Aコース」の位置が、今の「東尾根下コース」）。コースの長さ・斜度・リフトの時間は公式サイトの数字です。最新のマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデマップ</a>で。</p>
-  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。「✏️ 描く」で、点を押してコースの線を描きなおせます。</p>
+  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。</p>
   <p class="note" data-note="sv" hidden>※ 同じゲレンデマップの右側（スカイバレイ側）です。線の位置はおおよそ。コースの長さ・斜度はスカイバレイの公式マップより。</p>
   </div>
   </div>
@@ -1207,6 +1222,7 @@ function findItem(id){
   }
   let it=SV3D_COURSES.find(x=>x.id===id); if(it) return {map:"sv",kind:"course",item:it};
   it=SV3D_LIFTS.find(x=>x.id===id); if(it) return {map:"sv",kind:"lift",item:it};
+  it=typeof MY3D!=="undefined"&&MY3D.find(x=>x.id===id); if(it) return {map:it.map,kind:"course",item:it};
   return null;
 }
 function buildMap(key){
@@ -1676,12 +1692,20 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     cas.frustumCulled=ln.frustumCulled=false; cas.renderOrder=ro; ln.renderOrder=ro+1; grp.add(cas,ln); return {grp,cas,ln}; }
   function buildCourse(c){ const old=courseObj[c.id], raw=G.courses[c.id]; if(old){ scene.remove(old.grp); dispose(old.grp); delete courseObj[c.id]; }
     if(!raw||raw.length<2) return;
+    if(CIDX[c.id]==null) CIDX[c.id]=Math.min(124,Object.keys(CIDX).length);
     const sp=smooth(raw), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"), grp=new THREE.Group(), ref=1+CIDX[c.id]*2;
     const band=ribbon(sp,cW(c),col,.34,3.4); stencil(band.material,ref); band.renderOrder=2;
     const L=routeLine(sp,col,4.6,ref+1,3);
     grp.add(band,L.grp); grp.visible=old?old.grp.visible:false; scene.add(grp);
     const o={c,sp,grp,band,op:old?old.op:1,set:(v)=>{ o.op=v; band.material.opacity=.34*v; L.cas.material.uniforms.uOp.value=.8*v; L.ln.material.uniforms.uOp.value=.95*v; }}; o.set(o.op); courseObj[c.id]=o; }
-  COURSES3D.forEach(buildCourse);
+  COURSES3D.forEach(buildCourse); MY3D.forEach(buildCourse);
+  function removeCourse(id){ const o=courseObj[id]; if(!o) return; scene.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; }
+  // 長さ（斜面にそって）・平均と最大の斜度（約30mの区間ごと）。標高は本当の高さで
+  function courseStats(pts){ const sp=smooth(pts), H=sp.map(p=>elev(p[0],p[1])), D=[0]; let len=0;
+    for(let i=1;i<sp.length;i++){ const d=Math.hypot(sp[i][0]-sp[i-1][0],sp[i][1]-sp[i-1][1])*M; D.push(D[i-1]+d); len+=Math.hypot(d,H[i]-H[i-1]); }
+    let mx=0, j=0; for(let i=0;i<sp.length;i++){ while(j<sp.length-1&&D[j]-D[i]<30) j++; const dd=D[j]-D[i]; if(dd>=15) mx=Math.max(mx,Math.atan(Math.abs(H[j]-H[i])/dd)); }
+    const hl=D[D.length-1]||1, deg=r=>Math.round(r*180/Math.PI);
+    return {len:Math.max(10,Math.round(len/10)*10),avg:deg(Math.atan(Math.abs(H[H.length-1]-H[0])/hl)),max:deg(mx)}; }
 
   // ===== リフト（ペアリフト）：本物に近い形 =====
   //  支柱：くつ（コンクリート）・柱・腕・点検の足場・はしご・滑車（両はしに4こずつ）
@@ -1967,11 +1991,38 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
 
   // ===== コースを描く：地面を押して点を置く・点をドラッグで動かす =====
   const ed={on:false,id:null,pts:[],sel:-1,hist:[],dirty:false,markers:[],drafts:{}};
-  try{ const d=store.get("draft3d",{}); Object.entries(d||{}).forEach(([k,v])=>{ const p=okPts(v); if(p&&COURSE_IDS.has(k)) ed.drafts[k]=p; }); }catch(e){}
-  const edBox=$("#m3dEdit"), edSel=$("#edCourse"), edGroup=new THREE.Group(); scene.add(edGroup); let edRibbon=null;
-  COURSES3D.filter(c=>!SV_ORDER.includes(c.id)).forEach(c=>{ const o=document.createElement("option"); o.value=c.id; edSel.appendChild(o); });
-  { const g=document.createElement("optgroup"); g.label="スカイバレイ側"; COURSES3D.filter(c=>SV_ORDER.includes(c.id)).sort((a,b)=>SV_ORDER.indexOf(a.id)-SV_ORDER.indexOf(b.id)).forEach(c=>{ const o=document.createElement("option"); o.value=c.id; g.appendChild(o); }); edSel.appendChild(g); }
-  function edOptions(){ [...edSel.options].forEach(o=>{ const c=COURSES3D.find(x=>x.id===o.value); o.textContent=c.name+(ovr3d[c.id]?" ✓":"")+(ed.drafts[c.id]?" ✎":""); }); }
+  try{ const d=store.get("draft3d",{}); Object.entries(d||{}).forEach(([k,v])=>{ const p=okPts(v); if(p&&(COURSE_IDS.has(k)||isMy(k))) ed.drafts[k]=p; }); }catch(e){}
+  // じぶんのコース：保存前の名前・レベル（新しいコースは、保存するまで ここだけ）
+  ed.metas={}; try{ const m=store.get("draftMeta3d",{}); Object.entries(m||{}).forEach(([k,v])=>{ if(isMy(k)&&v&&typeof v==="object") ed.metas[k]={name:String(v.name==null?"":v.name).slice(0,20),lv:LVS.includes(v.lv)?v.lv:"中級"}; }); }catch(e){}
+  const saveMetas=()=>store.set("draftMeta3d",ed.metas);
+  const edBox=$("#m3dEdit"), edSel=$("#edCourse"), edMeta=$("#edMeta"), edName=$("#edName"), edLv=$("#edLv"), edGroup=new THREE.Group(); scene.add(edGroup); let edRibbon=null;
+  const myIds=()=>MY3D.map(c=>c.id).concat(Object.keys(ed.metas).filter(k=>!MY3D.some(c=>c.id===k)).sort());
+  const myName=id=>{ const m=ed.metas[id], c=MY3D.find(x=>x.id===id); return (m&&m.name.trim())||(c&&c.name)||"新しいコース"; };
+  const myLv=id=>{ const m=ed.metas[id], c=MY3D.find(x=>x.id===id); return (m&&m.lv)||(c&&c.lv)||"中級"; };
+  function edBuild(){ const cur=edSel.value, opt=(id,t)=>{ const o=document.createElement("option"); o.value=id; if(t) o.textContent=t; return o; }; edSel.innerHTML="";
+    COURSES3D.filter(c=>!SV_ORDER.includes(c.id)).forEach(c=>edSel.appendChild(opt(c.id)));
+    { const g=document.createElement("optgroup"); g.label="スカイバレイ側"; COURSES3D.filter(c=>SV_ORDER.includes(c.id)).sort((a,b)=>SV_ORDER.indexOf(a.id)-SV_ORDER.indexOf(b.id)).forEach(c=>g.appendChild(opt(c.id))); edSel.appendChild(g); }
+    const mine=myIds(); if(mine.length){ const g=document.createElement("optgroup"); g.label="じぶんのコース"; mine.forEach(id=>g.appendChild(opt(id))); edSel.appendChild(g); }
+    edSel.appendChild(opt("__new","＋ 新しいコースを作る"));
+    edOptions(); if(ed.id&&[...edSel.options].some(o=>o.value===ed.id)) edSel.value=ed.id; else if(cur&&[...edSel.options].some(o=>o.value===cur)) edSel.value=cur; }
+  function edOptions(){ [...edSel.options].forEach(o=>{ if(o.value==="__new") return;
+    if(isMy(o.value)){ const saved=MY3D.some(c=>c.id===o.value); o.textContent=myName(o.value)+(saved?"":"（まだ保存していません）")+(saved&&(ed.drafts[o.value]||ed.metas[o.value])?" ✎":""); return; }
+    const c=COURSES3D.find(x=>x.id===o.value); o.textContent=c.name+(ovr3d[c.id]?" ✓":"")+(ed.drafts[c.id]?" ✎":""); }); }
+  function edMetaShow(){ const mine=ed.on&&isMy(ed.id); edMeta.hidden=!mine; box.classList.toggle("edmine",mine); delSure(false);
+    if(mine){ const m=ed.metas[ed.id], c=MY3D.find(x=>x.id===ed.id); edName.value=m?m.name:(c?c.name:""); edLv.value=myLv(ed.id); } }
+  function edMetaSet(){ if(!isMy(ed.id)) return; const c=MY3D.find(x=>x.id===ed.id), m={name:edName.value.slice(0,20),lv:edLv.value};
+    if(c&&m.name.trim()===c.name&&m.lv===c.lv) delete ed.metas[ed.id]; else ed.metas[ed.id]=m; saveMetas(); edOptions(); }
+  edName.addEventListener("input",edMetaSet); edName.addEventListener("keydown",e=>{ if(e.key==="Enter") edName.blur(); });
+  edLv.onchange=()=>{ edMetaSet(); edDraw(); };
+  let sureT=0; const delBtn=$("#edDelCourse"); function delSure(on){ clearTimeout(sureT); delBtn.classList.toggle("sure",on); delBtn.textContent=on?"本当に消す":"消す"; if(on) sureT=setTimeout(()=>delSure(false),4000); }
+  delBtn.onclick=async()=>{ if(!isMy(ed.id)) return; if(!delBtn.classList.contains("sure")){ delSure(true); return; } delSure(false);
+    const id=ed.id, name=myName(id); delBtn.disabled=true;
+    try{ if(MY3D.some(c=>c.id===id)) await deleteMy3d(id); delete ed.metas[id]; delete ed.drafts[id]; saveMetas(); ed.dirty=false; edKeep();
+      const rest=myIds(); edBuild(); edOpen(rest[0]||COURSES[0].id); toast(`「${name}」を消しました`); }
+    catch(err){ toast("消せませんでした。少し待ってからもう一度押してください"); }
+    delBtn.disabled=false; };
+  function edNew(){ const id="my_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5); ed.metas[id]={name:"",lv:"中級"}; saveMetas(); edBuild(); edOpen(id,true);
+    toast("名前を入れて、スタートからゴールの順に地面を押してください"); setTimeout(()=>{ try{ edName.focus(); }catch(e){} },60); }
   const dotTex=(fill,ring,txt)=>{ const c=document.createElement("canvas"); c.width=c.height=64; const x=c.getContext("2d");
     x.beginPath(); x.arc(32,32,27,0,6.283); x.fillStyle=ring; x.fill(); x.beginPath(); x.arc(32,32,20,0,6.283); x.fillStyle=fill; x.fill();
     if(txt){ x.fillStyle="#fff"; x.font="bold 26px sans-serif"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(txt,32,34); }
@@ -1988,7 +2039,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     ed.pts.forEach((p,i)=>{ const sp=ed.markers[i], k=i===ed.sel?"sel":(i===0?"s":(i===last?"g":"n"));
       sp.position.copy(P3(p[0],p[1],5)); if(sp.material.map!==DT[k]){ sp.material.map=DT[k]; sp.material.needsUpdate=true; } pxSize(sp,k==="sel"?22:(k==="n"?14:21)); });
     if(edRibbon){ edGroup.remove(edRibbon); dispose(edRibbon); edRibbon=null; }
-    const c=COURSES3D.find(x=>x.id===ed.id);
+    const c=isMy(ed.id)?{id:ed.id,lv:myLv(ed.id)}:COURSES3D.find(x=>x.id===ed.id);
     if(c&&ed.pts.length>=2){ const sp=smooth(ed.pts), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"); edRibbon=new THREE.Group();
       const band=ribbon(sp,cW(c),col,.24,3.4); stencil(band.material,251); band.renderOrder=5;
       const L=routeLine(sp,col,5,252,6); edRibbon.add(band,L.grp); edGroup.add(edRibbon); }
@@ -2003,21 +2054,21 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(ed.on&&ed.id&&courseObj[ed.id]) courseObj[ed.id].grp.visible=true;
     ed.id=id; edSel.value=id; const d=ed.drafts[id]; ed.pts=(d||G.courses[id]||[]).map(p=>p.slice()); ed.dirty=!!d; ed.sel=-1; ed.hist=[];
     if(courseObj[id]) courseObj[id].grp.visible=false;
-    edOptions(); edDraw(); if(!keepCam&&ed.pts.length) frameXY(ed.pts,900);
+    edOptions(); edMetaShow(); edDraw(); if(!keepCam&&ed.pts.length) frameXY(ed.pts,900);
   }
   function edStart(id){
-    if(!COURSE_IDS.has(id)) id=COURSES[0].id;
+    if(!COURSE_IDS.has(id)&&!isMy(id)) id=COURSES[0].id; edBuild();
     ed.on=true; box.classList.add("editing"); $(".stage-map .map").classList.add("editing3d"); edBox.hidden=false; controls.tapZoom=false;
     anim=null; stopRide(); follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null;
     Object.values(liftObj).forEach(o=>o.set(false));
     Object.values(courseObj).forEach(o=>{ o.grp.visible=true; o.set(.35); }); edGroup.visible=true; edOpen(id);
   }
   function edEnd(){
-    if(!ed.on) return; edKeep(); ed.on=false; box.classList.remove("editing"); $(".stage-map .map").classList.remove("editing3d"); edBox.hidden=true;
+    if(!ed.on) return; edKeep(); ed.on=false; box.classList.remove("editing","edmine"); $(".stage-map .map").classList.remove("editing3d"); edBox.hidden=true; edMeta.hidden=true; delSure(false);
     edGroup.visible=false; ed.pts=[]; ed.sel=-1; edDraw(); controls.enabled=true; controls.tapZoom=true;
     Object.values(courseObj).forEach(o=>{ o.set(1); o.grp.visible=false; });
-    if(Object.keys(ed.drafts).length) toast("保存していない線は、下書きとして残してあります");
-    const id=ed.id; ed.id=null; if(id) select(id,curShow,true);
+    if(Object.keys(ed.drafts).length||Object.keys(ed.metas).some(k=>!MY3D.some(c=>c.id===k))) toast("保存していない線は、下書きとして残してあります（「✏️ 描く」でつづけられます）");
+    const id=ed.id; ed.id=null; if(id){ if(id!==selected&&findItem(id)) pickCourse(id); else select(id,curShow,true); }
   }
   // 押した所の地面
   const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
@@ -2048,19 +2099,24 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(t){ cx=t.reduce((s,p)=>s+p[0],0)/t.length; cy=t.reduce((s,p)=>s+p[1],0)/t.length; }
     const dist=Math.max(320,Math.min(1600,camera.position.distanceTo(controls.target))); flyTo(P3(cx,cy,0),dist,Math.PI/2,.04,700); };
   $("#edClose").onclick=edEnd;
-  edSel.onchange=()=>{ edKeep(); edOpen(edSel.value); };
+  edSel.onchange=()=>{ edKeep(); if(edSel.value==="__new") edNew(); else edOpen(edSel.value); };
   $("#edSave").onclick=async()=>{ if(ed.pts.length<2){ toast("点を2つ以上置いてください"); return; }
     const b=$("#edSave"); b.disabled=true; b.textContent="保存中…";
-    try{ const where=await saveCourse3d(ed.id,ed.pts); ed.dirty=false; delete ed.drafts[ed.id]; edKeep(); ed.hist=[];
-      toast(where==="db"?"保存しました。このアプリの3Dのコースの線が新しくなりました":"この端末に保存しました（データは図の下の欄からコピーできます）"); }
+    try{ if(isMy(ed.id)){ // じぶんのコース：線・名前・レベル・長さと斜度
+        const id=ed.id, n=MY3D.length+1, name=myName(id)==="新しいコース"&&!(ed.metas[id]&&ed.metas[id].name.trim())?`じぶんのコース${n}`:myName(id);
+        const where=await saveMy3d(Object.assign({id,name,lv:myLv(id),pts:ed.pts,map:sideOf(ed.pts)},courseStats(ed.pts)));
+        delete ed.metas[id]; saveMetas(); ed.dirty=false; delete ed.drafts[id]; edKeep(); ed.hist=[]; edBuild(); edMetaShow();
+        toast(where==="db"?`「${name}」を保存しました。コースのボタンにも出ます`:`「${name}」をこの端末に保存しました`); }
+      else { const where=await saveCourse3d(ed.id,ed.pts); ed.dirty=false; delete ed.drafts[ed.id]; edKeep(); ed.hist=[];
+      toast(where==="db"?"保存しました。このアプリの3Dのコースの線が新しくなりました":"この端末に保存しました（データは図の下の欄からコピーできます）"); } }
     catch(err){ toast(err&&err.code==="quota_exceeded"?"保存できる量をこえました":"保存できませんでした。少し待ってからもう一度押してください"); }
     b.disabled=false; b.textContent="保存"; edDraw(); };
   $("#edReset").onclick=async()=>{ const b=$("#edReset"); b.disabled=true;
     try{ await resetCourse3d(ed.id); delete ed.drafts[ed.id]; edKeep(); ed.dirty=false; edOpen(ed.id,true); toast("元の線にもどしました"); }
     catch(err){ toast("もどせませんでした。少し待ってからもう一度押してください"); }
     b.disabled=false; };
-  $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&COURSE_IDS.has(selected)?selected:"centerB"); };
-  function refreshCourse(id){ const c=COURSES3D.find(x=>x.id===id); if(!c) return; buildCourse(c); needDraw=true;
+  $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&(COURSE_IDS.has(selected)||isMy(selected))?selected:"centerB"); };
+  function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); needDraw=true;
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
   function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; LABELS.concat([{d:selLab}]).forEach(L=>{ L.d._w=0; }); vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
@@ -2110,13 +2166,38 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   $("#povBtn").onclick=()=>{ if(!lastMove){ toast("コースかリフトを選ぶと、その目線で見られます"); return; } follow=true; $("#povBtn").classList.toggle("on",true); lastMove(); };
   theme(); resize(); home(0); introPose();
   return { ready:outerReady, start(){ if(running) return; resize(); running=true; needDraw=true; last=performance.now(); requestAnimationFrame(loop); }, stop(){ running=false; },
-    select, home, theme, replay(){ if(lastMove) lastMove(); }, refreshCourse, endEdit:edEnd, startEdit:edStart };
+    select, home, theme, replay(){ if(lastMove) lastMove(); }, refreshCourse, removeCourse, myChanged(){ edBuild(); }, endEdit:edEnd, startEdit:edStart };
 }
 
 /* ---------- 描いたコースの線（3D）：共有のデータ（このアプリ）か、この端末に保存 ---------- */
 const COURSES3D=COURSES.concat(SV_COURSES,SV3D_COURSES).filter(c=>GEO3D.courses[c.id]), LIFTS3D=LIFTS.concat(SV_LIFTS,SV3D_LIFTS).filter(L=>GEO3D.lifts[L.id]);
 const DEF3D=JSON.parse(JSON.stringify(GEO3D.courses)), COURSE_IDS=new Set(COURSES3D.map(c=>c.id));
-var ovr3d={}, db3d=null;
+var ovr3d={}, db3d=null, MY3D=[];
+const LVS=["初級","中級","上級","道"], isMy=id=>typeof id==="string"&&/^my_[A-Za-z0-9]{3,24}$/.test(id), course3d=id=>COURSES3D.find(x=>x.id===id)||MY3D.find(x=>x.id===id);
+function myItem(id,v){ if(!isMy(id)||!v||v.custom!==true) return null; const pts=okPts(v.pts); if(!pts) return null;
+  const name=String(v.name==null?"":v.name).replace(/\s+/g," ").trim().slice(0,20)||"じぶんのコース", lv=LVS.includes(v.lv)?v.lv:"中級", num=(x,a,b)=>Math.max(a,Math.min(b,Math.round(Number(x)||0)));
+  return {id,name,short:name,lv,len:num(v.len,0,9999),avg:num(v.avg,0,60),max:num(v.max,0,70),map:v.map==="sv"?"sv":"tohachi",custom:true,only3d:true,at:String(v.at||""),pts,
+    txt:"自分で描いたコースです。長さと斜度は、描いた線と国土地理院の標高から計算した おおよその値です。",src:"じぶんで作成",tip:"線・名前・レベルは「✏️ 描く」で直せます。"}; }
+function localMy(){ const o=store.get("my3d",{})||{}, out=[]; Object.entries(o).forEach(([id,v])=>{ const c=myItem(id,v); if(c) out.push(c); }); return out.sort((a,b)=>a.id<b.id?-1:1); }
+// いちばん近い公式のコースで、東鉢側かスカイバレイ側かを決める
+function sideOf(pts){ const m=pts[Math.floor(pts.length/2)]; let best=null, bd=1e18;
+  COURSES3D.forEach(c=>{ (GEO3D.courses[c.id]||[]).forEach(p=>{ const d=(p[0]-m[0])**2+(p[1]-m[1])**2; if(d<bd){ bd=d; best=c.id; } }); });
+  const f=best&&findItem(best); return f&&f.map==="sv"?"sv":"tohachi"; }
+function applyMy(next){ const old=new Map(MY3D.map(c=>[c.id,c])); MY3D=next;
+  next.forEach(c=>{ GEO3D.courses[c.id]=c.pts; });
+  old.forEach((c,id)=>{ if(!next.some(x=>x.id===id)){ delete GEO3D.courses[id]; if(T3D) T3D.removeCourse(id); } });
+  if(T3D) next.forEach(c=>{ const o=old.get(c.id); if(!o||o.at!==c.at||o.lv!==c.lv) T3D.refreshCourse(c.id); });
+  if(selected&&isMy(selected)&&!MY3D.some(x=>x.id===selected)){ selected=null; $("#nowbar").innerHTML=""; $("#detail").innerHTML=""; }
+  buildMyChips(); if(view3d) buildChips(); else markChips(); if(T3D) T3D.myChanged(); }
+async function saveMy3d(c){ const doc={pts:flat3d(c.pts),at:new Date().toISOString(),custom:true,name:c.name,lv:c.lv,len:c.len,avg:c.avg,max:c.max,map:c.map};
+  const put=()=>applyMy(MY3D.filter(x=>x.id!==c.id).concat([myItem(c.id,doc)]).sort((a,b)=>a.id<b.id?-1:1));
+  if(db3d&&db3d.can!==false){ try{ await db3d.db.doc("courses3d/"+c.id).set(doc); put(); return "db"; }
+    catch(e){ if(!(e&&(e.code==="invalid_argument"||e.code==="not_granted"))) throw e; db3d.can=false; } }
+  const o=store.get("my3d",{})||{}; o[c.id]=doc; store.set("my3d",o); db3d=null; put(); showEdData(); return "local"; }
+async function deleteMy3d(id){ const drop=()=>applyMy(MY3D.filter(x=>x.id!==id));
+  if(db3d&&db3d.can!==false){ try{ await db3d.db.doc("courses3d/"+id).delete(); drop(); return "db"; }
+    catch(e){ if(!(e&&(e.code==="invalid_argument"||e.code==="not_granted"))) throw e; db3d.can=false; } }
+  const o=store.get("my3d",{})||{}; delete o[id]; store.set("my3d",o); db3d=null; drop(); showEdData(); return "local"; }
 function okPts(flat){ // [x0,y0,x1,y1,...] → [[x,y],...]（形がおかしいものは使わない）
   if(!Array.isArray(flat)||flat.length<4||flat.length>1200||flat.length%2) return null; const out=[];
   for(let i=0;i<flat.length;i+=2){ const x=Number(flat[i]), y=Number(flat[i+1]); if(!isFinite(x)||!isFinite(y)||x<0||y<0||x>GEO3D.w||y>GEO3D.h) return null; out.push([x,y]); }
@@ -2125,17 +2206,18 @@ function applyOvr(next){ const ids=new Set([...Object.keys(ovr3d),...Object.keys
   ids.forEach(id=>{ if(!COURSE_IDS.has(id)) return; GEO3D.courses[id]=next[id]||DEF3D[id]; if(T3D) T3D.refreshCourse(id); }); }
 function localOvr(){ const o=store.get("courses3d",{})||{}, out={}; Object.entries(o).forEach(([k,v])=>{ const p=okPts(v); if(p&&COURSE_IDS.has(k)) out[k]=p; }); return out; }
 const flat3d=pts=>[].concat(...pts.map(p=>[Math.round(p[0]*10)/10,Math.round(p[1]*10)/10]));
-function showEdData(){ const o=store.get("courses3d",{})||{}, keys=Object.keys(o); $("#edDataBox").hidden=!keys.length||!!db3d; $("#edJson").value=keys.length?JSON.stringify({courses3d:o}):""; }
-applyOvr(localOvr()); showEdData();
+function showEdData(){ const o=store.get("courses3d",{})||{}, m=store.get("my3d",{})||{}, keys=Object.keys(o), mk=Object.keys(m); $("#edDataBox").hidden=!(keys.length||mk.length)||!!db3d;
+  $("#edJson").value=keys.length||mk.length?JSON.stringify(mk.length?{courses3d:o,my3d:m}:{courses3d:o}):""; }
+applyOvr(localOvr()); MY3D=localMy(); MY3D.forEach(c=>{ GEO3D.courses[c.id]=c.pts; }); showEdData();
 $("#edCopy").onclick=async()=>{ const t=$("#edJson"); try{ await navigator.clipboard.writeText(t.value); toast("コピーしました"); }catch(e){ t.focus(); t.select(); toast("選んだので、コピーしてください"); } };
 (async()=>{ try{
   const C=window.claude; if(!C||typeof C.use!=="function") return;
   const db=await C.use("db"); if(!db) return;
   const u=await C.use("user"); const can=u?await u.canEdit():null;
   db3d={db,can}; showEdData();
-  db.collection("courses3d").onSnapshot(snap=>{ const next={};
-      snap.docs.forEach(d=>{ const v=d.data(); const p=v&&okPts(v.pts); if(p&&COURSE_IDS.has(d.id)) next[d.id]=p; });
-      applyOvr(next); },
+  db.collection("courses3d").onSnapshot(snap=>{ const next={}, my=[];
+      snap.docs.forEach(d=>{ const v=d.data(); if(isMy(d.id)){ const c=myItem(d.id,v); if(c) my.push(c); return; } const p=v&&okPts(v.pts); if(p&&COURSE_IDS.has(d.id)) next[d.id]=p; });
+      applyOvr(next); applyMy(my.sort((a,b)=>a.id<b.id?-1:1)); },
     err=>{ console.warn("courses3d:",err&&err.code); });
 }catch(e){ console.warn("db:",e); } })();
 async function saveCourse3d(id,pts){
@@ -2181,10 +2263,15 @@ function chipsFor(key,boxC,boxO,only3){ const M=MAPS[key], ok=id=>!only3||has3D(
   (key==="sv"&&only3?svCourses3D():M.courses).forEach(c=>mkChip(boxC,c.id,c.short,(c.route||c.tag)?tagOf(c):"",lvCls(c.lv),LVC[c.lv]));
   Object.entries(M.areas).filter(([id])=>ok(id)).forEach(([id,a])=>mkChip(boxO,id,a.name,"",""));
   M.lifts.concat(key==="sv"&&only3?SV3D_LIFTS:[]).filter(L=>ok(L.id)).forEach(L=>mkChip(boxO,L.id,L.chip||`${L.n}号リフト`,"","")); }
+// 全画面の下の列：じぶんのコース（いつも いちばん後ろ）
+function buildMyChips(){ const bar=$("#fsBar"); if(!bar) return; bar.querySelectorAll(".mysep,.mychip").forEach(x=>x.remove());
+  if(!MY3D.length) return; chipSep(bar,"じぶんのコース"); bar.lastElementChild.classList.add("mysep");
+  MY3D.forEach(c=>{ mkChip(bar,c.id,c.name,"","",LVC[c.lv]); bar.lastElementChild.classList.add("mychip"); }); }
 function buildChips(){
   const c1=$("#chipsCourse"), c2=$("#chipsOther");
   [c1,c2].forEach(box=>box.querySelectorAll(".chip,.chipsep").forEach(b=>b.remove()));
-  if(view3d){ chipsFor("tohachi",c1,c2,true); chipSep(c1,"スカイバレイ側"); chipSep(c2,"スカイバレイ側"); chipsFor("sv",c1,c2,true); }
+  if(view3d){ chipsFor("tohachi",c1,c2,true); chipSep(c1,"スカイバレイ側"); chipSep(c2,"スカイバレイ側"); chipsFor("sv",c1,c2,true);
+    if(MY3D.length){ chipSep(c1,"じぶんのコース"); MY3D.forEach(c=>mkChip(c1,c.id,c.name,"","",LVC[c.lv])); } }
   else chipsFor(curMap,c1,c2,false);
   markChips();
 }
@@ -2246,6 +2333,7 @@ function placeSG(key,c){
   s.classList.toggle("on",true); e.classList.toggle("on",true);
   fl.setAttribute("d",c.d); fl.classList.toggle("on",true);
 }
+function pickCourse(id){ select(id,false,null,true); } // 3Dの中から、全体の「選ぶ」を呼ぶ
 function select(id,fromMap,extra,quiet){
   const f=findItem(id); if(!f) return;
   if(view3d&&!has3D(id)) set3D(false); // 3Dの図にないもの（らくらくルート）は、2Dの図で
@@ -2277,11 +2365,12 @@ function select(id,fromMap,extra,quiet){
   const later=fn=>{ if(quiet||view3d) return; setTimeout(()=>{ if(tk===selTok) fn(); }, reduce?0:650); }; // 線を描き終わってから動かす
   if(c){
     if(!c.only3d) placeSG(f.map,c);
-    setNow(LVC[c.lv],c.name,c.route?tagOf(c):`${c.len.toLocaleString()}m・最大${c.max}°`,()=>runCourse(c));
+    setNow(LVC[c.lv],c.name,c.route?tagOf(c):`${c.custom?"約":""}${c.len.toLocaleString()}m・最大${c.max}°`,()=>runCourse(c));
     box.innerHTML=`<div class="fade"><h3>${esc(c.name)} <span class="tag ${lvCls(c.lv)}">${esc(tagOf(c))}</span></h3>${courseViz(c)}
       <p>${esc(c.txt)} <span class="src">（${esc(c.src)}）</span></p><p class="note">ヒント：${esc(c.tip)}</p>${whoLine}
-      ${c.route?"":'<div class="btnrow"><button class="btn ghost" id="feelBtn">この斜度を体感する</button></div>'}</div>`;
+      ${c.route?"":`<div class="btnrow">${c.custom?'<button class="btn ghost" id="myEditBtn">✏️ 線と名前を直す</button>':""}<button class="btn ghost" id="feelBtn">この斜度を体感する</button></div>`}</div>`;
     if(!c.route) $("#feelBtn").onclick=()=>{ setAngle(Math.min(45,c.max)); goTo("slope"); };
+    if(c.custom) $("#myEditBtn").onclick=()=>{ if(view3d&&T3D) T3D.startEdit(c.id); };
     stampUI(box,c);
     later(()=>runCourse(c));
   } else if(L){
@@ -2406,7 +2495,7 @@ function renderStamps(){
   $("#badges").innerHTML=BADGES.map(b=>`<span class="badge2${b.ok()?" on":""}" title="${esc(b.n)}"><i>${b.e}</i>${esc(b.n)}</span>`).join("");
 }
 function stampUI(box,c){
-  if(c.tag==="おすすめライン") return;
+  if(c.tag==="おすすめライン"||c.custom) return;
   let row=box.querySelector(".btnrow"); if(!row){ row=document.createElement("div"); row.className="btnrow"; box.querySelector(".fade").appendChild(row); }
   const b=document.createElement("button"); b.type="button"; b.className="btn stampbtn"; row.prepend(b);
   const draw=()=>{ const on=stamps.includes(c.id); b.classList.toggle("on",on); b.innerHTML=on?"✓ スタンプ済み":"🏁 滑った！スタンプ"; };
@@ -2455,6 +2544,7 @@ chipSep($("#fsBar"),"スカイバレイ側");
 svCourses3D().forEach(c=>mkChip($("#fsBar"),c.id,c.short,"","",LVC[c.lv]));
 Object.entries(SV_AREAS).filter(([id])=>has3D(id)).forEach(([id,a])=>mkChip($("#fsBar"),id,a.name,"",""));
 SV_LIFTS.concat(SV3D_LIFTS).filter(L=>has3D(L.id)).forEach(L=>mkChip($("#fsBar"),L.id,L.chip,"",""));
+buildMyChips();
 
 /* ---------- レベル ---------- */
 let level=store.get("level","first");
