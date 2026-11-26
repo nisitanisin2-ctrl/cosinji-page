@@ -666,7 +666,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
         <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
         <p class="m3d-hint" id="m3dHint"><span></span></p>
-        <div class="povbar"><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
+        <div class="povbar"><button type="button" class="speedbtn" id="frontBtn" hidden title="見る向きを正面にもどす">🧭 正面</button><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
         <button type="button" class="m3d-compass" id="m3dCompass" aria-label="北を上にする" title="北を上にする"><i>N</i></button>
         <div class="m3d-nav" id="m3dNav" role="group" aria-label="地図の操作"><button type="button" data-nav="in" aria-label="拡大" title="拡大"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" data-nav="out" aria-label="縮小" title="縮小"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><button type="button" data-nav="left" aria-label="左に回す" title="左に回す"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button><button type="button" data-nav="right" aria-label="右に回す" title="右に回す"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button><button type="button" data-nav="tilt" aria-label="真上から見る／ななめから見る" title="真上から／ななめから"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 19 7 7h10l4.5 12z"/><path d="M12 7v12M4.8 13h14.4"/></svg></button></div>
         <button type="button" class="fsbtn" id="fsBtn" aria-label="全画面で見る" title="全画面">⛶</button>
@@ -749,7 +749,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <span data-only="sv" hidden><i style="background:repeating-linear-gradient(90deg,var(--lv2) 0 5px,transparent 5px 9px)"></i>東鉢へ戻る道</span>
       </div>
   <p class="note" data-note="tohachi">※ 図は、ゲレンデマップ（パンフレット）の上に、選んだコースの線を重ねたものです。線の位置はおおよそです。今はない施設（3号リフト上の「ミニスノーパーク」、1号リフト終点の休憩所）は図から消し、スカイバレイのリフトは今の「ベアトリプルリフト」に直してあります。また、このマップは今のシーズンとコース名がちがう所があります（例：②「競技Aコース」の位置が、今の「東尾根下コース」）。コースの長さ・斜度・リフトの時間は公式サイトの数字です。最新のマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式のゲレンデマップ</a>で。</p>
-  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。</p>
+  <p class="note" id="note3d" hidden>※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、写真の草地を雪の色にぬった見た目です。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。目線のあいだは、1本指（マウス）のドラッグで、動きながら まわりを見回せます（🧭 正面 で もどる）。「🎿 目線」をもう一度押すと終わります。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。</p>
   <p class="note" data-note="sv" hidden>※ 同じゲレンデマップの右側（スカイバレイ側）です。線の位置はおおよそ。コースの長さ・斜度はスカイバレイの公式マップより。</p>
   </div>
   </div>
@@ -1911,12 +1911,23 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     anim={kind:"ride",o,snap:follow,k:0,dur:Math.max(6000,o.lenM/110*1000)}; rider.visible=true; skier.visible=false; }
   function stopRide(){ lifts.forEach(o=>{ o.mul=1; }); rideChair=null; lab.classList.remove("hide"); if(camera.near!==5){ camera.near=5; camera.updateProjectionMatrix(); } }
   const eyeP=new THREE.Vector3(), eyeT=new THREE.Vector3(), lookP=new THREE.Vector3();
+  // 目線のあいだ：1本指（マウス）のドラッグで見る向きを変える（動きは止めない）。yaw＋＝左を向く、pitch＋＝上を向く
+  let lookYaw=0, lookPitch=0, lookHome=false, lookDrag=null, baseOK=false; const baseC=new THREE.Vector3(), baseT=new THREE.Vector3(), hv=new THREE.Vector3();
+  // 自分の目線（滑る人の目・いす）：その場で首を回す
+  function headTurn(cam,tgt){ hv.copy(tgt).sub(cam); const d=hv.length()||1;
+    if(lookYaw||lookPitch){ hv.applyAxisAngle(UPV,lookYaw); const hz=Math.hypot(hv.x,hv.z)||1e-6, el=Math.max(-1.35,Math.min(1.1,Math.atan2(hv.y,hz)+lookPitch)), h2=Math.cos(el)*d; hv.set(hv.x/hz*h2,Math.sin(el)*d,hv.z/hz*h2); }
+    camera.position.copy(cam); controls.target.copy(cam).add(hv); }
+  // 後ろから追うとき：滑る人のまわりを回る（下へドラッグ＝低く）
+  function chaseTurn(piv,cam,tgt,D){ camera.position.copy(cam).sub(piv).applyAxisAngle(UPV,lookYaw).add(piv); controls.target.copy(tgt).sub(piv).applyAxisAngle(UPV,lookYaw).add(piv);
+    if(lookPitch) camera.position.y-=lookPitch*D*.9; const g=hAny(camera.position.x,camera.position.z)+5; if(camera.position.y<g) camera.position.y=g; }
+  function endFollow(){ lookDrag=null; if(!follow) return; follow=false; baseOK=false; lookYaw=lookPitch=0; lookHome=false; $("#povBtn").classList.toggle("on",false); lab.classList.remove("hide"); }
   function update(now,dt){
     if(!reduce) lifts.forEach(o=>{ o.off+=dt*LIFT_V*o.mul; if(o.off>=o.L) o.off-=o.L; });
+    if(lookHome){ const f=Math.exp(-dt*9); lookYaw*=f; lookPitch*=f; if(Math.abs(lookYaw)+Math.abs(lookPitch)<.01){ lookYaw=lookPitch=0; lookHome=false; } }
     if(anim&&anim.fp){ const o=anim.o, sc=sOf(anim.c);
-      anim.el=(anim.el||0)+dt; if((sc>o.upLen+1&&sc<o.upLen+40)||anim.el*1000>anim.dur*1.6){ /* 予備の終わり：動きの時間で数える（遅い端末でも 途中で終わらない） */ anim=null; stopRide(); o.set(selected===o.Lf.id); if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); controls.repivot(); } }
+      anim.el=(anim.el||0)+dt; if((sc>o.upLen+1&&sc<o.upLen+40)||anim.el*1000>anim.dur*1.6){ /* 予備の終わり：動きの時間で数える（遅い端末でも 途中で終わらない） */ anim=null; stopRide(); o.set(selected===o.Lf.id); if(follow){ endFollow(); controls.repivot(); } }
       else if(follow){ atS(o,sc,eyeP,eyeT); eyeT.normalize(); eyeP.y-=1.2; eyeP.addScaledVector(eyeT,-.1); camera.position.copy(eyeP);
-        lookP.copy(eyeP).addScaledVector(eyeT,60); lookP.y-=6; controls.target.lerp(lookP,anim.snap?1:1-Math.exp(-dt*6)); anim.snap=false; } }
+        lookP.copy(eyeP).addScaledVector(eyeT,60); lookP.y-=6; if(anim.snap||!baseOK){ baseT.copy(lookP); baseOK=true; } else baseT.lerp(lookP,1-Math.exp(-dt*6)); anim.snap=false; headTurn(eyeP,baseT); } }
     if(tw&&tw.wait){ tw.wait--; tw.t0=now; }
     if(tw){ const k=Math.max(0,Math.min(1,(now-tw.t0)/tw.ms)), e=ease(k);
       if(tw.sph){ const a=tw.s0, b=tw.s1; controls.target.copy(tw.q); camera.position.copy(tw.q).add(v3.setFromSphericalCoords(a.r+(b.r-a.r)*e,a.phi+(b.phi-a.phi)*e,a.th+(b.th-a.th)*e)); controls.clamp(); }
@@ -1930,13 +1941,14 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const vm=anim.kind==="ski"?CAMS[camIdx][0]:"far";
       if(follow&&vm==="eye"){ // 滑る人の目の高さから、約45m先を見る
         const q=at(anim.A,e), la=ahead(anim.A,e,45/M), eye=P3(q.x,q.y,6.5), look=P3(la[0],la[1],8), g=hAny(eye.x,eye.z)+3; if(eye.y<g) eye.y=g;
-        const a=anim.snap?1:1-Math.exp(-dt*10), b=anim.snap?1:1-Math.exp(-dt*5); anim.snap=false; camera.position.lerp(eye,a); controls.target.lerp(look,b); }
+        if(anim.snap||!baseOK){ baseC.copy(eye); baseT.copy(look); baseOK=true; } else { baseC.lerp(eye,1-Math.exp(-dt*10)); baseT.lerp(look,1-Math.exp(-dt*5)); } anim.snap=false; headTurn(baseC,baseT); }
       else if(follow&&fwd&&fwd.lengthSq()>0){ fwd.y=0; fwd.normalize(); const ski=anim.kind==="ski", nr=vm==="near";
         const want=pos3.clone().addScaledVector(fwd,ski?(nr?-32:-150):-70); want.y=pos3.y+(ski?(nr?13:70):30);
         const g=elev(want.x/M+W2,want.z/M+H2); want.y=Math.max(want.y,(g-hmin)*EX+(nr?6:20));
         const look=pos3.clone().addScaledVector(fwd,ski?(nr?45:160):130); look.y=ski?pos3.y-(nr?6:25):pos3.y+18;
-        const a=anim.snap?1:1-Math.exp(-dt*(nr?5:4)), b=anim.snap?1:1-Math.exp(-dt*(nr?7:4)); anim.snap=false; camera.position.lerp(want,a); controls.target.lerp(look,b); }
-      if(k>=1){ const wasEye=follow&&vm==="eye", A=anim.A; anim=null; follow=false; $("#povBtn").classList.toggle("on",false); lab.classList.remove("hide");
+        if(anim.snap||!baseOK){ baseC.copy(want); baseT.copy(look); baseOK=true; } else { baseC.lerp(want,1-Math.exp(-dt*(nr?5:4))); baseT.lerp(look,1-Math.exp(-dt*(nr?7:4))); } anim.snap=false;
+        chaseTurn(pos3,baseC,baseT,ski?(nr?32:150):70); }
+      if(k>=1){ const wasEye=follow&&vm==="eye", A=anim.A; anim=null; endFollow();
         if(wasEye){ /* 下に着いたら、少し上から ふりかえる */ const n=A.sp.length, p=A.sp[n-1], o=A.sp[Math.max(0,n-4)]; flyTo(P3(p[0],p[1],0),380,Math.atan2(-(p[1]-o[1]),-(p[0]-o[0])),1,1600); }
         else controls.repivot(); }
     }
@@ -2126,8 +2138,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // 描く：カメラが動いたとき・動きがあるときだけ（止まっている間は描かない。近くで見ている間は、いすを動かすため少しずつ）
   let running=false, last=0, lastR=0, chairT=0, prevBusy=false, slowN=0, slowT=0; const pc=new THREE.Vector3(), pt=new THREE.Vector3();
   function loop(now){ if(!running) return; if(!view3d||curTab!=="map"){ running=false; return; } requestAnimationFrame(loop);
-    const dt=Math.min(.1,(now-last)/1000||0); last=now; const spOn=!!(follow&&anim&&anim.kind==="ski"); if(spBtn.hidden===spOn){ spBtn.hidden=camBtn.hidden=!spOn; box.parentElement.classList.toggle("pov3d",spOn); }
+    const dt=Math.min(.1,(now-last)/1000||0); last=now; const spOn=!!(follow&&anim&&anim.kind==="ski"); if(spBtn.hidden===spOn){ spBtn.hidden=camBtn.hidden=!spOn; } const povOn=!!follow; if(box.parentElement.classList.contains("pov3d")!==povOn) box.parentElement.classList.toggle("pov3d",povOn);
     fovGoal=spOn?camFov(CAMS[camIdx][0]):FOV0;
+    const offOn=follow&&Math.abs(lookYaw)+Math.abs(lookPitch)>.06; if(frontBtn.hidden===offOn) frontBtn.hidden=!offOn;
     const eyeOn=spOn&&CAMS[camIdx][0]==="eye"; if(eyeOn!==eyeWas){ eyeWas=eyeOn; if(!rideChair){ camera.near=eyeOn?1:5; camera.updateProjectionMatrix(); } if(anim&&anim.kind==="ski") skier.visible=!eyeOn; Object.values(courseObj).forEach(o=>{ o.band.visible=!eyeOn; }); }
     if(eyeOn) for(const id in courseObj){ const o=courseObj[id]; if(o.band.visible) o.band.visible=false; }
     if(Math.abs(camera.fov-fovGoal)>.05){ camera.fov+=(fovGoal-camera.fov)*(1-Math.exp(-dt*7)); if(Math.abs(camera.fov-fovGoal)<.08) camera.fov=fovGoal; projUpd(); needDraw=true; } const hideL=!!(follow&&anim); if(lab.classList.contains("hide")!==hideL) lab.classList.toggle("hide",hideL); /* 札は、目線のあいだだけ かくす */ update(now,dt); controls.update(dt);
@@ -2139,7 +2152,19 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     prevBusy=busy; pc.copy(camera.position); pt.copy(controls.target); needDraw=false;
     moveChairs();
     lastR=now; sky.position.copy(camera.position); renderer.render(scene,camera); placeLabels(); }
-  controls.addEventListener("start",()=>{ tw=null; if(follow){ follow=false; $("#povBtn").classList.toggle("on",false); lab.classList.remove("hide"); } $("#m3dHint").classList.add("gone"); });
+  controls.addEventListener("start",()=>{ tw=null; endFollow(); $("#m3dHint").classList.add("gone"); });
+  // 目線のあいだの1本指（マウス）：地図は動かさず、見る向きだけ変える。2本目の指が来たら、目線をやめて ふつうの操作へ
+  box.addEventListener("pointerdown",e=>{ if(!follow||ed.on||e.target!==renderer.domElement) return;
+    if(lookDrag){ endFollow(); return; }
+    if(e.pointerType==="mouse"&&e.button>2) return;
+    e.stopPropagation(); e.preventDefault(); lookDrag={id:e.pointerId,x:e.clientX,y:e.clientY}; lookHome=false; try{ renderer.domElement.setPointerCapture(e.pointerId); }catch(_){} $("#m3dHint").classList.add("gone"); },true);
+  box.addEventListener("pointermove",e=>{ if(!lookDrag||e.pointerId!==lookDrag.id) return; e.stopPropagation();
+    const r=renderer.domElement.getBoundingClientRect(), dx=e.clientX-lookDrag.x, dy=e.clientY-lookDrag.y; lookDrag.x=e.clientX; lookDrag.y=e.clientY;
+    lookYaw=wrapA(lookYaw+dx*Math.PI/Math.max(320,r.width)); lookPitch=Math.max(-1,Math.min(1,lookPitch+dy*1.5/Math.max(320,r.height))); needDraw=true; },true);
+  const lookEnd=e=>{ if(!lookDrag||e.pointerId!==lookDrag.id) return; e.stopPropagation(); lookDrag=null; };
+  box.addEventListener("pointerup",lookEnd,true); box.addEventListener("pointercancel",lookEnd,true);
+  box.addEventListener("dblclick",e=>{ if(follow) e.stopPropagation(); },true);
+  const frontBtn=$("#frontBtn"); frontBtn.onclick=()=>{ lookHome=true; };
   // 速さのボタン（目線で滑っているあいだだけ出る）
   const CAMS=[["eye","👀 目線",.6],["near","🎥 近く",.8],["far","🚁 遠く",1]]; let camIdx=Math.max(0,Math.min(2,store.get("povCam",0)|0)); // 見る位置と、そのときの速さ
   let eyeWas=false, fovGoal=FOV0;
@@ -2163,7 +2188,10 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const snowLabel=()=>{ const on=snowU.value>.5; $("#snowBtn").textContent=on?"❄ 冬":"☀ 写真"; $("#snowBtn").setAttribute("aria-pressed",String(on)); };
   $("#snowBtn").onclick=()=>{ snowU.value=snowU.value>.5?0:1; store.set("snow3d",snowU.value>.5); snowLabel(); needDraw=true; };
   snowLabel();
-  $("#povBtn").onclick=()=>{ if(!lastMove){ toast("コースかリフトを選ぶと、その目線で見られます"); return; } follow=true; $("#povBtn").classList.toggle("on",true); lastMove(); };
+  $("#povBtn").onclick=()=>{ if(follow){ endFollow(); controls.repivot(); return; }
+    if(!lastMove){ toast("コースかリフトを選ぶと、その目線で見られます"); return; }
+    follow=true; lookYaw=lookPitch=0; lookHome=false; baseOK=false; $("#povBtn").classList.toggle("on",true); lastMove();
+    const n=store.get("lookTip",0)|0; if(n<2){ store.set("lookTip",n+1); setTimeout(()=>{ if(follow) toast("1本指でドラッグすると、動きながら まわりを見回せます（「🎿 目線」をもう一度押すと終わります）"); },900); } };
   theme(); resize(); home(0); introPose();
   return { ready:outerReady, start(){ if(running) return; resize(); running=true; needDraw=true; last=performance.now(); requestAnimationFrame(loop); }, stop(){ running=false; },
     select, home, theme, replay(){ if(lastMove) lastMove(); }, refreshCourse, removeCourse, myChanged(){ edBuild(); }, endEdit:edEnd, startEdit:edStart };
