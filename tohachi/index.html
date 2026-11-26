@@ -490,6 +490,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 .ed-tools [data-tool].dirty::after{ content:"●"; color:#e5484d; font-size:.5rem; margin-left:2px; vertical-align:top; }
 .ed-tools .ed-x{ flex:none; width:38px; height:34px; padding:0; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-weight:700; font-size:.78rem; cursor:pointer; }
 .ed-top[hidden], .ed-liftset[hidden]{ display:none; }
+.ed-liftset label[hidden]{ display:none; }
 .ed-top .ed-seg{ flex:none; display:flex; gap:2px; padding:2px; border-radius:10px; background:color-mix(in srgb, var(--text) 7%, transparent); }
 .ed-top .ed-seg button{ height:30px; padding:0 9px; border:0; border-radius:8px; background:transparent; color:var(--sub); font-weight:700; font-size:.76rem; box-shadow:none; }
 .ed-top .ed-seg button[aria-pressed="true"]{ background:var(--panel); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.18); }
@@ -626,7 +627,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
             <label class="ed-size">太さ<input type="range" id="edSize" min="10" max="120" step="1" value="30"><b id="edSizeV">30m</b></label>
             <span class="ed-n" id="edTreeN" hidden></span>
           </div>
-          <div class="ed-top" id="edLift" hidden><select id="edLiftSel" aria-label="リフト"></select></div>
+          <div class="ed-top" id="edLift" hidden><select id="edLiftSel" aria-label="リフト"></select><div class="ed-seg" id="edLMode"><button type="button" data-m="photo" aria-pressed="true">📷 写真の位置</button><button type="button" data-m="even" aria-pressed="false">📏 等間隔</button></div></div>
           <div class="ed-meta" id="edMeta" hidden>
             <input id="edName" type="text" maxlength="20" placeholder="コースの名前（例：林の中の近道）" aria-label="コースの名前" autocomplete="off" enterkeyhint="done">
             <select id="edLv" aria-label="コースのレベル（線の色）"><option value="初級">初級</option><option value="中級">中級</option><option value="上級">上級</option><option value="道">道</option></select>
@@ -667,7 +668,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <span><i style="background:var(--lv0)"></i>初心者コース・道</span>
         <span><i class="box" style="background:#0f1d2e"></i>数字＝リフト</span>
       </div>
-  <p class="note" id="note3d">※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、航空写真から林と開けた所を分けて、開けた所（ゲレンデ・田畑など）を雪の白に、近くの林には雪をかぶった木を立てた見た目です（遠くの林は写真のまま。「☀ 写真」で元の写真）。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。目線のあいだは、1本指（マウス）のドラッグで、動きながら まわりを見回せます（🧭 正面 で もどる）。「🎿 目線」をもう一度押すと終わります。コースの長さ・斜度・リフトの時間は公式サイトの数字です（最新のゲレンデマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式サイト</a>で）。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。描く画面の上の「❄ 雪」で雪の白をぬる、「🌲 木」で木を植える、「🚡 リフト」で支柱の間隔と高さを変える こともできます（保存すると、このアプリの3Dの地図に出ます）。</p>
+  <p class="note" id="note3d">※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、航空写真から林と開けた所を分けて、開けた所（ゲレンデ・田畑など）を雪の白に、航空写真で見える木の こずえの場所に、雪をかぶった木を立てた見た目です（遠くの林は写真のまま。「☀ 写真」で元の写真）。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。目線のあいだは、1本指（マウス）のドラッグで、動きながら まわりを見回せます（🧭 正面 で もどる）。「🎿 目線」をもう一度押すと終わります。コースの長さ・斜度・リフトの時間は公式サイトの数字です（最新のゲレンデマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式サイト</a>で）。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。描く画面の上の「❄ 雪」で雪の白をぬる、「🌲 木」で木を植える、「🚡 リフト」で支柱の間隔と高さを変える こともできます（保存すると、このアプリの3Dの地図に出ます）。</p>
   </div>
   </div>
 </section>
@@ -1144,7 +1145,7 @@ function findItem(id){
 
 /* ---------- 3D 地形図（国土地理院：数値標高モデル5mメッシュ・全国最新写真・標準地図の索道） ----------
    リフト：地理院地図の索道の線（5mメッシュでの標高差は公式とほぼ同じ）。コース：航空写真のゲレンデの形と公式の説明から合わせた おおよその位置 */
-const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[733.75,368.75],[552.5,252.5]],"lift2":[[555.0,233.0],[426.5,220.25]],"lift3":[[635.0,212.0],[505.0,222.5]],"lift4":[[792.5,350.0],[623.75,237.0]],"svl_sanchou":[[662.0,82.53],[469.66,155.06]],"svl_bear":[[719.66,96.22],[575.78,157.09]],"svl_rabbit":[[728.62,106.25],[663.56,188.06]],"svl_touko":[[879.59,47.06],[738.59,98.47]]},"courses":{"centerA":[[430,225],[445,234],[465,243],[488,250],[512,254],[534,256],[548,257]],"higashioneshita":[[432,217],[446,209],[458,203],[470,205],[480,212],[492,218],[507,225],[530,230],[550,233]],"higashione":[[430,216],[442,204],[455,192],[472,184],[495,180],[522,181],[550,184],[578,187],[605,189],[624,196],[636,208],[640,218]],"centerB":[[556,258],[563,271],[572,284],[584,295],[600,304],[617,310],[632,315]],"centerC":[[640,220],[636,235],[634,252],[636,270],[639,288],[640,304],[636,315]],"centerD":[[636,315],[652,324],[670,335],[688,346],[706,356],[722,365],[732,373]],"champion":[[642,223],[660,238],[680,255],[700,272],[720,290],[740,308],[760,325],[776,338],[788,347]],"beginner":[[507,225],[518,233],[534,239],[555,243],[575,239],[593,230],[608,219],[622,208],[634,203],[642,209]],"kyogiB":[[436,232],[446,248],[456,265],[468,282],[482,298]],"chibikko":[[720,290],[728,306],[740,321],[754,333],[768,343]],"sv_dia":[[476,162],[495,168],[518,171],[542,172],[560,168],[578,162]],"sv_back":[[476,162],[495,168],[518,171],[536,175],[550,181],[565,187],[594,191],[616,199],[628,210]],"sv_thunder":[[474,158],[490,153],[508,146],[528,139],[550,132],[572,125],[594,118],[612,112]],"sv_eagle":[[468,147],[476,136],[488,126],[502,118],[516,112],[528,109]],"sv_fox":[[528,109],[550,105],[572,100],[595,96],[616,91],[636,86],[656,82]],"sv_bear":[[578,162],[598,160],[616,152],[632,140],[652,134],[672,127],[688,116],[705,108],[718,101]],"sv_rabbit":[[662,184],[671,172],[681,160],[692,147],[703,134],[714,121],[724,110]],"sv_raku":[[629,228],[637,218],[645,208],[652,200],[660,194],[666,189]],"sv_wakaba":[[667,188],[682,181],[697,174],[710,166],[718,154],[722,140],[726,126],[730,113]],"sv_gezan":[[668,190],[686,182],[705,172],[722,162],[740,157],[760,155],[780,152],[800,147],[818,141],[835,136],[850,130],[860,121],[867,111],[875,104],[888,98],[898,88],[902,76],[898,65],[890,57],[884,49]]},"marks":{"summit":[426.5,220.25],"cafe":[629,228],"base":[748,366],"hachibuse":[31,98],"sv":[585,142],"open":[480,196],"svbase":[882,39]}};
+const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[733.75,368.75],[552.5,252.5]],"lift2":[[555.0,233.0],[426.5,220.25]],"lift3":[[635.0,212.0],[505.0,222.5]],"lift4":[[792.5,350.0],[623.75,237.0]],"svl_sanchou":[[662.0,82.53],[469.66,155.06]],"svl_bear":[[719.66,96.22],[575.78,157.09]],"svl_rabbit":[[728.62,106.25],[663.56,188.06]],"svl_touko":[[879.59,47.06],[738.59,98.47]]},"courses":{"centerA":[[430,225],[445,234],[465,243],[488,250],[512,254],[534,256],[548,257]],"higashioneshita":[[432,217],[446,209],[458,203],[470,205],[480,212],[492,218],[507,225],[530,230],[550,233]],"higashione":[[430,216],[442,204],[455,192],[472,184],[495,180],[522,181],[550,184],[578,187],[605,189],[624,196],[636,208],[640,218]],"centerB":[[556,258],[563,271],[572,284],[584,295],[600,304],[617,310],[632,315]],"centerC":[[640,220],[636,235],[634,252],[636,270],[639,288],[640,304],[636,315]],"centerD":[[636,315],[652,324],[670,335],[688,346],[706,356],[722,365],[732,373]],"champion":[[642,223],[660,238],[680,255],[700,272],[720,290],[740,308],[760,325],[776,338],[788,347]],"beginner":[[507,225],[518,233],[534,239],[555,243],[575,239],[593,230],[608,219],[622,208],[634,203],[642,209]],"kyogiB":[[436,232],[446,248],[456,265],[468,282],[482,298]],"chibikko":[[720,290],[728,306],[740,321],[754,333],[768,343]],"sv_dia":[[476,162],[495,168],[518,171],[542,172],[560,168],[578,162]],"sv_back":[[476,162],[495,168],[518,171],[536,175],[550,181],[565,187],[594,191],[616,199],[628,210]],"sv_thunder":[[474,158],[490,153],[508,146],[528,139],[550,132],[572,125],[594,118],[612,112]],"sv_eagle":[[468,147],[476,136],[488,126],[502,118],[516,112],[528,109]],"sv_fox":[[528,109],[550,105],[572,100],[595,96],[616,91],[636,86],[656,82]],"sv_bear":[[578,162],[598,160],[616,152],[632,140],[652,134],[672,127],[688,116],[705,108],[718,101]],"sv_rabbit":[[662,184],[671,172],[681,160],[692,147],[703,134],[714,121],[724,110]],"sv_raku":[[629,228],[637,218],[645,208],[652,200],[660,194],[666,189]],"sv_wakaba":[[667,188],[682,181],[697,174],[710,166],[718,154],[722,140],[726,126],[730,113]],"sv_gezan":[[668,190],[686,182],[705,172],[722,162],[740,157],[760,155],[780,152],[800,147],[818,141],[835,136],[850,130],[860,121],[867,111],[875,104],[888,98],[898,88],[902,76],[898,65],[890,57],[884,49]]},"marks":{"summit":[426.5,220.25],"cafe":[629,228],"base":[748,366],"hachibuse":[31,98],"sv":[585,142],"open":[480,196],"svbase":[882,39]},"towers":{"lift1":[20,83,136,198,260,323,387,445,503,599,625,690,733,783],"lift2":[49,116,188,237,294,375,424],"lift3":[12,46,92,137,180,222,299,348,382,420],"lift4":[38.5,70.6,112.5,168,224.5,267.5,310.6,355,394,433,472,511,550,599,646,695.5,745],"svl_sanchou":[60,142,186,230,275,336,388,429,487,515,563,617,656,688,733,776],"svl_bear":[52,97,172,264,356,447,582],"svl_rabbit":[48,109,193,242,320],"svl_touko":[46,110,186,250,316,356,399,435,474,514]}};
 const C3D={"初級":"#1f9d55","中級":"#2a8fd6","上級":"#d63b3b","道":"#e08a00"};
 const RUN3D={openbahn:[],kids:[]}; // コースは、選んだコースだけを滑る（ほかのコースへは つなげない）
 const SHOW3D={skyvalley:["sv_dia","sv_fox","sv_eagle","sv_thunder"]}; // 3Dで、エリアを選んだときに出すコース
@@ -1157,7 +1158,8 @@ function load3D(){
     const litP=new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src="img/terrain_l.png"; });
     const forP=new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src="img/forest.png"; });
     const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error("terrain")); im.src="img/terrain.png"; });
-    T3D=build3D(THREE,img,await litP,await forP);
+    const treP=new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src="img/trees.png"; });
+    T3D=build3D(THREE,img,await litP,await forP,await treP);
     await Promise.race([T3D.ready,new Promise(r=>setTimeout(r,6000))]); // まわりの山がそろうまで（遅いときは先に出す）
     msg.hidden=true; return T3D;
   })();
@@ -1268,7 +1270,7 @@ function mapControls3D(THREE,camera,dom,o){
     camera.lookAt(target); }
   return C;
 }
-function build3D(THREE,img,litImg,forImg){
+function build3D(THREE,img,litImg,forImg,treImg){
   const G=GEO3D, box=$("#map3d"), EX=1.35, M=G.mpp, W2=G.w/2, H2=G.h/2;
   let needDraw=true, vw=1, vh=1; // 描きなおしが要るとき true（動いていなければ描かない）
   // 標高（PNGの赤・緑に 0.1m 単位で入れてある）
@@ -1282,7 +1284,9 @@ function build3D(THREE,img,litImg,forImg){
     const d=x.getImageData(0,0,nx,ny).data; for(let i=0;i<nx*ny;i++){ L[i*2]=d[i*4]/255; L[i*2+1]=d[i*4+1]/255; } return L; }
   const LIT=readLit(litImg,G.gw,G.gh);
   // 林と開けた所（航空写真から分けた地図。1マス＝約3.9m、明るさ＝林らしさ）
-  const FW=920, FH=480; let FOR=null;
+  const FW=920, FH=480; let FOR=null, TRE=null;
+  // 木の場所（航空写真で見つけた こずえ）：1マス（約3.9m）に1本まで。R＝大きさ（0＝なし）、G・B＝マスの中の位置
+  if(treImg){ const c=document.createElement("canvas"); c.width=FW; c.height=FH; const x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(treImg,0,0,FW,FH); TRE=x.getImageData(0,0,FW,FH).data; }
   if(forImg){ const c=document.createElement("canvas"); c.width=FW; c.height=FH; const x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(forImg,0,0,FW,FH); const d=x.getImageData(0,0,FW,FH).data; FOR=new Uint8Array(FW*FH); for(let i=0;i<FW*FH;i++) FOR[i]=d[i*4]; }
   const elev=(x,y)=>{ const gx=Math.max(0,Math.min(G.gw-1.001,x/G.step)), gy=Math.max(0,Math.min(G.gh-1.001,y/G.step)), i=Math.floor(gx), j=Math.floor(gy), fx=gx-i, fy=gy-j, k=j*G.gw+i;
     return HGT[k]*(1-fx)*(1-fy)+HGT[k+1]*fx*(1-fy)+HGT[k+G.gw]*(1-fx)*fy+HGT[k+G.gw+1]*fx*fy; };
@@ -1520,7 +1524,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     grp.add(band,L.grp); grp.visible=old?old.grp.visible:false; scene.add(grp);
     const o={c,sp,grp,band,op:old?old.op:1,set:(v)=>{ o.op=v; band.material.opacity=.34*v; L.cas.material.uniforms.uOp.value=.8*v; L.ln.material.uniforms.uOp.value=.95*v; }}; o.set(o.op); courseObj[c.id]=o; }
   COURSES3D.forEach(buildCourse); MY3D.forEach(buildCourse);
-  function removeCourse(id){ const o=courseObj[id]; if(!o) return; scene.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; afLater(); }
+  function removeCourse(id){ const o=courseObj[id]; if(!o) return; scene.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; if(!TRE) afLater(); }
   // 長さ（斜面にそって）・平均と最大の斜度（約30mの区間ごと）。標高は本当の高さで
   function courseStats(pts){ const sp=smooth(pts), H=sp.map(p=>elev(p[0],p[1])), D=[0]; let len=0;
     for(let i=1;i<sp.length;i++){ const d=Math.hypot(sp[i][0]-sp[i-1][0],sp[i][1]-sp[i-1][1])*M; D.push(D[i-1]+d); len+=Math.hypot(d,H[i]-H[i-1]); }
@@ -1593,16 +1597,19 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // 支柱の間隔と高さ（リフトごと）。決めていなければ ふつう：約92mごと・ワイヤーの高さ10m
   { const L=ENV3D.lifts&&ENV3D.lifts.L; if(L) Object.assign(LSET,JSON.parse(JSON.stringify(L))); }
   function liftLen(id){ const ab=G.lifts[id]; if(!ab) return 0; const p=P3(ab[0][0],ab[0][1],0), q=P3(ab[1][0],ab[1][1],0); return Math.hypot(q.x-p.x,q.z-p.z); }
+  const hasTowers=id=>!!(G.towers&&G.towers[id]&&G.towers[id].length);
   function liftDef(id){ const l=liftLen(id); return {gap:Math.round(l/Math.max(2,Math.round(l/55))),h:10}; }
-  function liftSet(id){ const d=liftDef(id), e=LSET[id]||{}; return {gap:e.gap||d.gap,h:e.h||d.h}; }
+  function liftSet(id){ const d=liftDef(id), e=LSET[id]||{}; return {gap:e.gap||d.gap,h:e.h||d.h,even:!hasTowers(id)||!!e.even}; }
   function buildLifts(){
     liftParts.forEach(m=>{ scene.remove(m); m.geometry.dispose(); if(m.userData.ownMat) m.material.dispose(); }); liftParts.length=0;
     Object.keys(liftObj).forEach(k=>{ delete liftObj[k]; }); lifts.length=0; chairs.length=0; batch.clear(); shB.length=0; shS.length=0;
   LIFTS3D.forEach(Lf=>{ const ab=G.lifts[Lf.id]; if(!ab) return; const [a,b]=ab, ST=liftSet(Lf.id);
     const ga=P3(a[0],a[1],0), gb=P3(b[0],b[1],0), d=new THREE.Vector3(gb.x-ga.x,0,gb.z-ga.z), lenH=d.length(); d.normalize();
-    const n=new THREE.Vector3(-d.z,0,d.x), yawL=Math.atan2(d.x,d.z), nT=Math.max(2,Math.round(lenH/ST.gap));
+    const n=new THREE.Vector3(-d.z,0,d.x), yawL=Math.atan2(d.x,d.z);
+    // 支柱の場所（0＝下の駅、1＝上の駅）：航空写真で見える位置。「等間隔」のときは間隔から
+    const TS=ST.even?null:G.towers[Lf.id].map(m=>m/lenH).filter(f=>f>.004&&f<.996), nT=TS?TS.length+1:Math.max(2,Math.round(lenH/ST.gap)), tAt=k=>k===0?0:(k===nT?1:(TS?TS[k-1]:k/nT));
     // 支え（駅と支柱）の場所と、ワイヤーの高さ
-    const sup=[]; for(let k=0;k<=nT;k++){ const t=k/nT, x=ga.x+(gb.x-ga.x)*t, z=ga.z+(gb.z-ga.z)*t, g=hAt(x,z), yl=ga.y+HB+(gb.y-ga.y)*t;
+    const sup=[]; for(let k=0;k<=nT;k++){ const t=tAt(k), x=ga.x+(gb.x-ga.x)*t, z=ga.z+(gb.z-ga.z)*t, g=hAt(x,z), yl=ga.y+HB+(gb.y-ga.y)*t;
       sup.push({x,z,g,y:k===0?ga.y+HB:(k===nT?gb.y+HB:Math.max(yl,g+ST.h))}); }
     // たるんだワイヤー（といす）が地面に近づきすぎないよう、支柱を高くする
     for(let it=0;it<4;it++) for(let k=0;k<nT;k++){ const p=sup[k], q=sup[k+1], sag=Math.hypot(q.x-p.x,q.z-p.z)*SAG;
@@ -1735,9 +1742,13 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     afFlush(); }
   function afAll(){ if(!AF.n) return; maskSnap(); for(let i=0;i<AF.n;i++){ const g=afGone(i)?1:0; if(g!==AF.gone[i]){ AF.gone[i]=g; afSet(i); } } afFlush(); }
   function genForest(){ AF.chunks.forEach(c=>{ scene.remove(c.im); c.im.dispose(); }); AF.chunks=[]; AF.grid.clear(); AF.n=0; if(!FOR) return;
-    const R=rng(424242), SP=15/M, band=clearBand(), X=[], Y=[], S=[], C=[];
-    for(let gy=0;gy<FH;gy+=SP) for(let gx=0;gx<FW;gx+=SP){ const x=gx+R()*SP, y=gy+R()*SP, f=forestAt(x,y), r1=R(), r2=R(), r3=R();
-      if(f<.5||r1>Math.min(1,(f-.42)*2.5)||x<2||y<2||x>FW-2||y>FH-2||band[Math.floor(y)*FW+Math.floor(x)]) continue; X.push(x); Y.push(y); S.push(.85+r2*.5); C.push(r3); }
+    const R=rng(424242), X=[], Y=[], S=[], C=[];
+    if(TRE){ // 航空写真の こずえの場所に（本当に木がある所だけ）
+      for(let j=0;j<FH;j++) for(let i=0;i<FW;i++){ const k=(j*FW+i)*4, v=TRE[k]; if(!v) continue;
+        X.push(i+TRE[k+1]/255); Y.push(j+TRE[k+2]/255); S.push(.5+(v-1)/254); C.push(R()); } }
+    else { const SP=15/M, band=clearBand(); // 予備：林の地図から（コース・リフトの上は のぞく）
+      for(let gy=0;gy<FH;gy+=SP) for(let gx=0;gx<FW;gx+=SP){ const x=gx+R()*SP, y=gy+R()*SP, f=forestAt(x,y), r1=R(), r2=R(), r3=R();
+        if(f<.5||r1>Math.min(1,(f-.42)*2.5)||x<2||y<2||x>FW-2||y>FH-2||band[Math.floor(y)*FW+Math.floor(x)]) continue; X.push(x); Y.push(y); S.push(.85+r2*.5); C.push(r3); } }
     const n=X.length; AF.n=n; AF.x=Float32Array.from(X); AF.y=Float32Array.from(Y); AF.s=Float32Array.from(S); AF.gone=new Uint8Array(n); AF.ch=new Uint16Array(n); AF.li=new Uint32Array(n);
     const CS=128, ncx=Math.ceil(FW/CS), ncy=Math.ceil(FH/CS), lists=[]; for(let i=0;i<ncx*ncy;i++) lists.push([]);
     for(let i=0;i<n;i++){ const ci=Math.min(ncy-1,Math.floor(AF.y[i]/CS))*ncx+Math.min(ncx-1,Math.floor(AF.x[i]/CS)); AF.ch[i]=ci; AF.li[i]=lists[ci].length; lists[ci].push(i);
@@ -2100,22 +2111,25 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // リフト：支柱の間隔・高さ
   LIFTS3D.forEach(Lf=>{ const o=document.createElement("option"); o.value=Lf.id; o.textContent=Lf.name||Lf.chip||Lf.id; edLiftSel.appendChild(o); });
   function liftUI(){ const id=edLiftSel.value, e=liftSet(id); $("#edGap").value=e.gap; $("#edGapV").textContent=e.gap+"m"; $("#edH").value=e.h; $("#edHV").textContent=e.h+"m";
+    $("#edLMode").hidden=!hasTowers(id); $$("#edLMode [data-m]").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.m==="even")===e.even))); $("#edGap").closest("label").hidden=!e.even;
     Object.entries(liftObj).forEach(([lid,o])=>o.set(lid===id)); needDraw=true; }
   function liftView(o,ms){ const dx=o.b[0]-o.a[0], dy=o.b[1]-o.a[1], L=Math.hypot(dx,dy)*M, c=P3((o.a[0]+o.b[0])/2,(o.a[1]+o.b[1])/2,0);
     let az=Math.atan2(dx,-dy); const df=a=>Math.abs(Math.atan2(Math.sin(a-AZ),Math.cos(a-AZ))); if(df(az+Math.PI)<df(az)) az+=Math.PI;
     flyTo(c,Math.min(4000,Math.max(260,fitDist(L)*.95)),az,1.18,ms==null?900:ms); }
   edLiftSel.onchange=()=>{ liftUI(); const o=liftObj[edLiftSel.value]; if(o) liftView(o); };
-  let liftT=0; function liftInput(){ const id=edLiftSel.value, d=liftDef(id), g=+$("#edGap").value, h=+$("#edH").value;
-    LSET[id]={gap:g,h}; if(g===d.gap&&h===d.h) delete LSET[id]; $("#edGapV").textContent=g+"m"; $("#edHV").textContent=h+"m"; env.dirty.lifts=true; edBar();
+  let liftT=0; function liftInput(){ const id=edLiftSel.value, d=liftDef(id), g=+$("#edGap").value, h=+$("#edH").value, even=!hasTowers(id)||$("#edLMode [data-m=\"even\"]").getAttribute("aria-pressed")==="true";
+    const e={h}; if(even){ e.gap=g; if(hasTowers(id)) e.even=true; } LSET[id]=e; if(h===d.h&&(hasTowers(id)?!even:g===d.gap)) delete LSET[id];
+    $("#edGapV").textContent=g+"m"; $("#edHV").textContent=h+"m"; env.dirty.lifts=true; edBar();
     clearTimeout(liftT); liftT=setTimeout(()=>{ rebuildLifts(); liftUI(); },120); }
   $("#edGap").oninput=liftInput; $("#edH").oninput=liftInput;
-  $("#edLiftReset").onclick=()=>{ delete LSET[edLiftSel.value]; env.dirty.lifts=true; rebuildLifts(); liftUI(); edBar(); toast("ふつうの間隔・高さにもどしました（「保存」で決まります）"); };
+  $$("#edLMode [data-m]").forEach(b=>b.onclick=()=>{ $$("#edLMode [data-m]").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); $("#edGap").closest("label").hidden=b.dataset.m!=="even"; liftInput(); });
+  $("#edLiftReset").onclick=()=>{ delete LSET[edLiftSel.value]; env.dirty.lifts=true; rebuildLifts(); liftUI(); edBar(); toast("支柱を写真の位置・ふつうの高さにもどしました（「保存」で決まります）"); };
   $$("#edPMode [data-m]").forEach(b=>b.onclick=()=>{ env.mode[tk()]=b.dataset.m; edTool(ed.tool); });
   edSize.oninput=()=>{ const k=tk(); env.size[k]=+edSize.value; edSizeV.textContent=edSize.value+"m"; if(ring.visible){ const r=env.size[k]; ring.scale.set(r,r,r); needDraw=true; } };
   toolBtns.forEach(b=>b.onclick=()=>{ if(b.dataset.tool!==ed.tool){ if(ed.tool==="course") edKeep(); edTool(b.dataset.tool); } });
   const HELP={snow:"なぞった所を、雪の白で ぬれます（「消す」で もとにもどる）。地図は2本指（パソコンは右ドラッグ・ホイール）で動かせます",
     tree:"なぞった所に 木が生えます（「消す」で 木をとる）。地図は2本指（パソコンは右ドラッグ・ホイール）で動かせます",
-    lift:"リフトをえらんで、支柱の間隔と高さを変えられます。ワイヤーが地面に近い所の支柱は、自動で少し高くなります"};
+    lift:"支柱は、航空写真で見える位置に立てています（「📏 等間隔」で間隔を自分で決められます）。高さも変えられます。ワイヤーが地面に近い所の支柱は、自動で少し高くなります"};
   function edTool(t){ ed.tool=t; ed.lastTool=t; toolBtns.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tool===t)));
     const course=t==="course", paint=t==="snow"||t==="tree", lift=t==="lift";
     $("#m3dEdit .ed-course").hidden=!course; edPaint.hidden=!paint; edLiftRow.hidden=!lift; edLiftSet.hidden=!lift;
@@ -2132,7 +2146,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     else if(k==="trees"){ treeArr=v?v.t.slice():[]; eraseC.length=0; if(v&&v.e) eraseC.push(...v.e); treesUpd(); treeCount(); afAll(); }
     else if(k==="lifts"){ Object.keys(LSET).forEach(id=>{ delete LSET[id]; }); if(v) Object.assign(LSET,JSON.parse(JSON.stringify(v.L))); rebuildLifts(); if(ed.on&&ed.tool==="lift") liftUI(); } }
   $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&(COURSE_IDS.has(selected)||isMy(selected))?selected:"centerB"); };
-  function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); needDraw=true; afLater();
+  function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); needDraw=true; if(!TRE) afLater();
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
   function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; LABELS.concat([{d:selLab}]).forEach(L=>{ L.d._w=0; }); vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
@@ -2256,7 +2270,7 @@ function envClean(k,v){ try{ if(!v||typeof v!=="object") return null; const at=S
       return {t:out,e:eo,at}; }
     if(k==="lifts"){ const L=v.L; if(!L||typeof L!=="object") return null; const out={};
       Object.entries(L).forEach(([id,o])=>{ if(!GEO3D.lifts[id]||!o||typeof o!=="object") return; const gap=+o.gap, h=+o.h, e={};
-        if(isFinite(gap)&&gap>0) e.gap=Math.round(Math.max(30,Math.min(200,gap))); if(isFinite(h)&&h>0) e.h=Math.round(Math.max(5,Math.min(25,h))); out[id]=e; }); return {L:out,at}; }
+        if(isFinite(gap)&&gap>0) e.gap=Math.round(Math.max(30,Math.min(200,gap))); if(isFinite(h)&&h>0) e.h=Math.round(Math.max(5,Math.min(25,h))); if(o.even===true) e.even=true; out[id]=e; }); return {L:out,at}; }
   }catch(e){} return null; }
 function applyEnv(k,v){ ENV3D[k]=v; if(T3D) T3D.envChanged(k); }
 async function saveEnv(k,val){ const doc=Object.assign({},val,{at:new Date().toISOString()});
