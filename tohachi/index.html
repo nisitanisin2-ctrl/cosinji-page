@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <!-- 🏂 ハイパーボウル東鉢（兵庫県養父市のスキー場）の 非公式 たのしみ方ガイド。
-     このファイルひとつで動く（外部の読み込みなし）。
+     このファイルと img/ フォルダで動く（3Dの図のときだけ three.js を jsDelivr から読みこむ）。Netlify などの静的ホスティングにそのまま置ける。
      コース・リフト・料金・施設は 公式サイト tohachi.jp（2026年11月17日に確認）と、公式ゲレンデマップ（SEASON2027）から。
      コース図は 公式マップの位置関係をもとに 自分で描いた略図（公式の絵は使っていない）。
      口コミや旅行サイトの情報は、そうとわかるように書いている。 -->
@@ -1034,6 +1034,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 </main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="application/json" id="seed3d">{}</script>
 <script>
 (()=>{
 "use strict";
@@ -2355,6 +2356,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
 
 /* ---------- 描いたコースの線（3D）：共有のデータ（このアプリ）か、この端末に保存 ---------- */
 const COURSES3D=COURSES.concat(SV_COURSES,SV3D_COURSES).filter(c=>GEO3D.courses[c.id]), LIFTS3D=LIFTS.concat(SV_LIFTS,SV3D_LIFTS).filter(L=>GEO3D.lifts[L.id]);
+const SEED3D=(()=>{ try{ const e=document.getElementById("seed3d"), v=e&&JSON.parse(e.textContent||"{}"); return v&&typeof v==="object"?v:{}; }catch(e){ return {}; } })(); // 書き出したときの 3D のデータ（線・じぶんのコース・雪・木・リフト）
+Object.entries(SEED3D.courses3d||{}).forEach(([k,v])=>{ const p=okPts(v); if(p&&GEO3D.courses[k]) GEO3D.courses[k]=p; }); // 描いた線を、はじめの線に
 const DEF3D=JSON.parse(JSON.stringify(GEO3D.courses)), COURSE_IDS=new Set(COURSES3D.map(c=>c.id));
 var ovr3d={}, db3d=null, MY3D=[];
 const LVS=["初級","中級","上級","道"], isMy=id=>typeof id==="string"&&/^my_[A-Za-z0-9]{3,24}$/.test(id), course3d=id=>COURSES3D.find(x=>x.id===id)||MY3D.find(x=>x.id===id);
@@ -2408,8 +2411,9 @@ async function saveEnv(k,val){ const doc=Object.assign({},val,{at:new Date().toI
   if(db3d&&db3d.can!==false){ try{ await db3d.db.doc("courses3d/"+ENV_IDS[k]).set(doc); ENV3D[k]=envClean(k,doc); return "db"; }
     catch(e){ if(!(e&&(e.code==="invalid_argument"||e.code==="not_granted"))) throw e; db3d.can=false; } }
   const o=store.get("env3d",{})||{}; o[k]=doc; store.set("env3d",o); ENV3D[k]=envClean(k,doc); db3d=null; showEdData(); return "local"; }
-applyOvr(localOvr()); MY3D=localMy(); MY3D.forEach(c=>{ GEO3D.courses[c.id]=c.pts; }); showEdData();
-{ const o=store.get("env3d",{})||{}; Object.keys(ENV_IDS).forEach(k=>{ const v=envClean(k,o[k]); if(v) ENV3D[k]=v; }); }
+applyOvr(localOvr()); MY3D=localMy(); Object.entries(SEED3D.my3d||{}).forEach(([id,v])=>{ const c=myItem(id,v); if(c&&!MY3D.some(x=>x.id===id)) MY3D.push(c); }); MY3D.sort((a,b)=>a.id<b.id?-1:1);
+MY3D.forEach(c=>{ GEO3D.courses[c.id]=c.pts; }); showEdData();
+{ const o=store.get("env3d",{})||{}, sd=SEED3D.env3d||{}; Object.keys(ENV_IDS).forEach(k=>{ const v=envClean(k,o[k])||envClean(k,sd[k]); if(v) ENV3D[k]=v; }); }
 $("#edCopy").onclick=async()=>{ const t=$("#edJson"); try{ await navigator.clipboard.writeText(t.value); toast("コピーしました"); }catch(e){ t.focus(); t.select(); toast("選んだので、コピーしてください"); } };
 (async()=>{ try{
   const C=window.claude; if(!C||typeof C.use!=="function") return;
