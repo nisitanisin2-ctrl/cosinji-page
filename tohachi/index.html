@@ -2155,7 +2155,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
         if(k<n-1){ const q=b+k*2; I.push(q,q+2,q+1, q+1,q+2,q+3); } } });
     const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("ts",new THREE.Float32BufferAttribute(S,1)); g.setIndex(I);
     const m=new THREE.ShaderMaterial({uniforms:{uS:trackS},vertexShader:"attribute float ts;\nvarying float vS;\nvoid main(){ vS=ts; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
-      fragmentShader:"uniform float uS;\nvarying float vS;\nvoid main(){ if(vS>uS-1.2) discard; gl_FragColor=vec4(.6,.67,.79,.5);\n#include <colorspace_fragment>\n}",
+      fragmentShader:"uniform float uS;\nvarying float vS;\nvoid main(){ if(vS>uS-1.2) discard; gl_FragColor=vec4(.55,.62,.75,.62);\n#include <colorspace_fragment>\n}",
       transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6});
     trackMesh=new THREE.Mesh(g,m); trackMesh.frustumCulled=false; trackMesh.renderOrder=1; scene.add(trackMesh); }
   // 滑る人（後ろから 見るとき）：スキー と スノーボード。ターンの 内がわへ かたむく
