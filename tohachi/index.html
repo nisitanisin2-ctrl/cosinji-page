@@ -607,7 +607,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
       <div class="areasw" id="areaSw" role="group" aria-label="エリアの切りかえ"><button type="button" data-a="tohachi" aria-pressed="true">東鉢</button><button type="button" data-a="sv" aria-pressed="false">スカイバレイ</button></div>
       <div class="map3d" id="map3d" role="img" aria-label="ハイパーボウル東鉢の3D地形図。国土地理院の標高と航空写真に、コースとリフトを重ねています">
         <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
-        <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="ropeBtn" aria-pressed="true" title="コースのふちの ロープと、スタートの 看板を 出す／かくす">🚧 ロープ</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
+        <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="routeBtn" aria-pressed="true" title="えらんだ コースの ルート（色の 帯・線・矢印・ゲート）を 出す／かくす">🗺 ルート</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
         <p class="m3d-hint" id="m3dHint"><span></span></p>
         <div class="povbar"><button type="button" class="speedbtn" id="frontBtn" hidden title="見る向きを正面にもどす">🧭 正面</button><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="gearBtn" hidden title="目線で使う道具：スキー・スノーボード（押すたびに かわります）">🎿 スキー</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
         <button type="button" class="m3d-compass" id="m3dCompass" aria-label="北を上にする" title="北を上にする"><i>N</i></button>
@@ -1515,6 +1515,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     return new THREE.Mesh(g,m);
   }
   // コースの線：半透明の細い帯（下の斜面が見える）＋ どの距離でも同じ太さに見える中心の線
+  const courseRoot=new THREE.Group(); scene.add(courseRoot);
   const courseObj={}, cW=c=>c.id==="centerB"?14:(c.route?5:7), CIDX={}; COURSES3D.forEach((c,i)=>{ CIDX[c.id]=i; });
   const dispose=g=>g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); });
   const LK={value:.001}; // カメラから距離1の所で、画面の1pxが何mか（大きさが変わるたびに計算）
@@ -1576,36 +1577,15 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     for(const sx of [-4.6,4.6]){ const q=pAt(sp,i,sx), p=new THREE.Mesh(gatePoleG,gatePoleM); p.position.set(sx,P3(q[0],q[1],0).y-ground.y-.3,0); g.add(p); }
     const bm=new THREE.MeshLambertMaterial({map:t,side:THREE.FrontSide}); for(const r of [0,Math.PI]){ const pl=new THREE.Mesh(new THREE.PlaneGeometry(9.2,2),bm); pl.position.y=4.4; pl.rotation.y=r+Math.PI; g.add(pl); }
     return g; }
-  function buildCourse(c){ const old=courseObj[c.id], raw=G.courses[c.id]; if(old){ scene.remove(old.grp); dispose(old.grp); delete courseObj[c.id]; }
+  function buildCourse(c){ const old=courseObj[c.id], raw=G.courses[c.id]; if(old){ courseRoot.remove(old.grp); dispose(old.grp); delete courseObj[c.id]; }
     if(!raw||raw.length<2) return;
     if(CIDX[c.id]==null) CIDX[c.id]=Math.min(124,Object.keys(CIDX).length);
     const sp=smooth(raw), col=new THREE.Color(C3D[c.lv]||"#2a8fd6"), grp=new THREE.Group(), ref=1+CIDX[c.id]*2;
     const pw=pisteOf(sp,c), band=pisteBand(sp,pw,col); stencil(band.material,ref); band.renderOrder=2;
     const L=routeLine(sp,col,1.8,ref+1,3), flow=flowArrows(sp,col), gates=new THREE.Group(); gates.add(gate(sp,c,false),gate(sp,c,true));
-    grp.add(band,L.grp,flow,gates); grp.visible=old?old.grp.visible:false; scene.add(grp);
+    grp.add(band,L.grp,flow,gates); grp.visible=old?old.grp.visible:false; courseRoot.add(grp);
     const o={c,sp,pw,grp,band,flow,op:old?old.op:1,set:(v)=>{ o.op=v; band.material.opacity=v; flow.material.uniforms.uOp.value=v; gates.visible=v>.6; L.cas.material.uniforms.uOp.value=.8*v; L.ln.material.uniforms.uOp.value=.95*v; }}; o.set(o.op); courseObj[c.id]=o; }
   COURSES3D.forEach(buildCourse); MY3D.forEach(buildCourse);
-  // ===== コースのふち：赤白のポールと 赤いロープ。コースから横を見て、林（木）が始まる 少し手前に立てる（開けた所には立てない）=====
-  const POLEG=(()=>{ const g=new THREE.CylinderGeometry(.045,.05,1.5,6,6); g.translate(0,.75,0); const p=g.attributes.position, c=new Float32Array(p.count*3), r=new THREE.Color(0xd8352b), w=new THREE.Color(0xf4f4f2);
-    for(let i=0;i<p.count;i++){ const k=Math.floor(p.getY(i)/.25+.001)%2?w:r; c[i*3]=k.r; c[i*3+1]=k.g; c[i*3+2]=k.b; } g.setAttribute("color",new THREE.BufferAttribute(c,3)); return g; })();
-  const poleMat=new THREE.MeshLambertMaterial({vertexColors:true}), ropeLM=new THREE.LineBasicMaterial({color:0xd8352b});
-  function treeNear(mx,my,rM){ if(!AF.n) return false; const r=rM/M, r2=r*r;
-    for(let gx=Math.floor((mx-r)/16);gx<=Math.floor((mx+r)/16);gx++) for(let gy=Math.floor((my-r)/16);gy<=Math.floor((my+r)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
-      for(const i of a){ if(AF.gone[i]) continue; const dx=AF.x[i]-mx, dy=AF.y[i]-my; if(dx*dx+dy*dy<r2) return true; } } return false; }
-  function buildEdge(o){ if(o.edge){ o.grp.remove(o.edge); dispose(o.edge); o.edge=null; } if(!AF.n||snowU.value<.5) return; const sp=o.sp, ST=12/M, P=[];
-    // 12m ごとに、左右それぞれ 林の始まりを さがす（8〜40m）。ばらつきは ならし、3本以上 つづく所だけ ロープを張る
-    const S=[]; let acc=ST; for(let i=1;i<sp.length;i++){ const dx=sp[i][0]-sp[i-1][0], dy=sp[i][1]-sp[i-1][1], d=Math.hypot(dx,dy); acc+=d; if(acc<ST) continue; acc=0; S.push({i,tx:dx/(d||1),ty:dy/(d||1)}); }
-    for(const sd of [-1,1]){ const H=S.map(q=>{ const nx=-q.ty*sd, ny=q.tx*sd; for(let r=8;r<=40;r+=2) if(treeNear(sp[q.i][0]+nx*r/M,sp[q.i][1]+ny*r/M,4)) return r; return -1; });
-      const ok=H.map((h,k)=>{ let n=0; for(let j=k-2;j<=k+2;j++) if(H[j]>0) n++; return h>0&&n>=3; }); // まわり5本のうち3本以上で 林
-      const R=H.map((h,k)=>{ let t=0, n=0; for(let j=k-2;j<=k+2;j++) if(H[j]>0){ t+=H[j]; n++; } return n?t/n:0; }); // ならした きょり
-      S.forEach((q,k)=>{ const nx=-q.ty*sd, ny=q.tx*sd, r=Math.max(6,R[k]-4); P.push({i:q.i,sd,ok:ok[k]&&(ok[k-1]||ok[k+1]),x:sp[q.i][0]+nx*r/M,y:sp[q.i][1]+ny*r/M}); }); }
-    const grp=new THREE.Group(), poles=P.filter(p=>p.ok); if(!poles.length){ grp.visible=ropeOn; o.edge=grp; o.grp.add(grp); return; }
-    const im=new THREE.InstancedMesh(POLEG,poleMat,poles.length), m4=new THREE.Matrix4(); poles.forEach((p,k)=>{ m4.makeTranslation(P3(p.x,p.y,-.15)); im.setMatrixAt(k,m4); }); im.frustumCulled=false; grp.add(im);
-    // ロープ：となりの ポール どうし（同じ がわで、間が 30m より近い）を つなぐ。少し たるむ
-    const L=[]; for(const sd of [-1,1]){ const q=P.filter(p=>p.sd===sd); for(let k=1;k<q.length;k++){ const a=q[k-1], b=q[k]; if(!a.ok||!b.ok) continue; const A=P3(a.x,a.y,1.25), B=P3(b.x,b.y,1.25); if(A.distanceTo(B)>30) continue;
-      let prev=A; for(let t=1;t<=4;t++){ const f=t/4, v=new THREE.Vector3().lerpVectors(A,B,f); v.y-=Math.sin(f*Math.PI)*.18; L.push(prev.x,prev.y,prev.z,v.x,v.y,v.z); prev=v; } } }
-    if(L.length){ const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(L,3)); const ln=new THREE.LineSegments(g,ropeLM); ln.frustumCulled=false; grp.add(ln); }
-    grp.visible=ropeOn; o.edge=grp; o.grp.add(grp); }
   // ===== スタートの看板：コースの色の板に 名前と レベル（公式の コース）=====
   const signG=new THREE.Group(); scene.add(signG);
   function buildSigns(){ signG.children.slice().forEach(k=>{ signG.remove(k); dispose(k); });
@@ -1622,10 +1602,10 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       for(const sx of [-.7,.7]){ const p=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,2.6,6),postM); p.position.set(sx,1.1,-.03); s.add(p); }
       signG.add(s); }); needDraw=true; }
   buildSigns();
-  let ropeOn=store.get("ropes3d",true)!==false; const ropeBtn=$("#ropeBtn");
-  function ropeShow(){ ropeBtn.setAttribute("aria-pressed",String(ropeOn)); signG.visible=ropeOn; Object.values(courseObj).forEach(o=>{ if(o.edge) o.edge.visible=ropeOn; }); needDraw=true; }
-  ropeBtn.onclick=()=>{ ropeOn=!ropeOn; store.set("ropes3d",ropeOn); ropeShow(); }; ropeShow();
-  function removeCourse(id){ const o=courseObj[id]; if(!o) return; scene.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; afLater(); }
+  // コースの ルート（帯・線・矢印・ゲート）の 表示：ON/OFF（この端末に 覚える）。すべっている間と ✏️ 描く は べつ
+  let routeOn=store.get("route3d",true)!==false; const routeBtn=$("#routeBtn"); routeBtn.setAttribute("aria-pressed",String(routeOn));
+  routeBtn.onclick=()=>{ routeOn=!routeOn; store.set("route3d",routeOn); routeBtn.setAttribute("aria-pressed",String(routeOn)); needDraw=true; };
+  function removeCourse(id){ const o=courseObj[id]; if(!o) return; courseRoot.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; afLater(); }
   // 長さ（斜面にそって）・平均と最大の斜度（約30mの区間ごと）。標高は本当の高さで
   function courseStats(pts){ const sp=smooth(pts), H=sp.map(p=>elev(p[0],p[1])), D=[0]; let len=0;
     for(let i=1;i<sp.length;i++){ const d=Math.hypot(sp[i][0]-sp[i-1][0],sp[i][1]-sp[i-1][1])*M; D.push(D[i-1]+d); len+=Math.hypot(d,H[i]-H[i-1]); }
@@ -1969,7 +1949,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       if(!FORS){ FORS=new Uint8Array(FW*FH); for(let j=0;j<FH;j++) for(let i=0;i<FW;i++){ let t=0, c=0; for(let b=-1;b<=1;b++) for(let a=-1;a<=1;a++){ const y=j+b, x=i+a; if(x>=0&&y>=0&&x<FW&&y<FH){ t+=FOR[y*FW+x]; c++; } } FORS[j*FW+i]=t/c; } } // 林らしさを少しなめらかに
       for(let i=0;i<n;i++) if(!AF.gone[i]){ const x=Math.floor(AF.x[i]), y=Math.floor(AF.y[i]); for(let j=Math.max(0,y-3);j<=Math.min(FH-1,y+3);j++) for(let k=Math.max(0,x-3);k<=Math.min(FW-1,x+3);k++) treeN[j*FW+k]+=(4-Math.abs(k-x))*(4-Math.abs(j-y)); }
       for(let q=0;q<FW*FH;q++) floorCell(q); landTex.needsUpdate=true; }
-    Object.values(courseObj).forEach(o=>{ if(o.edge){ o.grp.remove(o.edge); dispose(o.edge); } o.edge=undefined; }); shadowLater(); needDraw=true; }
+    shadowLater(); needDraw=true; }
   let afT=0; const afLater=()=>{ clearTimeout(afT); afT=setTimeout(genForest,600); };
   // ゲレンデの 絵：木（＋2m）用は 地図の 1px ごと、雪の 見た目用は 2倍の 細かさ
   let pisteTreeM=null; const PSK=2, pisteCv=document.createElement("canvas"); pisteCv.width=FW*PSK; pisteCv.height=FH*PSK;
@@ -2035,32 +2015,90 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const dot=(col)=>{ const c=document.createElement("canvas"); c.width=c.height=64; const x=c.getContext("2d"); x.beginPath(); x.arc(32,32,24,0,6.283); x.fillStyle="#fff"; x.fill(); x.beginPath(); x.arc(32,32,17,0,6.283); x.fillStyle=col; x.fill();
     const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,sizeAttenuation:false})); pxSize(s,20); s.renderOrder=10; s.visible=false; scene.add(s); return s; };
   const skier=dot("#ff4d4f"), rider=dot("#2a7bd6");
+  // ===== スキー板・スノーボード・ブーツ・ビンディング（目線の 足もと と、後ろから見る人で 共通）=====
+  const GK=(()=>{
+    const std=(h,r,m,map)=>new THREE.MeshStandardMaterial({color:new THREE.Color(h),roughness:r,metalness:m||0,map:map||null});
+    const texOf=(w,h,draw)=>{ const c=document.createElement("canvas"); c.width=w; c.height=h; draw(c.getContext("2d"),w,h); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=Math.min(8,ANISO); return t; };
+    // 板の 上の 絵（絵の 上＝板の 先）
+    const skiTop=texOf(64,512,(x,w,h)=>{ const g=x.createLinearGradient(0,0,0,h); g.addColorStop(0,"#7a1d17"); g.addColorStop(.18,"#c8302a"); g.addColorStop(.55,"#d9402f"); g.addColorStop(.9,"#a92620"); g.addColorStop(1,"#5c1612"); x.fillStyle=g; x.fillRect(0,0,w,h);
+      x.fillStyle="#17181c"; x.beginPath(); x.moveTo(0,h*.55); x.lineTo(w,h*.47); x.lineTo(w,h*.53); x.lineTo(0,h*.61); x.fill();
+      x.fillStyle="#f2efe8"; x.fillRect(w*.42,h*.62,w*.16,h*.3); x.fillRect(0,h*.07,w,h*.008);
+      x.save(); x.translate(w*.5,h*.28); x.rotate(-Math.PI/2); x.fillStyle="#f2efe8"; x.font="900 24px sans-serif"; x.textAlign="center"; x.textBaseline="middle"; x.fillText("TOHACHI",0,0); x.restore();
+      x.fillStyle="#c9ced6"; x.fillRect(0,0,w,7); x.fillRect(0,h-6,w,6); });
+    const boardTop=texOf(128,512,(x,w,h)=>{ const g=x.createLinearGradient(0,0,0,h); g.addColorStop(0,"#0f1830"); g.addColorStop(.5,"#1d2a48"); g.addColorStop(1,"#0f1830"); x.fillStyle=g; x.fillRect(0,0,w,h);
+      x.fillStyle="#2aa6a0"; x.beginPath(); x.moveTo(0,h*.2); x.bezierCurveTo(w*.9,h*.3,w*.1,h*.7,w,h*.82); x.lineTo(w,h*.9); x.bezierCurveTo(0,h*.78,w*.8,h*.4,0,h*.28); x.fill();
+      x.save(); x.translate(w*.5,h*.58); x.rotate(-Math.PI/2); x.fillStyle="#e9e6df"; x.font="900 34px sans-serif"; x.textAlign="center"; x.textBaseline="middle"; x.fillText("HACHIBUSE",0,0); x.restore(); });
+    const mSide=std(0x2a2c31,.45), mEdge=std(0xc6ccd4,.28,.85), mBase=std(0x141518,.35);
+    // 板の 形：rows＝{z, w（はば）, y（そり）, th（あつさ）}。上・横・金属の エッジ・下 を 別の 頂点で（角を はっきり）
+    function plank(rows,topMat){ const P=[], UV=[], I=[], grp=[];
+      const strip=(fn,m)=>{ const st=I.length, b=P.length/3; let k=0; rows.forEach(r=>{ const pts=fn(r); k=pts.length; pts.forEach(v=>{ P.push(v[0],v[1],v[2]); UV.push(v[3],r.v); }); });
+        for(let i=0;i<rows.length-1;i++) for(let j=0;j<k-1;j++){ const a=b+i*k+j, c=a+k; I.push(a,c,a+1, a+1,c,c+1); } grp.push([st,I.length-st,m]); };
+      strip(r=>{ const o=[]; for(let j=0;j<=4;j++){ const s=j/4, cr=.0025*Math.sin(Math.PI*s); o.push([r.w*(s-.5),r.y+r.th+cr,r.z,s]); } return o; },0); // 上（少し ふくらむ）
+      strip(r=>[[r.w/2,r.y+r.th,r.z,0],[r.w/2,r.y+.003,r.z,1]],1); strip(r=>[[-r.w/2,r.y+.003,r.z,0],[-r.w/2,r.y+r.th,r.z,1]],1);
+      strip(r=>[[r.w/2,r.y+.003,r.z,0],[r.w/2,r.y,r.z,1]],2); strip(r=>[[-r.w/2,r.y,r.z,0],[-r.w/2,r.y+.003,r.z,1]],2);
+      strip(r=>[[r.w/2,r.y,r.z,0],[-r.w/2,r.y,r.z,1]],3);
+      const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("uv",new THREE.Float32BufferAttribute(UV,2)); g.setIndex(I);
+      grp.forEach(([s,c,m])=>g.addGroup(s,c,m)); g.computeVertexNormals();
+      const mesh=new THREE.Mesh(g,[topMat,mSide,mEdge,mBase]); mesh.frustumCulled=false; return mesh; }
+    // スキー板：長さ L。先 12.2cm・まん中 8.4cm・後ろ 10.8cm。先は 丸く そり上がり、後ろも 少し
+    function ski(L){ const N=56, rows=[]; for(let i=0;i<=N;i++){ const u=i/N, z=-L/2+L*u, t=z/(L/2);
+        let w=t>0?.084+(.122-.084)*t*t:.084+(.108-.084)*t*t; const tu=(u-.9)/.1, tl=(.045-u)/.045;
+        if(tu>0) w*=Math.sqrt(Math.max(0,1-tu*tu))*.96+.04; if(tl>0) w*=Math.sqrt(Math.max(0,1-tl*tl))*.85+.15;
+        const y=u>.8?.07*Math.pow((u-.8)/.2,2):(u<.07?.025*Math.pow((.07-u)/.07,2):0), th=.007+.012*Math.sin(Math.PI*Math.min(1,Math.max(0,(u-.03)/.94)));
+        rows.push({z,w,y,th,v:u}); }
+      return plank(rows,std(0xffffff,.3,.12,skiTop)); }
+    // スノーボード：長さ 1.55m、まん中 25cm、先と後ろ 29cm、両はしが 丸く そり上がる
+    function board(){ const N=60, H=.775, rows=[]; for(let i=0;i<=N;i++){ const u=i/N, z=-H+2*H*u, a=Math.abs(z);
+        let w=.25+(.29-.25)*Math.min(1,(a/.6)**2); const e=(a-.6)/(H-.6); if(e>0) w=.29*Math.sqrt(Math.max(0,1-e*e))*.97+.008;
+        const y=a>.52?.065*Math.pow((a-.52)/(H-.52),1.8):0; rows.push({z,w,y,th:.012,v:u}); }
+      return plank(rows,std(0xffffff,.35,.1,boardTop)); }
+    // スキーの ビンディング（板の 上、まん中）
+    function skiBinding(){ const g=new THREE.Group(), mBk=std(0x1b1c20,.45,.1), mWh=std(0xebeae6,.32), mRd=std(0xc8312a,.4), mMt=std(0xb9bfc7,.28,.8);
+      const bx=(m,p,s,r)=>{ const k=new THREE.Mesh(BX,m); k.position.set(...p); k.scale.set(...s); if(r) k.rotation.set(...r); k.frustumCulled=false; g.add(k); return k; };
+      bx(mBk,[0,.026,0],[.07,.012,.62]); bx(mWh,[0,.05,.19],[.074,.036,.075]); bx(mBk,[0,.06,.226],[.06,.024,.022]); bx(mMt,[0,.072,.2],[.05,.006,.04]);
+      bx(mWh,[0,.055,-.19],[.076,.048,.1]); bx(mRd,[0,.085,-.21],[.05,.018,.08],[-.25,0,0]); bx(mBk,[0,.04,-.255],[.07,.03,.03]);
+      for(const s of [-1,1]) bx(mMt,[s*.048,.034,-.11],[.006,.006,.12],[.35,0,0]);
+      return g; }
+    // スキーブーツ（つま先が +z）
+    function skiBoot(shellC,toeOnly){ const g=new THREE.Group(), mS=std(shellC,.28,.05), mBk=std(0x1d1e22,.5), mMt=std(0xc4c9d0,.25,.8), mL=std(0x2b2d33,.6);
+      const add=(geo,m,p,r,s)=>{ const k=new THREE.Mesh(geo,m); k.position.set(...p); if(r) k.rotation.set(...r); if(s) k.scale.set(...s); k.frustumCulled=false; g.add(k); return k; };
+      add(BX,mBk,[0,.075,0],null,[.1,.03,.31]);
+      add(new THREE.CapsuleGeometry(.052,.19,4,12),mS,[0,.125,.01],[Math.PI/2,0,0],[1,1.12,.95]); if(toeOnly) return g;
+      add(new THREE.CylinderGeometry(.064,.07,.24,14),mS,[0,.265,-.05],[.28,0,0]);
+      add(new THREE.CylinderGeometry(.06,.064,.06,14),mL,[0,.4,-.085],[.28,0,0]);
+      for(let k=0;k<4;k++) add(BX,mMt,[.066,.14+k*.065,.03-k*.04],[.28,0,0],[.014,.014,.05]);
+      return g; }
+    // スノーボードの ビンディング（つま先が -x）：台・ハイバック・2本の ストラップ
+    function boardBinding(){ const g=new THREE.Group(), mBk=std(0x16171a,.5), mT=std(0x2aa6a0,.45), mMt=std(0xb9bfc7,.3,.8);
+      const add=(geo,m,p,r,s)=>{ const k=new THREE.Mesh(geo,m); k.position.set(...p); if(r) k.rotation.set(...r); if(s) k.scale.set(...s); k.frustumCulled=false; g.add(k); return k; };
+      add(new THREE.CylinderGeometry(.065,.065,.01,20),mMt,[0,.017,0]); add(BX,mBk,[0,.028,0],null,[.27,.014,.12]);
+      add(new THREE.CylinderGeometry(.078,.078,.23,16,1,true,0,Math.PI),mBk,[.06,.15,0],[0,0,.22]);          // ハイバック（かかとの 後ろ）
+      add(new THREE.TorusGeometry(.068,.014,6,14,Math.PI),mT,[-.01,.085,0],[0,Math.PI/2,0]);                    // 足首の ストラップ
+      add(new THREE.TorusGeometry(.055,.011,6,14,Math.PI),mBk,[-.11,.05,0],[0,Math.PI/2,0]);                    // つま先の ストラップ
+      return g; }
+    // スノーボードの ブーツ（やわらかい。つま先が -x）
+    function boardBoot(){ const g=new THREE.Group(), mB=std(0x3a3f47,.78), mBk=std(0x16171a,.6), mL=std(0xd8d4c8,.7);
+      const add=(geo,m,p,r,s)=>{ const k=new THREE.Mesh(geo,m); k.position.set(...p); if(r) k.rotation.set(...r); if(s) k.scale.set(...s); k.frustumCulled=false; g.add(k); return k; };
+      add(BX,mBk,[-.02,.042,0],null,[.3,.024,.112]); add(new THREE.CapsuleGeometry(.054,.17,4,12),mB,[-.02,.085,0],[0,0,Math.PI/2],[1.1,1,1]);
+      add(new THREE.CylinderGeometry(.064,.07,.21,14),mB,[.045,.2,0],[0,0,.18]); add(BX,mL,[-.008,.2,0],[0,0,.18],[.012,.15,.05]);
+      return g; }
+    return {std,ski,board,skiBinding,skiBoot,boardBinding,boardBoot}; })();
   // ===== 目線で滑るとき：足もとのスキー板（画面の下）と、雪の上の自分の影 =====
   const skiG=new THREE.Group(), skisG=new THREE.Group(), boardG=new THREE.Group(), skFwd=new THREE.Vector3(0,0,1); skiG.visible=false; skiG.add(skisG,boardG); scene.add(skiG);
   let gear=store.get("povGear",0)===1?1:0; // 0＝スキー、1＝スノーボード
-  { const pts=[[-.9,0,.088],[-.3,0,.088],[.3,0,.086],[.6,0,.084],[.72,.006,.08],[.8,.016,.074],[.86,.03,.064],[.9,.045,.05],[.93,.056,.034],[.95,.062,.014]]; // [前後 m, 上がり, はば]
-    const col=z=>z>.68?0x1c1d22:(z>.6?0xf1f1ef:(z>.52?0x1c1d22:(z>-.35&&z<-.2?0x1c1d22:0xb8302a))), T=.02, P=[], C=[], I=[], c=new THREE.Color();
-    const quad=(a,b,d,e,k)=>{ const o=P.length/3; P.push(...a,...b,...d,...e); c.set(k); for(let i=0;i<4;i++) C.push(c.r,c.g,c.b); I.push(o,o+1,o+2, o,o+2,o+3); };
-    for(let i=0;i<pts.length-1;i++){ const [z0,y0,w0]=pts[i], [z1,y1,w1]=pts[i+1], k=col((z0+z1)/2);
-      if(k===0xb8302a){ const a0=w0*.09, a1=w1*.09; quad([-w0/2,y0+T,z0],[-a0,y0+T,z0],[-a1,y1+T,z1],[-w1/2,y1+T,z1],k); quad([-a0,y0+T,z0],[a0,y0+T,z0],[a1,y1+T,z1],[-a1,y1+T,z1],0xe9e6e0); quad([a0,y0+T,z0],[w0/2,y0+T,z0],[w1/2,y1+T,z1],[a1,y1+T,z1],k); }
-      else quad([-w0/2,y0+T,z0],[w0/2,y0+T,z0],[w1/2,y1+T,z1],[-w1/2,y1+T,z1],k);
-      quad([w0/2,y0,z0],[w1/2,y1,z1],[w1/2,y1+T,z1],[w0/2,y0+T,z0],0x9aa0a8); quad([-w0/2,y0,z0],[-w0/2,y0+T,z0],[-w1/2,y1+T,z1],[-w1/2,y1,z1],0x9aa0a8); }
-    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("color",new THREE.Float32BufferAttribute(C,3)); g.setIndex(I); g.computeVertexNormals();
-    const m=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}); [-.135,.135].forEach(x=>{ const k=new THREE.Mesh(g,m); k.position.x=x; k.frustumCulled=false; skisG.add(k); }); }
-  // スノーボード：進む向きに長い板（はば約26cm、両はしが そり上がる）に、横向きの2つのブーツ（左足が前。つま先は右）
-  { const pts=[]; for(let i=0;i<=24;i++){ const z=-.8+1.6*i/24, a=Math.abs(z), t=Math.max(0,(a-.6)/.2), w=(.25+.035*Math.min(1,a/.6)**2)*Math.sqrt(Math.max(0,1-t*t*.92)); pts.push([z,.075*t*t,Math.max(.03,w)]); }
-    const col=z=>Math.abs(z)>.62?0x16181d:(Math.abs(z)<.09?0x2aa6a0:(Math.abs(z+.4)<.03||Math.abs(z-.4)<.03?0xf0ede6:0x1d2a44)), T=.022, P=[], C=[], I=[], c=new THREE.Color();
-    const quad=(a,b,d,e,k)=>{ const o=P.length/3; P.push(...a,...b,...d,...e); c.set(k); for(let i=0;i<4;i++) C.push(c.r,c.g,c.b); I.push(o,o+1,o+2, o,o+2,o+3); };
-    for(let i=0;i<pts.length-1;i++){ const [z0,y0,w0]=pts[i], [z1,y1,w1]=pts[i+1], k=col((z0+z1)/2);
-      quad([-w0/2,y0+T,z0],[w0/2,y0+T,z0],[w1/2,y1+T,z1],[-w1/2,y1+T,z1],k);
-      quad([w0/2,y0,z0],[w1/2,y1,z1],[w1/2,y1+T,z1],[w0/2,y0+T,z0],0x9aa0a8); quad([-w0/2,y0,z0],[-w0/2,y0+T,z0],[-w1/2,y1+T,z1],[-w1/2,y1,z1],0x9aa0a8); }
-    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("color",new THREE.Float32BufferAttribute(C,3)); g.setIndex(I); g.computeVertexNormals();
-    const b=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})); b.frustumCulled=false; boardG.add(b);
-    const mB=new THREE.MeshLambertMaterial({color:0x1b1c20}), mBoot=new THREE.MeshLambertMaterial({color:0x4a505a}), mSole=new THREE.MeshLambertMaterial({color:0xd9d4c8}), BXG=new THREE.BoxGeometry(1,1,1);
-    const box=(m,p,sc,ry,rz)=>{ const k=new THREE.Mesh(BXG,m); k.position.set(...p); k.scale.set(...sc); k.rotation.set(0,ry||0,rz||0); k.frustumCulled=false; return k; };
-    [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,T,z); f.rotation.y=ang; // 足（板の上で横向き）
-      f.add(box(mB,[0,.01,0],[.25,.02,.12])); f.add(box(mSole,[-.01,.025,0],[.28,.014,.1])); f.add(box(mBoot,[-.01,.06,0],[.28,.06,.1])); f.add(box(mBoot,[.05,.1,0],[.11,.06,.1]));
-      f.add(box(mB,[.1,.09,0],[.025,.13,.13],0,-.3)); f.add(box(mB,[-.04,.1,0],[.05,.02,.12])); boardG.add(f); }); }
+  // スキー：形の ある 板（先が そる・絵・金属の エッジ）・ビンディング・ブーツ
+  [-.13,.13].forEach(x=>{ const s=GK.ski(1.78); s.position.x=x; skisG.add(s); const b=GK.skiBinding(); b.position.set(x,.018,.02); skisG.add(b);
+    const bt=GK.skiBoot(0xf1f0ec,true); bt.position.set(x,.03,.02); skisG.add(bt); });
+  // スノーボード：板・ビンディング（前の足 +15°、後ろの足 −6°）・やわらかい ブーツ
+  boardG.add(GK.board());
+  [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,.012,z); f.rotation.y=ang; f.add(GK.boardBinding()); const bt=GK.boardBoot(); bt.position.y=.012; f.add(bt);
+    boardG.add(f); });
+  // ストック（スキーの とき。ふだんは 画面の 外、ターンの 切りかえで 内がわを 前の 雪に つく）
+  const eyePoles=[0,1].map(()=>{ const g=new THREE.Group(), pm=GK.std(0xb9c0c8,.3,.75), bm=GK.std(0x1a1b1f,.5);
+    const sh=new THREE.Mesh(new THREE.CylinderGeometry(.009,.007,1.15,8),pm); sh.position.y=-.575; g.add(sh);
+    const bs=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,.008,14),bm); bs.position.y=-1.04; g.add(bs);
+    const tp=new THREE.Mesh(new THREE.ConeGeometry(.008,.05,6),pm); tp.position.y=-1.17; tp.rotation.x=Math.PI; g.add(tp);
+    g.traverse(o=>{ o.frustumCulled=false; }); g.visible=false; scene.add(g); return g; });
   boardG.rotation.y=-.42; boardG.position.set(.08,0,.25); boardG.visible=gear===1; skisG.visible=gear===0;
   const meTex=[0,1].map(bd=>{ const cv=document.createElement("canvas"); cv.width=64; cv.height=256; const x=cv.getContext("2d"); x.fillStyle=x.strokeStyle="#fff"; x.lineCap="round"; x.filter="blur(2px)";
     x.beginPath(); x.ellipse(32,206,bd?15:11,44,0,0,6.2832); x.fill(); x.beginPath(); x.ellipse(32,122,bd?17:15,44,0,0,6.2832); x.fill(); x.beginPath(); x.arc(32,60,12,0,6.2832); x.fill();
@@ -2072,13 +2110,43 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:meTex[gear],color:0x0e1822,transparent:true,opacity:.42,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
     m.frustumCulled=false; m.visible=false; m.renderOrder=1; scene.add(m); return m; })();
   const skF=new THREE.Vector3(), skN=new THREE.Vector3(), skX=new THREE.Vector3(), skH=new THREE.Vector3(), skM=new THREE.Matrix4(), skQ1=new THREE.Quaternion(), skQ2=new THREE.Quaternion(), skZ=new THREE.Vector3(0,0,1); let skTurn=0, skHd=null;
-  function skiView(on,dt){ if(skiG.visible!==on){ skiG.visible=meSh.visible=on; needDraw=true; } if(!on){ skHd=null; skTurn=0; return; }
+  // ===== 雪けむり（ターンで 板の 外がわから。目線・後ろから 共通）=====
+  const SPN2=320, spP=new Float32Array(SPN2*3), spL=new Float32Array(SPN2).fill(1), spSz=new Float32Array(SPN2), spVel2=new Float32Array(SPN2*3), spAge=new Float32Array(SPN2), spMax=new Float32Array(SPN2); let spHead=0, spAny=false;
+  const spG2=new THREE.BufferGeometry(); spG2.setAttribute("position",new THREE.BufferAttribute(spP,3)); spG2.setAttribute("life",new THREE.BufferAttribute(spL,1)); spG2.setAttribute("psize",new THREE.BufferAttribute(spSz,1));
+  const spMat2=new THREE.ShaderMaterial({uniforms:{uScale:{value:500}},transparent:true,depthWrite:false,
+    vertexShader:"attribute float life;\nattribute float psize;\nvarying float vL;\nuniform float uScale;\nvoid main(){ vL=life; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_PointSize=life<1.0?min(160.0,psize*uScale/max(.3,-mv.z)):0.0; gl_Position=projectionMatrix*mv; }",
+    fragmentShader:"varying float vL;\nvoid main(){ vec2 d=gl_PointCoord-.5; float r=dot(d,d); if(r>.25) discard; float a=(1.0-smoothstep(.02,.25,r))*(1.0-vL)*.9; gl_FragColor=vec4(.97,.98,1.0,a);\n#include <colorspace_fragment>\n}"});
+  const spPts2=new THREE.Points(spG2,spMat2); spPts2.frustumCulled=false; spPts2.renderOrder=7; scene.add(spPts2);
+  function sprayEmit(n,p,vx,vy,vz,spread,size){ for(let k=0;k<n;k++){ const i=spHead; spHead=(spHead+1)%SPN2;
+      spP[i*3]=p.x+(Math.random()-.5)*spread; spP[i*3+1]=p.y+Math.random()*.05; spP[i*3+2]=p.z+(Math.random()-.5)*spread;
+      const j=.6+Math.random()*.8; spVel2[i*3]=vx*j+(Math.random()-.5)*1.4; spVel2[i*3+1]=vy*(.5+Math.random())+.3; spVel2[i*3+2]=vz*j+(Math.random()-.5)*1.4;
+      spAge[i]=0; spMax[i]=.4+Math.random()*.55; spSz[i]=size*(.55+Math.random()*.9); spL[i]=0; } spAny=true; }
+  function sprayTick(dt){ if(!spAny) return; let any=false; const dr=Math.exp(-dt*2.4);
+    for(let i=0;i<SPN2;i++){ if(spL[i]>=1) continue; spAge[i]+=dt; const l=spAge[i]/spMax[i]; if(l>=1){ spL[i]=1; continue; } any=true; spL[i]=l;
+      spVel2[i*3+1]-=7*dt; spVel2[i*3]*=dr; spVel2[i*3+2]*=dr; spP[i*3]+=spVel2[i*3]*dt; spP[i*3+1]+=spVel2[i*3+1]*dt; spP[i*3+2]+=spVel2[i*3+2]*dt; }
+    spG2.attributes.position.needsUpdate=spG2.attributes.life.needsUpdate=spG2.attributes.psize.needsUpdate=true; spMat2.uniforms.uScale.value=renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360)); spAny=any; needDraw=true; }
+  // ===== 目線の 足もと：板の 向き・かたむき、すね、ストック、雪けむり、自分の 影 =====
+  const eF=new THREE.Vector3(), eU=new THREE.Vector3(), eA=new THREE.Vector3(), eB=new THREE.Vector3(), eC=new THREE.Vector3(), eR=new THREE.Vector3(), eK=new THREE.Vector3(), DOWNV=new THREE.Vector3(0,-1,0), epl={side:0,t:9,k:0}; let skPrev=0;
+  function skiView(on,dt){ if(skiG.visible!==on){ skiG.visible=meSh.visible=on; needDraw=true; } eyePoles.forEach(g=>{ const v=on&&gear!==1; if(g.visible!==v) g.visible=v; }); if(!on){ skHd=null; skTurn=0; return; }
     const f=skF.copy(skFwd); if(f.lengthSq()<1e-8) return; f.normalize(); // 進む向き（坂にそって）
     const hd=Math.atan2(f.x,f.z); if(skHd!=null){ const dh=Math.atan2(Math.sin(hd-skHd),Math.cos(hd-skHd)); skTurn+=(Math.max(-1.2,Math.min(1.2,dh/Math.max(dt,.001)))-skTurn)*(1-Math.exp(-dt*4)); } skHd=hd;
     const cp=camera.position, gx=(hAt(cp.x+1,cp.z)-hAt(cp.x-1,cp.z))/2, gz=(hAt(cp.x,cp.z+1)-hAt(cp.x,cp.z-1))/2; skN.set(-gx,1,-gz).normalize();
     f.addScaledVector(skN,-f.dot(skN)).normalize(); skX.crossVectors(skN,f); skM.makeBasis(skX,skN,f);
-    skiG.quaternion.setFromRotationMatrix(skM).multiply(skQ1.setFromAxisAngle(UPV,skTurn*.07)).multiply(skQ2.setFromAxisAngle(skZ,-skTurn*.3)); // 曲がる向きへ 少しかたむける
-    skH.set(controls.target.x-cp.x,0,controls.target.z-cp.z); if(skH.lengthSq()<1e-6) skH.set(f.x,0,f.z); skH.normalize(); skiG.position.copy(cp).addScaledVector(skH,1.55); /* 板は 見ている向きの 前に。向きは すべる向き（ターンで 左右に ふれる） */ skiG.position.y+=-1.4+Math.sin(performance.now()*.011)*.006;
+    skiG.quaternion.setFromRotationMatrix(skM).multiply(skQ1.setFromAxisAngle(UPV,skTurn*.07)).multiply(skQ2.setFromAxisAngle(skZ,-skTurn*.3)); // 曲がる向きへ かたむける（エッジ）
+    skH.set(controls.target.x-cp.x,0,controls.target.z-cp.z); if(skH.lengthSq()<1e-6) skH.set(f.x,0,f.z); skH.normalize();
+    eF.copy(controls.target).sub(cp).normalize(); eU.set(0,1,0).addScaledVector(eF,-eF.y).normalize(); // 見ている向き・その 上
+    skiG.position.copy(cp).addScaledVector(eF,1.75).addScaledVector(eU,-.95+Math.sin(performance.now()*.011)*.006); skiG.updateMatrixWorld(true);
+    const rt=eR.set(-skH.z,0,skH.x); // 見ている向きの 右
+    // ストック：ターンの 切りかえで、新しい ターンの 内がわを つく
+    if(gear!==1){ const sg=skTurn>.06?1:(skTurn<-.06?-1:0); if(sg&&skPrev&&sg!==skPrev){ epl.side=sg; epl.t=0; } if(sg) skPrev=sg; epl.t+=dt; epl.k=epl.t<.42?Math.sin(Math.PI*epl.t/.42):0;
+      eyePoles.forEach((g,i)=>{ const s=i?1:-1, pl=(epl.side===1&&s===-1)||(epl.side===-1&&s===1)?epl.k:0; // 左ターン（+）は 左の ストック
+        eA.copy(cp).addScaledVector(eF,.5+.3*pl).addScaledVector(rt,s*.42).addScaledVector(eU,-.75); // 手（画面の 外）
+        eB.copy(cp).addScaledVector(eF,-.2+2.9*pl).addScaledVector(rt,s*(.6+.1*pl)).addScaledVector(eU,-1.6+.55*pl); // 先：ふだんは 後ろ、つくときは 板の 先の 横の 雪
+        eC.copy(eB).sub(eA); const L=eC.length(); eC.multiplyScalar(1/L); g.position.copy(eA); g.quaternion.setFromUnitVectors(DOWNV,eC); g.scale.set(1,L/1.17,1); }); }
+    // 雪けむり：ターンが 強いとき、外がわの 板から（すべる 速さを ひきつぐ）
+    const ti=Math.min(1,Math.abs(skTurn)/.8), v=anim&&anim.v||0;
+    if(ti>.3&&v>6){ const out=skTurn>0?1:-1, n=Math.min(9,Math.floor((ti-.25)*v*dt*12+Math.random())); if(n>0){ eA.set(gear===1?-out*.05:-out*.2,.03,gear===1?(out>0?-.5:.5):-.15); skiG.localToWorld(eA);
+      sprayEmit(n,eA,skH.x*v*.85+rt.x*out*2.6,1.3,skH.z*v*.85+rt.z*out*2.6,.16,.035); } }
     // 自分の影：日と反対へ のびる（目の高さ 約3m に合わせた長さ）
     const L=6.3, Wd=1.3, Fx=cp.x+skH.x*.4, Fz=cp.z+skH.z*.4, a=meSh.geometry.attributes.position;
     for(let j=0;j<7;j++){ const cx=Fx+SUN[0]*L*j/6, cz=Fz+SUN[1]*L*j/6; for(let k=0;k<2;k++){ const sd=k?1:-1, x=cx-SUN[1]*sd*Wd/2, z=cz+SUN[0]*sd*Wd/2; a.setXYZ(j*2+k,x,hAt(x,z)+.25,z); } }
@@ -2158,34 +2226,60 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       fragmentShader:"uniform float uS;\nvarying float vS;\nvoid main(){ if(vS>uS-1.2) discard; gl_FragColor=vec4(.55,.62,.75,.62);\n#include <colorspace_fragment>\n}",
       transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6});
     trackMesh=new THREE.Mesh(g,m); trackMesh.frustumCulled=false; trackMesh.renderOrder=1; scene.add(trackMesh); }
-  // 滑る人（後ろから 見るとき）：スキー と スノーボード。ターンの 内がわへ かたむく
+  // 滑る人（後ろから 見るとき）：関節つき。ひざを 曲げ、ターンの 内がわへ かたむき、上体は コースの 下を 向き、ストックを つく
   const riderM=new THREE.Group(); riderM.visible=false; scene.add(riderM);
-  { const lc=h=>new THREE.Color().setHex(h,THREE.SRGBColorSpace).toArray(), SPH8=new THREE.SphereGeometry(1,10,8), CYL6=new THREE.CylinderGeometry(1,1,1,6);
-    const mk=(parts)=>{ const list=parts.map(([geo,p,sc,r,c])=>{ const g=part(geo,p,sc,r); g.userData={col:lc(c)}; return g; }); const m=new THREE.Mesh(merge(list,true),new THREE.MeshLambertMaterial({vertexColors:true})); m.frustumCulled=false; return m; };
-    const JKT=0xe0452f, PNTS=0x23304a, HLM=0xf1f1f1, GOG=0xf0a020, BOOTC=0x2a2d33, SKIC=0xc33128, POLEC=0x8f969e, GLV=0x1d1f24;
-    // スキー：ひざを まげて 少し前へ。ストックは 後ろへ
-    const ski=mk([[BX,[-.13,.035,.12],[.085,.03,1.7],null,SKIC],[BX,[.13,.035,.12],[.085,.03,1.7],null,SKIC],[BX,[-.13,.06,.9],[.085,.03,.2],[-.35,0,0],SKIC],[BX,[.13,.06,.9],[.085,.03,.2],[-.35,0,0],SKIC],
-      [BX,[-.13,.15,.02],[.13,.18,.3],null,BOOTC],[BX,[.13,.15,.02],[.13,.18,.3],null,BOOTC],
-      [BX,[-.13,.36,.13],[.13,.48,.15],[.54,0,0],PNTS],[BX,[.13,.36,.13],[.13,.48,.15],[.54,0,0],PNTS],
-      [BX,[-.12,.73,.15],[.15,.46,.17],[-.62,0,0],PNTS],[BX,[.12,.73,.15],[.15,.46,.17],[-.62,0,0],PNTS],
-      [BX,[0,1.12,.12],[.38,.56,.24],[.42,0,0],JKT],[SPH8,[0,1.47,.27],[.125,.13,.125],null,HLM],[BX,[0,1.47,.39],[.2,.06,.04],null,GOG],
-      [BX,[-.23,1.12,.3],[.09,.42,.1],[-.9,0,0],JKT],[BX,[.23,1.12,.3],[.09,.42,.1],[-.9,0,0],JKT],[SPH8,[-.24,.98,.48],[.055,.055,.055],null,GLV],[SPH8,[.24,.98,.48],[.055,.055,.055],null,GLV],
-      [CYL6,[-.3,.52,.15],[.012,1.1,.012],[-.55,0,0],POLEC],[CYL6,[.3,.52,.15],[.012,1.1,.012],[-.55,0,0],POLEC]]);
-    // スノーボード：横むき（つま先は 左）。前の うでは 前へ、後ろの うでは 後ろへ
-    const BRD=0x1d2a44, BRD2=0x2aa6a0, JKB=0x2a9d8f;
-    const board=mk([[BX,[0,.04,0],[.28,.035,1.5],null,BRD],[BX,[0,.045,0],[.29,.03,.22],null,BRD2],[BX,[0,.07,.76],[.26,.03,.12],[-.4,0,0],BRD],[BX,[0,.07,-.76],[.26,.03,.12],[.4,0,0],BRD],
-      [BX,[.02,.13,.28],[.3,.14,.13],null,BOOTC],[BX,[.02,.13,-.28],[.3,.14,.13],null,BOOTC],
-      [BX,[.1,.38,.26],[.14,.44,.15],[0,0,-.5],PNTS],[BX,[.1,.38,-.26],[.14,.44,.15],[0,0,-.5],PNTS],
-      [BX,[.07,.75,.2],[.16,.44,.17],[0,0,.55],PNTS],[BX,[.07,.75,-.2],[.16,.44,.17],[0,0,.55],PNTS],
-      [BX,[.06,1.15,0],[.24,.56,.4],[0,0,-.3],JKB],[SPH8,[.13,1.52,.05],[.125,.13,.125],null,0x2b2f36],[BX,[.24,1.52,.05],[.04,.06,.2],null,GOG],
-      [BX,[.05,1.18,.42],[.09,.1,.5],[0,0,0],JKB],[BX,[.05,1.18,-.42],[.09,.1,.5],[0,0,0],JKB],[SPH8,[.05,1.18,.7],[.055,.055,.055],null,GLV],[SPH8,[.05,1.18,-.7],[.055,.055,.055],null,GLV]]);
-    ski.name="ski"; board.name="board"; riderM.add(ski,board); }
-  let rHd=null, rRate=0; const rE=new THREE.Euler(), rHide={t:0};
-  function riderPose(q,fwd,dt){ const show=!(follow&&CAMS[camIdx][0]==="eye"); clearTimeout(rHide.t); if(riderM.visible!==show){ riderM.visible=show; needDraw=true; } skier.visible=!follow; if(!show) return;
-    riderM.children.forEach(c=>{ c.visible=(c.name==="board")===(gear===1); }); riderM.position.copy(P3(q[0],q[1],0));
+  const RIG=(()=>{ const std=GK.std, CAP=(r,l)=>new THREE.CapsuleGeometry(r,l,4,12), V=()=>new THREE.Vector3();
+    const mk=(geo,m,par)=>{ const k=new THREE.Mesh(geo,m); k.frustumCulled=false; par.add(k); return k; };
+    function body(par,jk,jk2,pn,hl){ const mJ=std(jk,.72), mJ2=std(jk2,.72), mP=std(pn,.85), mH=std(hl,.28,.05), mG=std(0xffa21a,.12,.7), mK=std(0x15161a,.6), B={};
+      B.thigh=[mk(CAP(.074,.36),mP,par),mk(CAP(.074,.36),mP,par)]; B.shin=[mk(CAP(.058,.36),mP,par),mk(CAP(.058,.36),mP,par)];
+      B.pelvis=mk(new THREE.SphereGeometry(.15,14,10),mP,par); B.pelvis.scale.set(1.25,.8,.95);
+      B.torso=mk(CAP(.155,.3),mJ,par); B.torso.scale.set(1.18,1,.82); B.collar=mk(new THREE.CylinderGeometry(.075,.11,.1,14),mJ2,par);
+      B.head=mk(new THREE.SphereGeometry(.118,18,14),mH,par); B.head.scale.set(.96,1,1.06);
+      B.gog=mk(new THREE.CylinderGeometry(.124,.124,.058,18,1,true,-1.1,2.2),mG,par); B.strap=mk(new THREE.CylinderGeometry(.121,.121,.03,18,1,true,1.1,4.08),mK,par);
+      B.uarm=[mk(CAP(.05,.24),mJ,par),mk(CAP(.05,.24),mJ,par)]; B.farm=[mk(CAP(.046,.22),mJ2,par),mk(CAP(.046,.22),mJ2,par)];
+      B.glove=[mk(new THREE.SphereGeometry(.05,10,8),mK,par),mk(new THREE.SphereGeometry(.05,10,8),mK,par)]; return B; }
+    const S=new THREE.Group(), Bo=new THREE.Group(); riderM.add(S,Bo);
+    [-1,1].forEach(sd=>{ const x=sd*.11, sk=GK.ski(1.7); sk.position.x=x; S.add(sk); const bi=GK.skiBinding(); bi.position.set(x,.018,0); S.add(bi); const bt=GK.skiBoot(0xf1f0ec); bt.position.set(x,.03,0); S.add(bt); });
+    const SB=body(S,0xd8432e,0x1f2430,0x23304a,0xf2f2f2), pM=std(0xb9c0c8,.3,.75), bM=std(0x1a1b1f,.5);
+    SB.pole=[0,1].map(()=>mk(new THREE.CylinderGeometry(.009,.007,1.12,8),pM,S)); SB.bask=[0,1].map(()=>mk(new THREE.CylinderGeometry(.045,.045,.008,12),bM,S));
+    Bo.add(GK.board()); [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,.012,z); f.rotation.y=ang; f.add(GK.boardBinding()); const bt=GK.boardBoot(); bt.position.y=.012; f.add(bt); Bo.add(f); });
+    const BB=body(Bo,0x2a9d8f,0xe0b23a,0x2b2f36,0x22252b);
+    const tD=V(), tB=V(), tK=V(), UP1=new THREE.Vector3(0,1,0);
+    function seg(m,a,b){ m.position.copy(a).add(b).multiplyScalar(.5); tD.copy(b).sub(a); const L=tD.length(); if(L<1e-5) return; m.quaternion.setFromUnitVectors(UP1,tD.multiplyScalar(1/L)); }
+    function ik(A,C,l1,l2,pole,out){ tB.copy(C).sub(A); let L=tB.length(); const Lm=(l1+l2)*.999; if(L>Lm) L=Lm; if(L<1e-4) L=1e-4; tB.normalize();
+      const a=(l1*l1-l2*l2+L*L)/(2*L), h=Math.sqrt(Math.max(0,l1*l1-a*a)); tK.copy(pole).addScaledVector(tB,-pole.dot(tB)); if(tK.lengthSq()<1e-8) tK.set(0,0,1); tK.normalize(); out.copy(A).addScaledVector(tB,a).addScaledVector(tK,h); }
+    function headAt(B,neck,yaw,pitch){ B.head.position.copy(neck).add(V().set(0,.1,0)); B.head.rotation.set(pitch,yaw,0,"YXZ"); B.gog.position.copy(B.head.position).add(V().set(0,.012,0)); B.gog.rotation.set(pitch*.5,yaw,0,"YXZ"); B.strap.position.copy(B.gog.position); B.strap.rotation.copy(B.gog.rotation); }
+    function arm(B,s,sh,hand,pole){ const el=V(); ik(sh,hand,.29,.27,pole,el); seg(B.uarm[s],sh,el); seg(B.farm[s],el,hand); B.glove[s].position.copy(hand); }
+    function trunk(B,hip,yaw,lean){ const fw=V().set(Math.sin(yaw)*Math.sin(lean),Math.cos(lean),Math.cos(yaw)*Math.sin(lean)), chest=hip.clone().addScaledVector(fw,.48), neck=hip.clone().addScaledVector(fw,.66);
+      B.torso.position.copy(hip).lerp(chest,.5); B.torso.rotation.set(lean,yaw,0,"YXZ"); B.collar.position.copy(neck); B.collar.rotation.set(lean*.6,yaw,0,"YXZ"); return {fw,neck,rx:V().set(Math.cos(yaw),0,-Math.sin(yaw))}; }
+    function poseSki(P){ const B=SB, c=P.c, hipY=.88-.13*c, hipZ=-.05-.08*c, hip=V().set(0,hipY,hipZ); // 足首は ブーツの 中
+      for(let s=0;s<2;s++){ const sd=s?-1:1, H=V().set(sd*.1,hipY,hipZ), A=V().set(sd*.11,.15,0), K=V(); ik(H,A,.43,.42,V().set(0,.1,1),K); seg(B.thigh[s],H,K); seg(B.shin[s],K,A); }
+      B.pelvis.position.copy(hip); B.pelvis.rotation.set(0,P.cr*.4,0);
+      const T=trunk(B,hip,P.cr,.45+.25*c); headAt(B,T.neck,P.cr,-.25);
+      for(let s=0;s<2;s++){ const sd=s?-1:1, pl=P.plant.side===sd?P.plant.k:0, sh=hip.clone().addScaledVector(T.fw,.42).addScaledVector(T.rx,sd*.2);
+        const hand=V().set(sd*(.33-.05*pl),hipY+.06-.1*pl,hipZ+.4+.22*pl); arm(B,s,sh,hand,V().set(sd*.5,-.5,-.7));
+        const tip=pl>.05?V().set(sd*.44,.02,hipZ+.4+.6*pl):V().set(sd*.42,.06,hipZ-.62), d=tip.sub(hand).normalize();
+        seg(B.pole[s],hand.clone().addScaledVector(d,-.05),hand.clone().addScaledVector(d,1.07)); B.bask[s].position.copy(hand).addScaledVector(d,.97); B.bask[s].quaternion.copy(B.pole[s].quaternion); } }
+    function poseBoard(P){ const B=BB, c=P.c, hipY=.86-.12*c, hipX=-.03-.06*c, hip=V().set(hipX,hipY,0), ank=[V().set(.01,.13,.26),V().set(.01,.13,-.26)];
+      for(let s=0;s<2;s++){ const H=V().set(hipX,hipY,s?-.1:.1), K=V(); ik(H,ank[s],.43,.42,V().set(-1,.1,0),K); seg(B.thigh[s],H,K); seg(B.shin[s],K,ank[s]); }
+      B.pelvis.position.copy(hip); B.pelvis.rotation.set(0,-Math.PI/2+.3,0);
+      const yaw=-Math.PI/2+.55+P.cr*.5, T=trunk(B,hip,yaw,.2+.18*c); headAt(B,T.neck,yaw+.55,-.15);
+      const hands=[V().set(-.2,hipY+.28,.55+.04*Math.sin(P.t*2.1)),V().set(-.12,hipY+.1,-.42)];
+      for(let s=0;s<2;s++){ const sd=s?-1:1, sh=hip.clone().addScaledVector(T.fw,.42).addScaledVector(T.rx,sd*.2); arm(B,s,sh,hands[s],V().set(.3,-.6,sd*.4)); } }
+    let pt=0; return { update(dt,P){ const bd=gear===1; S.visible=!bd; Bo.visible=bd; pt+=dt; P.t=pt; if(bd) poseBoard(P); else poseSki(P); } }; })();
+  let rHd=null, rRate=0, rC=.3, rCr=0, rPrev=0; const rE=new THREE.Euler(), rHide={t:0}, rPlant={side:0,t:9,k:0}, rTmp=new THREE.Vector3();
+  function riderPose(q,fwd,dt,fwdC){ const show=!(follow&&CAMS[camIdx][0]==="eye"); clearTimeout(rHide.t); if(riderM.visible!==show){ riderM.visible=show; needDraw=true; } skier.visible=!follow&&!window.__frz; if(!show) return;
+    riderM.position.copy(P3(q[0],q[1],0));
     const hz=Math.hypot(fwd.x,fwd.z); if(hz<1e-6) return; const hd=Math.atan2(fwd.x,fwd.z), pitch=Math.atan2(-fwd.y,hz);
     if(rHd!=null&&dt>0){ const dh=Math.atan2(Math.sin(hd-rHd),Math.cos(hd-rHd)); rRate+=(dh/dt-rRate)*(1-Math.exp(-dt*6)); } rHd=hd;
-    const lean=Math.max(-.6,Math.min(.6,Math.atan((anim&&anim.v||12)*rRate/9.8))); rE.set(pitch,hd,-lean,"YXZ"); riderM.quaternion.setFromEuler(rE); }
+    const v=anim&&anim.v||12, lean=Math.max(-.6,Math.min(.6,Math.atan(v*rRate/9.8))); rE.set(pitch,hd,-lean,"YXZ"); riderM.quaternion.setFromEuler(rE);
+    const ti=Math.min(1,Math.abs(rRate)/.8); rC+=((.22+.55*ti)-rC)*(1-Math.exp(-dt*5)); // ひざの 曲げ
+    let crT=0; if(fwdC&&fwdC.lengthSq()>1e-6){ const hc=Math.atan2(fwdC.x,fwdC.z); crT=Math.max(-.7,Math.min(.7,Math.atan2(Math.sin(hc-hd),Math.cos(hc-hd))))*.8; } rCr+=(crT-rCr)*(1-Math.exp(-dt*4)); // 上体は 下へ
+    const sg=rRate>.06?1:(rRate<-.06?-1:0); if(sg&&rPrev&&sg!==rPrev){ rPlant.side=sg; rPlant.t=0; } if(sg) rPrev=sg; rPlant.t+=dt; rPlant.k=rPlant.t<.45?Math.sin(Math.PI*rPlant.t/.45):0;
+    RIG.update(dt,{c:rC,cr:rCr,plant:rPlant});
+    if(ti>.25&&v>6){ const out=rRate>0?-1:1, n=Math.min(6,Math.floor((ti-.2)*v*dt*8+Math.random())); // 雪けむり：外がわの 板の 後ろから
+      if(n>0){ rTmp.set(out*.13,.04,gear===1?(out<0?.45:-.45):-.5); riderM.localToWorld(rTmp); const ox=Math.cos(hd)*out, oz=-Math.sin(hd)*out, fx=fwd.x/hz, fz=fwd.z/hz;
+        sprayEmit(n,rTmp,ox*3+fx*v*.8,2.2,oz*3+fz*v*.8,.25,.3); } } }
   // 目線の カメラを ターンの 内がわへ 少し かたむける
   const bnkD=new THREE.Vector3(); function bank(c,t){ bnkD.copy(t).sub(c); if(bnkD.lengthSq()<1e-6) return; bnkD.normalize(); camera.up.set(0,1,0).applyAxisAngle(bnkD,-Math.max(-.08,Math.min(.08,skTurn*.07))); }
   function startSki(ids){ const sp=[]; ids.forEach(id=>{ const o=courseObj[id]; if(o) sp.push(...(sp.length?o.sp.slice(1):o.sp)); }); if(sp.length<2) return;
@@ -2223,13 +2317,14 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       else if(tw.arc){ const a=tw.s0, b=tw.s1; controls.target.lerpVectors(tw.q0,tw.q1,e); camera.position.copy(controls.target).add(v3.setFromSphericalCoords(a.r+(b.r-a.r)*e,a.phi+(b.phi-a.phi)*e,a.th+(b.th-a.th)*e)); controls.clamp(); }
       else { camera.position.lerpVectors(tw.p0,tw.p1,e); controls.target.lerpVectors(tw.q0,tw.q1,e); }
       if(k>=1) tw=null; }
+    if(window.__frz) dt=0;
     if(anim&&anim.stop){ stopStep(dt); return; }
     if(anim&&!anim.fp){ if(anim.k==null) anim.k=0; anim.k=Math.min(1,anim.k+dt*1000/anim.dur*(follow&&anim.kind==="ski"?SPEEDS[spIdx][0]*CAMS[camIdx][2]:1)); let k=anim.k; if(reduce) k=1; const e=anim.kind==="ski"?k:ease(k);
       let pos3, fwd, fwdC=null;
       if(anim.kind==="ski"){ const W=anim.W;
         if(W){ const sM=wIdx(W,e), q=wAt(W,sM,W.x,W.y), q2=wAt(W,sM+2.5,W.x,W.y), c1=wAt(W,sM,W.cx,W.cy), c2=wAt(W,sM+15,W.cx,W.cy); anim.sM=sM;
           pos3=P3(q[0],q[1],anim.A.up); fwd=P3(q2[0],q2[1],anim.A.up).sub(pos3); fwdC=P3(c2[0],c2[1],0).sub(P3(c1[0],c1[1],0));
-          const D=anim.dur/1000/(follow?SPEEDS[spIdx][0]*CAMS[camIdx][2]:1); anim.v=W.v[Math.min(W.n-1,Math.round(sM))]*W.tot/Math.max(.1,D); trackS.value=sM; riderPose(q,fwd,dt); }
+          const D=anim.dur/1000/(follow?SPEEDS[spIdx][0]*CAMS[camIdx][2]:1); anim.v=W.v[Math.min(W.n-1,Math.round(sM))]*W.tot/Math.max(.1,D); trackS.value=sM; riderPose(q,fwd,dt,fwdC); }
         else { const q=at(anim.A,e); pos3=P3(q.x,q.y,anim.A.up); const q2=at(anim.A,Math.min(1,e+.03)); fwd=P3(q2.x,q2.y,anim.A.up).sub(pos3); }
         skier.position.copy(pos3); if(fwd.lengthSq()>1e-6) skFwd.copy(fwd); }
       else { const p=anim.o.curve.getPoint(e); pos3=p.clone().add(new THREE.Vector3(anim.o.side.x,-3,anim.o.side.z)); rider.position.copy(pos3).add(new THREE.Vector3(0,-1,0)); fwd=anim.o.curve.getTangent(e); }
@@ -2277,7 +2372,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const lines=[], pv=new THREE.Vector3();
   function screenLines(w,h){ lines.length=0;
     const add=pts=>{ const L=[]; for(const q of pts){ pv.copy(q).project(camera); L.push(pv.z<1?(pv.x+1)/2*w:NaN,(1-pv.y)/2*h); } lines.push(L); };
-    Object.values(courseObj).forEach(o=>{ if(!o.grp.visible) return; if(!o.s3) o.s3=o.sp.filter((p,i)=>i%2===0||i===o.sp.length-1).map(p=>P3(p[0],p[1],4)); add(o.s3); });
+    Object.values(courseObj).forEach(o=>{ if(!o.grp.visible||!courseRoot.visible) return; if(!o.s3) o.s3=o.sp.filter((p,i)=>i%2===0||i===o.sp.length-1).map(p=>P3(p[0],p[1],4)); add(o.s3); });
     if(ed.on&&ed.pts.length>1) add(smooth(ed.pts).filter((p,i)=>i%2===0).map(p=>P3(p[0],p[1],4))); }
   function hits(r){ for(const L of lines) for(let i=2;i<L.length;i+=2){ const x1=L[i-2], x2=L[i]; if(x1!==x1||x2!==x2) continue; if(segHit(x1,L[i-1],x2,L[i+1],r)) return true; } return false; }
   function placeLabels(){
@@ -2564,21 +2659,21 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const moved=!camera.position.equals(pc)||!controls.target.equals(pt), busy=moved||!!tw||!!anim, near=!reduce&&camera.position.distanceTo(controls.target)<2000;
     updateDetail(now);
     if(maskDirty){ maskTex.needsUpdate=true; maskDirty=false; needDraw=true; }
-    for(const id in courseObj){ const o=courseObj[id]; if(o.grp.visible&&o.edge===undefined){ buildEdge(o); needDraw=true; break; } }
+    { const rv=ed.on||(routeOn&&!(follow&&anim&&anim.kind==="ski")); if(courseRoot.visible!==rv){ courseRoot.visible=rv; needDraw=true; } } // すべっている間は コースに 色を つけない
     if(!(busy||needDraw||(near&&now-lastR>50))){ prevBusy=false; return; }
     // 重い端末では、動かしている間の速さを見て、画面の細かさを少し下げる
     if(busy&&prevBusy){ slowT+=Math.min(500,now-lastR); if(++slowN>=40){ if(slowT/slowN>30&&pr>1){ pr=Math.max(1,pr-.25); renderer.setPixelRatio(pr); resize(); } slowN=0; slowT=0; } }
     prevBusy=busy; pc.copy(camera.position); pt.copy(controls.target); needDraw=false;
     moveChairs();
-    setsUpdate(); skiView(!!(follow&&anim&&anim.kind==="ski"&&!anim.fp&&CAMS[camIdx][0]==="eye"&&!rideChair),dt);
+    setsUpdate(); sprayTick(dt); skiView(!!(follow&&anim&&anim.kind==="ski"&&!anim.fp&&CAMS[camIdx][0]==="eye"&&!rideChair),dt);
     lastR=now; sky.position.copy(camera.position); renderer.render(scene,camera); placeLabels(); }
   controls.addEventListener("start",()=>{ tw=null; endFollow(); $("#m3dHint").classList.add("gone"); });
   // 確かめ用（アドレスに ?dbg3d のときだけ）：駅の場所と、カメラを置く
-  if(/[?&]dbg3d/.test(location.search)) window.__m3d={near:rM=>{ const out={}; for(const id in courseObj){ const sp=courseObj[id].sp; let n=0, np=0; const r=rM/M, r2=r*r;
+  if(/[?&]dbg3d/.test(location.search)) window.__m3d={solo:on=>{ scene.children.forEach(o=>{ if(o!==riderM&&!o.isLight){ if(on){ o.userData.v0=o.visible; o.visible=false; } else if(o.userData.v0!==undefined) o.visible=o.userData.v0; } }); needDraw=true; },rider:()=>riderM.position.toArray().concat([riderM.rotation.y]),freeze:on=>{ window.__frz=on; },near:rM=>{ const out={}; for(const id in courseObj){ const sp=courseObj[id].sp; let n=0, np=0; const r=rM/M, r2=r*r;
       const d2=(x,y)=>{ let b=1e18; for(let k=0;k<sp.length-1;k++){ const ax=sp[k][0], ay=sp[k][1], dx=sp[k+1][0]-ax, dy=sp[k+1][1]-ay, l2=dx*dx+dy*dy||1e-9, t=Math.max(0,Math.min(1,((x-ax)*dx+(y-ay)*dy)/l2)), ex=x-ax-t*dx, ey=y-ay-t*dy; b=Math.min(b,ex*ex+ey*ey); } return b; };
       for(let i=0;i<AF.n;i++){ if(AF.gone[i]) continue; if(d2(AF.x[i],AF.y[i])<r2) n++; }
       for(let i=0;i+2<treeArr.length;i+=3) if(d2(treeArr[i],treeArr[i+1])<r2) np++;
-      out[id]=[n,np]; } return out; },cs:id=>{ const o=courseObj[id]; return o&&[P3(...o.sp[0],0).toArray(),P3(...o.sp[Math.min(o.sp.length-1,12)],0).toArray()]; },end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; },st:id=>{ const ab=G.lifts[id]; return ab&&[P3(...ab[0],0).toArray(),P3(...ab[1],0).toArray()]; },cam:(p,t)=>{ tw=null; endFollow(); camera.position.set(...p); controls.target.set(...t); camera.lookAt(controls.target); needDraw=true; }};
+      out[id]=[n,np]; } return out; },cs:id=>{ const o=courseObj[id]; return o&&[P3(...o.sp[0],0).toArray(),P3(...o.sp[Math.min(o.sp.length-1,12)],0).toArray()]; },end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; },st:id=>{ const ab=G.lifts[id]; return ab&&[P3(...ab[0],0).toArray(),P3(...ab[1],0).toArray()]; },cam:(p,t)=>{ tw=null; endFollow(); camera.position.set(...p); if(!scene.children.some(o=>o.userData.v0!==undefined&&!o.visible)) camera.position.y=Math.max(camera.position.y,hAny(p[0],p[2])+1.2); controls.target.set(...t); camera.lookAt(controls.target); needDraw=true; }};
   // 目線のあいだの1本指（マウス）：地図は動かさず、見る向きだけ変える。2本目の指が来たら、目線をやめて ふつうの操作へ
   box.addEventListener("pointerdown",e=>{ if(!follow||ed.on||e.target!==renderer.domElement) return;
     if(lookDrag){ endFollow(); return; }
