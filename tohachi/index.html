@@ -607,7 +607,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
       <div class="areasw" id="areaSw" role="group" aria-label="エリアの切りかえ"><button type="button" data-a="tohachi" aria-pressed="true">東鉢</button><button type="button" data-a="sv" aria-pressed="false">スカイバレイ</button></div>
       <div class="map3d" id="map3d" role="img" aria-label="ハイパーボウル東鉢の3D地形図。国土地理院の標高と航空写真に、コースとリフトを重ねています">
         <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
-        <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
+        <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="ropeBtn" aria-pressed="true" title="コースのふちの ロープと、スタートの 看板を 出す／かくす">🚧 ロープ</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
         <p class="m3d-hint" id="m3dHint"><span></span></p>
         <div class="povbar"><button type="button" class="speedbtn" id="frontBtn" hidden title="見る向きを正面にもどす">🧭 正面</button><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="gearBtn" hidden title="目線で使う道具：スキー・スノーボード（押すたびに かわります）">🎿 スキー</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
         <button type="button" class="m3d-compass" id="m3dCompass" aria-label="北を上にする" title="北を上にする"><i>N</i></button>
@@ -1547,13 +1547,13 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const ok=H.map((h,k)=>{ let n=0; for(let j=k-2;j<=k+2;j++) if(H[j]>0) n++; return h>0&&n>=3; }); // まわり5本のうち3本以上で 林
       const R=H.map((h,k)=>{ let t=0, n=0; for(let j=k-2;j<=k+2;j++) if(H[j]>0){ t+=H[j]; n++; } return n?t/n:0; }); // ならした きょり
       S.forEach((q,k)=>{ const nx=-q.ty*sd, ny=q.tx*sd, r=Math.max(6,R[k]-4); P.push({i:q.i,sd,ok:ok[k]&&(ok[k-1]||ok[k+1]),x:sp[q.i][0]+nx*r/M,y:sp[q.i][1]+ny*r/M}); }); }
-    const grp=new THREE.Group(), poles=P.filter(p=>p.ok); if(!poles.length){ o.edge=grp; o.grp.add(grp); return; }
+    const grp=new THREE.Group(), poles=P.filter(p=>p.ok); if(!poles.length){ grp.visible=ropeOn; o.edge=grp; o.grp.add(grp); return; }
     const im=new THREE.InstancedMesh(POLEG,poleMat,poles.length), m4=new THREE.Matrix4(); poles.forEach((p,k)=>{ m4.makeTranslation(P3(p.x,p.y,-.15)); im.setMatrixAt(k,m4); }); im.frustumCulled=false; grp.add(im);
     // ロープ：となりの ポール どうし（同じ がわで、間が 30m より近い）を つなぐ。少し たるむ
     const L=[]; for(const sd of [-1,1]){ const q=P.filter(p=>p.sd===sd); for(let k=1;k<q.length;k++){ const a=q[k-1], b=q[k]; if(!a.ok||!b.ok) continue; const A=P3(a.x,a.y,1.25), B=P3(b.x,b.y,1.25); if(A.distanceTo(B)>30) continue;
       let prev=A; for(let t=1;t<=4;t++){ const f=t/4, v=new THREE.Vector3().lerpVectors(A,B,f); v.y-=Math.sin(f*Math.PI)*.18; L.push(prev.x,prev.y,prev.z,v.x,v.y,v.z); prev=v; } } }
     if(L.length){ const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(L,3)); const ln=new THREE.LineSegments(g,ropeLM); ln.frustumCulled=false; grp.add(ln); }
-    o.edge=grp; o.grp.add(grp); }
+    grp.visible=ropeOn; o.edge=grp; o.grp.add(grp); }
   // ===== スタートの看板：コースの色の板に 名前と レベル（公式の コース）=====
   const signG=new THREE.Group(); scene.add(signG);
   function buildSigns(){ signG.children.slice().forEach(k=>{ signG.remove(k); dispose(k); });
@@ -1570,6 +1570,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       for(const sx of [-.7,.7]){ const p=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,2.6,6),postM); p.position.set(sx,1.1,-.03); s.add(p); }
       signG.add(s); }); needDraw=true; }
   buildSigns();
+  let ropeOn=store.get("ropes3d",true)!==false; const ropeBtn=$("#ropeBtn");
+  function ropeShow(){ ropeBtn.setAttribute("aria-pressed",String(ropeOn)); signG.visible=ropeOn; Object.values(courseObj).forEach(o=>{ if(o.edge) o.edge.visible=ropeOn; }); needDraw=true; }
+  ropeBtn.onclick=()=>{ ropeOn=!ropeOn; store.set("ropes3d",ropeOn); ropeShow(); }; ropeShow();
   function removeCourse(id){ const o=courseObj[id]; if(!o) return; scene.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; afLater(); }
   // 長さ（斜面にそって）・平均と最大の斜度（約30mの区間ごと）。標高は本当の高さで
   function courseStats(pts){ const sp=smooth(pts), H=sp.map(p=>elev(p[0],p[1])), D=[0]; let len=0;
@@ -1716,6 +1719,24 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function liftShadows(){ liftParts.push(drape(shB.map(([x,z,r])=>({ni:6,nj:6,at:(u,v)=>[x+(u-.5)*2*r,z+(v-.5)*2*r]})),shMatB),
     drape(shS.map(([x,z,len,w])=>({ni:1,nj:Math.max(2,Math.ceil(len/3)),at:(u,v)=>[x+SUN[0]*len*v-SUN[1]*(u-.5)*w,z+SUN[1]*len*v+SUN[0]*(u-.5)*w]})),shMatS)); }
   buildLifts();
+  // ===== ふもとの 建物：航空写真の 屋根の 場所・大きさ・向き・色から。かべ と 切妻屋根（冬なので 雪が のる）=====
+  //  [x,y（地図）, 長さm, はばm, 向き（地図の上で 長い辺の 角度）, 屋根の色]
+  const BLDS=[[730.62,390.0,29.2,26.8,0.436,"#766c68"],[707.0,405.25,24.3,19.5,0.524,"#78463c"],[708.25,400.0,32.1,14.6,0.524,"#d6d6d2"],[704.12,330.88,26.8,17.0,0.611,"#80a896"],[760.0,360.25,24.3,17.0,0.611,"#c8c8c3"],[759.18,385.57,24.2,16.8,2.231,"#bd857d"],[722.49,380.13,22.8,17.6,1.784,"#ca9585"],[694.0,355.0,30.2,12.7,-0.524,"#96b9aa"],[767.36,393.93,26.7,13.6,1.775,"#b48d7b"],[729.13,381.17,24.2,14.6,-3.002,"#bb988c"],[716.5,416.25,21.9,14.6,2.094,"#dcdcda"],[786.62,410.0,19.5,14.6,0.349,"#965a46"],[746.69,382.13,19.5,13.5,2.163,"#a8827b"],[748.25,397.5,17.0,14.6,0.349,"#7d5546"],[778.75,403.75,20.4,12.2,-0.349,"#787a80"],[786.88,398.75,20.4,12.2,-0.349,"#6e7076"],[775.0,400.0,19.5,12.2,1.745,"#78787d"],[755.11,391.2,19.7,10.9,2.317,"#759eb6"],[739.25,388.8,19.5,11.0,0.87,"#ba9489"],[736.88,416.88,17.0,12.2,0.0,"#e1e1e1"],[715.75,378.32,14.1,12.9,1.163,"#c88877"],[764.5,368.12,14.6,12.2,0.349,"#dededa"],[736.88,363.75,14.6,12.2,1.745,"#785046"],[718.12,405.62,14.6,12.2,0.175,"#808082"],[767.0,401.88,14.6,12.2,1.745,"#505258"],[770.75,400.0,14.6,12.2,1.745,"#7d5546"],[736.25,377.5,12.7,12.7,0.262,"#6e7378"],[720.13,394.62,17.6,9.1,-2.802,"#a38177"],[772.5,390.25,21.9,7.3,2.793,"#e1e1e1"],[784.5,402.75,12.2,12.2,0.0,"#aa9678"],[710.0,414.0,12.2,12.2,0.0,"#78787d"],[781.88,347.75,14.6,9.7,0.0,"#e1e1e1"],[719.75,348.12,11.7,11.7,0.349,"#e1e1e1"],[717.88,377.12,10.7,9.7,0.0,"#828282"],[778.74,411.38,10.2,9.5,2.921,"#5c86a3"],[737.61,401.49,12.3,7.8,1.335,"#89adb7"],[739.5,377.75,9.7,9.7,0.262,"#737376"],[701.92,329.36,14.1,6.7,2.084,"#c88d7b"],[755.87,382.12,12.9,6.8,2.13,"#c79485"],[741.42,380.95,10.2,6.8,1.359,"#aa8379"],[780.27,349.53,8.4,7.4,0.961,"#af8b83"],[782.17,400.19,9.0,5.4,2.667,"#7ba7ae"],[724.78,399.25,7.6,6.1,-2.63,"#c18e7e"],[762.86,387.57,12.3,3.2,2.309,"#a3827b"],[705.78,327.82,8.6,4.5,-2.375,"#af8579"],[770.93,395.16,7.5,4.2,2.21,"#ab867a"],[776.17,390.88,6.1,5.1,-2.573,"#a5786e"],[777.7,350.55,7.1,4.3,1.678,"#8e6862"],[746.89,366.74,7.5,3.8,2.513,"#7797ad"],[701.43,399.06,9.4,3.0,1.002,"#ad8a7f"],[784.63,350.36,9.3,3.0,-3.083,"#c5a18e"],[711.92,408.03,5.8,4.5,2.182,"#89afb9"],[770.35,381.64,7.0,3.7,1.153,"#a7887e"],[725.54,402.56,5.4,3.4,2.458,"#ba8c7c"]];
+  const TRI=(()=>{ const g=new THREE.BufferGeometry(), p=[]; for(const e of [-.5,.5]) p.push(e,0,-.5, e,0,.5, e,1,0);
+    g.setAttribute("position",new THREE.Float32BufferAttribute(p,3)); g.setIndex([0,1,2, 3,5,4]); g.computeVertexNormals(); return g; })();
+  { const list=[], lc=h=>new THREE.Color().setHex(h,THREE.SRGBColorSpace).toArray(), WALLS=[0xe6dfd0,0xf0eee8,0x8a6448,0xc9ccd0,0xe2d3b4,0xa5835f].map(lc), DARK=lc(0x1d2733), FRAME=lc(0x5b4636), SNOW=lc(0xeef2f7), PITCH=.42;
+    const add=(geo,p,sc,r,col,F)=>{ const g=part(geo,p,sc,r).applyMatrix4(F); g.userData={col}; list.push(g); }; // clone は userData を 共有するので 新しく
+    BLDS.forEach(([x,y,L,W,a,rc])=>{ const c=P3(x,y,0), F=frameAt(c.x,0,c.z,-a), ca=Math.cos(-a), sa=Math.sin(-a), hs=((x*7.13+y*3.31)%1+1)%1;
+      let gmin=1e9, gmax=-1e9; for(const [u,v] of [[1,1],[1,-1],[-1,1],[-1,-1]]){ const lx=u*L/2, lz=v*W/2, wx=c.x+lx*ca+lz*sa, wz=c.z-lx*sa+lz*ca, h=hAt(wx,wz); gmin=Math.min(gmin,h); gmax=Math.max(gmax,h); }
+      const area=L*W, H=area>300?7.4:(area>110?5.8:3.4), base=gmin-.6, eave=gmax+H, wc=WALLS[Math.floor(hs*WALLS.length)], rh=W/2*Math.tan(PITCH);
+      add(BX,[0,(base+eave)/2,0],[L,eave-base,W],null,wc,F);
+      const nw=Math.max(1,Math.floor(L/3.2)); for(let k=0;k<(H>5?2:1);k++) for(const sd of [-1,1]) for(let w=0;w<nw;w++){ const wx=(w+.5)/nw*L-L/2; add(BX,[wx,gmax+1.6+k*2.7,sd*(W/2+.04)],[1.5,1.25,.07],null,DARK,F); } // まど
+      for(const ex of [-1,1]) add(BX,[ex*(L/2+.03),(base+eave)/2,0],[.08,eave-base,.35],null,FRAME,F); // すみの 柱
+      add(TRI,[0,eave,0],[L,rh,W],null,wc,F); // 妻（三角）
+      const sl=W/2/Math.cos(PITCH)+.7, roof=lc(parseInt(rc.slice(1),16)).map(v=>v*.55); // 写真の屋根は 明るく 写るので 少し 暗く
+      const snowy=((x*3.7+y*1.3)%1+1)%1<.55; for(const sd of [-1,1]){ const r=[sd*PITCH,0,0], ry=eave+rh/2+.15, z=sd*W/4;
+        add(BX,[0,ry,z],[L+1.2,.3,sl],r,roof,F); if(snowy) add(BX,[0,ry+.22,z*.75],[L-1.6,.14,sl*.5],r,SNOW,F); } }); // 屋根（雪が 少し 残る 屋根も）
+    if(list.length){ const m=new THREE.Mesh(merge(list,true),new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})); m.frustumCulled=false; scene.add(m); if(/[?&]dbg3d/.test(location.search)) window.__bld=m; } }
   // いす（2人乗り）と、乗っている人
   const shape=(parts,withColor)=>merge(parts.map(([geo,p,s,r,col])=>{ const g=part(geo,p,s,r); g.userData.col=col; return g; }),withColor);
   const HOOK=new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0,-.05,0],[0,-.62,-.05],[.06,-.86,-.1],[.26,-1.04,-.14],[.47,-1.17,-.16],[.61,-1.31,-.16],[.56,-1.48,-.16]].map(p=>new THREE.Vector3(...p))),8,.045,4,false);
