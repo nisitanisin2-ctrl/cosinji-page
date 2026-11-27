@@ -77,6 +77,8 @@ body::before{ content:""; position:fixed; inset:0 0 auto; height:env(safe-area-i
 header.top{ position:sticky; top:env(safe-area-inset-top, 0px); z-index:50; background:color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter:saturate(1.4) blur(12px); -webkit-backdrop-filter:saturate(1.4) blur(12px); border-bottom:1px solid color-mix(in srgb, var(--line) 70%, transparent); }
 header.top .wrap{ display:flex; align-items:center; gap:12px; height:var(--head); }
 .brand{ white-space:nowrap; display:flex; align-items:baseline; gap:6px; }
+.backhyo{ flex:none; border:1px solid var(--line, #ccd); background:transparent; color:inherit; font:inherit; font-size:.8rem; font-weight:700; padding:5px 9px; border-radius:999px; cursor:pointer; white-space:nowrap; }
+.backhyo[hidden]{ display:none; }
 .brand b{ font-weight:900; font-size:1rem; letter-spacing:.04em; }
 .brand small{ font-family:var(--f-num); font-size:.62rem; font-weight:700; letter-spacing:.18em; color:var(--faint); }
 nav.toc{ display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; flex:1; position:relative; }
@@ -514,6 +516,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 
 <header class="top">
   <div class="wrap">
+    <button type="button" class="backhyo" id="backHyo" hidden title="表電卓の画面へ">← 表電卓</button>
     <div class="brand"><span class="logo" aria-hidden="true">▲</span><b>東鉢ガイド</b></div>
     <div class="apptitle" id="appTitle" aria-live="polite">ホーム</div>
     <button class="iconbtn" id="themeBtn" aria-label="明るさを切りかえる" title="明るさを切りかえる"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
@@ -2934,6 +2937,9 @@ ITEMS.forEach((it,i)=>{ const l=document.createElement("label"); l.innerHTML=`<i
 
 /* ---------- はじめ ---------- */
 setLevel(LEVELS.some(l=>l.id===level)?level:"first");
+// 表電卓から開いたとき（#from=hyo）は、左上に「← 表電卓」を出す（iPhone には画面に「戻る」がないため）
+{ let fromHyo=false; try{ if(/from=hyo/.test(location.hash)){ sessionStorage.setItem("tohachi_from_hyo","1"); history.replaceState(history.state,"",location.pathname+location.search); } fromHyo=sessionStorage.getItem("tohachi_from_hyo")==="1"; }catch(e){}
+  const b=$("#backHyo"); b.hidden=!fromHyo; b.onclick=()=>{ location.href="../"+(location.protocol==="file:"?"index.html":""); }; }
 { const h=(location.hash||"").slice(1); if(TAB_IDS.includes(h)) showTab(h); else if(h&&document.getElementById(h)) goTo(h); }
 renderHome();
 })();

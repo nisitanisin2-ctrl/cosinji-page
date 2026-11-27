@@ -6883,6 +6883,7 @@ const KEY_FUNCS={
   a_eigo:{g:'設定・機能',label:'📚英単語',short:'英単語',run:()=>openEigoApp()},
   a_sansu:{g:'設定・機能',label:'🎓算数・数学',short:'算数',run:()=>openSansuApp()},
   a_kakijun:{g:'設定・機能',label:'✍️かきじゅん帳',short:'書き順',run:()=>openKakijunApp()},
+  a_tohachi:{g:'設定・機能',label:'🏂東鉢ガイド',short:'東鉢',run:()=>openTohachiApp()},
   a_websearch:{g:'設定・機能',label:'🔍Web検索',short:'W検索',run:()=>webSearchCell()},
   a_lookup:{g:'設定・機能',label:'🔍照合',run:()=>openLookupDlg()},
   a_find:{g:'設定・機能',label:'🔎検索',run:()=>openFindDlg()},
@@ -10519,6 +10520,7 @@ const NP_TOOLS=[
   {id:'eigo',     label:'📚英単語',     run:()=>openEigoApp()},                         // 同じく別のアプリ（eigo/。v449）
   {id:'sansu',    label:'🎓算数・数学', run:()=>openSansuApp()},                        // 同じく別のアプリ（sansu/。v527）
   {id:'kakijun',  label:'✍️かきじゅん帳', run:()=>openKakijunApp()},                    // 同じく別のアプリ（kakijun/。常用漢字の書き順。v532。v567 から 人名用漢字・地名の漢字も）
+  {id:'tohachi',  label:'🏂東鉢ガイド', run:()=>openTohachiApp()},                     // 同じく別のアプリ（tohachi/。スキー場の3D地図）
 ];
 /* ── はじめに開くページ（v366）──
    アプリを開いたときに、表・電卓・道具のどれを出すかを選べる。
@@ -11153,6 +11155,7 @@ function openKoeApp(){ openSameWindow(sideAppUrl('koe', '#from=hyo')); }
 function openEigoApp(){ openSameWindow(sideAppUrl('eigo', '#from=hyo')); }   // 📚英単語マスター（v449）
 function openSansuApp(){ openSameWindow(sideAppUrl('sansu', '#from=hyo')); } // 🎓算数・数学チャレンジ（v527）
 function openKakijunApp(){ openSameWindow(sideAppUrl('kakijun', '#from=hyo')); } // ✍️かきじゅん帳（常用漢字の書き順。v532）
+function openTohachiApp(){ openSameWindow(sideAppUrl('tohachi', '#from=hyo')); } // 🏂東鉢ガイド（スキー場の3D地図。tohachi/）
 /* ── リンク集：名前付きでURLを登録し、一覧から開く ── */
 let linkList=[], linkEditIdx=-1;
 function loadLinkList(){
@@ -18427,7 +18430,7 @@ function addToolBack(t, ov){
 function appIconUrl(t){
   if(t.id==='techo') return sideAppUrl('techo');
   if(t.ov) return sideAppUrl('apps/'+t.id);
-  const dir={memo:'notes',kaikei:'kaikei',koe:'koe',eigo:'eigo',sansu:'sansu',kakijun:'kakijun'}[t.id];
+  const dir={memo:'notes',kaikei:'kaikei',koe:'koe',eigo:'eigo',sansu:'sansu',kakijun:'kakijun',tohachi:'tohachi'}[t.id];
   return dir ? sideAppUrl(dir) : '';
 }
 function openAppIcons(){
@@ -18627,7 +18630,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','ggolf','oto','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['tohachi','keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','ggolf','oto','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','gijiroku','seikyu','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','kyoshi','dasetsu','volume','mikurabe','ruler','kakudo','veggie']],
@@ -18961,7 +18964,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v690';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v691';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
