@@ -541,11 +541,13 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 .fr-l{ left:9px; top:50%; transform:translateY(-50%); } .fr-r{ right:9px; top:50%; transform:translateY(-50%); }
 .fr-stick .fr-j{ top:-19px; left:50%; transform:translateX(-50%); font-size:.62rem; }
 .map.full .fr-x{ top:calc(10px + env(safe-area-inset-top, 0px)); }
-.map.full .fr-help{ top:calc(56px + env(safe-area-inset-top, 0px)); }
+.map.full .fr-help{ top:calc(104px + env(safe-area-inset-top, 0px)); }
 .map.full .fr-gauge{ bottom:calc(16px + env(safe-area-inset-bottom, 0px)); left:calc(12px + env(safe-area-inset-left, 0px)); }
 .map.full .fr-skip{ bottom:calc(20px + env(safe-area-inset-bottom, 0px)); }
 .map.full .fr-stick{ bottom:calc(16px + env(safe-area-inset-bottom, 0px)); right:calc(16px + env(safe-area-inset-right, 0px)); }
-body.fr3d .toast{ bottom:calc(env(safe-area-inset-bottom, 0px) + 186px); }
+body.fr3d .toast{ top:calc(env(safe-area-inset-top, 0px) + 58px); bottom:auto; transform:translate(-50%,-14px); }
+body.fr3d .toast.on{ transform:translate(-50%,0); }
+.fr-help{ top:104px; }
 
 </style>
 </head>
@@ -2271,58 +2273,115 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       fragmentShader:"uniform float uS;\nvarying float vS;\nvoid main(){ if(vS>uS-1.2) discard; gl_FragColor=vec4(.55,.62,.75,.62);\n#include <colorspace_fragment>\n}",
       transparent:true,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6});
     trackMesh=new THREE.Mesh(g,m); trackMesh.frustumCulled=false; trackMesh.renderOrder=1; scene.add(trackMesh); }
-  // 滑る人（後ろから 見るとき）：関節つき。ひざを 曲げ、ターンの 内がわへ かたむき、上体は コースの 下を 向き、ストックを つく
+  // 滑る人（後ろから 見るとき）：関節つき。スキーは 赤×黒の レーシングジャケット・黒の パンツ・白い ヘルメットに 炎色の ミラーゴーグル、
+  //  スノボは マスタード×ネイビーの だぼっとした 服・フード・バックパック・黒い ヘルメットに 青い ミラーゴーグル。顔は ネックウォーマーで おおう。
+  //  構え：足首と ひざを 曲げ、手は 体の 前で 広く。ターンでは 体ごと 内へ たおれ、内足を たたみ（板は 雪の 面に）、上体は 外へ 起こす（アンギュレーション）。内スキーが 少し 前。
+  //  上（加速）で クラウチング、下（減速）で ハの字／横すべり、空中は ひざを 引きつける（スノボは 後ろの 手で グラブ）。スノボの 深い ターンでは 手で 雪を なでる
   const riderM=new THREE.Group(); riderM.visible=false; scene.add(riderM);
-  const RIG=(()=>{ const std=GK.std, CAP=(r,l)=>new THREE.CapsuleGeometry(r,l,4,12), V=()=>new THREE.Vector3();
+  const RIG=(()=>{ const std=GK.std, CAP=(r,l)=>new THREE.CapsuleGeometry(r,l,5,14), V=()=>new THREE.Vector3(), UP1=new THREE.Vector3(0,1,0), C=h=>new THREE.Color(h);
     const mk=(geo,m,par)=>{ const k=new THREE.Mesh(geo,m); k.frustumCulled=false; par.add(k); return k; };
-    function body(par,jk,jk2,pn,hl){ const mJ=std(jk,.72), mJ2=std(jk2,.72), mP=std(pn,.85), mH=std(hl,.28,.05), mG=std(0xffa21a,.12,.7), mK=std(0x15161a,.6), B={};
-      B.thigh=[mk(CAP(.074,.36),mP,par),mk(CAP(.074,.36),mP,par)]; B.shin=[mk(CAP(.058,.36),mP,par),mk(CAP(.058,.36),mP,par)];
-      B.pelvis=mk(new THREE.SphereGeometry(.15,14,10),mP,par); B.pelvis.scale.set(1.25,.8,.95);
-      B.torso=mk(CAP(.155,.3),mJ,par); B.torso.scale.set(1.18,1,.82); B.collar=mk(new THREE.CylinderGeometry(.075,.11,.1,14),mJ2,par);
-      B.head=mk(new THREE.SphereGeometry(.118,18,14),mH,par); B.head.scale.set(.96,1,1.06);
-      B.gog=mk(new THREE.CylinderGeometry(.124,.124,.058,18,1,true,-1.1,2.2),mG,par); B.strap=mk(new THREE.CylinderGeometry(.121,.121,.03,18,1,true,1.1,4.08),mK,par);
-      B.uarm=[mk(CAP(.05,.24),mJ,par),mk(CAP(.05,.24),mJ,par)]; B.farm=[mk(CAP(.046,.22),mJ2,par),mk(CAP(.046,.22),mJ2,par)];
-      B.glove=[mk(new THREE.SphereGeometry(.05,10,8),mK,par),mk(new THREE.SphereGeometry(.05,10,8),mK,par)]; return B; }
+    // 上着：腰の 関節が 原点。輪切りの 形（高さ, 半径）を まわし、横に 広く・前後に うすく。色は 高さと 向きで 塗りわける（頂点の 色）
+    function jacketGeo(D){ const ns=24, P=[], CL=[], I=[], n=D.prof.length;
+      D.prof.forEach(([y,r])=>{ for(let i=0;i<=ns;i++){ const a=i/ns*Math.PI*2, sx=Math.sin(a), cz=Math.cos(a), c=D.col(y,sx,cz); P.push(r*sx*D.sx,y,r*cz*D.sz); CL.push(c.r,c.g,c.b); } });
+      for(let j=0;j<n-1;j++) for(let i=0;i<ns;i++){ const a=j*(ns+1)+i, b=a+ns+1; I.push(a,a+1,b, a+1,b+1,b); }
+      const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("color",new THREE.Float32BufferAttribute(CL,3)); g.setIndex(I); g.computeVertexNormals(); return g; }
+    // ミラーの レンズ：上から下への 色の 変化と、ななめの 光の すじ
+    function lensMat(a,b,c){ const cv=document.createElement("canvas"); cv.width=64; cv.height=32; const x=cv.getContext("2d"), gr=x.createLinearGradient(0,0,0,32);
+      gr.addColorStop(0,a); gr.addColorStop(.55,b); gr.addColorStop(1,c); x.fillStyle=gr; x.fillRect(0,0,64,32);
+      x.fillStyle="rgba(255,255,255,.55)"; x.beginPath(); x.moveTo(20,0); x.lineTo(31,0); x.lineTo(19,32); x.lineTo(10,32); x.fill();
+      x.fillStyle="rgba(255,255,255,.28)"; x.beginPath(); x.moveTo(36,0); x.lineTo(40,0); x.lineTo(29,32); x.lineTo(26,32); x.fill();
+      const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; return new THREE.MeshStandardMaterial({map:t,emissiveMap:t,emissive:0xffffff,emissiveIntensity:.5,roughness:.12,metalness:.25}); }
+    // 体（服・ヘルメット・ゴーグル・手袋）。D：色と 太さ
+    function body(par,D){ const B={}, mJ=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.62,side:THREE.DoubleSide}), mSl=std(D.sleeve,.62), mP=std(D.pants,.72), mKn=std(D.knee,.75), mG=std(D.glove,.6), mGc=std(D.gcuff,.6);
+      B.thigh=[0,1].map(()=>mk(CAP(D.th,.36),mP,par)); B.shin=[0,1].map(()=>mk(CAP(D.sh,.36),mP,par)); B.knee=[0,1].map(()=>mk(new THREE.SphereGeometry(D.th*.95,14,10),mKn,par));
+      B.cuff=[0,1].map(()=>mk(new THREE.CylinderGeometry(D.cf[0],D.cf[1],D.cf[2],16),mP,par)); // ブーツに かぶさる すそ
+      B.pelvis=mk(new THREE.SphereGeometry(.15,16,12),mP,par); B.pelvis.scale.set(1.28+D.bg,.82,1+D.bg);
+      B.torso=new THREE.Group(); par.add(B.torso); mk(jacketGeo(D.jk),mJ,B.torso);
+      if(D.hood){ const h=mk(new THREE.SphereGeometry(.13,16,12,0,Math.PI*2,0,Math.PI*.55),std(D.hood,.62),B.torso); h.position.set(0,.47,-.11); h.rotation.x=-.95; h.scale.set(1.15,.8,.9); }
+      else { const cl=mk(new THREE.CylinderGeometry(.08,.1,.1,18),std(D.collar,.6),B.torso); cl.position.y=.53; }
+      if(D.pack){ const pk=mk(new THREE.BoxGeometry(.25,.3,.09),std(D.pack,.72),B.torso); pk.position.set(0,.25,-.185); pk.rotation.x=.05; const pt=mk(new THREE.BoxGeometry(.2,.05,.03),std(D.packT,.6),B.torso); pt.position.set(0,.32,-.245); }
+      B.uarm=[0,1].map(()=>mk(CAP(D.ua,.24),mSl,par)); B.farm=[0,1].map(()=>mk(CAP(D.fa,.22),mSl,par));
+      B.glove=[0,1].map(()=>{ const g=new THREE.Group(); par.add(g); const p=mk(new THREE.SphereGeometry(.05,12,10),mG,g); p.scale.set(1.05,1.35,.82); p.position.y=.025; const c=mk(new THREE.CylinderGeometry(.057,.061,.085,14),mGc,g); c.position.y=-.05; return g; });
+      // 頭：顔（ほとんど かくれる）・ネックウォーマー・ヘルメット（空気穴）・ゴーグル（わく・ミラー・ベルト）
+      B.headG=new THREE.Group(); par.add(B.headG); mk(new THREE.SphereGeometry(.098,18,14),std(0xd7a184,.7),B.headG).scale.set(.95,1.05,1.05);
+      mk(new THREE.CylinderGeometry(.086,.075,.12,18),std(D.gaiter,.85),B.headG).position.set(0,-.07,.008);
+      const hm=mk(new THREE.SphereGeometry(.126,22,16,0,Math.PI*2,0,Math.PI*.56),std(D.helmet,D.hr),B.headG); hm.position.set(0,.012,-.008); hm.scale.set(1,.98,1.12);
+      for(const x of [-.04,0,.04]){ const v=mk(new THREE.SphereGeometry(1,10,6),std(0x15161a,.6),B.headG); v.position.set(x,.012+.98*Math.sqrt(.126*.126-x*x)-.003,-.01); v.scale.set(.011,.006,.048); v.rotation.z=-Math.asin(x/.126); }
+      mk(new THREE.CylinderGeometry(.131,.131,.088,26,1,true,-1.17,2.34),std(D.frame,.5),B.headG).position.set(0,0,.02);
+      mk(new THREE.CylinderGeometry(.1338,.1338,.066,26,1,true,-1.06,2.12),lensMat(...D.lens),B.headG).position.set(0,0,.02);
+      const st=mk(new THREE.CylinderGeometry(.132,.132,.036,26,1,true,1.12,Math.PI*2-2.24),std(D.strap,.6),B.headG); st.position.set(0,.004,0); st.scale.set(1,1,1.17);
+      return B; }
+    const R=C(0xc81e2a), K=C(0x17181c), W=C(0xf3f3f1), MU=C(0xd9a21b), NV=C(0x1d2638);
+    const SKI_D={jk:{sx:1.24,sz:.8,prof:[[-.115,.166],[-.09,.172],[-.075,.172],[0,.16],[.1,.152],[.2,.158],[.295,.172],[.305,.173],[.335,.175],[.345,.175],[.4,.178],[.41,.178],[.45,.17],[.49,.145],[.52,.105],[.55,.075]],
+        col:(y,sx,cz)=>y<-.08?K:(y>.405?K:(y>.3&&y<.34&&cz>-.3?W:(Math.abs(sx)>.8?K:R)))},
+      th:.08,sh:.066,cf:[.088,.097,.1],bg:0,ua:.057,fa:.051,sleeve:0xc81e2a,pants:0x1c1e23,knee:0x2b2e35,glove:0x15161a,gcuff:0x15161a,collar:0x17181c,helmet:0xf2f2f0,hr:.42,gaiter:0x1a1b1f,frame:0x111215,strap:0xc81e2a,lens:["#ffd23a","#ff6a1a","#b0136b"]};
+    const BRD_D={jk:{sx:1.22,sz:.88,prof:[[-.225,.19],[-.2,.198],[-.185,.198],[-.1,.188],[0,.18],[.12,.174],[.25,.18],[.36,.19],[.375,.191],[.385,.191],[.44,.183],[.48,.156],[.515,.112],[.55,.08]],
+        col:(y,sx,cz)=>y<-.19?NV:(y>.38?NV:MU)},
+      th:.092,sh:.08,cf:[.1,.11,.11],bg:.08,ua:.064,fa:.058,sleeve:0xd9a21b,pants:0x2f3b4a,knee:0x27313e,glove:0x1d2638,gcuff:0xd9a21b,hood:0xd9a21b,pack:0x1b1d21,packT:0xd9a21b,helmet:0x1d1e22,hr:.62,gaiter:0x1d2638,frame:0xf2f2f0,strap:0x1d2638,lens:["#8ff0ff","#2f6bff","#6b2bd9"]};
     const S=new THREE.Group(), Bo=new THREE.Group(); riderM.add(S,Bo);
-    [-1,1].forEach(sd=>{ const x=sd*.11, sk=GK.ski(1.7); sk.position.x=x; S.add(sk); const bi=GK.skiBinding(); bi.position.set(x,.018,0); S.add(bi); const bt=GK.skiBoot(0xf1f0ec); bt.position.set(x,.03,0); S.add(bt); });
-    const SB=body(S,0xd8432e,0x1f2430,0x23304a,0xf2f2f2), pM=std(0xb9c0c8,.3,.75), bM=std(0x1a1b1f,.5);
-    SB.pole=[0,1].map(()=>mk(new THREE.CylinderGeometry(.009,.007,1.12,8),pM,S)); SB.bask=[0,1].map(()=>mk(new THREE.CylinderGeometry(.045,.045,.008,12),bM,S));
-    Bo.add(GK.board()); [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,.012,z); f.rotation.y=ang; f.add(GK.boardBinding()); const bt=GK.boardBoot(); bt.position.y=.012; f.add(bt); Bo.add(f); });
-    const BB=body(Bo,0x2a9d8f,0xe0b23a,0x2b2f36,0x22252b);
-    const tD=V(), tB=V(), tK=V(), UP1=new THREE.Vector3(0,1,0);
+    // スキー：板・ビンディング・ブーツを 左右で ひとまとめ（ハの字・内スキーの 前出し・雪の 面に そろえる）
+    const SK=[1,-1].map(sd=>{ const g=new THREE.Group(); g.add(GK.ski(1.7)); const bi=GK.skiBinding(); bi.position.y=.018; g.add(bi); const bt=GK.skiBoot(0xf1f0ec); bt.position.y=.03; g.add(bt); g.position.x=sd*.11; S.add(g); return g; });
+    const SB=body(S,SKI_D), pM=std(0xb9c0c8,.3,.75), bM=std(0x1a1b1f,.5);
+    SB.pole=[0,1].map(()=>mk(new THREE.CylinderGeometry(.009,.007,1.12,8),pM,S)); SB.bask=[0,1].map(()=>mk(new THREE.CylinderGeometry(.045,.045,.008,12),bM,S)); SB.grip=[0,1].map(()=>mk(new THREE.CylinderGeometry(.017,.014,.13,10),bM,S));
+    // スノボ：板と ビンディング（前の 足 +15°、後ろ −6°）。空中は 板ごと 引きつける
+    const BG=new THREE.Group(); Bo.add(BG); BG.add(GK.board()); [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,.012,z); f.rotation.y=ang; f.add(GK.boardBinding()); const bt=GK.boardBoot(); bt.position.y=.012; f.add(bt); BG.add(f); });
+    const BB=body(Bo,BRD_D);
+    const tD=V(), tB=V(), tK=V(), tq=new THREE.Quaternion(), tE=new THREE.Euler();
     function seg(m,a,b){ m.position.copy(a).add(b).multiplyScalar(.5); tD.copy(b).sub(a); const L=tD.length(); if(L<1e-5) return; m.quaternion.setFromUnitVectors(UP1,tD.multiplyScalar(1/L)); }
-    function ik(A,C,l1,l2,pole,out){ tB.copy(C).sub(A); let L=tB.length(); const Lm=(l1+l2)*.999; if(L>Lm) L=Lm; if(L<1e-4) L=1e-4; tB.normalize();
+    function along(m,a,b,t){ tD.copy(b).sub(a); const L=tD.length(); if(L<1e-5) return; tD.multiplyScalar(1/L); m.position.copy(a).addScaledVector(tD,t); m.quaternion.setFromUnitVectors(UP1,tD); }
+    function ik(A,Cp,l1,l2,pole,out){ tB.copy(Cp).sub(A); let L=tB.length(); const Lm=(l1+l2)*.999; if(L>Lm) L=Lm; if(L<1e-4) L=1e-4; tB.normalize();
       const a=(l1*l1-l2*l2+L*L)/(2*L), h=Math.sqrt(Math.max(0,l1*l1-a*a)); tK.copy(pole).addScaledVector(tB,-pole.dot(tB)); if(tK.lengthSq()<1e-8) tK.set(0,0,1); tK.normalize(); out.copy(A).addScaledVector(tB,a).addScaledVector(tK,h); }
-    function headAt(B,neck,yaw,pitch){ B.head.position.copy(neck).add(V().set(0,.1,0)); B.head.rotation.set(pitch,yaw,0,"YXZ"); B.gog.position.copy(B.head.position).add(V().set(0,.012,0)); B.gog.rotation.set(pitch*.5,yaw,0,"YXZ"); B.strap.position.copy(B.gog.position); B.strap.rotation.copy(B.gog.rotation); }
-    function arm(B,s,sh,hand,pole){ const el=V(); ik(sh,hand,.29,.27,pole,el); seg(B.uarm[s],sh,el); seg(B.farm[s],el,hand); B.glove[s].position.copy(hand); }
-    function trunk(B,hip,yaw,lean){ const fw=V().set(Math.sin(yaw)*Math.sin(lean),Math.cos(lean),Math.cos(yaw)*Math.sin(lean)), chest=hip.clone().addScaledVector(fw,.48), neck=hip.clone().addScaledVector(fw,.66);
-      B.torso.position.copy(hip).lerp(chest,.5); B.torso.rotation.set(lean,yaw,0,"YXZ"); B.collar.position.copy(neck); B.collar.rotation.set(lean*.6,yaw,0,"YXZ"); return {fw,neck,rx:V().set(Math.cos(yaw),0,-Math.sin(yaw))}; }
-    function poseSki(P){ const B=SB, c=P.c, hipY=.88-.13*c, hipZ=-.05-.08*c, hip=V().set(0,hipY,hipZ); // 足首は ブーツの 中
-      for(let s=0;s<2;s++){ const sd=s?-1:1, H=V().set(sd*.1,hipY,hipZ), A=V().set(sd*.11,.15,0), K=V(); ik(H,A,.43,.42,V().set(0,.1,1),K); seg(B.thigh[s],H,K); seg(B.shin[s],K,A); }
-      B.pelvis.position.copy(hip); B.pelvis.rotation.set(0,P.cr*.4,0);
-      const T=trunk(B,hip,P.cr,.45+.25*c); headAt(B,T.neck,P.cr,-.25);
-      for(let s=0;s<2;s++){ const sd=s?-1:1, pl=P.plant.side===sd?P.plant.k:0, sh=hip.clone().addScaledVector(T.fw,.42).addScaledVector(T.rx,sd*.2);
-        const hand=V().set(sd*(.33-.05*pl),hipY+.06-.1*pl,hipZ+.4+.22*pl); arm(B,s,sh,hand,V().set(sd*.5,-.5,-.7));
-        const tip=pl>.05?V().set(sd*.44,.02,hipZ+.4+.6*pl):V().set(sd*.42,.06,hipZ-.62), d=tip.sub(hand).normalize();
-        seg(B.pole[s],hand.clone().addScaledVector(d,-.05),hand.clone().addScaledVector(d,1.07)); B.bask[s].position.copy(hand).addScaledVector(d,.97); B.bask[s].quaternion.copy(B.pole[s].quaternion); } }
-    function poseBoard(P){ const B=BB, c=P.c, hipY=.86-.12*c, hipX=-.03-.06*c, hip=V().set(hipX,hipY,0), ank=[V().set(.01,.13,.26),V().set(.01,.13,-.26)];
-      for(let s=0;s<2;s++){ const H=V().set(hipX,hipY,s?-.1:.1), K=V(); ik(H,ank[s],.43,.42,V().set(-1,.1,0),K); seg(B.thigh[s],H,K); seg(B.shin[s],K,ank[s]); }
+    function reach(A,Cp,L){ tD.copy(Cp).sub(A); const d=tD.length(); return d>L?A.clone().addScaledVector(tD,L/d):Cp; }
+    function legs(B,k,H,A,pole,ct){ const Kn=V(); A=reach(H,A,.848); ik(H,A,.43,.42,pole,Kn); seg(B.thigh[k],H,Kn); seg(B.shin[k],Kn,A); B.knee[k].position.copy(Kn); along(B.cuff[k],A,Kn,ct); }
+    function arm(B,k,sh,hand,pole){ const el=V(); hand=reach(sh,hand,.558); ik(sh,hand,.29,.27,pole,el); seg(B.uarm[k],sh,el); seg(B.farm[k],el,hand); const g=B.glove[k]; g.position.copy(hand); tD.copy(hand).sub(el); if(tD.lengthSq()>1e-8) g.quaternion.setFromUnitVectors(UP1,tD.normalize()); }
+    function trunk(B,hip,yaw,lean,roll){ tE.set(lean,yaw,roll,"YXZ"); tq.setFromEuler(tE); B.torso.position.copy(hip); B.torso.quaternion.copy(tq);
+      const up=V().set(0,1,0).applyQuaternion(tq), rx=V().set(1,0,0).applyQuaternion(tq); return {up,rx,neck:hip.clone().addScaledVector(up,.555)}; }
+    function headAt(B,neck,yaw,pitch){ B.headG.position.copy(neck).add(tB.set(0,.1,0)); B.headG.rotation.set(pitch,yaw,0,"YXZ"); }
+    const snowY=(x,ln)=>x*Math.tan(Math.max(-.8,Math.min(.8,ln))); // 体ごと かたむいた 中での 雪の 面の 高さ
+    function poseSki(P){ const B=SB, c=P.c, tk=P.tk, ai=P.air, s=P.s, ti=P.ti, plow=P.bk*(P.v<9?1:.3), lw=.11+.08*plow;
+      for(let k=0;k<2;k++){ const sd=k?-1:1, g=SK[k]; g.position.set(sd*lw,snowY(sd*lw,P.lean)+ai*(.13+.03*sd*s),sd===s?.075*ti:-.02*ti); g.rotation.set(-.24*ai,-sd*.28*plow,0); g.updateMatrix(); }
+      const hipY=.885-.17*c-.27*tk-.07*plow-.16*ai, hipZ=-.065-.1*c-.07*tk-.05*plow+.03*ai, hipX=s*.05*ti, hip=V().set(hipX,hipY,hipZ);
+      for(let k=0;k<2;k++){ const sd=k?-1:1; legs(B,k,V().set(sd*.1+hipX,hipY,hipZ),V().set(0,.15,0).applyMatrix4(SK[k].matrix),V().set(-sd*.35*plow,.1,1),.24); }
+      B.pelvis.position.copy(hip); B.pelvis.rotation.set(0,P.cr*.4,P.lean*.25);
+      const T=trunk(B,hip,P.cr,.42+.22*c+.62*tk+.1*ai,P.lean*.45); headAt(B,T.neck,P.cr*.6,-(.3+.22*c+.55*tk));
+      for(let k=0;k<2;k++){ const sd=k?-1:1, pl=P.plant.side===sd?P.plant.k:0, ins=s===sd?ti:0, sh=hip.clone().addScaledVector(T.up,.45).addScaledVector(T.rx,sd*.2);
+        const hand=V().set(sd*(.31+.03*ti)+hipX*.6,hipY+.2-.06*pl-.05*ins,hipZ+.46+.18*pl).lerp(V().set(sd*.11,hipY+.34,hipZ+.6),tk).lerp(V().set(sd*.3,hipY+.32,hipZ+.36),ai);
+        arm(B,k,sh,hand,V().set(sd*.7,-.3,-.5));
+        const tx=pl>.05?sd*.44:sd*.42, tip=(pl>.05?V().set(tx,snowY(tx,P.lean)+.02,hipZ+.4+.75*pl):V().set(tx,snowY(tx,P.lean)+.08,hipZ-.62)).lerp(V().set(sd*.2,hipY+.02,hipZ-.8),tk).lerp(V().set(sd*.42,hipY-.3,hipZ-.55),ai), d=tip.sub(hand).normalize();
+        seg(B.pole[k],hand.clone().addScaledVector(d,-.04),hand.clone().addScaledVector(d,1.08)); along(B.grip[k],hand.clone().addScaledVector(d,-.05),hand.clone().addScaledVector(d,1),0);
+        B.bask[k].position.copy(hand).addScaledVector(d,.98); B.bask[k].quaternion.copy(B.pole[k].quaternion); } }
+    function poseBoard(P){ const B=BB, c=P.c, tk=P.tk, ai=P.air, bk=P.bk, s=P.s, ti=P.ti, toe=s<0?ti:0, heel=s>0?ti:0, lift=.3*ai;
+      BG.position.y=lift; BG.rotation.x=-.12*ai;
+      // 腰：トゥ（右ターン）は つま先の 上へ、ヒール（左ターン）は かかとの 上へ 腰を 落とす。ブレーキは かかとに 乗る
+      const hipX=-.03-.05*c-.08*toe+.12*heel+.13*bk-.02*tk-.06*ai, hipY=.86-.13*c-.04*toe-.08*heel-.2*tk-.12*bk-.2*ai, hip=V().set(hipX,hipY,0);
+      [V().set(.01,.13+lift,.26),V().set(.01,.13+lift,-.26)].forEach((A,k)=>legs(B,k,V().set(hipX,hipY,k?-.1:.1),A,V().set(-1,.12,k?-.2:.2),.2));
       B.pelvis.position.copy(hip); B.pelvis.rotation.set(0,-Math.PI/2+.3,0);
-      const yaw=-Math.PI/2+.55+P.cr*.5, T=trunk(B,hip,yaw,.2+.18*c); headAt(B,T.neck,yaw+.55,-.15);
-      const hands=[V().set(-.2,hipY+.28,.55+.04*Math.sin(P.t*2.1)),V().set(-.12,hipY+.1,-.42)];
-      for(let s=0;s<2;s++){ const sd=s?-1:1, sh=hip.clone().addScaledVector(T.fw,.42).addScaledVector(T.rx,sd*.2); arm(B,s,sh,hands[s],V().set(.3,-.6,sd*.4)); } }
+      // 上体：つま先がわ（−x）を 向き、板の 先へ 少し ひらく。トゥは 前へ たおれ、ヒールは 起きる
+      const yaw=-Math.PI/2+.5+P.cr*.35-.25*bk, lean=.2+.12*c-.12*toe+.3*heel+.3*tk+.45*ai, T=trunk(B,hip,yaw,lean,0);
+      headAt(B,T.neck,yaw+.8-.1*bk,-lean*.75);
+      // 手：前の 手は 板の 先へ、後ろの 手は 後ろの 腰の 横。深い ターンでは 雪を なで、空中は 後ろの 手で つま先がわの エッジを つかむ（インディ）
+      const drag=P.v>12?Math.max(0,Math.min(1,(ti-.88)/.12)):0;
+      const rear=V().set(-.06+.12*heel+.1*bk,hipY+.04,-.4).lerp(toe>heel?V().set(-.48,snowY(-.48,P.lean)+.05,-.08):V().set(.38,snowY(.38,P.lean)+.05,-.3),drag).lerp(V().set(-.15,.12+lift,-.02),ai);
+      const front=V().set(-.14-.12*toe+.04*heel,hipY+.24-.08*tk,.5+.06*tk).lerp(V().set(-.3,hipY+.42,.42),ai);
+      arm(B,0,hip.clone().addScaledVector(T.up,.45).addScaledVector(T.rx,.2),front,V().set(.2,-.5,.6));
+      arm(B,1,hip.clone().addScaledVector(T.up,.45).addScaledVector(T.rx,-.2),rear,V().set(.3,-.5,-.5)); }
     let pt=0; return { update(dt,P){ const bd=gear===1; S.visible=!bd; Bo.visible=bd; pt+=dt; P.t=pt; if(bd) poseBoard(P); else poseSki(P); } }; })();
-  let rHd=null, rRate=0, rC=.3, rCr=0, rPrev=0; const rE=new THREE.Euler(), rHide={t:0}, rPlant={side:0,t:9,k:0}, rTmp=new THREE.Vector3();
+  // 毎フレーム：向きの 変わり方から ターンの 強さ・かたむき・上体の ひねり・ストック。フリーランでは 加速＝クラウチング、減速＝ハの字／横すべり、空中
+  let rHd=null, rRate=0, rC=.3, rCr=0, rPrev=0, rTk=0, rBk=0, rAir=0, rSkid=0; const rE=new THREE.Euler(), rHide={t:0}, rPlant={side:0,t:9,k:0}, rTmp=new THREE.Vector3(), rP={};
   function riderPose(q,fwd,dt,fwdC){ const show=!(follow&&CAMS[camIdx][0]==="eye"); clearTimeout(rHide.t); if(riderM.visible!==show){ riderM.visible=show; needDraw=true; } skier.visible=!follow&&!window.__frz; if(!show) return;
     riderM.position.copy(P3(q[0],q[1],0));
     const hz=Math.hypot(fwd.x,fwd.z); if(hz<1e-6) return; const hd=Math.atan2(fwd.x,fwd.z), pitch=Math.atan2(-fwd.y,hz);
     if(rHd!=null&&dt>0){ const dh=Math.atan2(Math.sin(hd-rHd),Math.cos(hd-rHd)); rRate+=(dh/dt-rRate)*(1-Math.exp(-dt*6)); } rHd=hd;
-    const v=FR.on?FR.v:(anim&&anim.v||12), lean=Math.max(-.6,Math.min(.6,Math.atan(v*rRate/9.8))); rE.set(pitch,hd,-lean,"YXZ"); riderM.quaternion.setFromEuler(rE);
-    const ti=Math.min(1,Math.abs(rRate)/.8); rC+=((.22+.55*ti)-rC)*(1-Math.exp(-dt*5)); // ひざの 曲げ
-    let crT=0; if(fwdC&&fwdC.lengthSq()>1e-6){ const hc=Math.atan2(fwdC.x,fwdC.z); crT=Math.max(-.7,Math.min(.7,Math.atan2(Math.sin(hc-hd),Math.cos(hc-hd))))*.8; } rCr+=(crT-rCr)*(1-Math.exp(-dt*4)); // 上体は 下へ
+    const v=FR.on?FR.v:(anim&&anim.v||12), ln=Math.max(-.62,Math.min(.62,Math.atan(v*rRate/9.8))), ti=Math.min(1,Math.abs(rRate)/.8), s=rRate>.04?1:(rRate<-.04?-1:0);
+    const tkT=FR.on?(FR.air?0:Math.max(0,FR.sy)*(1-ti)*(v>3?1:0)):(follow&&v>16&&v<40&&ti<.2?.5:0), bkT=FR.on&&!FR.air?Math.max(0,-FR.sy)*(v>.6?1:0):0, aiT=FR.on&&FR.air?1:0;
+    rTk+=(tkT-rTk)*(1-Math.exp(-dt*4)); rBk+=(bkT-rBk)*(1-Math.exp(-dt*6)); rAir+=(aiT-rAir)*(1-Math.exp(-dt*(aiT?10:16)));
+    const skT=rBk*(gear===1?1.25:(v>6?1.1*(rPrev||1):0)); rSkid+=(skT-rSkid)*(1-Math.exp(-dt*7)); // 速いときの ブレーキは 横すべり（ホッケーストップ）
+    const lean=ln*(1-.6*rBk); rE.set(pitch,hd+rSkid,-lean,"YXZ"); riderM.quaternion.setFromEuler(rE);
+    rC+=((.22+.5*ti+(v>12?.08:0))-rC)*(1-Math.exp(-dt*5)); // ひざの 曲げ
+    let crT=0; if(fwdC&&fwdC.lengthSq()>1e-6){ const hc=Math.atan2(fwdC.x,fwdC.z); crT=Math.max(-.7,Math.min(.7,Math.atan2(Math.sin(hc-hd),Math.cos(hc-hd))))*.8; } if(gear!==1) crT-=rSkid*.85; rCr+=(crT-rCr)*(1-Math.exp(-dt*4)); // 上体は 下へ
     const sg=rRate>.06?1:(rRate<-.06?-1:0); if(sg&&rPrev&&sg!==rPrev){ rPlant.side=sg; rPlant.t=0; } if(sg) rPrev=sg; rPlant.t+=dt; rPlant.k=rPlant.t<.45?Math.sin(Math.PI*rPlant.t/.45):0;
-    RIG.update(dt,{c:rC,cr:rCr,plant:rPlant});
-    if(ti>.25&&v>6){ const out=rRate>0?-1:1, n=Math.min(6,Math.floor((ti-.2)*v*dt*8+Math.random())); // 雪けむり：外がわの 板の 後ろから
+    rP.c=rC; rP.cr=rCr; rP.plant=rPlant; rP.lean=lean; rP.s=s; rP.ti=ti; rP.tk=rTk; rP.bk=rBk; rP.air=rAir; rP.v=v; RIG.update(dt,rP);
+    if(ti>.25&&v>6&&!rAir){ const out=rRate>0?-1:1, n=Math.min(6,Math.floor((ti-.2)*v*dt*8+Math.random())); // 雪けむり：外がわの 板の 後ろから
       if(n>0){ rTmp.set(out*.13,.04,gear===1?(out<0?.45:-.45):-.5); riderM.localToWorld(rTmp); const ox=Math.cos(hd)*out, oz=-Math.sin(hd)*out, fx=fwd.x/hz, fz=fwd.z/hz;
         sprayEmit(n,rTmp,ox*3+fx*v*.8,2.2,oz*3+fz*v*.8,.25,.3); } } }
   // 目線の カメラを ターンの 内がわへ 少し かたむける
@@ -2375,15 +2434,20 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // 下りの 向き（x,z）と 本当の 斜度（tan）
   function frFall(x,z,r){ const gx=(hAt(x+r,z)-hAt(x-r,z))/(2*r), gz=(hAt(x,z+r)-hAt(x,z-r))/(2*r), l=Math.hypot(gx,gz); return l>1e-5?[-gx/l,-gz/l,l/EX]:[0,1,0]; }
   const frSlope=(x,z,fx,fz)=>((hAt(x+2.5,z)-hAt(x-2.5,z))*fx+(hAt(x,z+2.5)-hAt(x,z-2.5))*fz)/5; // 進む向きの 坂（3Dの 見た目）
-  // 降り場：駅の まん中から、いちばん 近い コースの 出だしの 方へ 13m（小屋・滑車・支えの 外）。木や 建物が あれば 少し ずらす
-  function frTopOf(o){ const gb=P3(o.b[0],o.b[1],0); let best=null, bd=1e9, h=null;
-    for(const id in courseObj){ const sp=courseObj[id].sp; if(!sp||sp.length<2) continue; const s0=P3(sp[0][0],sp[0][1],0), dd=Math.hypot(s0.x-gb.x,s0.z-gb.z); if(dd<bd){ bd=dd; best=sp; } }
-    if(best&&bd<170){ let q=best[0];
-      if(bd<=40){ let acc=0; q=best[best.length-1]; for(let i=1;i<best.length;i++){ acc+=Math.hypot(best[i][0]-best[i-1][0],best[i][1]-best[i-1][1])*M; if(acc>=45){ q=best[i]; break; } } }
-      const t=P3(q[0],q[1],0); if(Math.hypot(t.x-gb.x,t.z-gb.z)>8) h=Math.atan2(t.x-gb.x,t.z-gb.z); }
-    if(h==null){ const fl=frFall(gb.x,gb.z,15); h=Math.atan2(fl[0],fl[1]); }
-    for(const dist of [13,16,19,10,24]) for(const da of [0,.35,-.35,.7,-.7]){ const a=h+da, x=gb.x+Math.sin(a)*dist, z=gb.z+Math.cos(a)*dist; if(!frHit(x,z)&&!frStation(x,z)) return {x,z,h}; }
-    return {x:gb.x+Math.sin(h)*13,z:gb.z+Math.cos(h)*13,h}; }
+  // 降り場：駅より 少し 高い 所（約3m 上。いちばん 近い 所）から。どの コースへも 下って 行ける。木・建物・支柱・乗り場の 近くは さける
+  //  向きは いちばん 近い コースの 出だしへ（なければ 下り）
+  function frTopOf(o){ const gb=P3(o.b[0],o.b[1],0), clear=(x,z)=>!frHit(x,z)&&!frStation(x,z)&&!frHit(x+2.5,z)&&!frHit(x-2.5,z)&&!frHit(x,z+2.5)&&!frHit(x,z-2.5); let p=null, hi=null;
+    for(let r=10;r<=40&&!p;r+=2) for(let i=0;i<36;i++){ const a=i/36*Math.PI*2, x=gb.x+Math.sin(a)*r, z=gb.z+Math.cos(a)*r; if(!clear(x,z)) continue; const h=hAt(x,z);
+      if(h>=gb.y+4&&(!p||h>p.h)) p={x,z,h}; if(!hi||h>hi.h) hi={x,z,h}; }
+    if(!p) p=hi;
+    if(!p) p={x:gb.x+13,z:gb.z};
+    let best=null, bd=1e9, h=null;
+    for(const id in courseObj){ const sp=courseObj[id].sp; if(!sp||sp.length<2) continue; const s0=P3(sp[0][0],sp[0][1],0), dd=Math.hypot(s0.x-p.x,s0.z-p.z); if(dd<bd){ bd=dd; best=sp; } }
+    if(best&&bd<200){ let q=best[0];
+      if(bd<=25){ let acc=0; q=best[best.length-1]; for(let i=1;i<best.length;i++){ acc+=Math.hypot(best[i][0]-best[i-1][0],best[i][1]-best[i-1][1])*M; if(acc>=40){ q=best[i]; break; } } }
+      const t=P3(q[0],q[1],0); if(Math.hypot(t.x-p.x,t.z-p.z)>6) h=Math.atan2(t.x-p.x,t.z-p.z); }
+    if(h==null){ const fl=frFall(p.x,p.z,10); h=Math.atan2(fl[0],fl[1]); }
+    return {x:p.x,z:p.z,h}; }
   function frCourseStart(id){ const sp=courseObj[id].sp, s0=P3(sp[0][0],sp[0][1],0); let acc=0, q=sp[sp.length-1];
     for(let i=1;i<sp.length;i++){ acc+=Math.hypot(sp[i][0]-sp[i-1][0],sp[i][1]-sp[i-1][1])*M; if(acc>=12){ q=sp[i]; break; } }
     const t=P3(q[0],q[1],0); return {x:s0.x,z:s0.z,h:Math.atan2(t.x-s0.x,t.z-s0.z)}; }
@@ -2490,7 +2554,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(reduce){ frLiftDone(o); return; }
     startRide(o.Lf.id); if(!anim||!anim.fp){ anim=null; stopRide(); frLiftDone(o); return; }
     frSkip.hidden=false; frVel.textContent="0"; frWhereS="🚡 "+o.Lf.name+"で 上へ"; frWhere.textContent=frWhereS; frWhere.hidden=false; toast("🚡 "+o.Lf.name+"に 乗ります"); }
-  function frLiftDone(o){ const st=frTopOf(o); Object.assign(FR,{x:st.x,z:st.z,h:st.h,v:2.5,w:0,vy:0,air:false,crash:null,lift:null,armed:false,land:0,hold:false}); FR.y=hAt(FR.x,FR.z); FR.hist.length=0;
+  function frLiftDone(o){ const st=frTopOf(o); Object.assign(FR,{x:st.x,z:st.z,h:st.h,v:0,w:0,vy:0,air:false,crash:null,lift:null,armed:false,land:0,hold:true}); FR.y=hAt(FR.x,FR.z); FR.hist.length=0;
     baseOK=false; lookYaw=lookPitch=0; lookHome=false; rHd=null; rRate=0; skHd=null; skTurn=0; camera.near=1; camera.updateProjectionMatrix(); lab.classList.add("hide");
     frSkip.hidden=true; frStick.hidden=false; frTrackBreak(); frPlT=0; toast("降り場から スタート！"); needDraw=true; }
   frSkip.onclick=()=>{ const o=FR.lift; if(!o) return; anim=null; stopRide(); o.set(selected===o.Lf.id); frLiftDone(o); };
@@ -2503,13 +2567,13 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     FR.on=true; follow=true; controls.enabled=false; lookYaw=lookPitch=0; lookHome=false; lookDrag=null; rHd=null; rRate=0; skHd=null; skTurn=0;
     baseC.copy(camera.position); baseT.copy(controls.target); baseOK=true; // いまの 所から すっと 近づく
     $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; lab.classList.add("hide");
-    frBox.classList.add("free3d"); document.body.classList.add("fr3d"); frHud.hidden=false; frStick.hidden=false; frSkip.hidden=true; frWhereS=""; frPlT=0;
+    frBox.classList.add("free3d"); document.body.classList.add("fr3d"); signG.visible=false; frHud.hidden=false; frStick.hidden=false; frSkip.hidden=true; frWhereS=""; frPlT=0;
     camera.near=1; camera.updateProjectionMatrix(); frTrackReset();
     FR.wasFull=full3d; if(!full3d) setFull3d(true);
     frHelpShow(); needDraw=true; }
   function frStop(quiet){ if(!FR.on) return; FR.on=false; frStickUp(); frKeys.clear();
     if(anim&&anim.fp){ anim=null; stopRide(); } FR.lift=null; FR.crash=null; FR.air=false; FR.y=hAt(FR.x,FR.z);
-    controls.enabled=true; endFollow(); frBox.classList.remove("free3d"); document.body.classList.remove("fr3d"); frHud.hidden=true; frStick.hidden=true; frSkip.hidden=true; clearTimeout(frHelp.tm); frHelp.classList.add("gone");
+    controls.enabled=true; endFollow(); frBox.classList.remove("free3d"); document.body.classList.remove("fr3d"); signG.visible=true; frHud.hidden=true; frStick.hidden=true; frSkip.hidden=true; clearTimeout(frHelp.tm); frHelp.classList.add("gone");
     camera.near=5; camera.updateProjectionMatrix(); camera.up.set(0,1,0);
     const fx=Math.sin(FR.h), fz=Math.cos(FR.h); frF.set(fx,0,fz); rHd=null; riderPose([FR.x/M+W2,FR.z/M+H2],frF,0,frF); riderM.position.y=FR.y; // 止まった 所に 人を のこす（しばらくして 消える）
     clearTimeout(rHide.t); rHide.t=setTimeout(()=>{ if(!FR.on&&(!anim||anim.kind!=="ski")){ riderM.visible=false; needDraw=true; } },8000);
@@ -2544,7 +2608,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   addEventListener("blur",()=>{ frKeys.clear(); if(FR.on) frKeyAxis(); });
   if(/[?&]dbg3d/.test(location.search)) window.__fr={FR,sim:sec=>{ for(let t=0;t<sec;t+=1/60) frStep(1/60); return {x:FR.x,z:FR.z,v:FR.v,h:FR.h,crash:!!FR.crash,lift:FR.lift&&FR.lift.Lf.id}; },start:frStart,stop:frStop,jump:frJump,hit:frHit,board:id=>frBoard(liftObj[id]),top:id=>frTopOf(liftObj[id]),st:id=>{ const o=liftObj[id]; return o&&(o.frS||frStOf(o)); },
     tp:(x,z,h)=>{ FR.x=x; FR.z=z; FR.y=hAt(x,z); if(h!=null) FR.h=h; FR.v=0; FR.w=0; FR.air=false; FR.crash=null; FR.hold=false; FR.armed=!frStation(x,z); baseOK=false; frTrackBreak(); FR.hist.length=0; },
-    cs:id=>frCourseStart(id), tw:id=>liftObj[id]&&liftObj[id].tw, cam:()=>({c:camera.position.toArray().map(v=>+v.toFixed(1)),t:controls.target.toArray().map(v=>+v.toFixed(1)),r:riderM.position.toArray().map(v=>+v.toFixed(1)),rv:riderM.visible,near:camera.near,fov:+camera.fov.toFixed(1),base:baseOK}),
+    cs:id=>frCourseStart(id), tw:id=>liftObj[id]&&liftObj[id].tw, signs:()=>signG.visible, hat:(x,z)=>hAt(x,z), gb:id=>{ const o=liftObj[id]; if(!o) return null; const p=P3(o.b[0],o.b[1],0); return [p.x,p.y,p.z]; }, lifts:()=>lifts.map(o=>o.Lf.id), cam:()=>({c:camera.position.toArray().map(v=>+v.toFixed(1)),t:controls.target.toArray().map(v=>+v.toFixed(1)),r:riderM.position.toArray().map(v=>+v.toFixed(1)),rv:riderM.visible,near:camera.near,fov:+camera.fov.toFixed(1),base:baseOK}),
     tree:(X,Z,R)=>{ const px=X/M+W2, py=Z/M+H2, r=R/M; let b=null, bd=1e18; for(let i=0;i<AF.n;i++){ if(AF.gone[i]) continue; const d=(AF.x[i]-px)**2+(AF.y[i]-py)**2; if(d<bd&&d<r*r){ bd=d; b=[(AF.x[i]-W2)*M,(AF.y[i]-H2)*M,frTreeR(AF.x[i],AF.y[i],AF.s[i])]; } } return b; }};
   function update(now,dt){
     if(!reduce) lifts.forEach(o=>{ o.off+=dt*LIFT_V*o.mul; if(o.off>=o.L) o.off-=o.L; });
