@@ -479,11 +479,11 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 
 /* ===== 3D：拡大・回転・傾きのボタン ===== */
 .m3d-nav{ position:absolute; z-index:4; right:10px; top:56px; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:var(--shadow); }
-.m3d-nav button{ width:42px; height:42px; display:grid; place-items:center; padding:0; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--text); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.m3d-nav button{ width:34px; height:34px; display:grid; place-items:center; padding:0; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--text); cursor:pointer; -webkit-tap-highlight-color:transparent; }
 .m3d-nav button:last-child{ border-bottom:0; }
 .m3d-nav button:hover{ background:color-mix(in srgb, var(--acc) 8%, transparent); }
 .m3d-nav button:active{ background:color-mix(in srgb, var(--acc) 18%, transparent); }
-.m3d-nav svg{ width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.m3d-nav svg{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .map3d.editing .m3d-nav{ top:164px; }
 /* 編集するもの（コース・雪・木・リフト） */
 .ed-tools{ position:absolute; left:8px; right:8px; top:8px; display:flex; gap:3px; align-items:center; padding:5px; border-radius:14px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:var(--shadow); }
@@ -503,7 +503,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 .map3d.editing.edrow2 .m3d-nav{ top:218px; }
 /* じぶんのコース：名前・レベル */
 .ed-meta{ position:absolute; left:8px; right:8px; top:108px; display:flex; gap:6px; align-items:center; padding:6px; border-radius:14px; border:1px solid var(--line); background:color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:var(--shadow); }
-.ed-meta[hidden]{ display:none; }
+.ed-meta[hidden], .ed-meta [hidden]{ display:none; }
 .ed-meta input{ flex:1; min-width:0; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); padding:0 10px; font:inherit; font-size:16px; font-weight:700; }
 .ed-meta input::placeholder{ color:var(--sub); font-weight:500; font-size:.8rem; }
 .ed-meta select{ height:34px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-weight:700; font-size:.84rem; padding:0 4px; }
@@ -616,7 +616,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <p class="m3d-msg" id="m3dMsg" hidden></p>
         <div class="m3d-edit" id="m3dEdit" hidden>
           <div class="ed-tools" role="group" aria-label="編集するもの">
-            <button type="button" data-tool="course" aria-pressed="true">✏️ コース</button><button type="button" data-tool="snow" aria-pressed="false">❄ 雪</button><button type="button" data-tool="tree" aria-pressed="false">🌲 木</button><button type="button" data-tool="lift" aria-pressed="false">🚡 リフト</button>
+            <button type="button" data-tool="course" aria-pressed="true">✏️ コース</button>
             <button type="button" class="ed-x" id="edFull" aria-label="全画面で見る" title="全画面">⛶</button>
             <button type="button" class="ed-x" id="edClose" aria-label="描くのを終わる" title="終わる">✕</button>
           </div>
@@ -1148,7 +1148,7 @@ function findItem(id){
 
 /* ---------- 3D 地形図（国土地理院：数値標高モデル5mメッシュ・全国最新写真・標準地図の索道） ----------
    リフト：地理院地図の索道の線（5mメッシュでの標高差は公式とほぼ同じ）。コース：航空写真のゲレンデの形と公式の説明から合わせた おおよその位置 */
-const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[733.75,368.75],[552.5,252.5]],"lift2":[[555.0,233.0],[426.5,220.25]],"lift3":[[635.0,212.0],[505.0,222.5]],"lift4":[[792.5,350.0],[623.75,237.0]],"svl_sanchou":[[662.0,82.53],[469.66,155.06]],"svl_bear":[[719.66,96.22],[575.78,157.09]],"svl_rabbit":[[728.62,106.25],[663.56,188.06]],"svl_touko":[[879.59,47.06],[738.59,98.47]]},"courses":{"centerA":[[434.1,219],[451.5,219],[467.2,228.4],[483.3,245.4],[511.5,244.8],[538.2,240.1],[557.5,235.8]],"higashioneshita":[[432,217],[447.6,213.5],[461.3,216.4],[472.5,215.7],[483.7,215.5],[493.6,221.9],[508.1,235.3],[535.5,238.6],[556.8,236.4]],"higashione":[[430,216],[444.2,207.9],[455.3,195.4],[477.8,176.7],[496.2,175.1],[518.2,174.6],[534.4,177],[551.9,201.7],[552,213.7],[563.5,236.4],[555.8,239.9]],"centerB":[[553.4,257.3],[589.9,280.1],[612.8,297.1],[658.3,304.8],[681.4,327.7],[705.4,341.5],[722.4,363],[740.6,373.8]],"centerC":[[613.1,235.6],[627.6,243.6],[639.7,253.6],[671.7,261.9],[698.6,276.9],[720.2,302.7],[745,328.3],[782.8,334.7],[798.7,352.5]],"centerD":[[554.6,244.2],[590.3,237.9],[601.4,232.3],[611.6,218.8],[620.8,203.7],[637.4,201.6],[645.8,225.3],[641.1,243.6],[640.4,263.8],[649.9,286.4],[647.4,301.4],[656.4,291],[660.5,307],[672.7,318.3],[681.5,330.1],[692.3,335.7],[701.3,335.2],[706.8,346.3],[714,352.8],[722.3,362.8],[741.1,373.7]],"champion":[[620.7,228.8],[628.8,220],[650.7,222.4],[672.7,243.4],[696.4,274.4],[720.8,300.7],[736.2,320.7],[752.2,330.6],[779.2,335.5],[792.7,344.3],[796.1,351]],"beginner":[[507,225],[508.6,234.7],[532.7,242.8],[555,243],[575,239],[596.6,232],[605.8,220.5],[615.2,206.5],[629.7,199.8],[637.8,209.6]],"kyogiB":[[444.6,211.6],[460.9,218.5],[476.6,218.2],[497.7,211.6],[525.1,202.7]],"chibikko":[[723.7,334.8],[725.7,341.4],[734.7,349.6],[736.3,355.8],[735.2,361.9]],"sv_dia":[[476,162],[493,171.5],[519.4,172.5],[539.6,168.7],[567.8,168.9],[578,162]],"sv_back":[[578.6,162.8],[585.6,169.7],[598.8,177.8],[605.5,186],[615.2,194.4],[621.2,218.5]],"sv_thunder":[[474,158],[490.1,158.4],[508.4,152.1],[531.6,151.6],[558.2,149.4],[586.4,135.4],[616.2,121.6],[638.1,94.7],[666.1,90.8]],"sv_eagle":[[472.1,151],[480.4,140.9],[493.7,132.8],[509.4,128.7],[525.1,120.5],[554.8,105.7],[578.1,104.1]],"sv_fox":[[524.9,119.4],[554.1,104.9],[578.1,102.6],[605,98.8],[624.7,91.5],[643.6,80.1],[667.6,81]],"sv_bear":[[578,162],[598,160],[627.9,156.1],[646.2,152.9],[664.2,152.6],[689.1,144.1],[706.1,126.8],[717.8,113.4],[729.6,97.6]],"sv_rabbit":[[662,184],[671.7,164.9],[683.5,153.3],[694.7,140.2],[703.1,128.6],[715.2,115.6],[728.7,99.2]],"sv_raku":[[629,228],[637,218],[645,208],[652,200],[660,194],[666,189]],"sv_wakaba":[[663.3,181.1],[678.6,164.9],[696.4,161.4],[712.6,152.8],[719.5,139.5],[726.7,126],[735.8,118.2],[744.1,106.3],[751.4,99.4],[739.6,102.6]],"sv_gezan":[[702.3,161.7],[727.5,155],[740,157],[754.1,160.3],[775.2,157],[801.3,151.3],[818,141],[835,136],[851,130.9],[864.1,122.1],[867.1,109.1],[875,104],[897.3,103.9],[902,90.4],[902,76],[901.8,56.7],[862.9,56.7],[881.9,40]]},"marks":{"summit":[426.5,220.25],"cafe":[629,228],"base":[748,366],"hachibuse":[31,98],"sv":[585,142],"open":[480,196],"svbase":[882,39]},"towers":{"lift1":[20,83,136,198,260,323,387,445,503,599,625,690,733,783],"lift2":[49,116,188,237,294,375,424],"lift3":[12,46,92,137,180,222,299,348,382,420],"lift4":[38.5,70.6,112.5,168,224.5,267.5,310.6,355,394,433,472,511,550,599,646,695.5,745],"svl_sanchou":[60,142,186,230,275,336,388,429,487,515,563,617,656,688,733,776],"svl_bear":[52,97,172,264,356,447,582],"svl_rabbit":[48,109,193,242,320],"svl_touko":[46,110,186,250,316,356,399,435,474,514]}};
+const GEO3D={"w":920,"h":480,"step":2,"mpp":3.8948,"gw":460,"gh":240,"lifts":{"lift1":[[733.75,368.75],[552.5,252.5]],"lift2":[[555.0,233.0],[426.5,220.25]],"lift3":[[635.0,212.0],[505.0,222.5]],"lift4":[[792.5,350.0],[623.75,237.0]],"svl_sanchou":[[662.0,82.53],[469.66,155.06]],"svl_bear":[[719.66,96.22],[575.78,157.09]],"svl_rabbit":[[728.62,106.25],[663.56,188.06]],"svl_touko":[[879.59,47.06],[738.59,98.47]]},"courses":{"centerA":[[434.1,219],[451.5,219],[467.2,228.4],[483.3,245.4],[511.5,244.8],[538.2,240.1],[557.5,235.8]],"higashioneshita":[[432,217],[447.6,213.5],[461.3,216.4],[472.5,215.7],[483.7,215.5],[493.6,221.9],[508.1,235.3],[535.5,238.6],[556.8,236.4]],"higashione":[[430,216],[444.2,207.9],[455.3,195.4],[477.8,176.7],[496.2,175.1],[518.2,174.6],[534.4,177],[551.9,201.7],[552,213.7],[563.5,236.4],[555.8,239.9]],"centerB":[[553.4,257.3],[589.9,280.1],[612.8,297.1],[658.3,304.8],[681.4,327.7],[705.4,341.5],[722.4,363],[740.6,373.8]],"centerC":[[613.1,235.6],[627.6,243.6],[639.7,253.6],[671.7,261.9],[698.6,276.9],[720.2,302.7],[745,328.3],[782.8,334.7],[798.7,352.5]],"centerD":[[554.6,244.2],[590.3,237.9],[601.4,232.3],[611.6,218.8],[620.8,203.7],[637.4,201.6],[645.8,225.3],[641.1,243.6],[640.4,263.8],[649.9,286.4],[647.4,301.4],[656.4,291],[660.5,307],[672.7,318.3],[681.5,330.1],[692.3,335.7],[701.3,335.2],[706.8,346.3],[714,352.8],[722.3,362.8],[741.1,373.7]],"champion":[[620.7,228.8],[628.8,220],[650.7,222.4],[672.7,243.4],[696.4,274.4],[720.8,300.7],[736.2,320.7],[752.2,330.6],[779.2,335.5],[792.7,344.3],[796.1,351]],"beginner":[[507,225],[508.6,234.7],[532.7,242.8],[555,243],[575,239],[596.6,232],[605.8,220.5],[615.2,206.5],[629.7,199.8],[637.8,209.6]],"kyogiB":[[444.6,211.6],[460.9,218.5],[476.6,218.2],[497.7,211.6],[525.1,202.7]],"chibikko":[[723.7,334.8],[725.7,341.4],[734.7,349.6],[736.3,355.8],[735.2,361.9]],"sv_dia":[[476,162],[493,171.5],[519.4,172.5],[539.6,168.7],[567.8,168.9],[578,162]],"sv_back":[[578.6,162.8],[585.6,169.7],[598.8,177.8],[605.5,186],[615.2,194.4],[621.2,218.5]],"sv_thunder":[[474,158],[490.1,158.4],[508.4,152.1],[531.6,151.6],[558.2,149.4],[586.4,135.4],[616.2,121.6],[638.1,94.7],[666.1,90.8]],"sv_eagle":[[472.1,151],[480.4,140.9],[493.7,132.8],[509.4,128.7],[525.1,120.5],[554.8,105.7],[578.1,104.1]],"sv_fox":[[524.9,119.4],[554.1,104.9],[578.1,102.6],[605,98.8],[624.7,91.5],[643.6,80.1],[667.6,81]],"sv_bear":[[578,162],[598,160],[627.9,156.1],[646.2,152.9],[664.2,152.6],[689.1,144.1],[706.1,126.8],[717.8,113.4],[729.6,97.6]],"sv_rabbit":[[662,184],[671.7,164.9],[683.5,153.3],[694.7,140.2],[703.1,128.6],[715.2,115.6],[728.7,99.2]],"sv_raku":[[629,228],[637,218],[645,208],[652,200],[660,194],[666,189]],"sv_wakaba":[[663.3,181.1],[678.6,164.9],[696.4,161.4],[712.6,152.8],[719.5,139.5],[726.7,126],[735.8,118.2],[744.1,106.3],[751.4,99.4],[739.6,102.6]],"sv_gezan":[[723.7,144.5],[728.1,158.3],[740.4,169.8],[749.3,172.1],[762.5,171.9],[786.0,170.1],[813.8,165.8],[833.5,157.8],[848.4,149.6],[860.3,136.8],[868.6,125.2],[876.2,119.7],[884.7,122.0],[893.5,129.1],[901.6,135.3],[905.8,138.3],[909.2,136.4],[911.9,129.3],[913.2,118.3],[910.0,104.3],[907.0,84.7],[905.1,66.9],[902.5,63.5],[894.2,68.2],[875.2,69.1],[858.2,59.8],[867.0,54.2],[881.8,47.9]]},"marks":{"summit":[426.5,220.25],"cafe":[629,228],"base":[748,366],"hachibuse":[31,98],"sv":[585,142],"open":[480,196],"svbase":[882,39]},"towers":{"lift1":[20,83,136,198,260,323,387,445,503,599,625,690,733,783],"lift2":[49,116,188,237,294,375,424],"lift3":[12,46,92,137,180,222,299,348,382,420],"lift4":[38.5,70.6,112.5,168,224.5,267.5,310.6,355,394,433,472,511,550,599,646,695.5,745],"svl_sanchou":[60,142,186,230,275,336,388,429,487,515,563,617,656,688,733,776],"svl_bear":[52,97,172,264,356,447,582],"svl_rabbit":[48,109,193,242,320],"svl_touko":[46,110,186,250,316,356,399,435,474,514]}};
 const C3D={"初級":"#1f9d55","中級":"#2a8fd6","上級":"#d63b3b","道":"#e08a00"};
 const RUN3D={openbahn:[],kids:[]}; // コースは、選んだコースだけを滑る（ほかのコースへは つなげない）
 const SHOW3D={skyvalley:["sv_dia","sv_fox","sv_eagle","sv_thunder"]}; // 3Dで、エリアを選んだときに出すコース
@@ -1551,6 +1551,10 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const mSteel=new THREE.MeshStandardMaterial({color:0x808b97,roughness:.5,metalness:.45}), mSteelD=new THREE.MeshStandardMaterial({color:0x3e454e,roughness:.55,metalness:.5});
   const mConc=new THREE.MeshStandardMaterial({color:0xb9bdc2,roughness:.95}), mWall=new THREE.MeshStandardMaterial({color:0xece4d3,roughness:.9}), mRoof=new THREE.MeshStandardMaterial({color:0x8a2f25,roughness:.75});
   const mDeck=new THREE.MeshStandardMaterial({color:0x8e7657,roughness:.95}), mGlass=new THREE.MeshStandardMaterial({color:0x1f2c38,roughness:.25,metalness:.3});
+  const mBrown=new THREE.MeshStandardMaterial({color:0x6e3324,roughness:.7,metalness:.2}), mCanopy=new THREE.MeshStandardMaterial({color:0x5a3d30,roughness:.55,metalness:.15,side:THREE.DoubleSide}), mPad=new THREE.MeshStandardMaterial({color:0xe3922b,roughness:.9});
+  const mOrange=new THREE.MeshStandardMaterial({color:0xd58a2c,roughness:.85}), mBlueR=new THREE.MeshStandardMaterial({color:0x2f68ad,roughness:.6}), mHut=new THREE.MeshStandardMaterial({color:0x3b2a22,roughness:.9});
+  const mToilet=new THREE.MeshStandardMaterial({color:0x3f9a5c,roughness:.7}), mSnowW=new THREE.MeshStandardMaterial({color:0xf1f4f8,roughness:1}), mWood=new THREE.MeshStandardMaterial({color:0xc6ad86,roughness:.95}), mWheelB=new THREE.MeshStandardMaterial({color:0x6b3a28,roughness:.6,metalness:.3});
+  const HALFC=new THREE.CylinderGeometry(1,1,1,18,1,true,-Math.PI/2,Math.PI), ARC=new THREE.TorusGeometry(1,.025,4,18,Math.PI), DISC=new THREE.CylinderGeometry(1,1,1,32);
   const UPV=new THREE.Vector3(0,1,0), BX=new THREE.BoxGeometry(1,1,1), POLE=new THREE.CylinderGeometry(.3,.42,1,12), CYL=new THREE.CylinderGeometry(1,1,1,10);
   const WHEEL=new THREE.CylinderGeometry(.27,.27,.1,8), BULL=new THREE.TorusGeometry(HR,.14,8,48), SPH=new THREE.SphereGeometry(1,8,6);
   const batch=new Map(), _q=new THREE.Quaternion(), _e=new THREE.Euler(), _m=new THREE.Matrix4(), _l=new THREE.Matrix4(), _p=new THREE.Vector3(), _s=new THREE.Vector3();
@@ -1569,28 +1573,45 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const litAt=(x,z)=>{ const gx=Math.max(0,Math.min(gw-1.001,(x/M+W2)/G.step)), gy=Math.max(0,Math.min(gh-1.001,(z/M+H2)/G.step)), i=Math.floor(gx), j=Math.floor(gy), fx=gx-i, fy=gy-j, k=j*gw+i;
     return (LIT[k*2]*(1-fx)+LIT[k*2+2]*fx)*(1-fy)+(LIT[(k+gw)*2]*(1-fx)+LIT[(k+gw)*2+2]*fx)*fy; }; // 日なた=1、山の影=0
   function tower(x,z,g,h,yaw){ const F=frameAt(x,g,z,yaw);
-    put(mConc,BX,F,[0,.2,0],[1.7,1,1.7]);
-    put(mSteel,POLE,F,[0,h/2,0],[1,h,1]);
+    put(mSteel,POLE,F,[0,(h-1.2)/2,0],[1,h+1.2,1]); // 基礎は雪の下（柱は 雪から 出る）
     put(mSteel,BX,F,[0,h-.95,0],[GAUGE+1.7,.42,.45]);
     put(mSteelD,BX,F,[0,h-1.3,.62],[GAUGE+1.1,.05,.75]);
     put(mSteelD,BX,F,[0,(h-1.3)/2,.4],[.05,h-1.3,.3]);
     for(const sx of [-HR,HR]){ put(mSteel,BX,F,[sx,h-.62,0],[.2,.45,.22]); put(mSteelD,BX,F,[sx,h-.45,0],[.16,.14,3.4]);
       for(const sz of [-1.25,-.42,.42,1.25]) put(mSteelD,WHEEL,F,[sx,h-.27,sz],null,[0,0,Math.PI/2]); }
     shB.push([x,z,1.5]); if(litAt(x,z)>.5) shS.push([x,z,h*1.96,.8]); }
+  // 駅（写真に合わせて）。ワイヤーは -z がわから来る。HB＝ワイヤーの高さ
+  //  下：滑車の上に 茶色の かまぼこ屋根、赤茶の はり と 柱（下は オレンジの クッション）、手前に 灰色の 滑車の わく、白い 小屋（青い 屋根）、乗り場の オレンジの 板
+  //  上：大きな 茶色の 平たい 滑車を 1本の 柱と ななめの 支えで、焦げ茶の 小屋（かた屋根）と 緑の トイレ、降り場の 雪の 台
+  function sheaveFrame(F,lz,h){ const b=gLocal(F,0,lz); put(mBrown,POLE,F,[0,(b+h-1)/2,lz],[1.3,h-1-b,1.3]); put(mPad,CYL,F,[0,b+.8,lz],[.62,1.6,.62]);
+    put(mSteel,BX,F,[0,h-.6,lz],[GAUGE+1.2,.35,.4]); for(const sx of [-HR,HR]){ put(mSteel,BX,F,[sx,h-.85,lz],[.12,.5,.12],[0,0,.4]); put(mSteelD,BX,F,[sx,h-.1,lz],[.16,.14,3]);
+      for(const sz of [-1.1,-.37,.37,1.1]) put(mSteelD,WHEEL,F,[sx,h,lz+sz],null,[0,0,Math.PI/2]); } }
   function terminal(x,z,g,yaw,top){ const F=frameAt(x,g,z,yaw), sg=top?1:-1;
-    put(mSteelD,BULL,F,[0,HB,0],null,[Math.PI/2,0,0]);
-    put(mSteel,BX,F,[0,HB,0],[GAUGE-.1,.09,.14]); put(mSteel,BX,F,[0,HB,0],[GAUGE-.1,.09,.14],[0,Math.PI/2,0]);
-    put(mSteelD,CYL,F,[0,HB+.9,0],[.22,1.8,.22]);
-    put(mSteel,BX,F,[0,HB+2.05,0],[2.1,1.1,2.1]);
-    put(mSteel,BX,F,[0,HB+2.05,2.4],[.6,.6,4.3]);
-    const cb=gLocal(F,0,4.5); put(mSteel,POLE,F,[0,(cb+HB+2.9)/2,4.5],[1.35,HB+2.9-cb,1.35]);
-    for(const sx of [-3.7,3.7]){ const pb=gLocal(F,sx,-3.7); put(mSteelD,CYL,F,[sx,(pb+HB+2.9)/2,-3.7],[.12,HB+2.9-pb,.12]); }
-    put(mRoof,BX,F,[0,HB+3,.4],[8.2,.22,9.6]);
-    const hx=sg*6.6, hz=-1.6, hb=gLocal(F,hx,hz);
-    put(mConc,BX,F,[hx,hb+.1,hz],[2.9,.4,3.1]); put(mWall,BX,F,[hx,hb+1.35,hz],[2.6,2.3,2.8]); put(mGlass,BX,F,[hx-sg*1.31,hb+1.6,hz],[.04,.75,2]);
-    for(const s of [-1,1]) put(mRoof,BX,F,[hx+s*.72,hb+2.85,hz],[1.75,.12,3.2],[0,0,-s*.5]);
-    const db=gLocal(F,sg*HR,-4.2); put(mDeck,BX,F,[sg*HR,db+.47,-4.2],[2.3,.95,6.4]);
-    shB.push([x,z,7]); _p.set(hx,0,hz).applyMatrix4(F); shB.push([_p.x,_p.z,3]); }
+    if(!top){ // ふもと（乗り場）
+      put(mSteelD,BULL,F,[0,HB,0],null,[Math.PI/2,0,0]); put(mSteel,BX,F,[0,HB,0],[GAUGE-.1,.09,.14]); put(mSteel,BX,F,[0,HB,0],[GAUGE-.1,.09,.14],[0,Math.PI/2,0]);
+      put(mSteelD,CYL,F,[0,HB+.8,0],[.2,1.6,.2]);
+      put(mBrown,BX,F,[0,HB+1.75,.6],[9.4,.55,.8]); // はり
+      for(const sx of [-4.3,4.3]){ const pb=gLocal(F,sx,.6); put(mBrown,BX,F,[sx,(pb+HB+1.5)/2,.6],[.75,HB+1.5-pb,.75]); put(mPad,BX,F,[sx,pb+.75,.6],[1.05,1.5,1.05]); }
+      put(mCanopy,HALFC,F,[0,HB+2,0],[3.3,6.4,3.3],[-Math.PI/2,0,0]); // かまぼこ屋根
+      for(const rz of [-3.1,-1.05,1.05,3.1]) put(mBrown,ARC,F,[0,HB+2,rz],[3.32,3.32,1]);
+      sheaveFrame(F,-6.5,HB+.25);
+      const hx=sg*5.8, hz=-2.6, hb=gLocal(F,hx,hz); // 白い 小屋
+      put(mWall,BX,F,[hx,hb+1.2,hz],[2.6,2.6,3]); put(mGlass,BX,F,[hx-sg*1.31,hb+1.5,hz],[.04,.8,2]); put(mGlass,BX,F,[hx,hb+1.5,hz-1.51],[1.6,.8,.04]);
+      for(const s of [-1,1]) put(mBlueR,BX,F,[hx+s*.75,hb+2.75,hz],[1.75,.14,3.5],[0,0,-s*.42]);
+      for(const s of [-1,1]){ const fx=s*(HR+1.1), fb=Math.min(gLocal(F,fx,-2.2),gLocal(F,fx,-8.6)); put(mOrange,BX,F,[fx,fb+.55,-5.4],[.1,1.1,6.6]); } // 乗り場の オレンジの 板（つづいた かべ）
+      shB.push([x,z,6]); _p.set(hx,0,hz).applyMatrix4(F); shB.push([_p.x,_p.z,2.5]); return; }
+    // 山頂（降り場）
+    put(mWheelB,DISC,F,[0,HB+.12,0],[HR+.25,.32,HR+.25]); put(mSteelD,DISC,F,[0,HB+.32,0],[.55,.12,.55]);
+    for(let k=0;k<6;k++) put(mBrown,BX,F,[0,HB+.3,0],[HR*2,.05,.1],[0,k*Math.PI/6,0]);
+    const cb=gLocal(F,0,1); put(mBrown,CYL,F,[0,(cb+HB)/2,1],[.42,HB-cb,.42]); put(mWood,CYL,F,[0,cb+.8,1],[.62,1.6,.62]);
+    { const sb=gLocal(F,0,4.2), dy=HB-.2-sb, dz=-3.2; put(mBrown,BX,F,[0,sb+dy/2,4.2+dz/2],[.35,Math.hypot(dy,dz),.35],[Math.atan2(dz,dy),0,0]); }
+    sheaveFrame(F,-5.5,HB+.25);
+    const hx=sg*5.2, hz=-1, hb=gLocal(F,hx,hz);
+    put(mHut,BX,F,[hx,hb+1.3,hz],[2.6,2.6,3.2]); put(mWall,BX,F,[hx-sg*1.31,hb+1.6,hz],[.05,.9,1.5]); put(mGlass,BX,F,[hx-sg*1.34,hb+1.6,hz],[.04,.75,1.35]);
+    put(mHut,BX,F,[hx,hb+2.8,hz],[3.2,.16,3.7],[0,0,sg*.18]);
+    const tx=sg*7.2, tb=gLocal(F,tx,hz+.5); put(mToilet,BX,F,[tx,tb+1.15,hz+.5],[1,2.3,1]); put(mWall,BX,F,[tx,tb+2.35,hz+.5],[1.08,.12,1.08]);
+    const rb=gLocal(F,sg*HR,-4); put(mSnowW,BX,F,[sg*HR,rb+.12,-4],[2.8,.5,6],[.06,0,0]); // 降り場の 雪の 台
+    shB.push([x,z,6]); _p.set(hx,0,hz).applyMatrix4(F); shB.push([_p.x,_p.z,3]); }
   // 画面の上で同じ太さに見える線（ワイヤー）。どの向きから見ても細い線のまま
   const RES={value:new THREE.Vector2(1,1)};
   const ropeMat=(color,half,op)=>new THREE.ShaderMaterial({uniforms:{uColor:{value:new THREE.Color(color)},uOp:{value:op},uHalf:{value:half},uRes:RES},
@@ -2018,6 +2039,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       else if(tw.arc){ const a=tw.s0, b=tw.s1; controls.target.lerpVectors(tw.q0,tw.q1,e); camera.position.copy(controls.target).add(v3.setFromSphericalCoords(a.r+(b.r-a.r)*e,a.phi+(b.phi-a.phi)*e,a.th+(b.th-a.th)*e)); controls.clamp(); }
       else { camera.position.lerpVectors(tw.p0,tw.p1,e); controls.target.lerpVectors(tw.q0,tw.q1,e); }
       if(k>=1) tw=null; }
+    if(anim&&anim.stop){ stopStep(dt); return; }
     if(anim&&!anim.fp){ if(anim.k==null) anim.k=0; anim.k=Math.min(1,anim.k+dt*1000/anim.dur*(follow&&anim.kind==="ski"?SPEEDS[spIdx][0]*CAMS[camIdx][2]:1)); let k=anim.k; if(reduce) k=1; const e=anim.kind==="ski"?k:ease(k);
       let pos3, fwd;
       if(anim.kind==="ski"){ const q=at(anim.A,e); pos3=P3(q.x,q.y,anim.A.up); skier.position.copy(pos3); const q2=at(anim.A,Math.min(1,e+.03)); const p2=P3(q2.x,q2.y,anim.A.up); fwd=p2.sub(pos3); if(fwd.lengthSq()>1e-6) skFwd.copy(fwd); }
@@ -2032,11 +2054,33 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
         const look=pos3.clone().addScaledVector(fwd,ski?(nr?45:160):130); look.y=ski?pos3.y-(nr?6:25):pos3.y+18;
         if(anim.snap||!baseOK){ baseC.copy(want); baseT.copy(look); baseOK=true; } else { baseC.lerp(want,1-Math.exp(-dt*(nr?5:4))); baseT.lerp(look,1-Math.exp(-dt*(nr?7:4))); } anim.snap=false;
         chaseTurn(pos3,baseC,baseT,ski?(nr?32:150):70); }
-      if(k>=1){ const wasEye=follow&&vm==="eye", A=anim.A; anim=null; endFollow(); if(seq) setTimeout(nextSeq,250);
-        if(wasEye){ /* 下に着いたら、少し上から ふりかえる */ const n=A.sp.length, p=A.sp[n-1], o=A.sp[Math.max(0,n-4)]; flyTo(P3(p[0],p[1],0),380,Math.atan2(-(p[1]-o[1]),-(p[0]-o[0])),1,1600); }
-        else controls.repivot(); }
+      if(k>=1){ const wasEye=follow&&vm==="eye";
+        if(wasEye&&!reduce&&baseOK){ // ゴール：シュッと横を向いて止まる（雪けむり）。止まったら 少し上から ふりかえる
+          const f=new THREE.Vector3(baseT.x-baseC.x,0,baseT.z-baseC.z); if(f.lengthSq()<1e-6) f.set(0,0,1); f.normalize();
+          anim.stop={t:0,p:baseC.clone(),f,side:skTurn>.05?-1:1}; sprayStart(anim.stop); return; }
+        endRun(wasEye); }
     }
   }
+  function endRun(wasEye){ const A=anim.A; anim=null; endFollow(); if(seq) setTimeout(nextSeq,250); spray.visible=false;
+    if(wasEye){ /* 下に着いたら、少し上から ふりかえる */ const n=A.sp.length, p=A.sp[n-1], o=A.sp[Math.max(0,n-4)]; flyTo(P3(p[0],p[1],0),380,Math.atan2(-(p[1]-o[1]),-(p[0]-o[0])),1,1600); }
+    else controls.repivot(); }
+  // 止まるところ：0.5秒で 約75°まわりながら 3m すべって 少し しゃがむ → 1秒 止まる
+  const stP=new THREE.Vector3(), stL=new THREE.Vector3(), stD=new THREE.Vector3();
+  function stopStep(dt){ const S=anim.stop; S.t+=dt; const u=Math.min(1,S.t/.5), eo=1-Math.pow(1-u,3), yaw=S.side*1.3*eo;
+    stP.copy(S.p).addScaledVector(S.f,3.2*eo); stP.y=hAny(stP.x,stP.z)+3-.5*Math.sin(Math.min(1,S.t/.35)*Math.PI*.5)+.25*Math.max(0,(S.t-.7)/.6>1?1:Math.max(0,(S.t-.7)/.6));
+    stD.copy(S.f).applyAxisAngle(UPV,yaw); stL.copy(stP).addScaledVector(stD,45); stL.y=hAny(stL.x,stL.z)+2.5;
+    skFwd.copy(stD); headTurn(stP,stL); sprayStep(dt);
+    if(S.t>1.6) endRun(true); }
+  // 雪けむり（止まるとき）
+  const SPN=90, spray=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:0xf4f7fb,size:.22,transparent:true,opacity:.9,depthWrite:false}));
+  spray.geometry.setAttribute("position",new THREE.BufferAttribute(new Float32Array(SPN*3),3)); spray.visible=false; spray.frustumCulled=false; scene.add(spray); const spV=new Float32Array(SPN*3);
+  function sprayStart(S){ const a=spray.geometry.attributes.position, lx=S.f.z, lz=-S.f.x; // 左＝(f.z,0,-f.x) の向き（まわる ほうの そと）
+    for(let i=0;i<SPN;i++){ const r=Math.random(), o=(Math.random()-.5)*1.2; a.setXYZ(i,S.p.x+S.f.x*2+lx*o,hAny(S.p.x,S.p.z)+.2,S.p.z+S.f.z*2+lz*o);
+      const sp=3+r*5, sd=-S.side*(1+Math.random()*2.5); spV[i*3]=S.f.x*sp+lx*sd; spV[i*3+1]=1.5+Math.random()*3; spV[i*3+2]=S.f.z*sp+lz*sd; }
+    a.needsUpdate=true; spray.material.opacity=.9; spray.visible=true; spray.userData.t=0; }
+  function sprayStep(dt){ if(!spray.visible) return; const a=spray.geometry.attributes.position; spray.userData.t+=dt;
+    for(let i=0;i<SPN;i++){ spV[i*3+1]-=9.8*dt*.6; a.setXYZ(i,a.getX(i)+spV[i*3]*dt,Math.max(a.getY(i)+spV[i*3+1]*dt,hAny(a.getX(i),a.getZ(i))+.05),a.getZ(i)+spV[i*3+2]*dt); }
+    a.needsUpdate=true; spray.material.opacity=Math.max(0,.9-spray.userData.t*.7); if(spray.material.opacity<=0) spray.visible=false; }
   // 札が、画面に出ているコースの線にかかっているか（線の区切りと札の四角が重なるか）
   function segHit(x1,y1,x2,y2,r){ let t0=0, t1=1; const dx=x2-x1, dy=y2-y1, P=[-dx,dx,-dy,dy], Q=[x1-r[0],r[2]-x1,y1-r[1],r[3]-y1];
     for(let i=0;i<4;i++){ if(P[i]===0){ if(Q[i]<0) return false; } else { const t=Q[i]/P[i]; if(P[i]<0){ if(t>t1) return false; if(t>t0) t0=t; } else { if(t<t0) return false; if(t<t1) t1=t; } } }
@@ -2087,7 +2131,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   }
 
   // ===== コースを描く：地面を押して点を置く・点をドラッグで動かす =====
-  const ed={on:false,id:null,pts:[],sel:-1,hist:[],dirty:false,markers:[],drafts:{},tool:"course",lastTool:"course"};
+  const ed={on:false,id:null,pts:[],sel:-1,hist:[],dirty:false,markers:[],drafts:{},nameDraft:{},tool:"course",lastTool:"course"};
   try{ const d=store.get("draft3d",{}); Object.entries(d||{}).forEach(([k,v])=>{ const p=okPts(v); if(p&&(COURSE_IDS.has(k)||isMy(k))) ed.drafts[k]=p; }); }catch(e){}
   // じぶんのコース：保存前の名前・レベル（新しいコースは、保存するまで ここだけ）
   ed.metas={}; try{ const m=store.get("draftMeta3d",{}); Object.entries(m||{}).forEach(([k,v])=>{ if(isMy(k)&&v&&typeof v==="object") ed.metas[k]={name:String(v.name==null?"":v.name).slice(0,20),lv:LVS.includes(v.lv)?v.lv:"中級"}; }); }catch(e){}
@@ -2104,10 +2148,13 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     edOptions(); if(ed.id&&[...edSel.options].some(o=>o.value===ed.id)) edSel.value=ed.id; else if(cur&&[...edSel.options].some(o=>o.value===cur)) edSel.value=cur; }
   function edOptions(){ [...edSel.options].forEach(o=>{ if(o.value==="__new") return;
     if(isMy(o.value)){ const saved=MY3D.some(c=>c.id===o.value); o.textContent=myName(o.value)+(saved?"":"（まだ保存していません）")+(saved&&(ed.drafts[o.value]||ed.metas[o.value])?" ✎":""); return; }
-    const c=COURSES3D.find(x=>x.id===o.value); o.textContent=c.name+(ovr3d[c.id]?" ✓":"")+(ed.drafts[c.id]?" ✎":""); }); }
-  function edMetaShow(){ const mine=ed.on&&ed.tool==="course"&&isMy(ed.id); edMeta.hidden=!mine; box.classList.toggle("edrow2",mine||(ed.on&&ed.tool==="lift")); delSure(false);
-    if(mine){ const m=ed.metas[ed.id], c=MY3D.find(x=>x.id===ed.id); edName.value=m?m.name:(c?c.name:""); edLv.value=myLv(ed.id); } }
-  function edMetaSet(){ if(!isMy(ed.id)) return; const c=MY3D.find(x=>x.id===ed.id), m={name:edName.value.slice(0,20),lv:edLv.value};
+    const c=COURSES3D.find(x=>x.id===o.value), d=ed.nameDraft[c.id]; o.textContent=(d!=null&&d.trim()?d.trim():c.name)+(ovr3d[c.id]||NAME3D[c.id]?" ✓":"")+(ed.drafts[c.id]||d!=null?" ✎":""); }); }
+  function edMetaShow(){ const on=ed.on&&ed.tool==="course"&&!!ed.id&&ed.id!=="__new", mine=on&&isMy(ed.id); edMeta.hidden=!on; box.classList.toggle("edrow2",on); delSure(false);
+    edLv.hidden=delBtn.hidden=!mine; edName.placeholder=mine?"コースの名前（例：林の中の近道）":"コースの名前（変えると 地図のボタンも かわります）";
+    if(mine){ const m=ed.metas[ed.id], c=MY3D.find(x=>x.id===ed.id); edName.value=m?m.name:(c?c.name:""); edLv.value=myLv(ed.id); }
+    else if(on){ const d=ed.nameDraft[ed.id], c=COURSES3D.find(x=>x.id===ed.id); edName.value=d!=null?d:(c?c.name:""); } }
+  function edMetaSet(){ if(!isMy(ed.id)){ if(!ORIGN[ed.id]) return; const c=COURSES3D.find(x=>x.id===ed.id); if(edName.value.trim()===(c&&c.name)) delete ed.nameDraft[ed.id]; else ed.nameDraft[ed.id]=edName.value.slice(0,20); edOptions(); return; }
+    const c=MY3D.find(x=>x.id===ed.id), m={name:edName.value.slice(0,20),lv:edLv.value};
     if(c&&m.name.trim()===c.name&&m.lv===c.lv) delete ed.metas[ed.id]; else ed.metas[ed.id]=m; saveMetas(); edOptions(); }
   edName.addEventListener("input",edMetaSet); edName.addEventListener("keydown",e=>{ if(e.key==="Enter") edName.blur(); });
   edLv.onchange=()=>{ edMetaSet(); edDraw(); };
@@ -2158,7 +2205,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     ed.on=true; box.classList.add("editing"); $(".stage-map .map").classList.add("editing3d"); edBox.hidden=false; controls.tapZoom=false;
     anim=null; stopRide(); follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null; seq=null;
     Object.values(liftObj).forEach(o=>o.set(false));
-    Object.values(courseObj).forEach(o=>{ o.grp.visible=true; o.set(.35); }); edGroup.visible=true; edOpen(id); edTool(tool||ed.lastTool||"course");
+    Object.values(courseObj).forEach(o=>{ o.grp.visible=true; o.set(.35); }); edGroup.visible=true; edOpen(id); edTool("course"); // 雪・木・リフトの道具は やめた（保存した 雪・木・リフトは そのまま 出る）
   }
   function edEnd(){
     if(!ed.on) return; edKeep(); ed.on=false; box.classList.remove("editing","edrow2"); $(".stage-map .map").classList.remove("editing3d"); edBox.hidden=true; edMeta.hidden=true; delSure(false);
@@ -2206,8 +2253,10 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
         const where=await saveMy3d(Object.assign({id,name,lv:myLv(id),pts:ed.pts,map:sideOf(ed.pts)},courseStats(ed.pts)));
         delete ed.metas[id]; saveMetas(); ed.dirty=false; delete ed.drafts[id]; edKeep(); ed.hist=[]; edBuild(); edMetaShow();
         toast(where==="db"?`「${name}」を保存しました。コースのボタンにも出ます`:`「${name}」をこの端末に保存しました`); }
-      else { const where=await saveCourse3d(ed.id,ed.pts); ed.dirty=false; delete ed.drafts[ed.id]; edKeep(); ed.hist=[];
-      toast(where==="db"?"保存しました。このアプリの3Dのコースの線が新しくなりました":"この端末に保存しました（データは図の下の欄からコピーできます）"); } }
+      else { const id=ed.id, nd=ed.nameDraft[id], lineCh=ed.dirty||!!ed.drafts[id]||nd==null; let where="db";
+        if(lineCh){ where=await saveCourse3d(id,ed.pts); ed.dirty=false; delete ed.drafts[id]; edKeep(); ed.hist=[]; }
+        if(nd!=null){ const n=Object.assign({},NAME3D), t=nd.replace(/\s+/g," ").trim().slice(0,20); if(!t||t===ORIGN[id].name) delete n[id]; else n[id]=t; const w=await saveNames(n); if(w!=="db") where=w; delete ed.nameDraft[id]; edBuild(); edMetaShow(); }
+      toast(where==="db"?(nd!=null&&!lineCh?"名前を保存しました。コースのボタンにも出ます":"保存しました。このアプリの3Dのコースが新しくなりました"):"この端末に保存しました（データは図の下の欄からコピーできます）"); } }
     catch(err){ toast(err&&err.code==="quota_exceeded"?"保存できる量をこえました":"保存できませんでした。少し待ってからもう一度押してください"); }
     b.disabled=false; b.textContent="保存"; edDraw(); };
   $("#edReset").onclick=async()=>{ const b=$("#edReset"); b.disabled=true;
@@ -2333,6 +2382,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     setsUpdate(); skiView(!!(follow&&anim&&anim.kind==="ski"&&!anim.fp&&CAMS[camIdx][0]==="eye"&&!rideChair),dt);
     lastR=now; sky.position.copy(camera.position); renderer.render(scene,camera); placeLabels(); }
   controls.addEventListener("start",()=>{ tw=null; endFollow(); $("#m3dHint").classList.add("gone"); });
+  // 確かめ用（アドレスに ?dbg3d のときだけ）：駅の場所と、カメラを置く
+  if(/[?&]dbg3d/.test(location.search)) window.__m3d={end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; },st:id=>{ const ab=G.lifts[id]; return ab&&[P3(...ab[0],0).toArray(),P3(...ab[1],0).toArray()]; },cam:(p,t)=>{ tw=null; endFollow(); camera.position.set(...p); controls.target.set(...t); camera.lookAt(controls.target); needDraw=true; }};
   // 目線のあいだの1本指（マウス）：地図は動かさず、見る向きだけ変える。2本目の指が来たら、目線をやめて ふつうの操作へ
   box.addEventListener("pointerdown",e=>{ if(!follow||ed.on||e.target!==renderer.domElement) return;
     if(lookDrag){ endFollow(); return; }
@@ -2450,14 +2501,29 @@ $("#edCopy").onclick=async()=>{ const t=$("#edJson"); try{ await navigator.clipb
   const db=await C.use("db"); if(!db) return;
   const u=await C.use("user"); const can=u?await u.canEdit():null;
   db3d={db,can}; showEdData();
-  db.collection("courses3d").onSnapshot(snap=>{ const next={}, my=[], env={};
+  db.collection("courses3d").onSnapshot(snap=>{ const next={}, my=[], env={}; let names={};
       snap.docs.forEach(d=>{ const v=d.data(); if(isMy(d.id)){ const c=myItem(d.id,v); if(c) my.push(c); return; }
+        if(d.id==="names"){ names=namesClean(v); return; }
         const ek=Object.keys(ENV_IDS).find(k=>ENV_IDS[k]===d.id); if(ek){ env[ek]=envClean(ek,v); return; }
         const p=v&&okPts(v.pts); if(p&&COURSE_IDS.has(d.id)) next[d.id]=p; });
-      applyOvr(next); applyMy(my.sort((a,b)=>a.id<b.id?-1:1));
+      applyOvr(next); applyNames(names); applyMy(my.sort((a,b)=>a.id<b.id?-1:1));
       Object.keys(ENV_IDS).forEach(k=>{ const nv=env[k]||null; if((nv&&nv.at)!==(ENV3D[k]&&ENV3D[k].at)) applyEnv(k,nv); }); },
     err=>{ console.warn("courses3d:",err&&err.code); });
 }catch(e){ console.warn("db:",e); } })();
+/* ---------- コースの名前（公式のコースも 変えられる）：共有の courses3d/names {N:{id:名前}}、なければ この端末 ---------- */
+const NAME_COURSES=COURSES.concat(SV_COURSES,SV3D_COURSES), ORIGN={}; NAME_COURSES.forEach(c=>{ ORIGN[c.id]={name:c.name,short:c.short}; });
+let NAME3D={};
+function namesClean(v){ const o={}; if(v&&v.N&&typeof v.N==="object") Object.entries(v.N).forEach(([k,n])=>{ const t=String(n==null?"":n).replace(/\s+/g," ").trim().slice(0,20); if(t&&ORIGN[k]&&t!==ORIGN[k].name) o[k]=t; }); return o; }
+function applyNames(next){ if(JSON.stringify(next)===JSON.stringify(NAME3D)) return; NAME3D=next;
+  NAME_COURSES.forEach(c=>{ const o=ORIGN[c.id], n=next[c.id]; c.name=n||o.name; c.short=n||o.short; });
+  buildChips(); NAME_COURSES.forEach(c=>{ $$(`.chip[data-id="${c.id}"]`).forEach(b=>{ const t=[...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim()); if(t) t.textContent=c.short; }); }); // 全画面の列なども
+  const sc=selected&&NAME_COURSES.find(c=>c.id===selected); if(sc){ const old=[ORIGN[sc.id].name].concat(Object.values(NAME3D)); $$("#nowbar *").forEach(e=>{ if(!e.children.length&&old.includes(e.textContent)) e.textContent=sc.name; }); }
+  if(T3D&&T3D.namesChanged) T3D.namesChanged(); }
+async function saveNames(next){ const doc={N:next,at:new Date().toISOString()};
+  if(db3d&&db3d.can!==false){ try{ await db3d.db.doc("courses3d/names").set(doc); applyNames(next); return "db"; }
+    catch(e){ if(!(e&&(e.code==="invalid_argument"||e.code==="not_granted"))) throw e; db3d.can=false; } }
+  store.set("names3d",next); applyNames(next); return "local"; }
+{ const n=namesClean({N:store.get("names3d",null)||SEED3D.names||{}}); NAME3D=n; NAME_COURSES.forEach(c=>{ if(n[c.id]){ c.name=n[c.id]; c.short=n[c.id]; } }); }
 async function saveCourse3d(id,pts){
   if(db3d&&db3d.can!==false){ try{ await db3d.db.doc("courses3d/"+id).set({pts:flat3d(pts),at:new Date().toISOString()}); const n=Object.assign({},ovr3d); n[id]=pts.map(p=>p.slice()); applyOvr(n); return "db"; }
     catch(e){ if(!(e&&(e.code==="invalid_argument"||e.code==="not_granted"))) throw e; db3d.can=false; } }
