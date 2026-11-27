@@ -1533,6 +1533,43 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     grp.add(band,L.grp); grp.visible=old?old.grp.visible:false; scene.add(grp);
     const o={c,sp,grp,band,op:old?old.op:1,set:(v)=>{ o.op=v; band.material.opacity=.34*v; L.cas.material.uniforms.uOp.value=.8*v; L.ln.material.uniforms.uOp.value=.95*v; }}; o.set(o.op); courseObj[c.id]=o; }
   COURSES3D.forEach(buildCourse); MY3D.forEach(buildCourse);
+  // ===== コースのふち：赤白のポールと 赤いロープ。コースから横を見て、林（木）が始まる 少し手前に立てる（開けた所には立てない）=====
+  const POLEG=(()=>{ const g=new THREE.CylinderGeometry(.045,.05,1.5,6,6); g.translate(0,.75,0); const p=g.attributes.position, c=new Float32Array(p.count*3), r=new THREE.Color(0xd8352b), w=new THREE.Color(0xf4f4f2);
+    for(let i=0;i<p.count;i++){ const k=Math.floor(p.getY(i)/.25+.001)%2?w:r; c[i*3]=k.r; c[i*3+1]=k.g; c[i*3+2]=k.b; } g.setAttribute("color",new THREE.BufferAttribute(c,3)); return g; })();
+  const poleMat=new THREE.MeshLambertMaterial({vertexColors:true}), ropeLM=new THREE.LineBasicMaterial({color:0xd8352b});
+  function treeNear(mx,my,rM){ if(!AF.n) return false; const r=rM/M, r2=r*r;
+    for(let gx=Math.floor((mx-r)/16);gx<=Math.floor((mx+r)/16);gx++) for(let gy=Math.floor((my-r)/16);gy<=Math.floor((my+r)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
+      for(const i of a){ if(AF.gone[i]) continue; const dx=AF.x[i]-mx, dy=AF.y[i]-my; if(dx*dx+dy*dy<r2) return true; } } return false; }
+  function buildEdge(o){ if(o.edge){ o.grp.remove(o.edge); dispose(o.edge); o.edge=null; } if(!AF.n||snowU.value<.5) return; const sp=o.sp, ST=12/M, P=[];
+    // 12m ごとに、左右それぞれ 林の始まりを さがす（8〜40m）。ばらつきは ならし、3本以上 つづく所だけ ロープを張る
+    const S=[]; let acc=ST; for(let i=1;i<sp.length;i++){ const dx=sp[i][0]-sp[i-1][0], dy=sp[i][1]-sp[i-1][1], d=Math.hypot(dx,dy); acc+=d; if(acc<ST) continue; acc=0; S.push({i,tx:dx/(d||1),ty:dy/(d||1)}); }
+    for(const sd of [-1,1]){ const H=S.map(q=>{ const nx=-q.ty*sd, ny=q.tx*sd; for(let r=8;r<=40;r+=2) if(treeNear(sp[q.i][0]+nx*r/M,sp[q.i][1]+ny*r/M,4)) return r; return -1; });
+      const ok=H.map((h,k)=>{ let n=0; for(let j=k-2;j<=k+2;j++) if(H[j]>0) n++; return h>0&&n>=3; }); // まわり5本のうち3本以上で 林
+      const R=H.map((h,k)=>{ let t=0, n=0; for(let j=k-2;j<=k+2;j++) if(H[j]>0){ t+=H[j]; n++; } return n?t/n:0; }); // ならした きょり
+      S.forEach((q,k)=>{ const nx=-q.ty*sd, ny=q.tx*sd, r=Math.max(6,R[k]-4); P.push({i:q.i,sd,ok:ok[k]&&(ok[k-1]||ok[k+1]),x:sp[q.i][0]+nx*r/M,y:sp[q.i][1]+ny*r/M}); }); }
+    const grp=new THREE.Group(), poles=P.filter(p=>p.ok); if(!poles.length){ o.edge=grp; o.grp.add(grp); return; }
+    const im=new THREE.InstancedMesh(POLEG,poleMat,poles.length), m4=new THREE.Matrix4(); poles.forEach((p,k)=>{ m4.makeTranslation(P3(p.x,p.y,-.15)); im.setMatrixAt(k,m4); }); im.frustumCulled=false; grp.add(im);
+    // ロープ：となりの ポール どうし（同じ がわで、間が 30m より近い）を つなぐ。少し たるむ
+    const L=[]; for(const sd of [-1,1]){ const q=P.filter(p=>p.sd===sd); for(let k=1;k<q.length;k++){ const a=q[k-1], b=q[k]; if(!a.ok||!b.ok) continue; const A=P3(a.x,a.y,1.25), B=P3(b.x,b.y,1.25); if(A.distanceTo(B)>30) continue;
+      let prev=A; for(let t=1;t<=4;t++){ const f=t/4, v=new THREE.Vector3().lerpVectors(A,B,f); v.y-=Math.sin(f*Math.PI)*.18; L.push(prev.x,prev.y,prev.z,v.x,v.y,v.z); prev=v; } } }
+    if(L.length){ const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(L,3)); const ln=new THREE.LineSegments(g,ropeLM); ln.frustumCulled=false; grp.add(ln); }
+    o.edge=grp; o.grp.add(grp); }
+  // ===== スタートの看板：コースの色の板に 名前と レベル（公式の コース）=====
+  const signG=new THREE.Group(); scene.add(signG);
+  function buildSigns(){ signG.children.slice().forEach(k=>{ signG.remove(k); dispose(k); });
+    const postM=new THREE.MeshLambertMaterial({color:0x6b6f76});
+    COURSES3D.forEach(c=>{ const sp=courseObj[c.id]&&courseObj[c.id].sp; if(!sp||sp.length<3||c.lv==="道") return;
+      const cv=document.createElement("canvas"); cv.width=256; cv.height=128; const x=cv.getContext("2d"), col=C3D[c.lv]||"#2a8fd6";
+      x.fillStyle="#fff"; x.fillRect(0,0,256,128); x.fillStyle=col; x.fillRect(6,6,244,116); x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="middle";
+      const nm=c.short||c.name; let fs=46; x.font=`900 ${fs}px sans-serif`; while(x.measureText(nm).width>230&&fs>20){ fs-=2; x.font=`900 ${fs}px sans-serif`; } x.fillText(nm,128,52);
+      x.font="700 26px sans-serif"; x.fillText(c.lv,128,100);
+      const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4;
+      const i=Math.min(sp.length-1,4), tx=sp[i][0]-sp[0][0], ty=sp[i][1]-sp[0][1], tl=Math.hypot(tx,ty)||1, nx=-ty/tl, ny=tx/tl, px=sp[0][0]+nx*9/M, py=sp[0][1]+ny*9/M, g=P3(px,py,0);
+      const s=new THREE.Group(); s.position.copy(g); s.rotation.y=Math.atan2(-tx,-ty); // 板は 上（スタートより 上）を 向く
+      const board=new THREE.Mesh(new THREE.PlaneGeometry(1.8,.9),new THREE.MeshLambertMaterial({map:t,side:THREE.DoubleSide})); board.position.y=2.1; s.add(board);
+      for(const sx of [-.7,.7]){ const p=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,2.6,6),postM); p.position.set(sx,1.1,-.03); s.add(p); }
+      signG.add(s); }); needDraw=true; }
+  buildSigns();
   function removeCourse(id){ const o=courseObj[id]; if(!o) return; scene.remove(o.grp); dispose(o.grp); delete courseObj[id]; needDraw=true; afLater(); }
   // 長さ（斜面にそって）・平均と最大の斜度（約30mの区間ごと）。標高は本当の高さで
   function courseStats(pts){ const sp=smooth(pts), H=sp.map(p=>elev(p[0],p[1])), D=[0]; let len=0;
@@ -1859,7 +1896,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       if(!FORS){ FORS=new Uint8Array(FW*FH); for(let j=0;j<FH;j++) for(let i=0;i<FW;i++){ let t=0, c=0; for(let b=-1;b<=1;b++) for(let a=-1;a<=1;a++){ const y=j+b, x=i+a; if(x>=0&&y>=0&&x<FW&&y<FH){ t+=FOR[y*FW+x]; c++; } } FORS[j*FW+i]=t/c; } } // 林らしさを少しなめらかに
       for(let i=0;i<n;i++) if(!AF.gone[i]){ const x=Math.floor(AF.x[i]), y=Math.floor(AF.y[i]); for(let j=Math.max(0,y-3);j<=Math.min(FH-1,y+3);j++) for(let k=Math.max(0,x-3);k<=Math.min(FW-1,x+3);k++) treeN[j*FW+k]+=(4-Math.abs(k-x))*(4-Math.abs(j-y)); }
       for(let q=0;q<FW*FH;q++) floorCell(q); landTex.needsUpdate=true; }
-    shadowLater(); needDraw=true; }
+    Object.values(courseObj).forEach(o=>{ if(o.edge){ o.grp.remove(o.edge); dispose(o.edge); } o.edge=undefined; }); shadowLater(); needDraw=true; }
   let afT=0; const afLater=()=>{ clearTimeout(afT); afT=setTimeout(genForest,600); };
   // 近く・中くらいの木：カメラのまわりの木だけを、くわしい形で入れなおす（近く＝約160m 以内・3しゅるい、中くらい＝約360m 以内）。カメラが 30m・50m 動いたら 入れなおす
   let nearDirty=true;
@@ -2355,7 +2392,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     else if(k==="trees"){ treeArr=v?v.t.slice():[]; treesUpd(); treeCount(); eraseLoad(v,afAll); afAll(); }
     else if(k==="lifts"){ Object.keys(LSET).forEach(id=>{ delete LSET[id]; }); if(v) Object.assign(LSET,JSON.parse(JSON.stringify(v.L))); rebuildLifts(); if(ed.on&&ed.tool==="lift") liftUI(); } }
   $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&(COURSE_IDS.has(selected)||isMy(selected))?selected:"centerB"); };
-  function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); needDraw=true; afLater();
+  function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); if(COURSE_IDS.has(id)) buildSigns(); needDraw=true; afLater();
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
   // 大きさ
   function resize(){ const w=box.clientWidth, h=box.clientHeight; if(!w||!h) return; LABELS.concat([{d:selLab}]).forEach(L=>{ L.d._w=0; }); vw=w; vh=h; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/h; RES.value.set(w,h); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); needDraw=true; }
@@ -2374,6 +2411,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const moved=!camera.position.equals(pc)||!controls.target.equals(pt), busy=moved||!!tw||!!anim, near=!reduce&&camera.position.distanceTo(controls.target)<2000;
     updateDetail(now);
     if(maskDirty){ maskTex.needsUpdate=true; maskDirty=false; needDraw=true; }
+    for(const id in courseObj){ const o=courseObj[id]; if(o.grp.visible&&o.edge===undefined){ buildEdge(o); needDraw=true; break; } }
     if(!(busy||needDraw||(near&&now-lastR>50))){ prevBusy=false; return; }
     // 重い端末では、動かしている間の速さを見て、画面の細かさを少し下げる
     if(busy&&prevBusy){ slowT+=Math.min(500,now-lastR); if(++slowN>=40){ if(slowT/slowN>30&&pr>1){ pr=Math.max(1,pr-.25); renderer.setPixelRatio(pr); resize(); } slowN=0; slowT=0; } }
@@ -2383,7 +2421,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     lastR=now; sky.position.copy(camera.position); renderer.render(scene,camera); placeLabels(); }
   controls.addEventListener("start",()=>{ tw=null; endFollow(); $("#m3dHint").classList.add("gone"); });
   // 確かめ用（アドレスに ?dbg3d のときだけ）：駅の場所と、カメラを置く
-  if(/[?&]dbg3d/.test(location.search)) window.__m3d={end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; },st:id=>{ const ab=G.lifts[id]; return ab&&[P3(...ab[0],0).toArray(),P3(...ab[1],0).toArray()]; },cam:(p,t)=>{ tw=null; endFollow(); camera.position.set(...p); controls.target.set(...t); camera.lookAt(controls.target); needDraw=true; }};
+  if(/[?&]dbg3d/.test(location.search)) window.__m3d={cs:id=>{ const o=courseObj[id]; return o&&[P3(...o.sp[0],0).toArray(),P3(...o.sp[Math.min(o.sp.length-1,12)],0).toArray()]; },end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; },st:id=>{ const ab=G.lifts[id]; return ab&&[P3(...ab[0],0).toArray(),P3(...ab[1],0).toArray()]; },cam:(p,t)=>{ tw=null; endFollow(); camera.position.set(...p); controls.target.set(...t); camera.lookAt(controls.target); needDraw=true; }};
   // 目線のあいだの1本指（マウス）：地図は動かさず、見る向きだけ変える。2本目の指が来たら、目線をやめて ふつうの操作へ
   box.addEventListener("pointerdown",e=>{ if(!follow||ed.on||e.target!==renderer.domElement) return;
     if(lookDrag){ endFollow(); return; }
@@ -2429,7 +2467,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   genForest(); if(ENV3D.snow) loadMask(ENV3D.snow.png);
   theme(); resize(); home(0); introPose();
   return { ready:outerReady, start(){ if(running) return; resize(); running=true; needDraw=true; last=performance.now(); requestAnimationFrame(loop); }, stop(){ running=false; },
-    select, home, theme, playSeq, replay(){ if(replayFn) replayFn(); else if(lastMove) lastMove(); }, refreshCourse, removeCourse, myChanged(){ edBuild(); }, envChanged, endEdit:edEnd, startEdit:(id,tool)=>edStart(id,tool||"course") };
+    select, home, theme, playSeq, replay(){ if(replayFn) replayFn(); else if(lastMove) lastMove(); }, refreshCourse, removeCourse, myChanged(){ edBuild(); }, namesChanged(){ buildSigns(); edBuild(); }, envChanged, endEdit:edEnd, startEdit:(id,tool)=>edStart(id,tool||"course") };
 }
 
 /* ---------- 描いたコースの線（3D）：共有のデータ（このアプリ）か、この端末に保存 ---------- */
