@@ -1176,7 +1176,7 @@ async function runNpTools(browser) {
     ['npToolToggle', 'npToolMove', 'npToolFlick', 'renderNpToolList', 'bindNpToolSwipe'].filter(f => typeof window[f] === 'function').join(',')), '');
   check('  中身は全画面で開く道具', await page.evaluate(() =>
     NP_TOOLS.map(t => t.id).join(',')),
-    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,ggolf,oto,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun,tohachi');
+    'tansui,kantab,veggie,volume,ruler,kakudo,dasetsu,photomemo,linklist,touban,techo,subsc,heya,annai,regi,kakeizu,shimai,meishi,renraku,trim,manner,boki,kurashi,keisan,tatekae,kuji,okaeshi,koyomi,hoi,soroban,hitsudan,keijiban,hadetimer,hadecount,seikyu,yatta,shukin,shiori,bingo,mikurabe,gijiroku,sentaku,kyoshi,ggolf,oto,tabeta,memo,calctmpl,fintmpl,kaikei,koe,eigo,sansu,kakijun,tohachi');
   {
     // 📚英単語マスター（eigo/。v449）：別のアプリとして同じ画面で開く。同じサイトのほかのアプリの控えを消さない
     const fs = require('fs'), path = require('path'), dir = path.join(__dirname, '..', 'eigo');
@@ -18444,11 +18444,11 @@ async function runToolsFab(browser) {
   // 道具をアイコンにする
   await page.evaluate(() => openToolsList()); await page.waitForTimeout(800);
   await page.click('#appIconBtn'); await page.waitForTimeout(400);
-  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/54');   // v691 で 🏂東鉢ガイド、v668 で 🎵音の道具、v616 で ⛳グラウンドゴルフ、v611 で 🧱供試体、v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
+  check('  📱 道具をアイコンにする：窓と道具の一覧', await page.evaluate(() => isDlgOpen('appIconOverlay') + '/' + isDlgOpen('toolsListOverlay') + '/' + document.querySelectorAll('#appIconBody [data-appicon]').length), 'true/false/55');   // v703 で 🏂東鉢ガイド、v693 で 🍽食べた物帳、v668 で 🎵音の道具、v616 で ⛳グラウンドゴルフ、v611 で 🧱供試体、v605 で 📸見比べ・📝議事録・🧺洗濯表示、v575 で ⏱ど派手タイマー・🎉ど派手カウンター・📃請求書づくり、v569 で 🗣筆談ボード・📢電光掲示板、v568 で 🗓こよみ・⛩方位と恵方・🧮そろばん、v561 で 💴🎲🚛📷 の4つ（v564 で 📷 を 🎁お返し帳 に）、v542 で 📇連絡帳、v532 で ✍️かきじゅん帳、v527 で 🎓算数・数学 が ふえた
   check('  行き先（道具は apps/〇〇/、業務手帳は techo/、別のアプリはそのページ）', await page.evaluate(() => ['shimai', 'techo', 'koe', 'kaikei', 'memo'].map(id => appIconUrl(npToolDef(id)).replace(/^.*cosinji-page\//, '')).join(',')), 'apps/shimai/index.html,techo/index.html,koe/index.html,kaikei/index.html,notes/index.html');
   await page.evaluate(() => closeAppIcons()); await page.waitForTimeout(300);
   // 道具ごとの入口のファイル
-  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi', 'ggolf', 'oto', 'calctmpl', 'fintmpl'];
+  const apps = ['tansui', 'kantab', 'veggie', 'volume', 'ruler', 'kakudo', 'dasetsu', 'photomemo', 'linklist', 'touban', 'subsc', 'heya', 'annai', 'regi', 'kakeizu', 'shimai', 'meishi', 'renraku', 'trim', 'manner', 'boki', 'kurashi', 'keisan', 'tatekae', 'kuji', 'okaeshi', 'koyomi', 'hoi', 'soroban', 'hitsudan', 'keijiban', 'hadetimer', 'hadecount', 'seikyu', 'yatta', 'shukin', 'shiori', 'bingo', 'mikurabe', 'gijiroku', 'sentaku', 'kyoshi', 'ggolf', 'oto', 'tabeta', 'calctmpl', 'fintmpl'];
   check('  道具ごとの入口（manifest・アイコン・転送）がそろっている', apps.filter(id => { const d = path.join(ROOT, 'apps', id); if (!['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(d, f)))) return true;
     const m = JSON.parse(fs.readFileSync(path.join(d, 'manifest.json'), 'utf8')); const h = fs.readFileSync(path.join(d, 'index.html'), 'utf8');
     return !(m.start_url === '../../index.html?app=' + id && m.display === 'standalone' && m.id === '/app-' + id && h.includes("../../index.html?app=" + id)); }).join(','), '');
@@ -18476,7 +18476,7 @@ async function runToolsFab(browser) {
       out.push(t.id + ':' + (b ? 'B' : (t.id === 'techo' ? 'T' : '-')) + (x && x.getClientRects().length && getComputedStyle(x).display !== 'none' ? 'x' : ''));
       if (b) b.click(); else if (t.close) t.close(); await new Promise(r => setTimeout(r, 400)); }
     return out.join(','); });
-  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,kyoshi:B,ggolf:B,oto:B,calctmpl:B,fintmpl:B');
+  check('  道具の画面：左上に「← もどる」、右上の ✕ は出さない（業務手帳は ☰）', tb, 'tansui:B,kantab:B,veggie:B,volume:B,ruler:B,kakudo:B,dasetsu:B,photomemo:B,linklist:B,touban:B,techo:T,subsc:B,heya:B,annai:B,regi:B,kakeizu:B,shimai:B,meishi:B,renraku:B,trim:B,manner:B,boki:B,kurashi:B,keisan:B,tatekae:B,kuji:B,okaeshi:B,koyomi:B,hoi:B,soroban:B,hitsudan:B,keijiban:B,hadetimer:B,hadecount:B,seikyu:B,yatta:B,shukin:B,shiori:B,bingo:B,mikurabe:B,gijiroku:B,sentaku:B,kyoshi:B,ggolf:B,oto:B,tabeta:B,calctmpl:B,fintmpl:B');
   check('  もどると道具は閉じている', await page.evaluate(() => NP_TOOLS.filter(t => t.ov && isDlgOpen(t.ov)).map(t => t.id).join(',')), '');
   check('  テンキーの「↶戻す」「↷進む」（画面の戻るとまちがえない名前）', await page.evaluate(() => document.querySelector('[data-key="u_undo"]').textContent + '/' + document.querySelector('[data-key="u_redo"]').textContent), '↶戻す/↷進む');
   // 会計アプリ・メモの「← 表電卓」
@@ -22363,7 +22363,7 @@ async function runOto673(browser) {
   console.log('\n── 🎵 音の道具（v673。音ゲーを 充実・自分で 曲を つくる） ──');
   const w = ms => page.waitForTimeout(ms);
   await page.evaluate(() => openOto('game')); await w(800);
-  check('  曲は 22（★ かんたん・ふつう・むずかしい と 自分の曲 の まとまり）', await page.evaluate(() => [OTO.songs().length, [...document.querySelectorAll('#otoBody .og-gname')].map(e => e.textContent.replace(/（.*/, '')).join('/')].join('|')), '49|⚡ ゲーム用 オリジナル曲/🌱 やさしい 曲/🌿 ふつうの 曲/🌳 むずかしい 曲/🎶 2〜3分の 名曲メドレー/🎼 自分の曲');   // v686：🎶 メドレー 13曲   // v675：⚡ オリジナル曲   // v674：★ は むずかしさ に
+  check('  曲は 22（★ かんたん・ふつう・むずかしい と 自分の曲 の まとまり）', await page.evaluate(() => [OTO.songs().length, [...document.querySelectorAll('#otoBody .og-gname')].map(e => e.textContent.replace(/（.*/, '')).join('/')].join('|')), '59|🔥 アゲアゲ！ 爽快 オリジナル曲/⚡ ゲーム用 オリジナル曲/🌱 やさしい 曲/🌿 ふつうの 曲/🌳 むずかしい 曲/🎶 2〜3分の 名曲メドレー/🎼 自分の曲');   // v692：🔥 アゲアゲ 10曲を いちばん上に   // v686：🎶 メドレー 13曲   // v675：⚡ オリジナル曲   // v674：★ は むずかしさ に
   check('  8音 ある 曲（トルコ行進曲）は 高さで 7つの ボタンに まとめる', await page.evaluate(() => { const s = OTO.songs().find(x => x.id === 'turkish'); return s.pcs + '→' + s.lanes; }), '10→7');
   await page.evaluate(() => { OTO.lanes('four'); OTO.song('elise'); OTO.start(); }); await w(300);
   check('  4️⃣ 4つだけ：ボタンは ①〜④・音は 高さの 順', await page.evaluate(() => { const g = OTO.game(); return g.names.join('') + '/' + document.querySelectorAll('#otoBody .og-key').length; }), '①②③④/4');
@@ -22423,8 +22423,8 @@ async function runOto674(browser) {
   console.log('\n── 🎵 音の道具（v674。1〜2分・★1〜★5・なぞる） ──');
   const w = ms => page.waitForTimeout(ms);
   await page.evaluate(() => openOto('game')); await w(700);
-  check('  オリジナル曲は どれも 1〜2分', await page.evaluate(() => { const a = OTO.orig().map(s => OTO.arranged(s.id).sec); return a.length + '/' + a.every(x => x >= 60 && x <= 120); }), '14/true');   // v682：1〜2分は オリジナル曲。昔の 曲は 原曲の 長さ
-  check('  曲の 長さを 一覧に 出す', await page.evaluate(() => document.querySelector('#otoBody .og-songs button small').textContent.includes('⏱ 1分')), true);
+  check('  オリジナル曲は どれも 1〜2分（🔥 アゲアゲは 1分半〜2分半）', await page.evaluate(() => { const o = OTO.orig(), a = o.filter(s => !s.hype).map(s => OTO.arranged(s.id).sec), h = o.filter(s => s.hype).map(s => OTO.arranged(s.id).sec); return a.length + '/' + a.every(x => x >= 60 && x <= 120) + '/' + h.length + '/' + h.every(x => x >= 90 && x <= 150); }), '14/true/10/true');   // v682：1〜2分は オリジナル曲。昔の 曲は 原曲の 長さ
+  check('  曲の 長さを 一覧に 出す', await page.evaluate(() => /⏱ \d分/.test(document.querySelector('#otoBody .og-songs button small').textContent)), true);
   check('  くり返さず 原曲の まま（v682）', await page.evaluate(() => { OTO.song('mary'); OTO.mode('fall'); OTO.diff(3); OTO.start(); const g = OTO.game(); OTO.quit(); return g.n + '/' + OTO.arranged('mary').reps; }), '26/1');   // v682：くり返さない
   check('  むずかしさは ★1〜★5（説明つき・覚える）', await page.evaluate(() => { const b = [...document.querySelectorAll('#otoBody .oo-seg[aria-label="むずかしさ"] button')].map(x => x.textContent).join(','); OTO.diff(5); return b + '|' + OTO.state().diff + '|' + JSON.parse(localStorage.getItem('excalc_oto')).diff; }), '★1,★2,★3,★4,★5|5|5');
   check('  ★1 は 細かい 音を まとめ、★5 は 飾りの 音を 足す', await page.evaluate(() => { const n = d => OTO.diffNotes('turkish', d); return [n(1) < n(2), n(2) < n(3), n(3) === n(4), n(5) > n(4)].join('/'); }), 'true/true/true/true');
@@ -22455,7 +22455,7 @@ async function runOto675(browser) {
   const w = ms => page.waitForTimeout(ms);
   await page.evaluate(() => openOto('game')); await w(700);
   check('  ⚡ オリジナル曲（1〜2分・まとまりごとに 形が かわる）', await page.evaluate(() => OTO.orig().slice(0, 4).map(s => s.id + ':' + (s.sec >= 60 && s.sec <= 120) + ':' + (s.shapes.split(',').length >= 3)).join(' ')), 'cdash:true:true cneon:true:true cwaltz:true:true cdragon:true:true');
-  check('  一覧の いちばん上に 出す（Claude 作曲）', await page.evaluate(() => { const g = document.querySelector('#otoBody .og-gname'); return g.textContent + '|' + g.nextElementSibling.textContent.includes('Claude 作曲'); }), '⚡ ゲーム用 オリジナル曲（伴奏つき）|true');
+  check('  一覧の いちばん上に 出す（Claude 作曲）', await page.evaluate(() => { const g = document.querySelector('#otoBody .og-gname'); return g.textContent + '|' + g.nextElementSibling.textContent.includes('Claude 作曲'); }), '🔥 アゲアゲ！ 爽快 オリジナル曲（伴奏つき・2分 前後）|true');   // v692：🔥 を いちばん上に（⚡ は その次）
   check('  伴奏：オリジナル曲は ドラム・ベース・和音、ほかの 曲は かるい ドラム', await page.evaluate(() => { const a = OTO.backOf('cdash').kinds.split(','), b = OTO.backOf('kira').kinds; return ['kick', 'snare', 'bass', 'pad', 'crash'].every(k => a.includes(k)) + '/' + b; }), 'true/bass,clap,crash,hat,kick,ohat,pad,snare,stick');   // v677：昔の 曲も 和音と ベース
   check('  音色は 16（シンセ・エレピ・ラッパ・ストリングス・カリンバ・こと・スチールドラム・コーラス を 足す）', await page.evaluate(() => { const l = OTO.insts(); ['synth', 'epiano', 'brass', 'strings', 'kalimba', 'koto', 'steel', 'choir'].forEach(i => OTO.inst(i)); return l.length + '/' + OTO.state().inst; }), '17/choir');   // v678：「曲に 合わせる」も
   check('  演出の 強さ（はじめは ド派手）・🥁 伴奏の 入り切り を 覚える', await page.evaluate(() => { const a = document.querySelector('#otoBody .oo-seg[aria-label="演出"] button.on').textContent; OTO.fx('mega'); OTO.beat(); const s = JSON.parse(localStorage.getItem('excalc_oto')); OTO.fx('ultra'); OTO.beat(); return a + '|' + s.fx + '/' + s.beat; }), '🎆 ド派手|mega/false');
@@ -22517,7 +22517,7 @@ async function runOto677(browser) {
   console.log('\n── 🎵 音ゲー（v677。昔の 曲を 長く・変奏・オリジナル曲 14） ──');
   const w = ms => page.waitForTimeout(ms);
   await page.evaluate(() => openOto('game')); await w(600);
-  check('  オリジナル曲は 14（どれも 1〜2分・形が 3つ 以上・伴奏に ベースと 和音）', await page.evaluate(() => { const o = OTO.orig(); return o.length + '/' + o.every(s => s.sec >= 60 && s.sec <= 120 && s.shapes.split(',').length >= 3) + '/' + o.every(s => { const k = OTO.backOf(s.id).kinds; return k.includes('bass') && (k.includes('pad') || k.includes('tom')); }); }), '14/true/true');
+  check('  オリジナル曲は 14（どれも 1〜2分・形が 3つ 以上・伴奏に ベースと 和音）', await page.evaluate(() => { const o = OTO.orig().filter(s => !s.hype); return o.length + '/' + o.every(s => s.sec >= 60 && s.sec <= 120 && s.shapes.split(',').length >= 3) + '/' + o.every(s => { const k = OTO.backOf(s.id).kinds; return k.includes('bass') && (k.includes('pad') || k.includes('tom')); }); }), '14/true/true');
   check('  新しい リズム：和太鼓・ボサノバ風', await page.evaluate(() => [OTO.backOf('cmatsuri').kinds.includes('tom'), OTO.backOf('cumi').kinds.includes('rim')].join('/')), 'true/true');
   check('  一覧に やさしさの 目じるし（🌱🌿🌳）', await page.evaluate(() => [...document.querySelectorAll('#otoBody .og-songs button small')].slice(0, 14).every(x => /^(🌱|🌿|🌳)/.test(x.textContent))), true);
   check('  昔の 曲は 原曲の まま 1回（v682：くり返して のばさない）', await page.evaluate(() => { const p = OTO.pd(); return p.length + '/' + p.every(x => x.vars === 'theme') + '/' + p.every(x => x.sec >= 10 && x.sec <= 185); }), '35/true/true');   // v686：メドレー 13曲を ふくむ   // v681：メロディーが 分からなく なる 変奏（付点・分散和音）は 使わない
@@ -22717,7 +22717,7 @@ async function runFillMenu687(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── ⇲ メニューから コピー・1つの セルの 🎨 色・メニューの 場所（v687） ──');
   const w = ms => page.waitForTimeout(ms);
-  await page.evaluate(() => { localStorage.setItem('excalc_fill_how', 'menu'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await page.reload();   // 新しい 画面で await w(900);
+  await page.evaluate(() => { localStorage.setItem('excalc_fill_how', 'menu'); localStorage.removeItem('excalc_band_mig687'); localStorage.setItem('excalc_ui2', '1'); }); await w(300); await page.reload(); await w(900);   // 新しい 画面で（v698：待ちが コメントの 中に 入って いたのを 出した。v700：書いて すぐ 開き直すと まれに 消えるので 前にも 待つ）
   const box = async id => (await (await page.$(id)).boundingBox());
   const tap = async id => { const b = await box(id); await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2); await w(450); };
   const band = () => page.evaluate(() => [...document.querySelectorAll('#cellMenu button')].filter(b => b.offsetParent && b.getBoundingClientRect().width > 0).map(b => b.getAttribute('aria-label') || b.textContent.trim()).join('|'));
@@ -22804,8 +22804,10 @@ async function runHelp690(browser) {
     for (let i = 0; i < SET_QUICK.length; i++) {
       const q = SET_QUICK[i]; if (q[3]) continue;   // 窓を 開く もの（夜の色・読み上げ）は 別に 見る
       toggleSettings(); await new Promise(r => setTimeout(r, 30)); if (!document.getElementById('settingsPanel').classList.contains('open')) toggleSettings();
-      setQuickGo(i); await new Promise(r => setTimeout(r, 450));
-      const el = document.getElementById(q[2]); const r = el && el.getBoundingClientRect();
+      setQuickGo(i); await new Promise(r => setTimeout(r, 300));
+      const el = document.getElementById(q[2]);
+      for (let k = 0, prev = NaN; el && k < 30; k++) { const t = Math.round(el.getBoundingClientRect().top); if (t === prev) break; prev = t; await new Promise(r => setTimeout(r, 80)); }   // ゆっくり 送る（smooth）が 止まるまで 待つ（v700：設定が ふえて 送る 距離が 長く なった）
+      const r = el && el.getBoundingClientRect();
       if (!el || !el.offsetParent || r.top < 0 || r.top > innerHeight - 60) bad.push(q[1]);   // 頭が 見えて いれば よい（たたみを 開いた 大きな まとまりは 下が はみ出す）
     }
     return bad.join(',') || 'ok';
@@ -22917,6 +22919,52 @@ async function runHelp690(browser) {
   await ctx.close();
 }
 
+/* v691：表で 関数を 声（キーボードの 音声入力も）で 言ったとき、頭に ＝ を 付けた 式で 入れる。
+   ROUND・IF・COUNTIF・VLOOKUP なども（前は SUM・AVERAGE などの 6つだけ 式に なり、ほかは「＝」の ない 文字の まま だった）。
+   MAX の X が かけ算に・区切りの「,」が 消えて いたのも 直す。あわせて 声の 言い方を ふやし、余計な 言葉が 続く ときは 決めつけない */
+async function runVoiceFx691(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 表で 関数を 声で 言うと ＝ 付きの 式に（v691） ──');
+  await page.evaluate(() => { ['10', '20', '30', '40', '50'].forEach((v, i) => setCellVal(i, 0, v)); setCellVal(0, 1, '100'); setCellVal(1, 1, '200'); setCellVal(2, 1, '300'); recalcAll(); });
+  const CASES = [
+    // 関数の 名前で（認識が 関数の 形で 返す・キーボードで 打った）
+    ['SUM(A1:A5)', '=SUM(A1:A5)'], ['sum(a1:a5)', '=SUM(A1:A5)'], ['ＳＵＭ（Ａ１：Ａ５）', '=SUM(A1:A5)'], ['イコールSUM(A1:A5)', '=SUM(A1:A5)'],
+    ['ROUND(A1,0)', '=ROUND(A1,0)'], ['round(a1*1.1,0)', '=ROUND(A1*1.1,0)'], ['ROUNDDOWN(A1*1.08,0)', '=ROUNDDOWN(A1*1.08,0)'],
+    ['MAX(A1:A5)', '=MAX(A1:A5)'], ['MIN(A1:A5)', '=MIN(A1:A5)'], ['IF(A1>100,"○","×")', '=IF(A1>100,"○","×")'],
+    ['COUNTIF(A1:A5,">20")', '=COUNTIF(A1:A5,">20")'], ['VLOOKUP(A1,B1:C5,2,0)', '=VLOOKUP(A1,B1:C5,2,0)'], ['SUM(A1から A5)', '=SUM(A1:A5)'],
+    ['SUM A1:A5', '=SUM(A1:A5)'], ['サム エー1からエー5', '=SUM(A1:A5)'], ['SUM(A1:A5)*1.1', '=SUM(A1:A5)*1.1'], ['SUM(A1:A5)。', '=SUM(A1:A5)'],
+    // ことばで
+    ['エー1からエー5の合計', '=SUM(A1:A5)'], ['合計エー1からエー5', '=SUM(A1:A5)'], ['平均 エー1からエー5', '=AVERAGE(A1:A5)'],
+    ['エー1とエー2とエー3の合計', '=SUM(A1,A2,A3)'], ['A1：A5の合計', '=SUM(A1:A5)'], ['エー1からエー5まで足す', '=SUM(A1:A5)'],
+    ['A1からA5の和', '=SUM(A1:A5)'], ['A1からA5のトータル', '=SUM(A1:A5)'], ['A1からA5のカウント', '=COUNT(A1:A5)'],
+    ['エー1からエー5の平均を四捨五入', '=ROUND(AVERAGE(A1:A5),0)'], ['エー1からエー5の合計を切り捨て', '=ROUNDDOWN(SUM(A1:A5),0)'],
+    ['エー1からエー5の合計を出して', '=SUM(A1:A5)'], ['エー1からエー5までの合計値', '=SUM(A1:A5)'], ['A1からA5の最大値', '=MAX(A1:A5)'],
+    ['イコール1たす2', '=1+2'], ['251かける68', '=251*68'], ['エー1たすエー2', '=A1+A2'],
+    // 式に しない（文字の まま）
+    ['TODAY()', 'null'], ['ABC(1)', 'null'], ['SUM(山田)', 'null'], ['SUM(A1:A5', 'null'], ['合計', 'null'], ['エー1からエー5の合計に消費税', 'null'], ['みかん3個', 'null'],
+  ];
+  const got = await page.evaluate(cs => cs.map(([t]) => String(speechToFormula(t))), CASES);
+  const bad = CASES.filter((c, i) => got[i] !== c[1]).map((c, i) => c[0] + '→' + got[CASES.indexOf(c)] + '（' + c[1] + '）');
+  check('  関数の 名前でも ことばでも ＝ 付きの 式に・式で ない ものは 文字の まま（' + CASES.length + '件）', bad.join(' / '), '');
+  // 声で 入れる（アプリの 🎤）：セルに 式が 入って 答えが 出る
+  const put = t => page.evaluate(t => { sel(8, 0); voiceAccept(t); const v = data[8][0] + ' = ' + getCellDisplay(8, 0); setCellVal(8, 0, ''); return v; }, t);
+  check('  🎤「ROUND(A1*1.1,0)」→ =ROUND(A1*1.1,0) ＝ 11', await put('ROUND(A1*1.1,0)'), '=ROUND(A1*1.1,0) = 11');
+  check('  🎤「IF(A1>100,"○","×")」→ × が そのまま 出る', await put('IF(A1>100,"○","×")'), '=IF(A1>100,"○","×") = ×');
+  check('  🎤「合計 エー1から エー5」→ 150', await put('合計エー1からエー5'), '=SUM(A1:A5) = 150');
+  check('  🎤「エー1とエー2とエー3の合計」→ 60', await put('エー1とエー2とエー3の合計'), '=SUM(A1,A2,A3) = 60');
+  // キーボードで 打った（音声入力した）字も 同じ（入力欄で 決める）
+  check('  入力欄に「count(a1:a5)」→ =COUNT(A1:A5)', await page.evaluate(() => { sel(8, 0); const fi = document.getElementById('formulaInput'); fi.focus(); fi.value = 'count(a1:a5)'; fi.dispatchEvent(new Event('input')); fi.blur(); return new Promise(r => setTimeout(() => { const v = data[8][0] + ' = ' + getCellDisplay(8, 0); setCellVal(8, 0, ''); r(v); }, 400)); }), '=COUNT(A1:A5) = 5');
+  // テンキーで 打ちかけの ときに 🎤：声の 中身が 書き戻されない
+  check('  テンキーで 打ちかけでも 声の 中身が 残る', await page.evaluate(() => { sel(8, 0); num('1'); voiceAccept('エー1からエー5の合計'); sel(9, 0); sel(8, 0); const v = data[8][0]; setCellVal(8, 0, ''); return v; }), '=SUM(A1:A5)');
+  // " " の 中の × ÷ は 文字の まま（打った 式でも）・Excel に 書き出す 式でも
+  check('  =IF(…,"○","×") の × は 文字の まま・計算の × は かけ算', await page.evaluate(() => { setCellVal(9, 0, '=IF(A1>5,"○","×")'); setCellVal(9, 1, '=IF(A1>100,"×÷","なし")'); setCellVal(9, 2, '=A1×2÷4'); recalcAll();
+    const v = [getCellDisplay(9, 0), getCellDisplay(9, 1), getCellDisplay(9, 2), appFormulaToXlsx('=IF(A1>1,"×","○")*1'), appFormulaToXlsx('=A1×2')].join('/'); [0, 1, 2].forEach(c => setCellVal(9, c, '')); return v; }), '○/なし/5/=IF(A1>1,"×","○")*1/=A1*2');
+  check('  言える 言葉の 一覧（表）に 新しい 言い方', await page.evaluate(() => ['合計エー1からエー5', 'エー1とエー2とエー3の合計', 'エー1からエー5の平均を四捨五入', 'SUM A1からA5'].every(x => SAY_TABLE.includes(x) && speechToFormula(x))), true);
+  check('  JSエラーが出ていない', errs.length, 0);
+  if (errs.length) console.log('    ', errs);
+  await ctx.close();
+}
+
 async function runPadLabel688(browser) {
   const { devices } = require('playwright');
   const errs = [];
@@ -22970,6 +23018,481 @@ async function runPadLabel688(browser) {
   check('  エラーなし', errs.join(' / '), '');
 }
 
+/* v692：🔥 アゲアゲ！ 爽快 オリジナル曲 10曲・🌀 なぞるの 🧭 ガイド（光の 道と 玉）・本物に 近い 音色（作り置きの 音・リバーブ・ドラムと ベース） */
+async function runOto692(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🎵 音ゲー（v692。爽快な 曲 10・なぞるの ガイド・本物に 近い 音） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => openOto('game')); await w(500);
+  const HY = ['hboost', 'hsummer', 'hrocket', 'hstorm', 'hfesta', 'hwing', 'hjump', 'hshine', 'hcharge', 'hvictory'];
+  check('  🔥 爽快な オリジナル曲 10曲（どれも 1分半〜2分半・7音まで・形が 3つ 以上）', await page.evaluate(ids => { const o = OTO.orig().filter(s => s.hype), sg = OTO.songs();
+    return o.length + '/' + ids.every(id => o.some(s => s.id === id)) + '/' + o.every(s => s.sec >= 90 && s.sec <= 150 && s.shapes.split(',').length >= 3 && s.bpm >= 120) + '/' + ids.every(id => { const x = sg.find(y => y.id === id); return x && x.lanes <= 7 && x.n >= 150; }); }, HY), '10/true/true/true');
+  check('  一覧の いちばん上に 🔥 の まとまり（10曲）', await page.evaluate(() => { const g = document.querySelector('#otoBody .og-gname'); let n = 0, el = g.nextElementSibling; while (el && el.tagName === 'BUTTON'){ n++; el = el.nextElementSibling; } return g.textContent.startsWith('🔥') + '/' + n; }), 'true/10');
+  check('  伴奏：ドラム・ベース・和音、新しい リズム（ロック・ドラムンベース・サンバ）', await page.evaluate(ids => { const ok = ids.every(id => { const k = OTO.backOf(id).kinds; return /bass/.test(k) && /pad/.test(k) && /kick/.test(k) && /crash/.test(k); });
+    const sec = id => OTO.secs(id).map(x => x.dr); return [ok, sec('hrocket').includes('rock'), sec('hstorm').includes('dnb'), sec('hfesta').includes('samba'), OTO.backOf('hfesta').kinds.includes('shaker')].join('/'); }, HY), 'true/true/true/true/true');
+  check('  曲ごとに 合う 音色（ギター・ストリングス・スチールドラム・ピアノ・木琴・エレピ・ピコピコ・ラッパ…）', await page.evaluate(ids => ids.map(id => OTO.autoInst(id)).join(','), HY), 'synth,flute,guitar,strings,steel,piano,xylo,epiano,chip,brass');
+  // 本物に 近い 音：作り置きの 音が どれも こわれて いない・弦は だんだん 消える
+  const smp = await page.evaluate(() => { const bad = []; let slow = 0; for (const id of OTO.smpIds()) for (const m of [43, 60, 79]) { const t0 = performance.now(); const b = OTO._smp(id, m); slow = Math.max(slow, performance.now() - t0); const d = b.getChannelData(0); let mx = 0, nan = 0; for (let i = 0; i < d.length; i++){ if (!isFinite(d[i])) nan++; mx = Math.max(mx, Math.abs(d[i])); } if (nan || mx < 0.3 || mx > 0.81 || b.duration < 0.5) bad.push(id + m); }
+    const rms = (d, a, b) => { let s = 0; for (let i = a; i < b; i++) s += d[i] * d[i]; return Math.sqrt(s / (b - a)); }, g = OTO._smp('guitar', 52).getChannelData(0), p = OTO._smp('piano', 60).getChannelData(0), sr = 32000;
+    return { ids: OTO.smpIds().join(','), bad: bad.join(','), slow, decay: rms(g, 0, sr * 0.2) > rms(g, sr, sr * 1.2) * 2 && rms(p, 0, sr * 0.2) > rms(p, sr * 1.5, sr * 1.7) * 2 }; });
+  check('  はじく・たたく 楽器は 1音ずつ 計算して 作る（ピアノ・ギター・こと・ベース・木琴・ベル・オルゴール・カリンバ・スチールドラム・エレピ）', smp.ids, 'piano,guitar,koto,ebass,xylo,bell,orgel,kalimba,steel,epiano');
+  check('  作った 音は こわれて いない（無音・大きすぎ・計算の まちがい なし）・だんだん 消える', smp.bad + '/' + smp.decay, '/true');
+  check('  1音を 作る 時間は 短い（あそぶ 前に 先に 作る）', smp.slow < 400, true);
+  check('  どの 音色を えらんでも 鳴らせる（エラーなし）', await page.evaluate(async () => { for (const id of OTO.insts()) { OTO.inst(id); await new Promise(r => setTimeout(r, 30)); } OTO.inst('auto'); return OTO.insts().length; }), 17);
+  // あそぶ 前に その 曲の 音を 作って おく・お手本は 少しずつ 予約
+  await page.evaluate(() => { OTO.mode('fall'); OTO.song('hwing'); OTO.start(); }); await w(1800);
+  check('  あそぶ 前に その 曲の 音（ピアノ・ベース）を 作って おく', await page.evaluate(() => OTO.warmLeft() + '/' + (OTO.smpCount() >= 15)), '0/true');
+  await page.evaluate(() => { OTO.quit(); OTO.listen(); }); await w(1500);
+  check('  お手本：鳴って いる・止められる', await page.evaluate(() => { const a = OTO.demoOn(); OTO.listen(); return a + '/' + OTO.demoOn(); }), 'true/false');
+  // 🌀 なぞる の 🧭 ガイド
+  await page.evaluate(() => { OTO.mode('slide'); OTO.guide('on'); OTO.song('hjump'); OTO.diff(2); }); await w(200);
+  check('  🧭 ガイドを えらべる（説明つき）・ベストは べつ', await page.evaluate(() => [document.querySelector('#otoBody .oo-seg[aria-label="ガイド"] button.on').textContent.includes('あり'), [...document.querySelectorAll('#otoBody .oo-note')].some(e => e.textContent.includes('光の 道')), OTO.state().guide].join('/')), 'true/true/true');
+  await page.evaluate(() => OTO.start()); await w(300);
+  const gd = await page.evaluate(async () => { const pts = OTO.slide().pts; const g0 = OTO.guidePos();
+    while (OTO.time() < 0.02) await new Promise(r => setTimeout(r, 10));
+    const atFirst = OTO.guidePos(), d0 = Math.hypot(atFirst.x - pts[0][0], atFirst.y - pts[0][1]);
+    for (let k = 0; k < 400; k++){ const g = OTO.game(); if (g.cnt.perfect + g.cnt.good + g.cnt.miss >= 12) break; const p = OTO.guidePos(); OTO.ptr(p.x, p.y, true); await new Promise(r => setTimeout(r, 16)); }
+    const g = OTO.game(), gp = OTO.guidePos(); return { start: !!g0, d0, hit: g.cnt.perfect + g.cnt.good, miss: g.cnt.miss, follow: gp.follow > 0 && gp.follow <= gp.tot }; });
+  check('  ガイドの 玉は 音の 時に その 音の 場所に いる', gd.start + '/' + (gd.d0 < 0.03), 'true/true');
+  check('  玉に ついて いくと 音が 拾える（ほとんど 当たる）', (gd.hit >= 10) + '/' + gd.follow, 'true/true');
+  await page.evaluate(() => { OTO.quit(); OTO.autoplay && 0; OTO.start(); OTO.autoplay(); }); await w(3300);
+  check('  ガイドつきの ベストは べつに 記録・結果に ついて いけた 割合', await page.evaluate(() => { const b = OTO.state().best; return Object.keys(b).some(k => k === 'hjump:slide:mid:d2:g') + '/' + !Object.keys(b).some(k => k === 'hjump:slide:mid:d2'); }), 'true/true');
+  await page.evaluate(() => { OTO.guide('off'); }); await w(100);
+  check('  ガイド なし に もどせる', await page.evaluate(() => OTO.state().guide + '/' + document.querySelector('#otoBody .oo-seg[aria-label="ガイド"] button.on').textContent), 'false/なし');
+  await page.evaluate(() => closeOto());
+  check('  説明書・お知らせ', [fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('アゲアゲ'), fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8').includes('ガイド'), fs.readFileSync(path.join(ROOT, 'whatsnew.js'), 'utf8').includes("v:'v692'")].join('/'), 'true/true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v693：🍽 食べた物帳（打つか 話すだけで 食べた物を どんどん 記録） */
+async function runTabeta693(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🍽 食べた物帳（v693） ──');
+  const w = ms => page.waitForTimeout(ms);
+  check('  開くまでは読まない・道具とマイキー・くらし・バックアップ・端末の空き・吹き出し・単独アプリの入口', await page.evaluate(() => [typeof window.TABETA, !!NP_TOOLS.find(t => t.id === 'tabeta' && t.ov === 'tabetaOverlay'), !!KEY_FUNCS.a_tabeta, TOOL_CATS.find(c => c[0].includes('くらし'))[1].includes('tabeta'), SETTINGS_BACKUP_KEYS.includes('excalc_tabeta'), ST_GROUPS.some(g => g.k === 'excalc_tabeta'), !!TOOL_HINTS.tabeta].join('/'))
+    + '/' + ['index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(ROOT, 'apps', 'tabeta', f))), 'undefined/true/true/true/true/true/true/true');
+  {
+    const sw = fs.readFileSync(path.join(ROOT, 'service-worker.js'), 'utf8'), rd = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), hl = fs.readFileSync(path.join(ROOT, 'help.js'), 'utf8'), ix = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    check('  service-worker・README・説明書（道具の ページ）・単独アプリの 名前', [sw.includes("'./tabeta.js'"), rd.includes('`tabeta.js`'), hl.includes('🍽食べた物帳＝'), hl.includes('"tabeta": {'), ix.includes("tabeta:'🍽 食べた物帳'")].join('/'), 'true/true/true/true/true');
+  }
+  await page.evaluate(async () => { window.appConfirm = async () => true; await openTabeta(); TABETA.now('2026-11-17T07:20'); }); await w(300);
+  check('  はじめは 案内・← もどる・入れる 欄・🎤・いつ：いま（朝）', await page.evaluate(() => [!!document.querySelector('#tbBody .tb-empty'), !!document.querySelector('#tabetaOverlay .tool-back'), !!document.getElementById('tbIn'), !!document.getElementById('tbMic'), document.getElementById('tbWhen').textContent].join('/')), 'true/true/true/true/🕘 いつ：いま（🌅 朝）');
+  // 打って Enter → 1品ずつ・欄は 空・続けて 入れられる
+  await page.fill('#tbIn', 'おにぎり、みそ汁・卵焼き'); await page.press('#tbIn', 'Enter'); await w(150);
+  check('  「、」「・」で 分けて 1品ずつ・欄は 空に なり 入力を 続けられる・朝に なる・1行ずつ 日付つき（v694）', await page.evaluate(() => { const s = TABETA.state(); return [s.e.map(x => x.n).join(','), s.e.every(x => x.m === 'asa'), document.getElementById('tbIn').value === '', document.activeElement && document.activeElement.id, [...document.querySelectorAll('#tbBody .tb-row')].map(r => r.textContent).join('|')].join('/'); }), 'おにぎり,みそ汁,卵焼き/true/true/tbIn/11/17（火）7:20おにぎり180kcal|11/17（火）7:20みそ汁40kcal|11/17（火）7:20卵焼き100kcal');
+  check('  ↶ 取り消せる', await page.evaluate(() => { const on = document.getElementById('tbUndo').classList.contains('on'); TABETA.undo(); const n = TABETA.state().e.length; TABETA.add('おにぎり、みそ汁、卵焼き'); return on + '/' + n + '/' + TABETA.state().e.length; }), 'true/0/3');
+  check('  時刻で 食事が 決まる（朝・昼・間食・夕・夜食）', await page.evaluate(() => ['2026-11-17T04:00', '2026-11-17T10:29', '2026-11-17T10:30', '2026-11-17T15:00', '2026-11-17T17:00', '2026-11-17T22:00', '2026-11-17T03:59'].map(s => TABETA.mealOf(s)).join(',')), 'asa,asa,hiru,oya,yuu,yoru,yoru');
+  check('  声は「と」でも 分ける（さとう・おべんとう・とうふ は 分けない）・「食べた」を 落とす', await page.evaluate(() => [TABETA.split('おにぎりとみそ汁と卵焼き').join('|'), TABETA.split('おべんとうとお茶').join('|'), TABETA.split('さとうととうふ').join('|'), TABETA.split('焼きとり').join('|'), TABETA.split('カレーを食べた').join('|'), TABETA.split('ハムとチーズ', false).join('|')].join(' / ')), 'おにぎり|みそ汁|卵焼き / おべんとう|お茶 / さとう|とうふ / 焼きとり / カレー / ハムとチーズ');
+  await page.evaluate(() => { TABETA.now('2026-11-17T12:10'); TABETA.heard('ラーメンとギョーザ'); }); await w(100);
+  check('  🎤 で 聞いた ものも 入る（昼）', await page.evaluate(() => TABETA.state().e.slice(-2).map(x => x.n + ':' + x.m).join(',')), 'ラーメン:hiru,ギョーザ:hiru');
+  // よく 食べる 物の ボタン
+  await page.evaluate(() => { TABETA.now('2026-11-16T07:30'); TABETA.add('おにぎり、みそ汁'); TABETA.now('2026-11-15T07:30'); TABETA.add('おにぎり'); TABETA.now('2026-11-17T19:00'); }); await w(100);
+  check('  よく 食べる・さっき 入れた 物は ボタン（押すと 入る・夕）', await page.evaluate(() => { const c = TABETA.chips(); const b = [...document.querySelectorAll('#tbChips button')].find(x => x.textContent.includes('おにぎり')); b.click(); const e = TABETA.state().e.slice(-1)[0]; return [c.includes('おにぎり'), c.includes('ギョーザ'), e.n, e.m].join('/'); }), 'true/true/おにぎり/yuu');
+  check('  1行ずつ ずっと 並ぶ（下が 新しい・日が かわる 所に 線・きょうは 色・ぜんぶの 品数）', await page.evaluate(() => { const r = [...document.querySelectorAll('#tbBody .tb-row')]; return [r.length, r.slice(0, 4).map(x => x.querySelector('.tb-dt').textContent + (x.classList.contains('nd') ? '!' : '') + (x.classList.contains('td') ? '*' : '')).join(','), r[r.length - 1].querySelector('.tb-nm').textContent, document.querySelector('#tbBody .tb-count span').textContent].join(' / '); }), '9 / 11/15（日）7:30!,11/16（月）7:30!,11/16（月）7:30,11/17（火）7:20!* / おにぎり / ぜんぶで 9品');
+  // あとから 入れる（いつ）
+  await page.evaluate(() => { TABETA.openWhen(); TABETA.setWhen('day', '2026-11-16'); TABETA.setWhen('meal', 'yuu'); TABETA.close(); }); await w(100);
+  await page.fill('#tbIn', '焼き魚、ごはん'); await page.press('#tbIn', 'Enter'); await w(150);
+  check('  「いつ」で きのうの 夕を 決めて 続けて 入れる（もどすまで 続く）', await page.evaluate(() => { const e = TABETA.state().e.filter(x => x.n === '焼き魚' || x.n === 'ごはん'); const d = new Date(e[0].t); return [e.length, d.getDate(), d.getHours() + ':' + d.getMinutes(), e.every(x => x.m === 'yuu'), document.getElementById('tbWhen').textContent, document.getElementById('tbWhen').classList.contains('set')].join('/'); }), '2/16/19:0/true/🕘 きのうの 🍲 夕✕/true');
+  check('  ✕ で いまに もどす', await page.evaluate(() => { TABETA.whenTap(); return TABETA.when() + '/' + document.getElementById('tbWhen').textContent; }), 'null/🕘 いつ：いま（🍲 夕）');
+  // 直す・消す
+  const id = await page.evaluate(() => TABETA.state().e.find(x => x.n === 'ギョーザ').i);
+  check('  押すと 直す（名前・量・時刻・食事）・↶ で もどせる', await page.evaluate(id => { TABETA.open(id); document.getElementById('tbEN').value = '焼きギョーザ'; document.getElementById('tbEQ').value = '6個'; document.getElementById('tbET').value = '13:30'; TABETA.pickMeal(document.querySelector('#tbEM button[data-m="oya"]')); TABETA.saveItem(id);
+    const x = TABETA.state().e.find(y => y.i === id), d = new Date(x.t), a = [x.n, x.q, d.getHours() + ':' + d.getMinutes(), x.m].join(','); TABETA.undo(); const y = TABETA.state().e.find(z => z.i === id); return a + ' / ' + y.n + ',' + y.m; }, id), '焼きギョーザ,6個,13:30,oya / ギョーザ,hiru');
+  check('  消す・↶ で もどす・🔁 もう一度 食べた', await page.evaluate(id => { const n0 = TABETA.state().e.length; TABETA.del(id); const n1 = TABETA.state().e.length; TABETA.undo(); const n2 = TABETA.state().e.length; TABETA.again(id); const l = TABETA.state().e.slice(-1)[0]; return [n0 - n1, n2 === n0, l.n, l.m].join('/'); }, id), '1/true/ギョーザ/yuu');
+  // さがす
+  await page.fill('#tbFind', 'おにぎり'); await w(150);
+  check('  🔍 さがす：何回・最後に いつ', await page.evaluate(() => document.querySelector('#tbBody .tb-sum').textContent + '|' + document.querySelectorAll('#tbBody .tb-row').length), 'おにぎり 4回・最後 11月17日（きょう）|4');
+  await page.fill('#tbFind', ''); await w(100);
+  // コピー・表・CSV
+  check('  📋 コピーの 文（きょう）・表に 入れる 形', await page.evaluate(() => [TABETA.text('today').split('\n').slice(0, 3).join(' / '), TABETA.rows('all')[0].join(',')].join(' || ')), '🍽 食べた物（きょう・7品） / 11/17（火） 7:20　おにぎり　180kcal / 11/17（火） 7:20　みそ汁　40kcal || 日付,時刻,食事,食べた物,量・メモ,カロリー(kcal)');
+  check('  ⬇ CSV は 英数字の ファイル名', await page.evaluate(async () => { let name = ''; const orig = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { name = this.download; }; TABETA.csv(); HTMLAnchorElement.prototype.click = orig; return name; }), 'tabeta_20261117.csv');
+  check('  ▦ この7日を 表に 入れる', await page.evaluate(async () => { TABETA.out('table', 'week'); await new Promise(r => setTimeout(r, 900)); return isDlgOpen('tabetaOverlay') + '/' + data[0].slice(0, 5).join(',') + '/' + (data[1][3] !== ''); }), 'false/日付,時刻,食事,食べた物,量・メモ/true');
+  // 開き直しても 残る・こわれた 保存
+  check('  開き直しても 残る・こわれた 保存は 捨てる', await page.evaluate(async () => { await openTabeta(); const n = TABETA.state().e.length; closeTabeta(); localStorage.setItem('excalc_tabeta', JSON.stringify({ e: [{ i: 'x', t: 'abc', n: 'a' }, { t: 1e12, n: '  りんご ' }, { t: 1e12, n: '' }, 5] })); await openTabeta(); const s = TABETA.state(); closeTabeta(); return n + '/' + s.e.length + '/' + s.e[0].n; }), '12/1/りんご');
+  check('  たくさん 入れても 速い（5000品）', await page.evaluate(async () => { const e = []; for (let i = 0; i < 5000; i++) e.push({ i: 'a' + i.toString(36).padStart(5, '0'), t: Date.UTC(2026, 0, 1) + i * 3 * 3600000, n: ['ごはん', 'パン', 'みそ汁', 'カレー'][i % 4], m: 'hiru', q: '' }); localStorage.setItem('excalc_tabeta', JSON.stringify({ e })); const t0 = performance.now(); await openTabeta(); TABETA.add('りんご'); const ms = performance.now() - t0; const n = TABETA.state().e.length; closeTabeta(); return (ms < 1500) + '/' + n; }), 'true/5001');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v694：🍽 食べた物帳を 1行ずつ ずっと 並ぶ 形に（どの 行にも 入れた 日付と 時刻） */
+async function runTabeta694(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🍽 食べた物帳：1行ずつ 日付つきで ずっと 並ぶ（v694） ──');
+  await page.evaluate(async () => {
+    const e = []; for (let i = 0; i < 650; i++) e.push({ i: 'b' + i.toString(36).padStart(4, '0'), t: new Date(2026, 10, 17, 21, 0).getTime() - (649 - i) * 5 * 3600000, n: '品' + i, m: 'hiru', q: i === 649 ? '半分' : '' });
+    e.unshift({ i: 'y2025a', t: new Date(2025, 0, 5, 8, 3).getTime(), n: 'おぞうに', m: 'asa', q: '' });
+    localStorage.setItem('excalc_tabeta', JSON.stringify({ e })); await openTabeta(); TABETA.now('2026-11-17T21:30');
+  });
+  await page.waitForTimeout(300);
+  check('  はじめは 新しい 200品・上に「▲ もっと 前」・下に ぜんぶの 品数・いちばん 下まで 送って ある', await page.evaluate(() => { const b = document.getElementById('tbBody'), r = b.querySelectorAll('.tb-row'); return [r.length, b.querySelector('.tb-more').textContent, b.querySelector('.tb-count span').textContent, b.scrollHeight - b.scrollTop - b.clientHeight < 4].join(' / '); }), '200 / ▲ もっと 前を 見る（あと 451品） / ぜんぶで 651品 / true');
+  check('  どの 行にも 日付・時刻と 食べた物（量・メモも）', await page.evaluate(() => { const r = [...document.querySelectorAll('#tbBody .tb-row')].pop(); return r.querySelector('.tb-dt').textContent + '|' + r.querySelector('.tb-nm').textContent; }), '11/17（火）21:00|品649半分');
+  check('  ▲ もっと 前 で 300品 ふえ、見て いた 所は そのまま', await page.evaluate(() => { const b = document.getElementById('tbBody'); b.scrollTop = 0; TABETA.more(); return b.querySelectorAll('.tb-row').length + '/' + (b.scrollTop > 0); }), '500/true');
+  check('  ぜんぶ 出すと 年が ちがう 日は 年も', await page.evaluate(() => { TABETA.more(); const r = document.querySelector('#tbBody .tb-row'); return document.querySelectorAll('#tbBody .tb-row').length + '/' + !!document.querySelector('#tbBody .tb-more') + '/' + r.querySelector('.tb-dt').textContent + '/' + r.classList.contains('nd'); }), '651/false/2025/1/5（日）8:03/true');
+  await page.evaluate(() => { closeTabeta(); localStorage.setItem('excalc_tabeta', JSON.stringify({ e: [] })); }); await page.evaluate(() => openTabeta()); await page.waitForTimeout(200);
+  check('  はじめの 案内に「日付と 時刻は 自動」', await page.evaluate(() => document.querySelector('#tbBody .tb-empty').textContent.includes('日付と 時刻は 自動で')), true);
+  await page.fill('#tbIn', 'トースト、牛乳'); await page.press('#tbIn', 'Enter'); await page.waitForTimeout(150);
+  check('  入れると すぐ 下に 日付つきで 並ぶ・コピーも 1行ずつ', await page.evaluate(() => [[...document.querySelectorAll('#tbBody .tb-row')].map(r => r.textContent).join(','), TABETA.text('today').replace(/\n/g, ' / ')].join(' || ')), '11/17（火）21:30トースト160kcal,11/17（火）21:30牛乳135kcal || 🍽 食べた物（きょう・2品） / 11/17（火） 21:30　トースト　160kcal / 11/17（火） 21:30　牛乳　135kcal / 　→ 11/17（火）の 合計 約295kcal');
+  check('  🔥 よく ある 物は カロリーが 自動（表記ゆれ・おわりの 言葉・数・大盛り・半分）', await page.evaluate(() => ['ごはん', 'ご飯', 'お味噌汁', 'みそラーメン', '焼きギョーザ', 'ギョーザ6個', 'おにぎり ふたつ', 'ごはん大盛り', 'りんご半分', '母の手づくりクッキー', '肉じゃが', 'カツカレー', 'ビール2本'].map(n => TABETA.kcal(n, '')).join(',')), '234,234,40,550,240,240,360,351,70,150,300,950,280');
+  check('  わからない 物・中身が わからない 言葉は 出さない（「なし」「朝ごはん」）', await page.evaluate(() => ['ドレッシングなし', '朝ごはん', '母の手料理', 'あいうえお'].map(n => String(TABETA.kcal(n, ''))).join(',')), 'null,null,null,null');
+  check('  量・メモの「大盛り」「2個」も 計算', await page.evaluate(() => [TABETA.kcal('ごはん', '大盛り'), TABETA.kcal('からあげ', '3個'), TABETA.kcal('ラーメン', '半分')].join(',')), '351,180,250');
+  check('  日ごとの 合計（わからない 物は 数を 出す）', await page.evaluate(() => { TABETA.now('2026-11-17T12:00'); TABETA.add('ふしぎな料理'); const d = [...document.querySelectorAll('#tbBody .tb-dsum')].pop(); return d.textContent; }), '11/17（火）の 合計 約295kcal（わからない 物 1品は 入って いません）');
+  const fid = await page.evaluate(() => TABETA.state().e.find(x => x.n === 'ふしぎな料理').i);
+  check('  わからない 物は 押して 数字を 入れる → その 行・合計に 入り、次から 同じ 名前は 自動', await page.evaluate(id => { TABETA.open(id); const note = document.getElementById('tbEKn').textContent.includes('自動では わかりません'); document.getElementById('tbEK').value = '420'; TABETA.saveItem(id);
+    const row = [...document.querySelectorAll('#tbBody .tb-row')].find(r => r.textContent.includes('ふしぎな料理')); const sum = [...document.querySelectorAll('#tbBody .tb-dsum')].pop().textContent;
+    TABETA.add('ふしぎな料理2皿'); const y = TABETA.state().e.find(z => z.n === 'ふしぎな料理2皿'); return [note, row.querySelector('.tb-kc').textContent, row.querySelector('.tb-kc').classList.contains('my'), sum, y.k === undefined, TABETA.kcalOf(y.i)].join('/'); }, fid), 'true/420kcal/true/11/17（火）の 合計 約715kcal/true/840');
+  check('  自分の 値は 開き直しても 残る・空に すると 自動に もどる', await page.evaluate(async id => { closeTabeta(); await openTabeta(); const a = TABETA.kcalOf(id); TABETA.open(id); document.getElementById('tbEK').value = ''; TABETA.saveItem(id); return a + '/' + TABETA.kcalOf(id) + '/' + TABETA.kcal('ふしぎな料理', ''); }, fid), '420/null/null');
+  check('  表の 品の 値も 自分で かえられる（↶ で もどる）', await page.evaluate(() => { const x = TABETA.state().e.find(y => y.n === 'トースト'); TABETA.open(x.i); document.getElementById('tbEK').value = '250'; TABETA.saveItem(x.i); const a = TABETA.kcalOf(x.i) + '/' + TABETA.kcal('トースト', ''); TABETA.undo(); return a + '/' + TABETA.kcalOf(x.i) + '/' + TABETA.kcal('トースト', ''); }), '250/250/160/160');
+  check('  ⚙ で カロリーを 出さない（行・合計・コピーから 消える。CSV には 入る）', await page.evaluate(() => { TABETA.setCal(false); const a = [document.querySelectorAll('#tbBody .tb-kc').length, document.querySelectorAll('#tbBody .tb-dsum').length, TABETA.text('today').includes('kcal'), TABETA.rows('today').find(r => r[3] === 'トースト')[5]].join('/'); TABETA.setCal(true); return a + '/' + document.querySelectorAll('#tbBody .tb-kc').length; }), '0/0/false/160/2');
+  check('  名前は 左に そろう（時刻の 桁で ずれない）', await page.evaluate(() => { TABETA.now('2026-11-17T07:05'); TABETA.add('ごはん'); const xs = [...document.querySelectorAll('#tbBody .tb-nm')].map(n => Math.round(n.getBoundingClientRect().left)); return new Set(xs).size + '/' + getComputedStyle(document.querySelector('#tbBody .tb-nm')).textAlign; }), '1/left');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v695：🍽 食べた物帳だけのアプリ（tabeta-app/）・⬆ CSV を 読み込む */
+async function runTabetaApp695(browser) {
+  console.log('\n── 🍽 食べた物帳だけのアプリ（tabeta-app/）・⬆ CSV を 読み込む（v695） ──');
+  const os = require('os'), http = require('http');
+  // ── 表電卓の中：⚙ に ⬆ 読み込む・📱 アプリの 案内（開く リンク）
+  {
+    const { ctx, page, errs } = await newPage(browser);
+    await page.evaluate(async () => { await openTabeta(); TABETA.now('2026-11-17T07:20'); TABETA.add('ごはん、みそ汁'); TABETA.now('2026-11-17T12:30'); TABETA.add('ふしぎ定食'); });
+    const id = await page.evaluate(() => TABETA.state().e.find(x => x.n === 'ふしぎ定食').i);
+    await page.evaluate(id => { TABETA.open(id); document.getElementById('tbEK').value = '777'; TABETA.saveItem(id); TABETA.menu(); }, id);
+    check('  表電卓の中：⚙ に ▦ 表に 入れる・⬆ CSV を 読み込む・📱 アプリ（リンクは tabeta-app/）', await page.evaluate(() => { const t = document.querySelector('.tb-pop').textContent; const a = ['▦ この7日を 表に 入れる', '⬆ CSV を 読み込む', '📱 食べた物帳だけの アプリ', '📋リストの ⬇書き出し'].map(w => t.includes(w)).join('/') + '/' + t.includes('いま 開いて います');
+      TABETA.appHelp(); return a + ' / ' + document.getElementById('tbAppLink').getAttribute('href') + ' / ' + [...document.querySelectorAll('#tbAppHelp h5')].map(h => h.textContent).join(','); }), 'true/true/true/true/false / tabeta-app/ / 🏠 ホーム画面に 足す,🌐 Netlify に 置く,⚠ 中身を うつす とき');
+    // ⬇ CSV の 中身を 取って、消して、⬆ 読み込む
+    const csvText = await page.evaluate(async () => { TABETA.close(); let blob = null; const o = URL.createObjectURL; URL.createObjectURL = b => { blob = b; return 'blob:x'; }; const oc = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () {}; TABETA.csv(); URL.createObjectURL = o; HTMLAnchorElement.prototype.click = oc; const u8 = new Uint8Array(await blob.arrayBuffer()); return (u8[0] === 0xEF && u8[1] === 0xBB && u8[2] === 0xBF ? '\uFEFF' : '') + await blob.text(); });
+    check('  ⬇ CSV：頭に BOM・カロリーの 列・自分で 入れた 値も', [csvText.charCodeAt(0) === 0xFEFF, csvText.split('\r\n')[0].replace(/^﻿/, ''), csvText.includes('"ふしぎ定食","","777"')].join(' / '), 'true / "日付","時刻","食事","食べた物","量・メモ","カロリー(kcal)" / true');
+    check('  ⬆ 同じ ものを 読むと 2回 入らない', await page.evaluate(t => JSON.stringify(TABETA.importText(t)) + '/' + TABETA.state().e.length, csvText), '{"add":0,"skip":3,"bad":0}/3');
+    check('  ぜんぶ 消して ⬆ 読み込む → もどる（時刻・食事・自分の カロリーも・名前ごとに おぼえる）', await page.evaluate(async t => { localStorage.setItem('excalc_tabeta', JSON.stringify({ e: [] })); closeTabeta(); await openTabeta(); const r = TABETA.importText(t); const s = TABETA.state();
+      const x = s.e.find(y => y.n === 'ふしぎ定食'); return JSON.stringify(r) + ' / ' + s.e.map(y => { const d = new Date(y.t); return d.getHours() + ':' + d.getMinutes() + y.n + ':' + y.m + ':' + TABETA.kcalOf(y.i); }).join(',') + ' / ' + (x.k === 777) + '/' + TABETA.kcal('ふしぎ定食', '') + ' / ' + document.querySelectorAll('#tbBody .tb-row').length; }, csvText),
+      '{"add":3,"skip":0,"bad":0} / 7:20ごはん:asa:234,7:20みそ汁:asa:40,12:30ふしぎ定食:hiru:777 / true/777 / 3');
+    check('  ↶ で 読み込みを 取り消せる', await page.evaluate(() => { TABETA.undo(); return TABETA.state().e.length; }), 0);
+    check('  ほかの 形の CSV：カロリーの 列なし・日付は 2026/11/1・頭の「\'」・おかしな 行は とばす・ちがう CSV は 読まない', await page.evaluate(() => { const r = TABETA.importText('日付,時刻,食事,食べた物,量・メモ\n2026/11/1,8:05,朝,パン,\n2026/11/1,,夕,"\'=カレー","大盛り"\nあいう,1:00,朝,x,\n2026-02-30,1:00,朝,y,\n');
+      const s = TABETA.state(); return JSON.stringify(r) + ' / ' + s.e.map(y => { const d = new Date(y.t); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + d.getHours() + ':' + d.getMinutes() + ' ' + y.n + '(' + y.q + '):' + y.m + ':' + TABETA.kcalOf(y.i); }).join(',') + ' / ' + TABETA.importText('名前,電話\n山田,090\n'); }),
+      '{"add":2,"skip":0,"bad":2} / 11/1 8:5 パン():asa:160,11/1 12:0 =カレー(大盛り):yuu:1125 / null');
+    check('  エラーなし', errs.join(' / '), '');
+    await ctx.close();
+  }
+  // ── 食べた物帳だけのアプリ：表電卓の ページなしで 開く
+  const solo = async (url) => {
+    const c = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: 'block' });
+    const p = await c.newPage(); const e = []; p.on('pageerror', x => e.push(x.message));
+    await p.goto(url); await p.waitForTimeout(1200);
+    const st = await p.evaluate(() => [typeof openTabeta, isDlgOpen('tabetaOverlay'), window.TB_BASE === undefined ? '同じ場所' : window.TB_BASE, !!document.getElementById('tbBoot'), getComputedStyle(document.querySelector('#tabetaOverlay .modal-close')).display, typeof NP_TOOLS, document.title].join(' / '));
+    await p.fill('#tbIn', 'おにぎり2個、みそ汁'); await p.press('#tbIn', 'Enter'); await p.waitForTimeout(250);
+    const it = await p.evaluate(() => [...document.querySelectorAll('#tbBody .tb-row .tb-nm')].map(x => x.textContent).join(',') + ':' + document.querySelector('#tbBody .tb-dsum b').textContent + ':' + JSON.parse(localStorage.getItem('excalc_tabeta')).e.length);
+    await p.evaluate(() => TABETA.menu()); await p.waitForTimeout(200);
+    const mn = await p.evaluate(() => { const t = document.querySelector('.tb-pop').textContent; return [t.includes('▦'), t.includes('⬆ CSV を 読み込む'), t.includes('（いま 開いて います）'), t.includes('📋リスト')].join('/') + ':' + (TABETA.appHelp(), document.getElementById('tbAppHelp').textContent.includes('いま 開いて いるのが') + '/' + !!document.getElementById('tbAppLink')); });
+    await p.goBack().catch(() => {}); await p.waitForTimeout(400);
+    const bk = await p.evaluate(() => !!document.querySelector('.tb-pop-bg') + '/' + isDlgOpen('tabetaOverlay'));
+    await c.close();
+    return [st, it, mn, bk, e.join(' | ') || 'エラーなし'].join(' // ');
+  };
+  check('  食べた物帳だけのアプリ（表電卓といっしょ：ひとつ上の tabeta.js）：開く・入れる・カロリー・▦ なし・戻るで 閉じるのは 上の 窓だけ', await solo('file://' + path.join(ROOT, 'tabeta-app', 'index.html')),
+    'function / true / ../ / false / none / undefined / 🍽 食べた物帳 // おにぎり2個,みそ汁:約400kcal:2 // false/true/true/false:true/false // false/true // エラーなし');
+  const tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'tbapp-')), tmp = path.join(tmpBase, 'site'); fs.mkdirSync(tmp);   // ひとつ上には tabeta.js が ない 形
+  for (const f of fs.readdirSync(path.join(ROOT, 'tabeta-app'))) fs.copyFileSync(path.join(ROOT, 'tabeta-app', f), path.join(tmp, f));
+  fs.copyFileSync(path.join(ROOT, 'tabeta.js'), path.join(tmp, 'tabeta.js'));
+  check('  食べた物帳だけのアプリ（Netlify の 中の フォルダに 置く 形：同じ 場所の tabeta.js）', await solo('file://' + path.join(tmp, 'index.html')),
+    'function / true / 同じ場所 / false / none / undefined / 🍽 食べた物帳 // おにぎり2個,みそ汁:約400kcal:2 // false/true/true/false:true/false // false/true // エラーなし');
+  fs.rmSync(tmpBase, { recursive: true, force: true });
+  { const mf = JSON.parse(fs.readFileSync(path.join(ROOT, 'tabeta-app', 'manifest.json'), 'utf8')), sw = fs.readFileSync(path.join(ROOT, 'tabeta-app', 'sw.js'), 'utf8'), ver = (fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8').match(/APP_VERSION='([^']+)'/) || [])[1];
+    check('  　ホーム画面に 足せる（manifest：名前・start_url・アイコン）・控え（sw.js の 名前は 表電卓と 同じ 版）', [mf.name, mf.start_url, mf.display, mf.icons.length, ['icon-192.png', 'icon-512.png', 'apple-touch-icon.png'].every(f => fs.existsSync(path.join(ROOT, 'tabeta-app', f))), (sw.match(/const CACHE = '([^']+)'/) || [])[1] === 'tabeta-app-' + ver, /'\.\.\/tabeta\.js'/.test(sw)].join('/'), '食べた物帳/.//standalone/4/true/true/true'); }
+  // ── HTTP で 開く（GitHub Pages・Netlify と 同じ 形）：読めない（404）ものが ない・控え（sw.js）で 電波が なくても 開く
+  const serve = dir => new Promise(res => {
+    const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.css': 'text/css' };
+    const srv = http.createServer((req, rsp) => {
+      let u = decodeURIComponent(req.url.split('?')[0]); if (u.endsWith('/')) u += 'index.html';
+      const f = path.join(dir, path.normalize(u));
+      if (!f.startsWith(dir) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { rsp.writeHead(404); rsp.end('not found'); return; }
+      rsp.writeHead(200, { 'Content-Type': types[path.extname(f)] || 'application/octet-stream', 'Cache-Control': 'no-cache' }); fs.createReadStream(f).pipe(rsp);
+    });
+    srv.listen(0, '127.0.0.1', () => res(srv));
+  });
+  const httpRun = async (dir, rel, sw) => {
+    const srv = await serve(dir), url = `http://127.0.0.1:${srv.address().port}/${rel}`;
+    const c = await browser.newContext({ viewport: { width: 412, height: 915 }, serviceWorkers: sw ? 'allow' : 'block' });
+    const p = await c.newPage(); const bad = [], e = [];
+    p.on('response', r => { if (r.status() >= 400) bad.push(r.status() + ' ' + r.url().replace(/^http:\/\/[^/]+/, '')); });
+    p.on('pageerror', x => e.push(x.message));
+    await p.goto(url); await p.waitForTimeout(1200);
+    const st = await p.evaluate(() => [isDlgOpen('tabetaOverlay'), window.TB_BASE, document.title].join(' / '));
+    await p.fill('#tbIn', 'カレー'); await p.press('#tbIn', 'Enter'); await p.waitForTimeout(250);
+    let off = '（控えなし）';
+    if (sw) {
+      const ready = await p.evaluate(() => Promise.race([navigator.serviceWorker.ready.then(() => new Promise(r => { if (navigator.serviceWorker.controller) r('ok'); else navigator.serviceWorker.addEventListener('controllerchange', () => r('ok')); })), new Promise(r => setTimeout(() => r('timeout'), 8000))]));
+      await p.waitForTimeout(500);
+      const keys = await p.evaluate(async () => { const ks = await caches.keys(); const c = await caches.open(ks.find(k => k.startsWith('tabeta-app-'))); return ks.join(',') + ' / ' + (await c.keys()).map(r => new URL(r.url).pathname).filter(u => /tabeta\.js/.test(u)).sort().join(','); });
+      { const cl = new Promise(r => srv.close(r)); srv.closeAllConnections(); await cl; }
+      await p.reload().catch(x => e.push('reload: ' + x.message)); await p.waitForTimeout(1500);
+      off = ready + ' / ' + keys + ' / 電波なし：' + await p.evaluate(() => [isDlgOpen('tabetaOverlay'), [...document.querySelectorAll('#tbBody .tb-row .tb-nm')].map(x => x.textContent).join(',')].join(' / ')).catch(x => 'NG ' + x.message);
+    } else { const cl = new Promise(r => srv.close(r)); srv.closeAllConnections(); await cl; }
+    await c.close();
+    return [st, bad.join(' | ') || '404なし', off, e.join(' | ') || 'エラーなし'].join(' // ');
+  };
+  check('  HTTP：表電卓といっしょ（GitHub Pages の tabeta-app/）：ひとつ上を 読む・404なし', await httpRun(ROOT, 'tabeta-app/', false),
+    'true / ../ / 🍽 食べた物帳 // 404なし // （控えなし） // エラーなし');
+  { const base = fs.mkdtempSync(path.join(os.tmpdir(), 'tbhttp-')), site = path.join(base, 'site'); fs.mkdirSync(site);
+    for (const f of fs.readdirSync(path.join(ROOT, 'tabeta-app'))) fs.copyFileSync(path.join(ROOT, 'tabeta-app', f), path.join(site, f));
+    fs.copyFileSync(path.join(ROOT, 'tabeta.js'), path.join(site, 'tabeta.js'));
+    check('  HTTP：Netlify に 単独で 置く 形（いちばん 上）：404なし・控えに 本体・電波が なくても 開いて 中身も 残る', await httpRun(site, '', true),
+      'true / ../ / 🍽 食べた物帳 // 404なし // ok / ' + (fs.readFileSync(path.join(ROOT, 'tabeta-app', 'sw.js'), 'utf8').match(/const CACHE = '([^']+)'/) || [])[1] + ' / /tabeta.js / 電波なし：true / カレー // エラーなし');
+    fs.rmSync(base, { recursive: true, force: true }); }
+}
+/* v696：食べた物帳（名前の あいだを 詰める）・👤 わたしの こと（基礎代謝）と ＋−・📈 グラフ（範囲を 決めて） */
+async function runTabeta696(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🍽 食べた物帳：基礎代謝・＋−・グラフ（v696） ──');
+  const w = ms => page.waitForTimeout(ms);
+  {
+    const files = ['tabeta.js', 'app.js', 'help.js', 'index.html', 'README.md', 'apps/tabeta/index.html', 'apps/tabeta/manifest.json', 'tabeta-app/index.html', 'tabeta-app/manifest.json'];
+    check('  名前は「食べた物帳」（物と 帳の あいだを あけない）・ホーム画面の 名前も', files.filter(f => /食べた物[ 　]帳/.test(fs.readFileSync(path.join(ROOT, f), 'utf8'))).join(',') + '/' + JSON.parse(fs.readFileSync(path.join(ROOT, 'tabeta-app', 'manifest.json'), 'utf8')).short_name, '/食べた物帳');
+  }
+  check('  基礎代謝（国立健康・栄養研究所の 式・17歳までは 基礎代謝基準値）と 1日に 使う 量（身体活動レベル）', await page.evaluate(async () => { await openTabeta();
+    return [TABETA.bmr({ sex: 'm', age: 40, h: 170, w: 65 }), TABETA.bmr({ sex: 'f', age: 40, h: 158, w: 52 }), TABETA.bmr({ sex: 'm', age: 10, w: 32 }), TABETA.burn({ sex: 'm', age: 40, h: 170, w: 65, act: '2' }), TABETA.burn({ sex: 'm', age: 40, h: 170, w: 65, act: '1' }), TABETA.burn({ sex: 'f', age: 70, h: 150, w: 50, act: '3' }), TABETA.burn({ sex: 'm', age: 40, h: 170, w: 65, act: 'b' }), TABETA.bmr({ sex: 'm', age: 40, w: 65 }), TABETA.bmr({ sex: 'x', age: 40, h: 170, w: 65 })].join(','); }),
+    '1464,1117,1197,2562,2196,1853,1464,,');
+  // まだ 入れて いない ときは 案内
+  await page.evaluate(() => { TABETA.now('2026-11-18T07:30'); TABETA.add('ごはん、みそ汁、納豆'); TABETA.now('2026-11-18T12:00'); TABETA.add('ラーメン'); });
+  check('  わたしの ことが ない ときは ＋− を 出さず、入れる 案内', await page.evaluate(() => [!!document.querySelector('#tbBody .tb-pmrow'), document.querySelector('#tbBody .tb-count .tb-linkb').textContent].join('/')), 'false/👤 年齢・性別などを 入れると 基礎代謝と ＋− が 出ます');
+  // 👤 入れる
+  await page.evaluate(() => TABETA.prof()); await w(150);
+  check('  足りない ときは 何が いるか 出る', await page.evaluate(() => { const a = document.getElementById('tbPR').textContent; document.querySelector('#tbPS button[data-v="m"]').click(); const b = document.getElementById('tbPR').textContent; return a + ' / ' + b; }), '性別を えらんで ください / 年齢を 入れて ください（1〜120歳）');
+  await page.fill('#tbPA', '40'); await page.fill('#tbPH', '170'); await page.fill('#tbPW', '65'); await w(80);
+  check('  入れると すぐ 基礎代謝と 使う 量が 出る（ふつう）', await page.evaluate(() => document.getElementById('tbPR').textContent), '基礎代謝 約1,464kcal（1日）1日に 使う 量 約2,562kcal（基礎代謝 × 1.75）');
+  check('  「1日の 動き」を かえると 使う 量も かわる', await page.evaluate(() => { document.querySelector('#tbPL button[data-v="1"]').click(); const a = document.getElementById('tbPR').textContent; document.querySelector('#tbPL button[data-v="2"]').click(); return a.includes('2,196kcal') + '/' + document.querySelector('#tbPL button.on').dataset.v; }), 'true/2');
+  await page.evaluate(() => TABETA.saveProf()); await w(150);
+  check('  日の 合計に ＋−（マイナス・▼・色だけに しない）・保存', await page.evaluate(() => { const r = document.querySelector('#tbBody .tb-pmrow'); return r.textContent + '/' + r.querySelector('.tb-pm').className + '/' + JSON.stringify(JSON.parse(localStorage.getItem('excalc_tabeta')).prof); }),
+    '使う 量 約2,562kcal と くらべて ▼ −1,688kcal マイナス/tb-pm minus/{"sex":"m","age":40,"h":170,"w":65,"act":"2"}');
+  check('  食べると プラスに かわる・コピーの 文にも ＋−', await page.evaluate(() => { TABETA.now('2026-11-18T19:00'); TABETA.add('カツ丼、ビール2本、ケーキ、ポテトチップス'); const r = document.querySelector('#tbBody .tb-pmrow').textContent; return r + ' || ' + TABETA.text('today').split('\n').pop(); }),
+    '使う 量 約2,562kcal と くらべて ▲ ＋172kcal プラス || 　→ 11/18（水）の 合計 約2,734kcal（使う 量 2,562kcal と くらべて ＋172kcal）');
+  check('  「基礎代謝で くらべる」に すると 基礎代謝と くらべる', await page.evaluate(() => { TABETA.prof(); document.querySelector('#tbPL button[data-v="b"]').click(); TABETA.saveProf(); return document.querySelector('#tbBody .tb-pmrow').textContent; }), '基礎代謝 約1,464kcal と くらべて ▲ ＋1,270kcal プラス');
+  check('  🗑 消すと ＋− を 出さない・↶ で もどる', await page.evaluate(() => { TABETA.prof(); TABETA.delProf(); const a = !!document.querySelector('#tbBody .tb-pmrow'); TABETA.undo(); return a + '/' + !!document.querySelector('#tbBody .tb-pmrow'); }), 'false/true');
+  check('  ⚙ に 👤 わたしの こと・📈 グラフ、上の 帯に 📈', await page.evaluate(() => { TABETA.menu(); const t = document.querySelector('.tb-pop').textContent; TABETA.close(); return [t.includes('👤 基礎代謝と ＋−（わたしの こと：男性 40歳）'), t.includes('📈 グラフ（範囲を 決めて）'), !!document.querySelector('.tb-top button[aria-label="グラフ"]')].join('/'); }), 'true/true/true');
+  // 📈 グラフ：40日ぶんの 記録
+  await page.evaluate(() => { TABETA.prof(); document.querySelector('#tbPL button[data-v="2"]').click(); TABETA.saveProf();
+    const st = JSON.parse(localStorage.getItem('excalc_tabeta')), e = []; for (let d = 40; d >= 1; d--) { if (d % 10 === 3) continue; e.push({ i: 'z' + d.toString(36).padStart(4, '0'), t: new Date(2026, 10, 18 - d, 12, 0).getTime(), n: d % 2 ? 'カレーライス' : 'ラーメン', m: 'hiru', q: '' }); }
+    st.e = e.concat(st.e).sort((a, b) => a.t - b.t); localStorage.setItem('excalc_tabeta', JSON.stringify(st)); closeTabeta(); });
+  await page.evaluate(async () => { await openTabeta(); TABETA.now('2026-11-18T20:00'); TABETA.graph(); }); await w(250);
+  check('  はじめは 7日・1日の カロリー・最後の 日を 出す（ほかの 棒は 薄く しない）', await page.evaluate(() => { const D = TABETA.grData(); return [D.from, D.to, D.nd, D.unit, D.rec, document.querySelectorAll('#tbGrBox .g-b').length, document.querySelectorAll('#tbGrBox .g-dim').length, document.querySelectorAll('#tbGrBox text').length > 5, document.getElementById('tbGrRo').textContent, document.querySelector('#tbGrR button.on').textContent + document.querySelector('#tbGrK button.on').textContent].join(' / '); }),
+    '2026-11-12 / 2026-11-18 / 7 / day / 6 / 6 / 0 / true / 11/18（水） 2,734kcal ▲ ＋172kcal プラス 8品 / 7日🔥 1日の カロリー');
+  check('  使う 量の 線と 名前（直に 書く）', await page.evaluate(() => [!!document.querySelector('#tbGrBox .g-ref'), document.querySelector('#tbGrBox .g-reft').textContent].join('/')), 'true/使う量 2,562');
+  check('  棒を 押すと その 日・ほかの 棒は 薄く', await page.evaluate(() => { const h = document.querySelectorAll('#tbGrBox .g-hit')[1]; h.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return document.getElementById('tbGrRo').textContent + ' / ' + document.querySelectorAll('#tbGrBox .g-dim').length; }), '11/13（金） 750kcal ▼ −1,812kcal マイナス 1品 / 5');
+  check('  30日：1日ずつ・記録の ない 日は 棒なし・まとめ（平均・合計・＋−・体重 にすると）', await page.evaluate(() => { TABETA.grSet('r', '30'); const D = TABETA.grData(); return [D.nd, D.unit, D.rec, document.querySelectorAll('#tbGrBox .g-b').length, D.avg, D.sum, D.pmSum, document.querySelector('.tb-grsum').textContent.replace(/\s+/g, ' ')].join(' / '); }),
+    '30 / day / 27 / 27 / 694 / 18734 / -50440 / 記録した 日 27日 1日 平均 約694kcal 合計 約18,734kcal使う 量 1日 約2,562kcal と くらべて 期間の 合計 ▼ −50,440kcal マイナス（体重 にすると 約 −7.0kg ぶん・7,200kcal＝1kg の 目安）');
+  check('  ＋− くらべる：0 から 上（プラス・赤）と 下（マイナス・青）・凡例', await page.evaluate(() => { TABETA.grSet('kind', 'pm'); return [document.querySelectorAll('#tbGrBox .g-plus').length, document.querySelectorAll('#tbGrBox .g-minus').length, !!document.querySelector('#tbGrBox .g-base'), document.querySelector('.tb-grleg').textContent].join(' / '); }), '1 / 26 / true / ▲ プラス（食べた 方が 多い）▼ マイナス（使う 方が 多い）');
+  check('  1年は 1週間ずつ・ぜんぶは 最初の 日から', await page.evaluate(() => { TABETA.grSet('r', '365'); const a = TABETA.grData(); TABETA.grSet('r', 'all'); const b = TABETA.grData(); return [a.unit, a.nd, a.bk.length, b.from, b.unit, b.nd].join(' / '); }), 'week / 365 / 53 / 2026-10-09 / day / 41');
+  check('  日付を 自分で 決める（逆でも よい）・長いと 1か月ずつ', await page.evaluate(() => { TABETA.grSet('from', '2026-11-10'); TABETA.grSet('to', '2026-11-01'); const a = TABETA.grData(); TABETA.grSet('from', '2024-01-01'); TABETA.grSet('to', '2026-11-18'); const b = TABETA.grData();
+    return [a.from, a.to, a.nd, document.querySelector('#tbGrR button.on') === null, document.getElementById('tbGrF').value, b.unit, b.bk.length, b.bk[b.bk.length - 1][0]].join(' / '); }), '2026-11-01 / 2026-11-10 / 10 / true / 2024-01-01 / month / 35 / 2026/11');
+  check('  📋 数で 見る（表）', await page.evaluate(() => { TABETA.grSet('r', '7'); TABETA.grSet('kind', 'kcal'); const rows = [...document.querySelectorAll('.tb-gtab tbody tr')]; return rows.length + ' / ' + [...document.querySelectorAll('.tb-gtab th')].map(t => t.textContent).join(',') + ' / ' + rows.pop().textContent; }), '7 / 日,カロリー,＋−,品数 / 11/18（水）2,734＋1728');
+  check('  わたしの ことが ない ときの ＋− は 入れる 案内', await page.evaluate(() => { TABETA.close(); TABETA.prof(); TABETA.delProf(); TABETA.graph(); TABETA.grSet('kind', 'pm'); const t = document.getElementById('tbGrBody').textContent; TABETA.close(); TABETA.undo(); return t.includes('👤 わたしの ことを 入れる') + '/' + !document.querySelector('#tbGrBox'); }), 'true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v697：基礎代謝と ＋− を 一覧に 出すか 選べる・👤 の 別ページで 見る */
+async function runTabeta697(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🍽 食べた物帳：基礎代謝と ＋− を 出すか 選ぶ・別ページ（v697） ──');
+  await page.evaluate(async () => {
+    const e = [['ごはん', 17, 7], ['ラーメン', 17, 12], ['カレーライス', 16, 19], ['ごはん', 18, 7], ['みそ汁', 18, 7]].map((x, k) => ({ i: 'q' + k + 'aaa', t: new Date(2026, 10, x[1], x[2], k).getTime(), n: x[0], m: 'hiru', q: '' }));
+    localStorage.setItem('excalc_tabeta', JSON.stringify({ e, prof: { sex: 'm', age: 40, h: 170, w: 65, act: '2' } }));
+    await openTabeta(); TABETA.now('2026-11-18T20:00');
+  });
+  check('  はじめは 一覧に ＋−（前と 同じ）・上の 帯に 👤 📈 ⚙', await page.evaluate(() => [document.querySelectorAll('#tbBody .tb-pmrow').length, [...document.querySelectorAll('.tb-top button')].map(b => b.textContent).join('')].join(' / ')), '3 / 👤📈⚙');
+  check('  ⚙ で 切ると 一覧・コピーの 文から ＋− が 消える（合計は 残る）・保存', await page.evaluate(() => { TABETA.menu(); const cb = [...document.querySelectorAll('.tb-pop .tb-chk input')].find(i => i.parentElement.textContent.includes('基礎代謝との ＋−')); cb.checked = false; cb.dispatchEvent(new Event('change')); TABETA.close();
+    return [document.querySelectorAll('#tbBody .tb-pmrow').length, document.querySelectorAll('#tbBody .tb-dsum').length, TABETA.text('today').includes('くらべて'), JSON.parse(localStorage.getItem('excalc_tabeta')).pmShow].join(' / '); }), '0 / 3 / false / false');
+  check('  切って いる ときは 一覧の 下の「👤 年齢・性別などを…」も 出さない', await page.evaluate(async () => { const st = JSON.parse(localStorage.getItem('excalc_tabeta')); delete st.prof; localStorage.setItem('excalc_tabeta', JSON.stringify(st)); closeTabeta(); await openTabeta(); const a = !!document.querySelector('#tbBody .tb-count .tb-linkb'); TABETA.setPmShow(true); const b = !!document.querySelector('#tbBody .tb-count .tb-linkb'); TABETA.setPmShow(false); return a + '/' + b; }), 'false/true');
+  check('  👤 の ページ：まだ ない ときは 入れる 案内', await page.evaluate(() => { document.querySelector('.tb-top button[aria-label="基礎代謝と ＋−"]').click(); const t = document.getElementById('tbPm').textContent; return [t.includes('👤 わたしの ことを 入れる'), !!document.querySelector('.tb-pop.big')].join('/'); }), 'true/true');
+  check('  ページから 入れると ページに もどる', await page.evaluate(() => { TABETA.prof('pm'); document.querySelector('#tbPS button[data-v="m"]').click(); document.getElementById('tbPA').value = '40'; document.getElementById('tbPH').value = '170'; document.getElementById('tbPW').value = '65'; TABETA.saveProf();
+    return [!!document.getElementById('tbPm'), document.querySelector('#tbPm .tb-pmwho').textContent, document.querySelector('#tbPm .tb-res').textContent.includes('1日に 使う 量 約2,562kcal')].join(' / '); }), 'true / 男性 40歳・170cm・65kg・1日の 動き ふつう / true');
+  check('  ページ：きょうの 合計と ＋−・この 7日（記録 なしも）・まとめ', await page.evaluate(() => { const rows = [...document.querySelectorAll('#tbPm .tb-pmtab tbody tr')].map(r => r.textContent);
+    return [document.querySelector('#tbPm .tb-pmtoday').textContent, rows.length, rows[0], rows[1], rows[2], rows[3], document.querySelector('#tbPm .tb-pmsum').textContent].join(' | '); }),
+    '合計 約274kcal　▼ −2,288kcal マイナス | 7 | 11/18（水）274▼ −2,288kcal マイナス | 11/17（火）734▼ −1,828kcal マイナス | 11/16（月）750▼ −1,812kcal マイナス | 11/15（日）—記録 なし | 記録した 3日の 合計 ▼ −5,928kcal マイナス（体重 にすると 約 −0.8kg ぶん・7,200kcal＝1kg の 目安）');
+  check('  一覧に ＋− を 切って いても ページでは 見られる・ページの チェックで 一覧にも 出す', await page.evaluate(() => { const a = document.querySelectorAll('#tbBody .tb-pmrow').length; const cb = document.querySelector('#tbPm .tb-chk input'); const was = cb.checked; cb.checked = true; cb.dispatchEvent(new Event('change')); return a + '/' + was + '/' + document.querySelectorAll('#tbBody .tb-pmrow').length; }), '0/false/3');
+  check('  ✏ 直す → ページに もどる・🗑 消す → ページは 入れる 案内に', await page.evaluate(() => { TABETA.prof('pm'); document.querySelector('#tbPL button[data-v="b"]').click(); TABETA.saveProf(); const a = document.querySelector('#tbPm .tb-res').textContent.includes('この 量と くらべます') + ':' + document.querySelector('#tbPm .tb-pmtab th:last-child').textContent;
+    TABETA.prof('pm'); TABETA.delProf(); const b = document.getElementById('tbPm').textContent.includes('👤 わたしの ことを 入れる'); TABETA.undo(); return a + '/' + b; }), 'true:基礎代謝と くらべて/true');
+  check('  📈 グラフで 見る → ＋− の グラフ', await page.evaluate(() => { TABETA.pm(); TABETA.graphPm(); return [document.querySelector('#tbGrK button.on').dataset.v, document.querySelectorAll('#tbGrBox .g-minus').length > 0].join('/'); }), 'pm/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v698：下の タブ（表・電卓・ひな形・道具・メニュー）を 右下の ◀ に たたむ（設定で 切りかえ。連絡帳と 同じ 形） */
+async function runNavFold698(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 下の メニューを 右下に たたむ（v698） ──');
+  const w = ms => page.waitForTimeout(ms);
+  const st = () => page.evaluate(() => { const r = s => { const e = document.querySelector(s); const b = e.getBoundingClientRect(); return b; };
+    const nav = document.getElementById('appNav'), tab = document.getElementById('navFoldTab');
+    return { fold: document.body.classList.contains('nav-fold'), open: document.body.classList.contains('nav-fold-open'), navShown: getComputedStyle(nav).display !== 'none' && nav.getBoundingClientRect().height > 0, tabShown: getComputedStyle(tab).display !== 'none', tab: tab.textContent, exp: tab.getAttribute('aria-expanded'),
+      tabB: Math.round(r('#navFoldTab').bottom), fbT: Math.round(r('.left-pane .formula-bar').top), npH: Math.round(r('.numpad-section').height), shH: Math.round(r('.sheet-wrap').height), npB: Math.round(r('.numpad-section').bottom), vh: innerHeight }; });
+  await page.evaluate(() => localStorage.setItem('excalc_ui2', '1')); await w(300); await page.reload(); await w(1200);   // 新しい 画面（下の タブ）で（書いた すぐ あとに 開き直すと まれに 消えるので 少し 待つ）
+  const a = await st();
+  check('  はじめは いつも 出す（前と 同じ）・◀ は 出さない', [a.fold, a.navShown, a.tabShown].join('/'), 'false/true/false');
+  check('  設定の「画面の形」に 下のメニューの 切りかえ（いつも出す・右下にたたむ）', await page.evaluate(() => { toggleSettings(); const seg = document.getElementById('navFoldSeg'); const r = [...seg.querySelectorAll('button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',') + ' / ' + (getComputedStyle(seg).display !== 'none'); return r; }), 'いつも出す*,◀ 右下にたたむ / true');
+  check('  設定の 検索で「たたむ」「下のメニュー」で 見つかる', await page.evaluate(() => { setFind('下のメニュー'); const a = document.getElementById('setFindRes').textContent; setFind('たたむ'); const b = document.getElementById('setFindRes').textContent; setFind(''); return a.includes('画面の形') + '/' + b.includes('画面の形'); }), 'true/true');
+  await page.evaluate(() => { document.querySelector('#navFoldSeg button[data-f="1"]').click(); toggleSettings(); }); await w(500);
+  const b = await st();
+  check('  右下に たたむ：タブを 隠し、◀ を 入力欄の すぐ 上に・テンキーが いちばん 下まで・空いた 分 表が 広く なる・保存', [b.fold, b.navShown, b.tabShown, b.tab, b.exp, b.tabB <= b.fbT && b.fbT - b.tabB <= 14, b.npB === b.vh, b.shH - a.shH >= 40, await page.evaluate(() => localStorage.getItem('excalc_nav_fold') + '/' + SETTINGS_BACKUP_KEYS.includes('excalc_nav_fold'))].join('/'), 'true/false/true/◀/false/true/true/true/1/true');
+  await page.click('#navFoldTab'); await w(250);
+  const c = await st();
+  check('  ◀ を 押すと タブが 右から 出る（5つ・▶ で たたむ）', [c.open, c.navShown, c.tab, c.exp, await page.evaluate(() => { const n = document.getElementById('appNav').getBoundingClientRect(), t = document.getElementById('navFoldTab').getBoundingClientRect(); return [document.querySelectorAll('#appNav button').length, Math.round(n.bottom) === Math.round(t.bottom), Math.round(n.right) === innerWidth].join('/'); })].join('/'), 'true/true/▶/true/5/true/true');
+  await page.click('#navFoldTab'); await w(200);
+  check('  ▶ で たたむ', (await st()).open + '/' + (await st()).navShown, 'false/false');
+  await page.click('#navFoldTab'); await w(200);
+  await page.click('#appNav button[data-nav="calc"]'); await w(500);
+  check('  タブの ボタンを 押すと 移って また たたむ（電卓でも ◀）', await page.evaluate(() => [isDentaku(), document.body.classList.contains('nav-fold-open'), getComputedStyle(document.getElementById('navFoldTab')).display !== 'none'].join('/')), 'true/false/true');
+  await page.click('#navFoldTab'); await w(200); await page.click('#appNav button[data-nav="sheet"]'); await w(500);
+  await page.click('#navFoldTab'); await w(200);
+  await page.mouse.click(100, 200); await w(200);
+  check('  ほかの 所を 押すと たたむ', await page.evaluate(() => [isDentaku(), document.body.classList.contains('nav-fold-open')].join('/')), 'false/false');
+  check('  お知らせが ある ときは ◀ にも 印', await page.evaluate(() => { const old = menuNotes.slice(); menuNotes.push({ t: 'テスト' }); navSync(); const a = document.getElementById('navFoldTab').classList.contains('has-note'); menuNotes.length = 0; old.forEach(x => menuNotes.push(x)); navSync(); return a + '/' + document.getElementById('navFoldTab').classList.contains('has-note'); }), 'true/false');
+  check('  ページ（メニュー）を 開くと ◀ は ページの 下（押せるのは ページ）・閉じると もどる', await page.evaluate(async () => { openMoreMenu(); await new Promise(r => setTimeout(r, 300)); const t = document.getElementById('navFoldTab').getBoundingClientRect(); const top = document.elementFromPoint(t.left + 20, t.top + 30); const a = !top.closest('#navFoldTab');
+    closeDlg('moreMenuOverlay'); await new Promise(r => setTimeout(r, 300)); const t2 = document.getElementById('navFoldTab').getBoundingClientRect(); return a + '/' + !!document.elementFromPoint(t2.left + 20, t2.top + 30).closest('#navFoldTab'); }), 'true/true');
+  check('  キーボードで 打つ 間は ◀ を 隠す', await page.evaluate(() => { document.body.classList.add('kb-edit'); const a = getComputedStyle(document.getElementById('navFoldTab')).display; document.body.classList.remove('kb-edit'); return a; }), 'none');
+  await page.reload(); await w(1200);
+  check('  開き直しても たたんだ まま', [(await st()).fold, (await st()).navShown, (await st()).tabShown].join('/'), 'true/false/true');
+  await page.setViewportSize({ width: 900, height: 412 }); await w(700);
+  check('  横向き（タブが 上の 段）では いつも 出す・◀ なし', await page.evaluate(() => [getComputedStyle(document.getElementById('appNav')).display !== 'none', getComputedStyle(document.getElementById('navFoldTab')).display].join('/')), 'true/none');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(700);
+  await page.evaluate(() => setNavFold(false)); await w(400);
+  const d = await st();
+  check('  いつも出す に もどすと 前と 同じ', [d.fold, d.navShown, d.tabShown, d.npH === a.npH, d.shH === a.shH].join('/'), 'false/true/false/true/true');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v699：たたんだ ◀ を 押さえた まま 上下に 動かして 好きな 高さに 置く・◀ を 大きく */
+async function runNavFoldMove699(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── たたんだ ◀ を 上下に 動かす・◀ を 大きく（v699） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_nav_fold', '1'); }); await w(300); await page.reload(); await w(1300);
+  await page.evaluate(() => { window.__vib = 0; try { Object.defineProperty(navigator, 'vibrate', { value: () => { window.__vib++; return true; }, configurable: true }); } catch (e) {} window.__toasts = []; const t = window.toast; window.toast = function (m) { window.__toasts.push(m); return t.apply(this, arguments); }; });
+  const tab = async () => { const r = await (await page.$('#navFoldTab')).boundingBox(); return { x: r.x, y: r.y, w: r.width, h: r.height, b: Math.round(900 - (r.y + r.height)) }; };
+  const t0 = await tab();
+  check('  ◀ を 大きく（高さ 68・矢印 22px。幅は v700 で 46 → 38・上と 下の 線は v700 で なくして 矢印だけ）', await page.evaluate(() => { const t = document.getElementById('navFoldTab'), cs = getComputedStyle(t); return [t.offsetWidth, t.offsetHeight, cs.fontSize, cs.backgroundImage, cs.touchAction].join('/'); }), '38/68/22px/none/none');
+  check('  はじめは 入力欄の すぐ 上・もとに もどす ボタンは 出ない・保存 項目', await page.evaluate(() => { const t = document.getElementById('navFoldTab').getBoundingClientRect(), f = document.querySelector('.left-pane .formula-bar').getBoundingClientRect(); return [Math.round(f.top - t.bottom), document.getElementById('navFoldPosReset').hidden, String(localStorage.getItem('excalc_nav_fold_y')), SETTINGS_BACKUP_KEYS.includes('excalc_nav_fold_y')].join('/'); }), '10/true/null/true');
+  // 押さえた まま 上へ 150px
+  await page.mouse.move(t0.x + 23, t0.y + 34); await page.mouse.down(); await page.mouse.move(t0.x + 23, t0.y + 34 - 150, { steps: 12 }); await page.mouse.up(); await w(300);
+  const t1 = await tab();
+  check('  押さえた まま 上に 動かすと ついて くる・開かない・ブルッと・高さを 覚える（画面の 割合）・1回だけ 知らせる', [t1.b - t0.b, await page.evaluate(() => [document.body.classList.contains('nav-fold-open'), document.getElementById('navFoldTab').classList.contains('dragging'), window.__vib, localStorage.getItem('excalc_nav_fold_y'), window.__toasts.filter(m => m.includes('場所を 覚えました')).length].join('/'))].join('/'),
+    '150/false/false/1/' + ((t0.b + 150) / 900).toFixed(4) + '/1');
+  check('  少し 押した だけなら 開く（▶ で たたむ）', await (async () => { await page.mouse.click(t1.x + 23, t1.y + 34); await w(250); const a = await page.evaluate(() => document.body.classList.contains('nav-fold-open') + ':' + document.getElementById('navFoldTab').textContent); await page.mouse.click(t1.x + 23, t1.y + 34); await w(250); return a + '/' + await page.evaluate(() => document.body.classList.contains('nav-fold-open')); })(), 'true:▶/false');
+  await page.mouse.click(t1.x + 23, t1.y + 34); await w(250);
+  await page.mouse.move(t1.x + 23, t1.y + 34); await page.mouse.down(); await page.mouse.move(t1.x + 23, t1.y + 34 + 60, { steps: 8 }); await page.mouse.up(); await w(300);
+  check('  出して いる ときに 動かすと タブも いっしょに 動く（出した まま）・もう 知らせない', await page.evaluate(() => { const n = document.getElementById('appNav').getBoundingClientRect(), t = document.getElementById('navFoldTab').getBoundingClientRect(); return [document.body.classList.contains('nav-fold-open'), Math.round(n.bottom) === Math.round(t.bottom), Math.round(n.height) === Math.round(t.height), window.__toasts.filter(m => m.includes('場所を 覚えました')).length].join('/'); }) + '/' + ((await tab()).b - t1.b), 'true/true/true/1/-60');
+  await page.evaluate(() => navFoldTap()); await w(200);
+  const t2 = await tab();
+  await page.mouse.move(t2.x + 23, t2.y + 34); await page.mouse.down(); await page.mouse.move(t2.x + 23, t2.y + 34 - 2000, { steps: 10 }); await page.mouse.up(); await w(300);
+  check('  上の バーより 上には 行かない', await page.evaluate(() => Math.round(document.getElementById('navFoldTab').getBoundingClientRect().top - document.querySelector('.app-top').getBoundingClientRect().bottom)), 6);
+  const t3 = await tab();
+  await page.mouse.move(t3.x + 23, t3.y + 34); await page.mouse.down(); await page.mouse.move(t3.x + 23, t3.y + 34 + 2000, { steps: 10 }); await page.mouse.up(); await w(300);
+  check('  画面の 下の はしからも はみ出さない（テンキーの 上にも 置ける）', (await tab()).b, 8);
+  await page.mouse.move(t3.x + 23, 900 - 8 - 34); await page.mouse.down(); await page.mouse.move(t3.x + 23, 900 - 8 - 34 - 300, { steps: 10 }); await page.mouse.up(); await w(300);
+  const t4 = await tab();
+  await page.reload(); await w(1300);
+  check('  開き直しても 同じ 高さ', (await tab()).b, t4.b);
+  await page.setViewportSize({ width: 412, height: 700 }); await w(600);
+  check('  画面の 高さが かわっても 同じ 割合の 所', await page.evaluate(() => Math.round(innerHeight - document.getElementById('navFoldTab').getBoundingClientRect().bottom) === Math.round(parseFloat(localStorage.getItem('excalc_nav_fold_y')) * innerHeight)), true);
+  await page.setViewportSize({ width: 412, height: 900 }); await w(600);
+  check('  キーボードの ↑ ↓ でも 動かせる（24px ずつ・覚える）', await page.evaluate(() => { const t = document.getElementById('navFoldTab'), b0 = innerHeight - t.getBoundingClientRect().bottom; t.focus(); t.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })); const b1 = innerHeight - t.getBoundingClientRect().bottom; return Math.round(b1 - b0) + '/' + (Math.abs(parseFloat(localStorage.getItem('excalc_nav_fold_y')) * innerHeight - b1) < 1); }), '24/true');
+  check('  設定に「◀ の場所をもとにもどす」→ 押すと もとの 所（入力欄の すぐ 上）・ボタンは 消える', await page.evaluate(async () => { toggleSettings(); setSettingsTab(1); await new Promise(r => setTimeout(r, 300)); const rb = document.getElementById('navFoldPosReset'); const a = !rb.hidden && getComputedStyle(rb).display !== 'none'; rb.click(); await new Promise(r => setTimeout(r, 200)); toggleSettings(); await new Promise(r => setTimeout(r, 300));
+    const t = document.getElementById('navFoldTab').getBoundingClientRect(), f = document.querySelector('.left-pane .formula-bar').getBoundingClientRect(); return [a, rb.hidden, getComputedStyle(rb).display, String(localStorage.getItem('excalc_nav_fold_y')), Math.round(f.top - t.bottom)].join('/'); }), 'true/true/none/null/10');
+  check('  いつも出す の ときは もとに もどす ボタンも 出さない', await page.evaluate(() => { localStorage.setItem('excalc_nav_fold_y', '0.5'); setNavFold(false); const a = document.getElementById('navFoldPosReset').hidden; setNavFold(true); const b = document.getElementById('navFoldPosReset').hidden; localStorage.removeItem('excalc_nav_fold_y'); renderUi2Seg(); return a + '/' + b; }), 'true/false');
+  // 指（タッチ）で 押さえて 動かす
+  { const t = await tab(), cdp = await ctx.newCDPSession(page), x = t.x + 23, y0 = t.y + 34;
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: y0 }] });
+    for (let k = 1; k <= 10; k++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y0 - k * 10 }] }); await w(16); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await w(450);
+    check('  指で 押さえて 動かしても 同じ（開かない・覚える）', [(await tab()).b - t.b, await page.evaluate(() => document.body.classList.contains('nav-fold-open') + '/' + (localStorage.getItem('excalc_nav_fold_y') !== null))].join('/'), '100/false/true');
+    await page.touchscreen.tap(x, y0 - 100); await w(300);
+    check('  そのあと 指で 軽く 押すと 開く', await page.evaluate(() => document.body.classList.contains('nav-fold-open')), true);
+    await page.evaluate(() => { navFoldTap(); localStorage.removeItem('excalc_nav_fold_y'); navFoldPos(); renderUi2Seg(); }); await w(200); }
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+/* v700：たたんだ ◀ の 幅（はじめを 細く・設定で 選ぶ）・◀ の 大きさ・メニューの アイコンの 大きさ */
+async function runNavLook700(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── ◀ の 幅・大きさ・メニューの アイコンの 大きさ（v700） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); localStorage.setItem('excalc_nav_fold', '1'); }); await w(300); await page.reload(); await w(1300);
+  const tabSz = () => page.evaluate(() => { const t = document.getElementById('navFoldTab'), cs = getComputedStyle(t); return [t.offsetWidth, t.offsetHeight, cs.fontSize].join('/'); });
+  check('  はじめの ◀ は 細く（46 → 38px）・高さ 68・矢印 22px', await tabSz(), '38/68/22px');
+  check('  設定（画面の形 → 下のメニュー）に ◀ の 幅・◀ の 大きさ・メニューの アイコンの 大きさ（どれも 4つ）と 見本', await page.evaluate(async () => { toggleSettings(); setSettingsTab(1); await new Promise(r => setTimeout(r, 300));
+    const seg = id => [...document.querySelectorAll('#' + id + ' button')].map(b => b.textContent + (b.classList.contains('on') ? '*' : '')).join(',');
+    return [seg('navFoldWSeg'), seg('navFoldSSeg'), seg('navIconSeg'), !document.getElementById('navFoldLook').hidden, document.querySelector('.nf-prev-tab').offsetWidth, getComputedStyle(document.querySelector('.nf-prev-tab')).backgroundImage, document.querySelectorAll('#navIconPrev button').length, document.querySelectorAll('#navIconPrev [id], #navIconPrev [onclick]').length].join(' | '); }),
+    'とても細い,細い,ふつう*,太い | 小,ふつう*,大,特大 | 小,ふつう*,大,特大 | true | 38 | none | 5 | 0');
+  check('  設定の 検索で「幅」「アイコン」で 見つかる', await page.evaluate(() => { setFind('幅'); const a = document.getElementById('setFindRes').textContent; setFind('アイコンの大きさ'); const b = document.getElementById('setFindRes').textContent; setFind(''); return a.includes('画面の形') + '/' + b.includes('画面の形'); }), 'true/true');
+  const widths = await page.evaluate(() => ['xs', 's', 'l', 'm'].map(v => { setNavLook('w', v); const t = document.getElementById('navFoldTab'); return v + ':' + t.offsetWidth + ':' + getComputedStyle(t).fontSize + ':' + document.querySelector('.nf-prev-tab').offsetWidth; }).join(' '));
+  check('  ◀ の 幅：とても細い 26・細い 32・太い 46・ふつう 38（細いと 矢印も 入る 大きさに・見本も 同じ）', widths, 'xs:26:18px:26 s:32:22px:32 l:46:22px:46 m:38:22px:38');
+  const sizes = await page.evaluate(() => ['s', 'l', 'xl', 'm'].map(v => { setNavLook('s', v); const t = document.getElementById('navFoldTab'); return v + ':' + t.offsetHeight + ':' + getComputedStyle(t).fontSize; }).join(' '));
+  check('  ◀ の 大きさ：小 56/18・大 80/26・特大 92/30・ふつう 68/22', sizes, 's:56:18px l:80:26px xl:92:30px m:68:22px');
+  check('  えらんだ ものを 覚える（ふつうは 消す）・全保存にも 入る', await page.evaluate(() => { setNavLook('w', 's'); setNavLook('s', 'l'); setNavLook('ic', 'xl'); return [localStorage.getItem('excalc_nav_fold_w'), localStorage.getItem('excalc_nav_fold_size'), localStorage.getItem('excalc_nav_icon'), ['excalc_nav_fold_w', 'excalc_nav_fold_size', 'excalc_nav_icon'].every(k => SETTINGS_BACKUP_KEYS.includes(k))].join('/'); }), 's/l/xl/true');
+  check('  見本の アイコンも 大きく', await page.evaluate(() => getComputedStyle(document.querySelector('#navIconPrev .ui-ic')).width), '32px');
+  await page.evaluate(() => toggleSettings()); await w(500); await page.reload(); await w(1300);   // 閉じた ときの「戻る」が 終わってから 開き直す
+  check('  開き直しても 同じ（細い・大。矢印は 幅に 入る 24px まで）', await tabSz(), '32/80/24px');
+  await page.click('#navFoldTab'); await w(300);
+  check('  出した メニュー：アイコン 特大（32px）・高さは ◀ と アイコンの 大きい 方・▶ は 右はし', await page.evaluate(() => { const n = document.getElementById('appNav').getBoundingClientRect(), t = document.getElementById('navFoldTab').getBoundingClientRect(); return [getComputedStyle(document.querySelector('#appNav .ui-ic')).width, Math.round(n.height), Math.round(n.bottom) === Math.round(t.bottom), Math.round(t.right) === innerWidth].join('/'); }), '32px/80/true/true');
+  check('  ◀ を 小さく すると 出した メニューは アイコンが 入る 高さ（74）', await page.evaluate(() => { setNavLook('s', 's'); return Math.round(document.getElementById('appNav').getBoundingClientRect().height) + '/' + document.getElementById('navFoldTab').offsetHeight; }), '74/56');
+  await page.evaluate(() => { navFoldTap(); setNavLook('s', 'm'); setNavFold(false); }); await w(500);
+  const navInfo = () => page.evaluate(() => { const n = document.getElementById('appNav').getBoundingClientRect(); return [getComputedStyle(document.querySelector('#appNav .ui-ic')).width, Math.round(n.height), Math.round(n.bottom) === innerHeight].join('/'); });
+  check('  いつも出す ときも アイコン 特大・下の メニューが 高く（62）', await navInfo(), '32px/62/true');
+  check('  ページ（メニュー）も 高く なった メニューの 上で 止まる', await page.evaluate(async () => { openMoreMenu(); await new Promise(r => setTimeout(r, 300)); const o = document.getElementById('moreMenuOverlay').getBoundingClientRect(), n = document.getElementById('appNav').getBoundingClientRect(); closeDlg('moreMenuOverlay'); await new Promise(r => setTimeout(r, 300)); return Math.round(n.top - o.bottom); }), 0);
+  check('  大 26px・高さ 52／小 16px・高さ 44（ふつうと 同じ）／ふつう 20px・44', await page.evaluate(() => ['l', 's', 'm'].map(v => { setNavLook('ic', v); const n = document.getElementById('appNav').getBoundingClientRect(); return getComputedStyle(document.querySelector('#appNav .ui-ic')).width + ':' + Math.round(n.height); }).join(' ')), '26px:52 16px:44 20px:44');
+  check('  いつも出す ときは ◀ の 幅・大きさの 設定は 出さない', await page.evaluate(() => { renderUi2Seg(); return document.getElementById('navFoldLook').hidden; }), true);
+  await page.evaluate(() => setNavLook('ic', 'xl'));
+  await page.setViewportSize({ width: 900, height: 412 }); await w(700);
+  check('  横向き（メニューが 上の 段）は アイコンを 大きく しない（前と 同じ 20px）', await page.evaluate(() => getComputedStyle(document.querySelector('#appNav .ui-ic')).width), '20px');
+  await page.setViewportSize({ width: 412, height: 900 }); await w(700);
+  await page.evaluate(() => { setNavLook('ic', 'm'); setNavLook('w', 'm'); });
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
+async function runTabetaTime702(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 🍽 食べた物帳：時刻の 横に ✓ 決定・下の ボタンが いつも 見える（v702） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.setViewportSize({ width: 393, height: 430 }); await w(300);
+  await page.evaluate(async () => { await openTabeta(); TABETA.now('2026-11-17T07:20'); TABETA.add('ごはん'); TABETA.openWhen(); }); await w(300);
+  const vis = sel => page.evaluate(s => { const e = document.querySelector(s); if (!e) return 'なし'; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }, sel);
+  check('  いつ：時刻の 横に ✓ 決定・下の ボタンも 画面の 中', [await vis('#tbWT + .tb-ok'), await vis('.tb-pop > .tb-acts')].join('/'), 'true/true');
+  await page.fill('#tbWT', '12:40'); await w(200);
+  check('  時刻を 入れても 窓は 作り直さず（同じ 欄）、食事は 昼に', await page.evaluate(() => [document.activeElement && document.activeElement.id, document.querySelector('#tbWM .on').dataset.m].join('/')), 'tbWT/hiru');
+  await page.click('#tbWT + .tb-ok'); await w(200);
+  check('  ✓ 決定 で 閉じて その 時刻で 入れる', await page.evaluate(() => [!!document.querySelector('.tb-pop'), TABETA.when().time, TABETA.when().meal].join('/')), 'false/12:40/hiru');
+  check('  change が 来て いなくても ✓ 決定 で 欄の 時刻を 使う', await page.evaluate(() => { TABETA.openWhen(); document.getElementById('tbWT').value = '19:05'; TABETA.whenOk(); return TABETA.when().time + '/' + TABETA.when().meal; }), '19:05/yuu');
+  await page.evaluate(() => TABETA.setWhen('now'));
+  const id = await page.evaluate(() => TABETA.state().e[0].i);
+  await page.evaluate(id => TABETA.open(id), id); await w(300);
+  await page.evaluate(() => document.getElementById('tbET').scrollIntoView({ block: 'nearest' })); await w(200);
+  check('  直す：時刻まで 送ると 横に ✓ 決定・下の ✓ 直す も 画面の 中', [await vis('#tbET + .tb-ok'), await vis('.tb-pop > .tb-acts')].join('/'), 'true/true');
+  await page.fill('#tbET', '08:15'); await page.click('#tbET + .tb-ok'); await w(200);
+  check('  ✓ 決定 で 直して 閉じる', await page.evaluate(() => { const d = new Date(TABETA.state().e[0].t); return d.getHours() + ':' + d.getMinutes() + '/' + !!document.querySelector('.tb-pop'); }), '8:15/false');
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
+
+async function runTmplVis701(browser) {
+  const { ctx, page, errs } = await newPage(browser);
+  console.log('\n── 設定の ひな形を 消して「一覧に出すもの」を ひな形の 画面へ（v701） ──');
+  const w = ms => page.waitForTimeout(ms);
+  await page.evaluate(() => { localStorage.setItem('excalc_ui2', '1'); }); await w(300); await page.reload(); await w(1300);
+  check('  設定に ひな形の 見出し・説明・ボタンが ない', await page.evaluate(() => {
+    const sp = document.querySelector('#settingsOverlay') || document;
+    return [...document.querySelectorAll('.set-sec')].some(e => /ひな形から作る/.test(e.textContent)) + '/' + [...document.querySelectorAll('.set-act')].some(e => /ひな形の一覧に出すもの/.test(e.textContent)); }), 'false/false');
+  check('  設定の 検索「一覧に出す」で 出ない', await page.evaluate(async () => { toggleSettings(); await new Promise(r => setTimeout(r, 300)); setFind('一覧に出す'); const t = document.getElementById('setFindRes').textContent; setFind(''); toggleSettings(); await new Promise(r => setTimeout(r, 400)); return /ひな形/.test(t); }), false);
+  await page.evaluate(() => openModeMenu()); await w(500);
+  check('  ひな形の 画面の いちばん下に「⚙ 一覧に出すものを選ぶ」', await page.evaluate(() => { const b = document.getElementById('tmplVisBtn'), body = document.querySelector('#modeMenuOverlay .modal-body'); return [!!b && b.offsetHeight > 0, b && b.parentElement === body && body.lastElementChild === b, b && b.textContent].join('/'); }), 'true/true/⚙ 一覧に出すものを選ぶ');
+  await page.evaluate(() => { document.querySelector('#modeMenuOverlay .modal-body').scrollTop = 1e6; }); await w(600);
+  await page.click('#tmplVisBtn'); await w(400);
+  check('  押すと「一覧に出すもの」が ひな形の 画面の 上に 開く', await page.evaluate(() => { const a = document.getElementById('modeVisOverlay'); const r = a.querySelector('.modal').getBoundingClientRect(); return [isDlgOpen('modeVisOverlay'), isDlgOpen('modeMenuOverlay'), document.elementFromPoint(r.left + r.width / 2, r.top + 20)?.closest('.modal-overlay')?.id].join('/'); }), 'true/true/modeVisOverlay');
+  const first = await page.evaluate(() => { const m = MODE_MENU.find(m => m.key !== 'normal' && !MODE_NOT_LISTED.includes(m.key)); toggleModeHidden(m.key); return m.key; });
+  await page.evaluate(() => closeModeVis()); await w(400);
+  check('  外して 閉じると ひな形の 一覧から 消えて「（1件 かくし中）」', await page.evaluate(k => [document.querySelector('#modeMenuBody [data-tk="m:' + k + '"]') === null, document.getElementById('tmplVisNote').textContent, isDlgOpen('modeMenuOverlay')].join('/'), first), 'true/（1件 かくし中）/true');
+  await page.evaluate(k => { openModeVis(); toggleModeHidden(k); closeModeVis(); }, first); await w(400);
+  check('  もどすと 一覧に 出て 件数も 消える', await page.evaluate(k => [document.querySelector('#modeMenuBody [data-tk="m:' + k + '"]') !== null, document.getElementById('tmplVisNote').textContent].join('/'), first), 'true/');
+  await page.evaluate(() => closeModeMenu()); await w(300);
+  check('  エラーなし', errs.join(' / '), '');
+  await ctx.close();
+}
 async function runOto686(browser) {
   const { ctx, page, errs } = await newPage(browser);
   console.log('\n── 🎶 2〜3分の 名曲メドレー（v686） ──');
@@ -23019,7 +23542,7 @@ async function runOto668(browser) {
   await page.evaluate(() => OTO.a4(10));
   // 音ゲー
   await page.evaluate(() => OTO.tab('game')); await w(200);
-  check('  曲は 11・どれも 7音まで・メロディーが 入っている', await page.evaluate(() => { const s = OTO.songs(); return s.length + '/' + s.every(x => x.lanes >= 3 && x.lanes <= 7 && x.n >= 12); }), '49/true');   // v673：22曲・v675：26曲・v686：49曲
+  check('  曲は 11・どれも 7音まで・メロディーが 入っている', await page.evaluate(() => { const s = OTO.songs(); return s.length + '/' + s.every(x => x.lanes >= 3 && x.lanes <= 7 && x.n >= 12); }), '59/true');   // v673：22曲・v675：26曲・v686：49曲・v692：59曲（🔥 10曲）
   check('  曲の 書き方（ド・レ…の 並び）', await page.evaluate(() => { const p = OTO.parseSong({ n: 'C4:1 R:1 E4:0.5 C5:2 F#4:1' }); return p.notes.map(n => n.beat + ':' + OTO.midiJa(n.midi)).join(',') + '/' + p.beats + '/' + OTO.lanesOf(p.notes).join('-'); }), '0:ド,2:ミ,2.5:ド,4.5:ファ♯/5.5/0-4-6');
   check('  音色は 8つ・曲は 作者が 亡くなって 長い 曲（だれの 曲か 出す）', await page.evaluate(() => document.querySelectorAll('#otoBody .oo-seg[aria-label="音色"] button').length + '/' + [...document.querySelectorAll('#otoBody .og-songs small')].every(x => /古い 歌|古い 踊り|没|Claude 作曲/.test(x.textContent))), '17/true');   // v675：音色 16
   await page.evaluate(() => { OTO.song('mary'); OTO.speed('fast'); OTO.mode('fall'); OTO.start(); }); await w(400);
@@ -23368,6 +23891,18 @@ const SUITES = [
   [['fillmenu687', 'v687'], b => runFillMenu687(b)],
   [['padlabel688', 'v688'], b => runPadLabel688(b)],
   [['help690', 'v690'], b => runHelp690(b)],
+  [['voicefx691', 'v691'], b => runVoiceFx691(b)],
+  [['oto692', 'v692'], b => runOto692(b)],
+  [['tabeta693', 'v693'], b => runTabeta693(b)],
+  [['tabeta694', 'v694'], b => runTabeta694(b)],
+  [['tabetaapp', 'v695'], b => runTabetaApp695(b)],
+  [['tabeta696', 'v696'], b => runTabeta696(b)],
+  [['tabeta697', 'v697'], b => runTabeta697(b)],
+  [['navfold', 'v698'], b => runNavFold698(b)],
+  [['navfold', 'navmove', 'v699'], b => runNavFoldMove699(b)],
+  [['navfold', 'navlook', 'v700'], b => runNavLook700(b)],
+  [['tmplvis', 'v701'], b => runTmplVis701(b)],
+  [['tabeta702', 'v702'], b => runTabetaTime702(b)],
   [['hyogen', 'v670'], b => runHyoGen670(b)],
   [['hyogen679', 'v679'], b => runHyoGen679(b)],
   [['range680', 'v680'], b => runRange680(b)],

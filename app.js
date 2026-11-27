@@ -258,7 +258,7 @@ function cellRawValue(idx, r, c){
   evaluating.add(key);
   const prev=EVAL_SHEET; EVAL_SHEET=idx;
   try{
-    return parseArith(raw.slice(1).replace(/×/g,'*').replace(/÷/g,'/'));
+    return parseArith(fxOps(raw.slice(1)));
   } catch(e){
     if(isFormulaError(e)) throw e;           // 参照先のエラーはそのまま呼び出し元へ運ぶ
     return NaN;
@@ -513,9 +513,11 @@ function tellCellError(r, c){
   return true;
 }
 function evalFormula(formula) {
-  const expr = String(formula).slice(1).replace(/×/g,'*').replace(/÷/g,'/');
+  const expr = fxOps(String(formula).slice(1));
   return parseArith(expr);
 }
+/* 式の × ÷ を * / に する。" " の 中の 文字は そのまま（=IF(A1>100,"○","×") の × が「*」に なって いた。v691） */
+function fxOps(s){ return String(s).split('"').map((p,i)=>i%2 ? p : p.replace(/×/g,'*').replace(/÷/g,'/')).join('"'); }
 
 function parseArith(s) {
   if(s.indexOf('$')>=0) s=stripAbsRefs(s);   // 絶対参照 $A$1・A$1・$A1 は A1 として読む（v417）
@@ -3295,7 +3297,7 @@ function xlIsNumeric(raw){ if(raw==null||raw==='') return false; const t=String(
 function xlBorder(css){ if(!css) return null; const wm=css.match(/(\d+(?:\.\d+)?)px/); const w=wm?parseFloat(wm[1]):1; const cm=css.match(/#([0-9a-fA-F]{6})/); const color='FF'+(cm?cm[1].toUpperCase():'000000'); const style=/double/i.test(css)?'double':(w>=3.5?'thick':(w>=2.5?'medium':'thin')); return {style,color}; }
 /* アプリの数式→Excelの数式 */
 function appFormulaToXlsx(f){
-  let out=String(f).replace(/×/g,'*').replace(/÷/g,'/').replace(/\bPI\b/g,'PI()').replace(/\bE\b(?!\d)/g,'EXP(1)');
+  let out=fxOps(String(f)).replace(/\bPI\b/g,'PI()').replace(/\bE\b(?!\d)/g,'EXP(1)');
   out=out.replace(/[VvＶ]参照\s*\(/g,'VLOOKUP(').replace(/[XxＸ]参照\s*\(/g,'XLOOKUP(');   // 日本語名→Excelの関数名
   // シート参照 名前!A1 は Excel が解釈しやすいよう '名前'!A1 に（引用符で囲む）
   out=out.replace(/(^|[^'\w])([^\s'"(),:!+\-*/^=<>&%]+)!/g, (m,pre,name)=> pre+"'"+name.replace(/'/g,"''")+"'!");
@@ -6870,6 +6872,7 @@ const KEY_FUNCS={
   a_kyoshi:{g:'設定・機能',label:'🧱供試体',short:'供試体',run:()=>openKyoshi()},   // v611
   a_ggolf:{g:'設定・機能',label:'⛳グラウンドゴルフ',short:'グラゴル',run:()=>openGgolf()},   // v616
   a_oto:{g:'設定・機能',label:'🎵音の道具',short:'音',run:()=>openOto()},   // v668
+  a_tabeta:{g:'設定・機能',label:'🍽食べた物帳',short:'食べた物',run:()=>openTabeta()},   // v693
   a_chart:{g:'設定・機能',label:'📊表からグラフ',short:'グラフ',run:()=>hpRun('chart')},   // v563 表を強くする
   a_cfmt:{g:'設定・機能',label:'🎨条件で色',short:'条件色',run:()=>hpRun('cf')},
   a_filter:{g:'設定・機能',label:'🔎しぼり込み',short:'しぼる',run:()=>hpRun('filter')},
@@ -9965,6 +9968,8 @@ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setTime
 setTimeout(kyoshiKick, 5000);
 /* ── ⛳ グラウンドゴルフ（v616。ggolf.js。合計と ホールインワンの 数だけで 順位と 賞）── */
 sidePartOpener('openGgolf', ['ggolf.js'], 'グラウンドゴルフ');
+/* ── 🍽 食べた物帳（v693。tabeta.js。打つか 話すだけで 食べた物を どんどん 記録）── */
+sidePartOpener('openTabeta', ['tabeta.js'], '食べた物帳');
 /* ── 🎵 音の道具（v668。oto.js。メトロノーム・チューナー・音ゲー）── */
 sidePartOpener('openOto', ['hade-fx.js','oto.js'], '音の道具');   // 当たった ときの 演出は hade-fx.js（v675）
 window.closeOto=function(){};
@@ -10512,6 +10517,7 @@ const NP_TOOLS=[
   {id:'kyoshi',   label:'🧱供試体',     ov:'kyoshiOverlay',    run:()=>openKyoshi(),   close:()=>closeKyoshi()},   // kyoshi.js（開いたときに読む。v611）
   {id:'ggolf',    label:'⛳グラウンドゴルフ', ov:'ggolfOverlay', run:()=>openGgolf(),    close:()=>closeGgolf()},    // ggolf.js（開いたときに読む。v616）
   {id:'oto',      label:'🎵音の道具',       ov:'otoOverlay',   run:()=>openOto(),      close:()=>closeOto()},      // oto.js（開いたときに読む。v668）
+  {id:'tabeta',   label:'🍽食べた物帳',    ov:'tabetaOverlay', run:()=>openTabeta(), close:()=>closeTabeta()},   // tabeta.js（開いたときに読む。v693）
   {id:'memo',     label:'📄メモ',       run:()=>openNotesApp()},                        // 別のアプリとして開くので全画面・フリックの対象外
   {id:'calctmpl', label:'📋式テンプレ', ov:'calcTmplOverlay',  run:()=>openCalcTmpl(), close:()=>closeCalcTmpl()},
   {id:'fintmpl',  label:'📑決算テンプレ',ov:'finTmplOverlay',   run:()=>openFinTmpl(),  close:()=>closeFinTmpl()},
@@ -13744,22 +13750,66 @@ function speechLettersToRefs(t){
   for(const [yomi,ch] of SPEECH_LETTERS) t=t.replace(new RegExp(yomi+'(の)?(?=\\d)','g'), ch);
   return t;
 }
-/* 「A1からA5の合計」「A1からA5までの平均」→ SUM(A1:A5) / AVERAGE(A1:A5) */
+/* 「A1からA5の合計」「A1からA5までの平均」→ SUM(A1:A5) / AVERAGE(A1:A5)
+   v691：「合計 A1からA5」（関数の ことばが 先）・「A1とA2とA3の合計」・「A1:A5の合計」・「A1からA5まで足す」・
+   「〜の合計を四捨五入（切り上げ・切り捨て）」も。後ろに ほかの 言葉が 続く ときは 式に しない
+   （前は「A1からA5の合計に消費税」が 消費税を 落とした =SUM(A1:A5) に なって いた） */
 const SPEECH_RANGE_FUNCS=[
-  [/(合計|ごうけい|足した|総額)/, 'SUM'],
-  [/(平均|へいきん|ならし)/, 'AVERAGE'],
-  [/(いちばん大きい|最大|さいだい)/, 'MAX'],
-  [/(いちばん小さい|最小|さいしょう)/, 'MIN'],
-  [/(個数|件数|かず|数)/, 'COUNT'],
+  ['合計|ごうけい|総計|総額|トータル|和|足したもの|足した数|足した|足す|たす|サム', 'SUM'],
+  ['平均|へいきん|ならし|アベレージ', 'AVERAGE'],
+  ['いちばん大きい数|いちばん大きいもの|いちばん大きい|最大|さいだい|マックス', 'MAX'],
+  ['いちばん小さい数|いちばん小さいもの|いちばん小さい|最小|さいしょう|ミニマム|ミン', 'MIN'],
+  ['個数|件数|かず|数|カウント', 'COUNT'],
 ];
+const SPEECH_RANGE_FILL='(?:値)?(?:を(?:出して|出す|だして|求めて|求める|教えて|入れて))?';
+// 「四捨五入」は 先に 漢数字を 直すので「4捨5入」に なって 来る
+const SPEECH_ROUND={'四捨五入':'ROUND','4捨5入':'ROUND','ししゃごにゅう':'ROUND','切り上げ':'ROUNDUP','切りあげ':'ROUNDUP','きりあげ':'ROUNDUP','切り捨て':'ROUNDDOWN','切りすて':'ROUNDDOWN','きりすて':'ROUNDDOWN'};
+const SPEECH_ROUND_RE='(?:を|して|し)?('+Object.keys(SPEECH_ROUND).join('|')+')(?:して|する|した)?';
+function speechRangeWrap(f, rd){ return rd ? `=${SPEECH_ROUND[rd]}(${f.slice(1)},0)` : f; }
 function speechRangeFormula(t){
-  const m=t.match(/^([A-Z]+\d+)(から|〜|~|-)([A-Z]+\d+)(まで)?(の)?(.+)$/);
-  if(!m) return null;
-  const tail=m[6];
-  for(const [re,fn] of SPEECH_RANGE_FUNCS){
-    if(re.test(tail)) return `=${fn}(${m[1]}:${m[3]})`;
+  const REF='([A-Z]{1,2}\\d+)', SEP='(?:から|〜|~|-|:)';
+  for(const [words, fn] of SPEECH_RANGE_FUNCS){
+    // A1からA5の合計（を四捨五入）
+    let m=t.match(new RegExp('^'+REF+SEP+REF+'(?:まで)?(?:の|を)?(?:'+words+')'+SPEECH_RANGE_FILL+'(?:'+SPEECH_ROUND_RE+')?$'));
+    if(m) return speechRangeWrap(`=${fn}(${m[1]}:${m[2]})`, m[3]);
+    // 合計 A1からA5（関数の ことばが 先）
+    m=t.match(new RegExp('^(?:'+words+')(?:の|は|を)?'+REF+SEP+REF+'(?:まで)?$'));
+    if(m) return `=${fn}(${m[1]}:${m[2]})`;
+    // A1とA2とA3の合計
+    m=t.match(new RegExp('^'+REF+'((?:(?:と|及び|および)[A-Z]{1,2}\\d+)+)(?:の|を)?(?:'+words+')'+SPEECH_RANGE_FILL+'(?:'+SPEECH_ROUND_RE+')?$'));
+    if(m){ const refs=[m[1]].concat(m[2].split(/と|及び|および/).filter(Boolean)); return speechRangeWrap(`=${fn}(${refs.join(',')})`, m[3]); }
   }
   return null;
+}
+/* 関数の 形で 言った（書いた）とき（v691）：「SUM(A1:A5)」「ROUND(A1,0)」「イコール IF(A1>100,"○","×")」「SUM A1:A5」
+   → 先頭に = を 付けて 式に する。下の ふつうの 言い方の 直し（x を * に・「,」を 落とす など）を 通すと
+   MAX の X や 区切りの「,」が 壊れるので、その 前に 見る。表電卓に ない 関数の 名前なら null（文字の まま） */
+const SPEECH_FUNC_YOMI={'サム':'SUM','アベレージ':'AVERAGE','マックス':'MAX','ミニマム':'MIN','ミン':'MIN','カウント':'COUNT'};
+function speechFuncCall(text){
+  if(typeof FORMULA_FUNCS!=='object') return null;
+  let s=toHalfAscii(String(text)).replace(/[“”]/g,'"').trim().replace(/[。．.、]+$/,'').replace(/^(イコール|いこーる|=)\s*/,'').trim();
+  // かっこ なしで「SUM A1:A5」「サム エー1から エー5」
+  const fw=speechLettersToRefs(s).match(/^(SUM|AVERAGE|MAX|MIN|COUNT|サム|アベレージ|マックス|ミニマム|ミン|カウント)\s*(?:の)?\s*([A-Za-z]{1,2}\d+)\s*(?:から|〜|~|:|-)\s*([A-Za-z]{1,2}\d+)(?:まで)?$/i);
+  if(fw){ const fn=SPEECH_FUNC_YOMI[fw[1]] || fw[1].toUpperCase(); return `=${fn}(${fw[2].toUpperCase()}:${fw[3].toUpperCase()})`; }
+  const m=s.match(/^([A-Za-z][A-Za-z0-9.]*)\s*\(/);
+  if(!m || !FORMULA_FUNCS[m[1].toUpperCase()]) return null;
+  const parts=s.split('"');
+  if(parts.length%2===0) return null;                   // " が 閉じて いない
+  let out='';
+  for(let i=0;i<parts.length;i++){
+    if(i%2){ out+='"'+parts[i]+'"'; continue; }          // " の 中（文字）は そのまま
+    let p=speechLettersToRefs(parts[i]).replace(/([A-Za-z]{1,2}\d+)\s*(?:から|〜|~)\s*([A-Za-z]{1,2}\d+)(?:まで)?/g, '$1:$2').replace(/\s+/g,'');
+    const sheets=[]; p=p.replace(/([^(),:+\-*\/^&<>=]+)!/g, (_, n)=>{ sheets.push(n); return '\u0000'+(sheets.length-1)+'!'; });   // シートの 名前（=商品!C2）は そのまま
+    p=p.toUpperCase();
+    if(/[^A-Z0-9.:,()+\-*\/^%<>=&$!\u0000]/.test(p)) return null;   // 日本語などが 残る＝式では ない
+    out+=p.replace(/\u0000(\d+)!/g, (_, k)=>sheets[+k]+'!');
+  }
+  let d=0;
+  for(const ch of out.replace(/"[^"]*"/g,'')){ if(ch==='(') d++; else if(ch===')'){ d--; if(d<0) return null; } }
+  if(d!==0) return null;                                // かっこが 合わない
+  const names=out.replace(/"[^"]*"/g,'').match(/[A-Z][A-Z0-9.]*(?=\()/g)||[];
+  if(names.some(n=>!FORMULA_FUNCS[n])) return null;     // 表電卓に ない 関数
+  return '='+out;
 }
 /* 話し言葉を式の記号に直す（長い言い方から先に置き換える） */
 const SPEECH_WORDS=[
@@ -13834,7 +13884,9 @@ function speechToFormula(text){
   if(text==null) return null;
   let t=String(text).trim();
   if(t==='' || t.startsWith('=')) return null;        // 空・すでに数式は触らない
+  const fc=speechFuncCall(t); if(fc) return fc;       // 「ROUND(A1,0)」「SUM A1:A5」のような 関数の 形（v691）
   if(typeof unitEval==='function' && unitEval(t)) return null;   // 📐「3.5m×2.4m」は 単位つきの まま（v602）
+  t=t.replace(/^(イコール|いこーる)/,'');               // 頭に「イコール」と 言った ときも（v691）
   // 全角の数字・記号を半角へ。setCellVal の normalizeFullWidth は
   // 「全体が数値のときだけ」半角にするので、ここでは使わず自前で直す。
   t=toHalfAscii(t);
@@ -14459,7 +14511,8 @@ function sayAnswer(ex){
    さがす（ひらがな・カタカナ・全角半角は 気にしない）・どこで 使えるか・分類 で しぼれる。答えも 出す（あとから 少しずつ 計算） */
 const SAY_TABLE=['251かける68','1たす2かける3','10わる3','100ひく35','2500かける1.08','ルート16','2の3乗','3分の2たす4分の1',
   'かっこ1たす2かっことじかける3','エー1たすビー1','エー1かける1.1','ビー2ひくシー2','エー1からエー5の合計','エー1からエー5の平均',
-  'ビー2からビー9の最大','ビー2からビー9の最小','エー1からエー10の個数','シー3わるエー3かける100'];
+  'ビー2からビー9の最大','ビー2からビー9の最小','エー1からエー10の個数','シー3わるエー3かける100',
+  '合計エー1からエー5','エー1とエー2とエー3の合計','エー1からエー5の平均を四捨五入','SUM A1からA5'];   // v691：関数の ことばが 先・セルを ならべる・四捨五入・関数の 名前
 /* ひらがなで さがした ときの 言いかえ（漢字の 言葉にも 当てる） */
 const SAY_SYN={'わりかん':'割り勘','しょうひぜい':'消費税','ぜいこみ':'税込','ぜいぬき':'税抜','つぼ':'坪','へいべい':'平米','ねんれい':'年齢','なんさい':'何歳',
   'へいきん':'平均','ごうけい':'合計','わりびき':'割引','わりまし':'割増','ぱーせんと':'%','ひゃくぶんりつ':'%','りし':'利','きんり':'金利','ろーん':'ローン','ちょきん':'貯金',
@@ -15284,6 +15337,9 @@ function voiceAccept(text){
   voiceStop();
   if(!raw){ toast('聞き取れませんでした'); return; }
   if(isLockedCell(selR,selC)){ toast('このセルは保護されています'); return; }
+  // テンキーで 打ちかけの 数が あると、あとで セルを 選び直した ときに 書き戻されて 声の 中身が 消えて いた（v691）。
+  // 声で 入れる 中身に おきかえる
+  if(cellEditing){ cellEditing=false; op1=null; cur_op=null; waiting=false; }
   const p=speechPrepare(raw, selR, selC);
   const f=p.f, v=p.v, answerAt=p.answerAt;
   setCellVal(selR,selC,v);
@@ -17921,7 +17977,7 @@ function openVoiceSet(){
   openDlg('voiceSetOverlay');
 }
 function closeVoiceSet(){ if(window.HyoVoice) HyoVoice.cancel(); closeDlg('voiceSetOverlay'); }
-function closeModeVis(){ closeDlg('modeVisOverlay'); }
+function closeModeVis(){ closeDlg('modeVisOverlay'); if(isDlgOpen('modeMenuOverlay')) renderTmplPick(); }
 function persistModeOrder(){ try{ localStorage.setItem(MODE_ORDER_KEY, JSON.stringify(modeOrder)); }catch(e){} }
 function allModeKeys(){ return MODE_MENU.map(m=>m.key).concat(customModes.map(m=>m.key)); }
 /* 並び順を現存モードに同期（消えたキーを除去・新規キーを末尾に追加） */
@@ -18052,6 +18108,9 @@ function renderTmplPick(){
   if(!html) html=`<div class="tmpl-none">「${escHtml(q)}」に合うひな形はありません。<br>上の ✨ で、このことばから 表を作れます。</div>`;
   html=gen+html;
   box.innerHTML=html;
+  // ⚙ 一覧に出すもの（v701：設定から ここへ）。かくして いる 数も 出す
+  const vn=document.getElementById('tmplVisNote');
+  if(vn){ const n=MODE_MENU.filter(m=>m.key!=='normal' && !MODE_NOT_LISTED.includes(m.key) && isModeHidden(m.key)).length; vn.textContent=n?'（'+n+'件 かくし中）':''; }
   bindModeDrag();
 }
 function tmplGen(){
@@ -18531,6 +18590,7 @@ const TOOL_HINTS={
   hadecount:'画面を 押すたびに 数が ふえて はじけます。つづけて 早く押すと コンボ、10・50・100 や 目標で 花火。カウンターは 8つまで（「並べて」で いっしょに）。🎲 で はんいの 中の 数を ランダムにも。押した 音と 押した ところの 演出も えらべます。数字を 🫧 ぽよん（つぶれて 落ちて ぷるん）にも。⚔ 対戦 で 2チームの 勝負（陣地が 広がる・⏱ 時間・🏁 先に ○。縦の ときは 上の 組が 向かいの 人 向き）も。',
   seikyu:'① 品物と定価 → ② 値引き → ③ オプション → ④ 条件で値下げ → ⑤ 消費税 → ⑥ 端数を省いた 請求額 の 順に 入れると、本体価格と 消費税を 出して 請求書（見積書・納品書・領収書も）に します。',
   yatta:'エアコンの フィルター・布団干し・散髪 など、「✓ きょう やった」を 押すだけで 最後に やった日と「あれから ○日」が 出ます。目安の 日数に 近づくと 黄色、過ぎると 赤。よくある ものから 1回で 足せます。📅 で 次の日を スマホの カレンダーにも',
+  tabeta:'下の 欄に「おにぎり、みそ汁」のように 打って Enter（🎤 で 話しても）。1品ずつ 入り、日付と 時刻・よく ある 物の カロリー（目安）が 自動で ついて 1行ずつ ずっと 並びます。上の 👤 で 年齢・性別などを 入れると 基礎代謝と ＋− が 見られ（一覧に 出すかは ⚙ で 選べます）、📈 で グラフも 見られます。よく 食べる 物は ボタンに なり、押すだけで 入ります。あとから 入れる ときは「🕘 いつ：いま」を 押します。',
   shukin:'町内会・PTA・同窓会 などの 名簿に、出欠（出席・欠席・未定）と 集金の ✓ を つけます（出欠だけ・集金だけ の 表も）。上に 合計と まだの 人数・金額。↕ で 順番も かえられ、印刷・コピー・💾 ファイルに 保存も できます',
   shiori:'旅行ごとに 🗓 日程・🎒 持ち物・💴 お金・🎁 お土産・🏨 宿と 連絡先・💱 外貨の 換算を 1つに まとめます。「📋 しおりを コピー」で LINE に 送れます。予定の 場所を 押すと 地図、🗺 その日の 道順も 開けます',
   bingo:'「🎱 まわす」で 抽選器が ガラガラ まわり、玉が コロコロ 出て「B の 12」と 大きく 出ます（読み上げも）。出た 数は 表に 色が つき、出た 順も わかります。⛶ 大きく で テレビにも。⚙ で 🔍 ズーム・🎆 演出の 強さ（ド派手 など）。🃏 カード で 手元の カード・印刷も できます。📱 の QR で 参加する 人の スマホに カードを 配れます',
@@ -18630,7 +18690,7 @@ function homeSetStartup(on){ setStartPage(on?'home':'last'); }
    ★よく使う（自分で選ぶ。選んでいなければ さいきん使ったもの）→ まとまりごと → 隠している道具（畳む）。
    ☰・ホーム・🧰ボタンのどこから開いても同じ窓。隠した道具も下の「隠している道具」から開ける */
 const TOOL_CATS=[
-  ['🏠 くらし',   ['tohachi','keisan','hadetimer','hadecount','yatta','shukin','shiori','tatekae','kuji','bingo','ggolf','oto','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
+  ['🏠 くらし',   ['tohachi','keisan','hadetimer','hadecount','yatta','tabeta','shukin','shiori','tatekae','kuji','bingo','ggolf','oto','sentaku','okaeshi','koyomi','hoi','shimai','renraku','photomemo','trim','linklist','touban','subsc','kakeizu','memo']],
   ['📖 知識・手引き',['kurashi','manner','boki']],   // 計算ではなく読む道具（v513）
   ['💼 仕事',     ['techo','gijiroku','seikyu','meishi','calctmpl','fintmpl','kaikei']],
   ['🏗 現場・畑', ['tansui','kantab','kyoshi','dasetsu','volume','mikurabe','ruler','kakudo','veggie']],
@@ -18916,7 +18976,11 @@ function setGoTo(id){
   // 見出し（.set-sec）が すぐ 前に あれば いっしょに 見せる
   const sec=(()=>{ let x=tgt.previousElementSibling; for(let k=0;k<3 && x;k++,x=x.previousElementSibling){ if(x.classList && x.classList.contains('set-sec')) return x; } return null; })();
   requestAnimationFrame(()=>{
-    try{ (sec||tgt).scrollIntoView({block:'start', behavior:'smooth'}); }catch(_){ (sec||tgt).scrollIntoView(); }
+    // 見出しから 見せると 目当てが 画面の 下に はみ出す ときは 目当てに 合わせる（v700：画面の形の 下に 設定が ふえて「色と 背景」が 見えなく なった）
+    let head=sec||tgt;
+    if(sec){ const box=sec.closest('.settings-body, .modal-body')||document.documentElement, vh=box.clientHeight||window.innerHeight;   // 送る 箱の 見えて いる 高さ
+      if(tgt.getBoundingClientRect().top-sec.getBoundingClientRect().top > vh-120) head=tgt; }
+    try{ head.scrollIntoView({block:'start', behavior:'smooth'}); }catch(_){ head.scrollIntoView(); }
     tgt.classList.remove('set-flash'); void tgt.offsetWidth; tgt.classList.add('set-flash');
     setTimeout(()=>tgt.classList.remove('set-flash'), 1800);
   });
@@ -18964,7 +19028,7 @@ function attachSettingsSwipe(){
   el.addEventListener('mousedown',  e=>start(e.clientX, e.clientY, e.target));
   el.addEventListener('mouseup',    e=>end(e.clientX, e.clientY));
 }
-const APP_VERSION='v691';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
+const APP_VERSION='v703';   // アプリのバージョン（service-worker.js のキャッシュ番号と合わせる）
 /* 説明書の関数一覧を、使える関数の定義そのものから作る。
    関数を増やしたときに説明書だけ古くなる、ということが起きないようにする。 */
 function renderHelpFuncTable(){
@@ -22288,6 +22352,7 @@ const ST_GROUPS=[
   {k:'excalc_kyoshi',     n:'供試体（採った日・現場・材齢・試験 済み・Google カレンダーの 設定）'},
   {k:'excalc_ggolf',      n:'グラウンドゴルフ（大会・名簿・合計・ホールインワン・賞の 決め方）'},
   {k:'excalc_oto',        n:'音の道具（メトロノーム・チューナーの 設定・音ゲーの 自己ベスト）'},
+  {k:'excalc_tabeta',     n:'食べた物帳（食べた物・時刻・食事・量や メモ）'},
   {k:'excalc_yomi',       n:'読みものの しおり・最近 見た ページ（マナー帳・会計の手引き・便利帳）'},
   {k:'excalc_receipt',    n:'読み取ったレシート（道具は外しました）', how:'clear'},   // v561〜v563 の 📷レシート読み取りの残り。勝手には消さない
   {k:'excalc_links',      n:'リンク集'},
@@ -22471,7 +22536,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_numpad_landw','excalc_numscale','excalc_pagebar','excalc_pdf_settings','excalc_pm_custom_colors','excalc_pm_phrases',
   'excalc_pm_prefs','excalc_prn','excalc_savesort','excalc_savetabnames','excalc_saveview','excalc_show_resizerbar',
   'excalc_show_sheettabs','excalc_skin','excalc_speechauto','excalc_auto_half','excalc_auto_date','excalc_auto_opfx','excalc_auto_paren','excalc_auto_calcfx','excalc_speechlayout','excalc_speechspeak','excalc_startpage',
-  'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
+  'excalc_sumfunc','excalc_taxrate','excalc_taxround','excalc_tbfold','excalc_nav_fold','excalc_nav_fold_y','excalc_nav_fold_w','excalc_nav_fold_size','excalc_nav_icon','excalc_tool_fs','excalc_toolsbtn_hide','excalc_topbtn_shown','excalc_trigmode','excalc_ts_dp','excalc_ts_limit','excalc_ts_regs',
   'excalc_ts_warn','excalc_userkeys',
   'excalc_uimode','excalc_trim','excalc_manner','excalc_boki','excalc_kurashi','excalc_keisan','excalc_ruler','excalc_tool_fav','excalc_tool_hints','excalc_seq_step','excalc_regi_ui',   // v460〜v462・v501
   'hyo_voice',   // 🔈 読み上げの声（v540。声の計算帳・ほかの道具と同じ）
@@ -22488,6 +22553,7 @@ const SETTINGS_BACKUP_KEYS=[
   'excalc_kyoshi',   // 🧱供試体（v611。Google カレンダーの 設定も）
   'excalc_ggolf',   // ⛳グラウンドゴルフ（v616）
   'excalc_oto',     // 🎵音の道具（v668）
+  'excalc_tabeta',  // 🍽食べた物帳（v693）
   'excalc_band_cfg',   // 🎛 帯の ボタン（出す ボタン・並び。v626）
   'excalc_sum_place',   // 合計の 置き場所（テンキーの上の行／セルのバー。v628）
   'excalc_fill_how',   // 範囲選択と コピー（フィル）の しかた（メニューから／角の つまみ／帯の ボタン／長押しして なぞる。v629・v687）
@@ -23625,7 +23691,151 @@ function setToolFs(on){
   toolFsSync(); renderUi2Seg();
   toast(on ? '道具を全画面で開きます' : '道具を開いても下のタブを残します');
 }
+/* ── 下の タブを 右下に たたむ（v698）──
+   設定の「下のメニュー」で ◀ 右下に たたむ に すると、タブを 隠して 表の 右下（入力欄の すぐ 上）に ◀ だけ 出す。
+   ◀ で タブが 右から 出て、▶・タブの ボタン・ほかの 所を 押すと たたむ。テンキーと 表が タブの 分 広く なる。
+   ◀ は 押さえた まま 上下に 動かすと 好きな 高さに 置ける（覚えて おく。設定で もとに もどせる。v699）。
+   ◀ の 幅（はじめは 38px）・大きさと、メニューの アイコンの 大きさは 設定で 選ぶ（v700）。
+   横向き・テンキーを 右に 出す ときは タブが 上の 段に あるので たたまない */
+const NAV_FOLD_KEY='excalc_nav_fold';
+const NAV_FOLD_Y_KEY='excalc_nav_fold_y';   // ◀ の 高さ（画面の 高さに 対する 下からの 割合。自分で 動かした とき だけ。v699）
+let navFoldOpen=false, nfDrag=null, nfNoClick=0, nfSafeB=null, nfTold=false;
+function navFoldY(){ try{ const v=parseFloat(localStorage.getItem(NAV_FOLD_Y_KEY)); return isFinite(v) && v>0 && v<1 ? v : null; }catch(_){ return null; } }
+function navFoldSafeB(){   // ホームの バー（iPhone）の 高さ
+  if(nfSafeB!=null) return nfSafeB;
+  try{ const p=document.createElement('div'); p.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:env(safe-area-inset-bottom,0px);visibility:hidden;pointer-events:none'; document.body.appendChild(p); nfSafeB=p.offsetHeight||0; p.remove(); }catch(_){ nfSafeB=0; }
+  return nfSafeB;
+}
+function navFoldClamp(b){   // 動かした ◀ が 上の バーと 画面の 下の はしから はみ出さない ように
+  const t=document.getElementById('navFoldTab'), h=(t && t.offsetHeight) || 68, vh=window.innerHeight;
+  let topLim=8; const at=document.querySelector('.app-top'); if(at){ const r=at.getBoundingClientRect(); if(r.height>0) topLim=r.bottom+6; }
+  const lo=8+navFoldSafeB(), hi=Math.max(lo, vh-topLim-h);
+  return Math.round(Math.max(lo, Math.min(hi, b)));
+}
+/* ◀ の 幅・大きさと メニューの アイコンの 大きさ（v700。体（body）の 印で 変える） */
+const NAV_FOLD_W_KEY='excalc_nav_fold_w', NAV_FOLD_S_KEY='excalc_nav_fold_size', NAV_ICON_KEY='excalc_nav_icon';
+const NF_WS={xs:'とても細い', s:'細い', m:'ふつう', l:'太い'}, NF_SS={s:'小', m:'ふつう', l:'大', xl:'特大'};
+function navLookGet(){
+  const g=(k, ok)=>{ try{ const v=localStorage.getItem(k); return ok.includes(v) ? v : 'm'; }catch(_){ return 'm'; } };
+  return {w:g(NAV_FOLD_W_KEY, ['xs','s','m','l']), s:g(NAV_FOLD_S_KEY, ['s','m','l','xl']), ic:g(NAV_ICON_KEY, ['s','m','l','xl'])};
+}
+function navLookApply(){
+  const L=navLookGet(), b=document.body;
+  ['xs','s','m','l'].forEach(x=>b.classList.toggle('nfw-'+x, x===L.w && x!=='m'));
+  ['s','m','l','xl'].forEach(x=>{ b.classList.toggle('nfs-'+x, x===L.s && x!=='m'); b.classList.toggle('navic-'+x, x===L.ic && x!=='m'); });
+  return L;
+}
+function setNavLook(kind, v){
+  const key={w:NAV_FOLD_W_KEY, s:NAV_FOLD_S_KEY, ic:NAV_ICON_KEY}[kind]; if(!key) return;
+  try{ if(v==='m') localStorage.removeItem(key); else localStorage.setItem(key, v); }catch(_){}
+  navLookApply(); renderUi2Seg(); navFoldPos();
+  try{ window.dispatchEvent(new Event('resize')); }catch(_){}   // メニューの 高さが かわる ので 表と テンキーを 合わせ直す
+  const nm={w:['◀ の 幅', NF_WS], s:['◀ の 大きさ', NF_SS], ic:['メニューの アイコン', NF_SS]}[kind];
+  toast(nm[0]+'を「'+(nm[1][v]||v)+'」に しました', 2200);
+}
+function navFoldCurB(){ const v=parseFloat(document.body.style.getPropertyValue('--navf-b')); return isFinite(v) ? v : 96; }
+function navFoldSaveY(b){ try{ localStorage.setItem(NAV_FOLD_Y_KEY, (b/window.innerHeight).toFixed(4)); }catch(_){} renderUi2Seg(); }
+function navFoldPosReset(){
+  try{ localStorage.removeItem(NAV_FOLD_Y_KEY); }catch(_){}
+  navFoldPos(); renderUi2Seg();
+  toast('◀ を もとの 場所（表の 右下）に もどしました');
+}
+function navFoldOn(){ try{ return localStorage.getItem(NAV_FOLD_KEY)==='1'; }catch(_){ return false; } }
+function navFoldActive(){
+  if(!ui2On || !navFoldOn()) return false;
+  const b=document.body;
+  if(b.classList.contains('np-side') || b.classList.contains('calc-only')) return false;
+  try{ if(matchMedia('(orientation: landscape) and (max-height: 500px)').matches) return false; }catch(_){}
+  return !document.documentElement.classList.contains('app-tool') && !document.documentElement.classList.contains('app-techo');
+}
+function navFoldPos(){   // ◀ と 出した タブを 入力欄（ない ときは テンキー）の すぐ 上に。自分で 動かした ときは その 高さ（v699）
+  if(!document.body.classList.contains('nav-fold') || nfDrag) return;
+  const y=navFoldY();
+  if(y!=null){ document.body.style.setProperty('--navf-b', navFoldClamp(y*window.innerHeight)+'px'); return; }
+  let top=window.innerHeight;
+  for(const sel of ['.left-pane .formula-bar', '.formula-bar', '.numpad-section']){
+    const e=document.querySelector(sel); if(!e) continue;
+    const r=e.getBoundingClientRect(); if(r.height>0 && r.width>0){ top=r.top; break; }
+  }
+  const b=Math.max(10, Math.min(window.innerHeight-80, Math.round(window.innerHeight-top+10)));
+  document.body.style.setProperty('--navf-b', b+'px');
+}
+function navFoldSync(){
+  const on=navFoldActive();
+  if(!on) navFoldOpen=false;
+  document.body.classList.toggle('nav-fold', !!(ui2On && navFoldOn()));
+  document.body.classList.toggle('nav-fold-open', on && navFoldOpen);
+  const t=document.getElementById('navFoldTab');
+  if(t){
+    t.textContent=navFoldOpen ? '▶' : '◀';
+    t.setAttribute('aria-expanded', String(on && navFoldOpen));
+    t.setAttribute('aria-label', navFoldOpen ? 'メニューを たたむ' : 'メニューを出す（表・電卓・ひな形・道具・メニュー）');
+    t.classList.toggle('has-note', !navFoldOpen && !!(typeof menuNotes!=='undefined' && menuNotes.length));
+  }
+  navFoldPos();
+}
+function navFoldTap(){ if(nfNoClick && Date.now()-nfNoClick<350){ nfNoClick=0; return; } nfNoClick=0; navFoldOpen=!navFoldOpen; navFoldSync(); }   // 動かした すぐ あとの 1回の クリックでは 開かない
+function setNavFold(on){
+  try{ localStorage.setItem(NAV_FOLD_KEY, on ? '1' : '0'); }catch(_){}
+  navFoldOpen=false; navFoldSync(); renderUi2Seg();
+  try{ window.dispatchEvent(new Event('resize')); }catch(_){}
+  toast(on ? '下のメニューを右下の ◀ にたたみました（押すと出ます。押さえたまま上下に動かすと、置く高さを変えられます）' : '下のメニューをいつも出します', 3600);
+}
+(function navFoldSetup(){
+  navLookApply();
+  // ほかの 所を 押したら たたむ（◀ ▶ と タブの 中は のぞく）
+  document.addEventListener('pointerdown', e=>{
+    if(!navFoldOpen) return;
+    const t=e.target; if(t && t.closest && (t.closest('#appNav') || t.closest('#navFoldTab'))) return;
+    navFoldOpen=false; navFoldSync();
+  }, true);
+  window.addEventListener('resize', ()=>{ nfSafeB=null; navFoldSync(); });
+  // ◀ を 押さえた まま 上下に 動かすと 好きな 高さに 置ける（8px 動いたら 動かす。少し 押した だけなら 開く。v699）
+  const tab=document.getElementById('navFoldTab');
+  if(tab){
+    tab.addEventListener('pointerdown', e=>{
+      if(e.pointerType==='mouse' && e.button!==0) return;
+      nfDrag={id:e.pointerId, y0:e.clientY, b0:navFoldCurB(), moved:false};
+      try{ tab.setPointerCapture(e.pointerId); }catch(_){}
+    });
+    tab.addEventListener('pointermove', e=>{
+      if(!nfDrag || e.pointerId!==nfDrag.id) return;
+      const dy=e.clientY-nfDrag.y0;
+      if(!nfDrag.moved){ if(Math.abs(dy)<8) return; nfDrag.moved=true; tab.classList.add('dragging'); if(navigator.vibrate){ try{ navigator.vibrate(12); }catch(_){} } }
+      e.preventDefault();
+      document.body.style.setProperty('--navf-b', navFoldClamp(nfDrag.b0-dy)+'px');   // 出して いる ときは タブも いっしょに 動く
+    });
+    const end=e=>{
+      if(!nfDrag || (e && e.pointerId!==nfDrag.id)) return;
+      const d=nfDrag; nfDrag=null; tab.classList.remove('dragging');
+      try{ tab.releasePointerCapture(d.id); }catch(_){}
+      if(!d.moved) return;
+      nfNoClick=Date.now();
+      navFoldSaveY(navFoldCurB());
+      if(!nfTold){ nfTold=true; toast('◀ の 場所を 覚えました（⚙ 設定の「下のメニュー」で もとに もどせます）', 3000); }
+    };
+    ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>tab.addEventListener(ev, end));
+    tab.addEventListener('keydown', e=>{   // キーボードでは ↑ ↓ で 動かす
+      if(e.key!=='ArrowUp' && e.key!=='ArrowDown') return;
+      e.preventDefault(); e.stopPropagation();
+      const b=navFoldClamp(navFoldCurB()+(e.key==='ArrowUp' ? 24 : -24));
+      document.body.style.setProperty('--navf-b', b+'px'); navFoldSaveY(b);
+    });
+  }
+  try{
+    const ro=new ResizeObserver(()=>navFoldPos());
+    ['.numpad-section', '.left-pane', '.formula-bar'].forEach(s=>{ const e=document.querySelector(s); if(e) ro.observe(e); });
+  }catch(_){}
+  requestAnimationFrame(navFoldSync);
+})();
 function renderUi2Seg(){
+  document.querySelectorAll('#navFoldSeg button').forEach(b=>{ const on=(b.dataset.f==='1')===navFoldOn(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+  { const rb=document.getElementById('navFoldPosReset'); if(rb) rb.hidden=!(navFoldOn() && navFoldY()!=null); }
+  { const L=navLookGet(), seg=(id, v)=>document.querySelectorAll('#'+id+' button').forEach(b=>{ const on=b.dataset.v===v; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    seg('navFoldWSeg', L.w); seg('navFoldSSeg', L.s); seg('navIconSeg', L.ic);
+    const fl=document.getElementById('navFoldLook'); if(fl) fl.hidden=!navFoldOn();
+    const ip=document.getElementById('navIconPrev'), nav=document.getElementById('appNav');
+    if(ip && nav && !ip.childElementCount){ ip.innerHTML=nav.innerHTML.replace(/\s(id|onclick|aria-current)="[^"]*"/g, ''); ip.querySelectorAll('button').forEach(b=>{ b.tabIndex=-1; b.classList.toggle('on', b.dataset.nav==='sheet'); b.classList.remove('has-note'); }); } }
   document.querySelectorAll('#toolFsSeg button').forEach(b=>{ const on=(b.dataset.t==='1')===toolFsOn(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
   document.querySelectorAll('#ui2Seg button').forEach(b=>b.classList.toggle('on', (b.dataset.u==='1')===ui2On));
   const n=document.getElementById('ui2Note');
@@ -23710,6 +23920,7 @@ function navCloseAll(){
   if(typeof closeSideApp==='function'){ try{ closeSideApp(); }catch(_){} }
 }
 function navGo(tab){
+  if(navFoldOpen){ navFoldOpen=false; navFoldSync(); }   // たたんだ タブから 移った ときは また たたむ（v698）
   commitPendingEdit();   // 打ちかけの 中身を 先に 入れる（v672）
   // 「電卓だけ」の あいだは 表・ひな形へ 移らない（表に 戻ると テンキーは 電卓の まま 動けなく なるため。v659）
   if(calcOnly && isDentaku() && (tab==='sheet' || tab==='tpl')){ toast('「電卓だけ」のあいだは表に移りません（⋮ → 設定 → ⌨テンキー で戻せます）', 3200); navSync(); return; }
@@ -23736,6 +23947,7 @@ function navSync(){
   const cur=navCurrent();
   document.querySelectorAll('#appNav button').forEach(b=>{ const on=b.dataset.nav===cur; b.classList.toggle('on', on); if(on) b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
   const mb=document.getElementById('navMenuBtn'); if(mb) mb.classList.toggle('has-note', !!(typeof menuNotes!=='undefined' && menuNotes.length));
+  if(typeof navFoldSync==='function') navFoldSync();
   uiTopSync();
 }
 /* 窓の 開け閉め・モードの 切り替え・元に戻す の たびに タブと 上の バーを 合わせる */

@@ -49,7 +49,7 @@
     koyomi:'🗓 こよみ',hoi:'⛩ 方位と恵方',soroban:'🧮 そろばん',hitsudan:'🗣 筆談ボード',keijiban:'📢 電光掲示板',
     hadetimer:'⏱ ど派手タイマー',hadecount:'🎉 ど派手カウンター',seikyu:'📃 請求書づくり',
     yatta:'🔁 前にやった日 帳',shukin:'📋 出欠・集金表',shiori:'🧳 旅のしおり',bingo:'🎱 ビンゴ',
-    mikurabe:'📸 見比べ',gijiroku:'📝 議事録',sentaku:'🧺 洗濯表示',kyoshi:'🧱 供試体',ggolf:'⛳ グラウンドゴルフ',oto:'🎵 音の道具'};   // v561・v564・v568・v569・v575・v579・v587・v605・v611・v616
+    mikurabe:'📸 見比べ',gijiroku:'📝 議事録',sentaku:'🧺 洗濯表示',kyoshi:'🧱 供試体',ggolf:'⛳ グラウンドゴルフ',oto:'🎵 音の道具',tabeta:'🍽 食べた物帳'};   // v561・v564・v568・v569・v575・v579・v587・v605・v611・v616
   if(!id || !APPS[id]) return;
   window.APP_TOOL=id; document.documentElement.classList.add('app-tool');
   const dir='apps/'+id+'/', set=(sel,attr,v)=>document.querySelectorAll(sel).forEach(e=>e.setAttribute(attr,v));
@@ -2546,6 +2546,63 @@ body.ui2 .modal-overlay:not(.tool-fs) { top: var(--nav-top, 0px); bottom: var(--
 body.ui2 .modal-overlay:not(.tool-fs) > .modal.modal-full { padding-bottom: 0; }
 body.ui2.calc-only .app-nav, html.app-tool body.ui2 .app-nav, html.app-techo body.ui2 .app-nav { display: none; }
 body.ui2.calc-only .modal-overlay, html.app-tool body.ui2 .modal-overlay, html.app-techo body.ui2 .modal-overlay { bottom: 0; }
+/* 下の タブを 右下に たたむ（v698。設定の「下のメニュー」。連絡帳の 下の ボタンと 同じ 形）
+   ふだんは 表の 右下（入力欄の すぐ 上）に ◀ だけ。押すと タブが 右から 出る（▶ で たたむ・ほかを 押すと たたむ）。
+   テンキーと 表が タブの 分 広く なる。横向き・テンキーを 右に 出す ときは タブが 下に ないので いつも 出す */
+.nav-fold-tab { display: none; }
+@media not all and (orientation: landscape) and (max-height: 500px) {
+  body.ui2.nav-fold:not(.np-side):not(.calc-only) { --nav-h: 0px; }
+  body.ui2.nav-fold:not(.np-side) .app-nav { display: none; }
+  body.ui2.nav-fold:not(.np-side) .numpad-section { padding-bottom: calc(var(--np-bottom, 3px) + var(--safe-bottom) * var(--np-safe, 1)); }
+  body.ui2.nav-fold.numpad-off:not(.np-side) .left-pane { padding-bottom: var(--safe-bottom); }
+  body.ui2.nav-fold:not(.np-side) .modal-overlay:not(.tool-fs) > .modal { padding-bottom: var(--safe-bottom); }
+  body.ui2.nav-fold:not(.np-side):not(.calc-only):not(.kb-edit):not(.tool-fs-open) .nav-fold-tab { display: flex; }
+  body.ui2.nav-fold.nav-fold-open:not(.np-side):not(.kb-edit):not(.tool-fs-open) .app-nav {
+    display: grid; position: fixed; left: 6px; right: 0; bottom: var(--navf-b, 96px); height: max(var(--nf-h), var(--nav-ic-need)); padding: 0 calc(var(--nf-w) + 4px) 0 2px; z-index: 990;
+    background: var(--modal-bg, #fff); border: 1px solid var(--cell-border, #d5dbe3); border-right: 0; border-radius: 16px 0 0 16px;
+    box-shadow: 0 6px 22px rgba(0,0,0,.24); animation: navFoldIn .16s ease-out; }
+}
+/* ◀ は v699 で 大きく。押さえた まま 上下に 動かすと 好きな 高さに 置ける（v699 の 上と 下の 短い 線は v700 で やめて 矢印だけに）。
+   v700：幅（とても細い 26・細い 32・ふつう 38・太い 46px）と 大きさ（高さ・矢印：小・ふつう・大・特大）を 設定で 選ぶ。はじめの 幅は 46 → 38px に */
+body { --nf-w: 38px; --nf-h: 68px; --nf-ar: 22px; --nav-ic-need: 56px; }
+body.nfw-xs { --nf-w: 26px; } body.nfw-s { --nf-w: 32px; } body.nfw-l { --nf-w: 46px; }
+body.nfs-s { --nf-h: 56px; --nf-ar: 18px; } body.nfs-l { --nf-h: 80px; --nf-ar: 26px; } body.nfs-xl { --nf-h: 92px; --nf-ar: 30px; }
+body.navic-s { --nav-ic-need: 50px; } body.navic-l { --nav-ic-need: 64px; } body.navic-xl { --nav-ic-need: 74px; }
+.nav-fold-tab, .nf-prev-tab { width: var(--nf-w); height: var(--nf-h); align-items: center; justify-content: center;
+  padding: 0 0 0 calc(var(--nf-w) / 12); border: 0; border-radius: min(18px, calc(var(--nf-w) / 2)) 0 0 min(18px, calc(var(--nf-w) / 2));
+  background-color: var(--acc); color: #fff; font-size: min(var(--nf-ar), calc(var(--nf-w) - 8px)); line-height: 1; }   /* 矢印だけ（v700 で 上と 下の 短い 線を やめた） */
+.nav-fold-tab { position: fixed; right: 0; bottom: var(--navf-b, 96px); z-index: 991; cursor: grab;
+  box-shadow: -2px 3px 12px rgba(0,0,0,.28); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.nav-fold-tab::before { content: ''; position: absolute; inset: -8px 0 -8px -10px; }   /* 押せる 所を すこし 広く */
+.nav-fold-tab:active { filter: brightness(1.12); }
+.nav-fold-tab.dragging { cursor: grabbing; filter: brightness(1.1); transform: translateX(-3px); box-shadow: -4px 6px 22px rgba(0,0,0,.4); }
+.nav-fold-tab.has-note::after { content: ''; position: absolute; top: 6px; left: 6px; width: 10px; height: 10px; border-radius: 50%; background: #ff7a2f; box-shadow: 0 0 0 2px var(--acc); }
+body.nav-fold-open .nav-fold-tab { box-shadow: none; }
+/* メニューの アイコンの 大きさ（v700。表・電卓・ひな形・道具・メニュー。小・ふつう・大・特大）。大きい ときは 下の メニューも 高く。
+   横向き・テンキーを 右に 出す ときは メニューが 上の 段（低い）なので かえない */
+@media not all and (orientation: landscape) and (max-height: 500px) {
+  body.ui2.navic-l:not(.np-side) { --nav-h: calc(52px + var(--safe-bottom)); }
+  body.ui2.navic-xl:not(.np-side) { --nav-h: calc(62px + var(--safe-bottom)); }
+  body.ui2.navic-s:not(.np-side) :is(.app-nav, .nav-ic-prev) button { font-size: 9.5px; gap: 0; }
+  body.ui2.navic-s:not(.np-side) :is(.app-nav, .nav-ic-prev) button .ui-ic { width: 16px; height: 16px; padding: 2px 11px; }
+  body.ui2.navic-l:not(.np-side) :is(.app-nav, .nav-ic-prev) button { font-size: 12px; gap: 2px; }
+  body.ui2.navic-l:not(.np-side) :is(.app-nav, .nav-ic-prev) button .ui-ic { width: 26px; height: 26px; padding: 2px 15px; }
+  body.ui2.navic-xl:not(.np-side) :is(.app-nav, .nav-ic-prev) button { font-size: 13.5px; gap: 2px; }
+  body.ui2.navic-xl:not(.np-side) :is(.app-nav, .nav-ic-prev) button .ui-ic { width: 32px; height: 32px; padding: 2px 16px; }
+}
+/* 設定の 見本（◀ と メニューの アイコン） */
+.nf-prev { position: relative; height: calc(var(--nf-h) + 14px); margin: 8px 0 2px; border-radius: 10px; overflow: hidden; border: 1px solid var(--save-item-border, #dde3e0);
+  background: repeating-linear-gradient(0deg, transparent 0 25px, var(--cell-border, #e1e6e2) 25px 26px), var(--cell-bg, #fff); }
+.nf-prev-tab { position: absolute; right: 0; top: 7px; display: flex; box-shadow: -2px 3px 10px rgba(0,0,0,.22); }
+.nav-ic-prev { display: grid; grid-template-columns: repeat(5, 1fr); height: var(--nav-ic-need); margin: 6px 0 2px; border: 1px solid var(--save-item-border, #dde3e0); border-radius: 12px; background: var(--modal-bg, #fff); overflow: hidden; }
+.nav-ic-prev button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border: 0; background: none; color: var(--text-light);
+  font: inherit; font-size: 10.5px; font-weight: 700; padding: 0; pointer-events: none; }
+.nav-ic-prev button .ui-ic { width: 20px; height: 20px; padding: 2px 13px; box-sizing: content-box; border-radius: 14px; }
+.nav-ic-prev button.on { color: var(--acc-text); } .nav-ic-prev button.on .ui-ic { background: var(--acc-weak); }
+#navFoldPosReset[hidden] { display: none !important; }
+@keyframes navFoldIn { from { transform: translateX(40%); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { body.ui2.nav-fold.nav-fold-open .app-nav { animation: none !important; } }
+html.app-tool .nav-fold-tab, html.app-techo .nav-fold-tab { display: none !important; }
 
 /* ══ 段階4（v641）：出かたを 3種類に そろえる（新しい 画面）══
    ページ（メニュー・ひな形・道具は タブの 上いっぱい）・下からの シート（ほかの 窓）・その場の メニュー（セルの そば） */
@@ -3933,6 +3990,8 @@ body.mode-reordering .mode-item { touch-action: none; }
 .tmpl-search-x { flex-shrink: 0; width: 38px; height: 38px; border: 1px solid var(--save-item-border); border-radius: var(--r-btn);
   background: var(--save-item-bg); color: var(--text); font-size: 15px; cursor: pointer; }
 .tmpl-search-x[hidden] { display: none; }
+.tmpl-vis-btn { display: block; margin: 14px auto 4px; padding: 8px 14px; border: 1px solid var(--save-item-border); border-radius: 999px; background: transparent; color: var(--text-light); font-size: 13px; cursor: pointer; }
+.tmpl-vis-btn span { margin-left: 4px; }
 .tmpl-legend { font-size: 11px; color: var(--text-light); line-height: 1.6; margin: 0 2px 10px; }
 .tmpl-sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: -1px; border: 1px solid rgba(0,0,0,0.2); }
 .tmpl-sw.in { background: #ddeefc; } .tmpl-sw.ans { background: #fff2cc; }
@@ -5099,6 +5158,24 @@ body.dark {
       <div class="set-ui2-t ui2-only-blk" style="margin-top:10px">道具の出し方</div>
       <div class="skin-seg ui2-only-blk" id="toolFsSeg"><button class="skin-seg-btn" data-t="1" onclick="setToolFs(true)">全画面</button><button class="skin-seg-btn" data-t="0" onclick="setToolFs(false)">下のタブを残す</button></div>
       <div class="set-ui2-note ui2-only-blk">全画面は、道具を開いている間は下のタブを隠します（もどるで表に戻ります）。</div>
+      <div class="set-ui2-t ui2-only-blk" style="margin-top:10px">下のメニュー（表・電卓・ひな形・道具・メニュー）</div>
+      <div class="skin-seg ui2-only-blk" id="navFoldSeg"><button class="skin-seg-btn" data-f="0" onclick="setNavFold(false)">いつも出す</button><button class="skin-seg-btn" data-f="1" onclick="setNavFold(true)">◀ 右下にたたむ</button></div>
+      <div class="set-ui2-note ui2-only-blk">右下にたたむと、ふだんは表の右下に ◀ だけを出し、押すとメニューが出ます（▶ でたたみます）。◀ は<b>押さえたまま上下に動かすと、好きな高さに置けます</b>。テンキーと表がその分広くなります。横向きのときはいつも出します。</div>
+      <button class="set-act ui2-only-blk" id="navFoldPosReset" onclick="navFoldPosReset()" hidden>↺ ◀ の場所をもとにもどす（表の右下）</button>
+      <!-- v700：◀ の 幅・大きさ（たたむ ときだけ）と、メニューの アイコンの 大きさ -->
+      <div class="ui2-only-blk" id="navLookSet">
+        <div id="navFoldLook">
+          <div class="set-ui2-t" style="margin-top:10px">◀ の幅</div>
+          <div class="skin-seg" id="navFoldWSeg"><button class="skin-seg-btn" data-v="xs" onclick="setNavLook('w','xs')">とても細い</button><button class="skin-seg-btn" data-v="s" onclick="setNavLook('w','s')">細い</button><button class="skin-seg-btn" data-v="m" onclick="setNavLook('w','m')">ふつう</button><button class="skin-seg-btn" data-v="l" onclick="setNavLook('w','l')">太い</button></div>
+          <div class="set-ui2-t" style="margin-top:8px">◀ の大きさ（高さ・矢印）</div>
+          <div class="skin-seg" id="navFoldSSeg"><button class="skin-seg-btn" data-v="s" onclick="setNavLook('s','s')">小</button><button class="skin-seg-btn" data-v="m" onclick="setNavLook('s','m')">ふつう</button><button class="skin-seg-btn" data-v="l" onclick="setNavLook('s','l')">大</button><button class="skin-seg-btn" data-v="xl" onclick="setNavLook('s','xl')">特大</button></div>
+          <div class="nf-prev" aria-hidden="true"><span class="nf-prev-tab">◀</span></div>
+        </div>
+        <div class="set-ui2-t" style="margin-top:10px">メニューのアイコンの大きさ（表・電卓・ひな形・道具・メニュー）</div>
+        <div class="skin-seg" id="navIconSeg"><button class="skin-seg-btn" data-v="s" onclick="setNavLook('ic','s')">小</button><button class="skin-seg-btn" data-v="m" onclick="setNavLook('ic','m')">ふつう</button><button class="skin-seg-btn" data-v="l" onclick="setNavLook('ic','l')">大</button><button class="skin-seg-btn" data-v="xl" onclick="setNavLook('ic','xl')">特大</button></div>
+        <div class="nav-ic-prev" id="navIconPrev" aria-hidden="true"></div>
+        <div class="set-note">◀ の幅・大きさ（たたむときだけ）と、メニューのアイコンの大きさを変えられます。見本のとおりになります。</div>
+      </div>
     </div>
     <div class="ez-only">
       <div class="set-note ez-note" id="ezNote"><b>かんたんモード</b>です。よく使う設定だけを出しています。<br>標準モードにするときは <b>☰ メニューのいちばん上</b>で切りかえます。</div>
@@ -5167,7 +5244,7 @@ body.dark {
 
   <div class="set-page" id="setPage1">
     <!-- v411：見た目・自分好みにする設定を、4つの畳める組にまとめた。開き閉めは組ごとに覚える（saveSetGrp） -->
-    <div class="set-sec">🖥 画面の形・道具の出し方</div>
+    <div class="set-sec">🖥 画面の形・道具の出し方・下のメニュー</div>
     <div id="setUi2Slot"></div>
     <div class="set-note set-grp-lead">自分好みにする設定を<b>5つの組</b>にまとめています。押すと開きます。</div>
     <details class="set-grp" id="setGrpColor" ontoggle="saveSetGrp(this)">
@@ -5369,9 +5446,6 @@ body.dark {
     <button class="set-act" id="speechSpeakBtn" onclick="toggleSpeechSpeak()" title="計算した答えを声で読み上げます（手がふさがっているときの確認に）">答えを声で読み上げる</button>
     <button class="set-act" onclick="openVoiceSet()" title="読み上げの声・速さ・高さ・大きさを決めます（声の計算帳・ほかの道具でも同じ声）">🔈 読み上げの声（声・速さ・高さ・大きさ）</button>
     <button class="set-act" id="digitHintBtn" onclick="toggleDigitHint()" title="入力中の数字を「5,000,000 ＝ 500万」のように数式バーの下に出します（1万以上のときだけ）">入力中の数字の桁を出す</button>
-    <div class="set-sec">🎯 ひな形から作る（表のかたち・ひな形）</div>
-    <div class="set-note"><b>表のかたち</b>（買物・割り勘など、自動で計算する表）と<b>ひな形</b>（項目と式が入った表・25種類）は、<b>テンキーの「ひな形」キー</b>や<b>☰ → ほかの機能 → 🎯ひな形から作る</b>から選べます（目的別に並べてあります）。</div>
-    <button class="set-act" onclick="openModeVis()" title="「ひな形から作る」に出す表のかたちを選びます">ひな形の一覧に出すもの</button>
   </div>
 
   <!-- 💾 保存とデータ（v624） -->
@@ -6208,6 +6282,8 @@ body.dark {
       </div>
       <div class="tmpl-legend"><span class="tmpl-badge">一覧表</span> 行を足して何件でも入れられる表 ／ ほかは <span class="tmpl-sw in"></span>水色に入れると <span class="tmpl-sw ans"></span>答えが出る計算。今の表は上書き（↶戻す で戻せます）</div>
       <div id="modeMenuBody"></div>
+      <!-- v701：設定の「ひな形の一覧に出すもの」を ここへ（設定からは 削除） -->
+      <button type="button" class="tmpl-vis-btn" id="tmplVisBtn" onclick="openModeVis()">⚙ 一覧に出すものを選ぶ<span id="tmplVisNote"></span></button>
     </div>
   </div>
 </div>
@@ -7281,6 +7357,8 @@ body.dark {
   <button data-nav="tools" onclick="navGo('tools')"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="7.5" width="19" height="13" rx="2.5"/><path d="M8.5 7.5V5.5a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v2M2.5 13h19M12 11.5v3"/></svg><span>道具</span></button>
   <button data-nav="menu" id="navMenuBtn" onclick="navGo('menu')"><svg class="ui-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h16"/></svg><span>メニュー</span></button>
 </nav>
+<!-- 下の タブを 右下に たたんだ ときの ◀（v698。設定の「下のメニュー」で 右下に たたむ ときだけ 出る） -->
+<button type="button" class="nav-fold-tab" id="navFoldTab" onclick="navFoldTap()" aria-expanded="false" aria-controls="appNav" aria-label="メニューを出す（表・電卓・ひな形・道具・メニュー）" title="表・電卓・ひな形・道具・メニュー">◀</button>
 <div class="pick-banner" id="pickBanner">
   <div class="pick-top">
     <span id="pickBannerMsg">セルを選んでください</span>
