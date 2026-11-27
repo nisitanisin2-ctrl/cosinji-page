@@ -606,7 +606,7 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
         <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
         <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
         <p class="m3d-hint" id="m3dHint"><span></span></p>
-        <div class="povbar"><button type="button" class="speedbtn" id="frontBtn" hidden title="見る向きを正面にもどす">🧭 正面</button><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
+        <div class="povbar"><button type="button" class="speedbtn" id="frontBtn" hidden title="見る向きを正面にもどす">🧭 正面</button><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="gearBtn" hidden title="目線で使う道具：スキー・スノーボード（押すたびに かわります）">🎿 スキー</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
         <button type="button" class="m3d-compass" id="m3dCompass" aria-label="北を上にする" title="北を上にする"><i>N</i></button>
         <div class="m3d-nav" id="m3dNav" role="group" aria-label="地図の操作"><button type="button" data-nav="in" aria-label="拡大" title="拡大"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button><button type="button" data-nav="out" aria-label="縮小" title="縮小"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button><button type="button" data-nav="left" aria-label="左に回す" title="左に回す"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button><button type="button" data-nav="right" aria-label="右に回す" title="右に回す"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></button><button type="button" data-nav="tilt" aria-label="真上から見る／ななめから見る" title="真上から／ななめから"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 19 7 7h10l4.5 12z"/><path d="M12 7v12M4.8 13h14.4"/></svg></button></div>
         <button type="button" class="fsbtn" id="fsBtn" aria-label="全画面で見る" title="全画面">⛶</button>
@@ -1891,7 +1891,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,sizeAttenuation:false})); pxSize(s,20); s.renderOrder=10; s.visible=false; scene.add(s); return s; };
   const skier=dot("#ff4d4f"), rider=dot("#2a7bd6");
   // ===== 目線で滑るとき：足もとのスキー板（画面の下）と、雪の上の自分の影 =====
-  const skiG=new THREE.Group(), skFwd=new THREE.Vector3(0,0,1); skiG.visible=false; scene.add(skiG);
+  const skiG=new THREE.Group(), skisG=new THREE.Group(), boardG=new THREE.Group(), skFwd=new THREE.Vector3(0,0,1); skiG.visible=false; skiG.add(skisG,boardG); scene.add(skiG);
+  let gear=store.get("povGear",0)===1?1:0; // 0＝スキー、1＝スノーボード
   { const pts=[[-.9,0,.088],[-.3,0,.088],[.3,0,.086],[.6,0,.084],[.72,.006,.08],[.8,.016,.074],[.86,.03,.064],[.9,.045,.05],[.93,.056,.034],[.95,.062,.014]]; // [前後 m, 上がり, はば]
     const col=z=>z>.68?0x1c1d22:(z>.6?0xf1f1ef:(z>.52?0x1c1d22:(z>-.35&&z<-.2?0x1c1d22:0xb8302a))), T=.02, P=[], C=[], I=[], c=new THREE.Color();
     const quad=(a,b,d,e,k)=>{ const o=P.length/3; P.push(...a,...b,...d,...e); c.set(k); for(let i=0;i<4;i++) C.push(c.r,c.g,c.b); I.push(o,o+1,o+2, o,o+2,o+3); };
@@ -1900,13 +1901,30 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       else quad([-w0/2,y0+T,z0],[w0/2,y0+T,z0],[w1/2,y1+T,z1],[-w1/2,y1+T,z1],k);
       quad([w0/2,y0,z0],[w1/2,y1,z1],[w1/2,y1+T,z1],[w0/2,y0+T,z0],0x9aa0a8); quad([-w0/2,y0,z0],[-w0/2,y0+T,z0],[-w1/2,y1+T,z1],[-w1/2,y1,z1],0x9aa0a8); }
     const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("color",new THREE.Float32BufferAttribute(C,3)); g.setIndex(I); g.computeVertexNormals();
-    const m=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}); [-.135,.135].forEach(x=>{ const k=new THREE.Mesh(g,m); k.position.x=x; k.frustumCulled=false; skiG.add(k); }); }
-  const meSh=(()=>{ const cv=document.createElement("canvas"); cv.width=64; cv.height=256; const x=cv.getContext("2d"); x.fillStyle=x.strokeStyle="#fff"; x.lineCap="round"; x.filter="blur(2px)";
-    x.beginPath(); x.ellipse(32,206,11,44,0,0,6.2832); x.fill(); x.beginPath(); x.ellipse(32,122,15,44,0,0,6.2832); x.fill(); x.beginPath(); x.arc(32,60,12,0,6.2832); x.fill();
-    x.lineWidth=4; x.beginPath(); x.moveTo(19,104); x.lineTo(7,244); x.moveTo(45,104); x.lineTo(57,244); x.stroke(); // ストック
+    const m=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide}); [-.135,.135].forEach(x=>{ const k=new THREE.Mesh(g,m); k.position.x=x; k.frustumCulled=false; skisG.add(k); }); }
+  // スノーボード：進む向きに長い板（はば約26cm、両はしが そり上がる）に、横向きの2つのブーツ（左足が前。つま先は右）
+  { const pts=[]; for(let i=0;i<=24;i++){ const z=-.8+1.6*i/24, a=Math.abs(z), t=Math.max(0,(a-.6)/.2), w=(.25+.035*Math.min(1,a/.6)**2)*Math.sqrt(Math.max(0,1-t*t*.92)); pts.push([z,.075*t*t,Math.max(.03,w)]); }
+    const col=z=>Math.abs(z)>.62?0x16181d:(Math.abs(z)<.09?0x2aa6a0:(Math.abs(z+.4)<.03||Math.abs(z-.4)<.03?0xf0ede6:0x1d2a44)), T=.022, P=[], C=[], I=[], c=new THREE.Color();
+    const quad=(a,b,d,e,k)=>{ const o=P.length/3; P.push(...a,...b,...d,...e); c.set(k); for(let i=0;i<4;i++) C.push(c.r,c.g,c.b); I.push(o,o+1,o+2, o,o+2,o+3); };
+    for(let i=0;i<pts.length-1;i++){ const [z0,y0,w0]=pts[i], [z1,y1,w1]=pts[i+1], k=col((z0+z1)/2);
+      quad([-w0/2,y0+T,z0],[w0/2,y0+T,z0],[w1/2,y1+T,z1],[-w1/2,y1+T,z1],k);
+      quad([w0/2,y0,z0],[w1/2,y1,z1],[w1/2,y1+T,z1],[w0/2,y0+T,z0],0x9aa0a8); quad([-w0/2,y0,z0],[-w0/2,y0+T,z0],[-w1/2,y1+T,z1],[-w1/2,y1,z1],0x9aa0a8); }
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(P,3)); g.setAttribute("color",new THREE.Float32BufferAttribute(C,3)); g.setIndex(I); g.computeVertexNormals();
+    const b=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})); b.frustumCulled=false; boardG.add(b);
+    const mB=new THREE.MeshLambertMaterial({color:0x1b1c20}), mBoot=new THREE.MeshLambertMaterial({color:0x4a505a}), mSole=new THREE.MeshLambertMaterial({color:0xd9d4c8}), BXG=new THREE.BoxGeometry(1,1,1);
+    const box=(m,p,sc,ry,rz)=>{ const k=new THREE.Mesh(BXG,m); k.position.set(...p); k.scale.set(...sc); k.rotation.set(0,ry||0,rz||0); k.frustumCulled=false; return k; };
+    [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,T,z); f.rotation.y=ang; // 足（板の上で横向き）
+      f.add(box(mB,[0,.01,0],[.25,.02,.12])); f.add(box(mSole,[-.01,.025,0],[.28,.014,.1])); f.add(box(mBoot,[-.01,.06,0],[.28,.06,.1])); f.add(box(mBoot,[.05,.1,0],[.11,.06,.1]));
+      f.add(box(mB,[.1,.09,0],[.025,.13,.13],0,-.3)); f.add(box(mB,[-.04,.1,0],[.05,.02,.12])); boardG.add(f); }); }
+  boardG.rotation.y=-.42; boardG.position.set(.08,0,.25); boardG.visible=gear===1; skisG.visible=gear===0;
+  const meTex=[0,1].map(bd=>{ const cv=document.createElement("canvas"); cv.width=64; cv.height=256; const x=cv.getContext("2d"); x.fillStyle=x.strokeStyle="#fff"; x.lineCap="round"; x.filter="blur(2px)";
+    x.beginPath(); x.ellipse(32,206,bd?15:11,44,0,0,6.2832); x.fill(); x.beginPath(); x.ellipse(32,122,bd?17:15,44,0,0,6.2832); x.fill(); x.beginPath(); x.arc(32,60,12,0,6.2832); x.fill();
+    x.lineWidth=4; x.beginPath(); if(bd){ x.moveTo(20,100); x.lineTo(4,150); x.moveTo(44,100); x.lineTo(60,150); } else { x.moveTo(19,104); x.lineTo(7,244); x.moveTo(45,104); x.lineTo(57,244); } x.stroke(); // うで・ストック
+    return new THREE.CanvasTexture(cv); });
+  const meSh=(()=>{
     const g=new THREE.BufferGeometry(), uv=[], idx=[]; g.setAttribute("position",new THREE.Float32BufferAttribute(new Float32Array(14*3),3));
     for(let j=0;j<7;j++){ uv.push(0,j/6,1,j/6); if(j<6){ const a=j*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); } } g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx);
-    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv),color:0x0e1822,transparent:true,opacity:.42,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:meTex[gear],color:0x0e1822,transparent:true,opacity:.42,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
     m.frustumCulled=false; m.visible=false; m.renderOrder=1; scene.add(m); return m; })();
   const skF=new THREE.Vector3(), skN=new THREE.Vector3(), skX=new THREE.Vector3(), skH=new THREE.Vector3(), skM=new THREE.Matrix4(), skQ1=new THREE.Quaternion(), skQ2=new THREE.Quaternion(), skZ=new THREE.Vector3(0,0,1); let skTurn=0, skHd=null;
   function skiView(on,dt){ if(skiG.visible!==on){ skiG.visible=meSh.visible=on; needDraw=true; } if(!on){ skHd=null; skTurn=0; return; }
@@ -2295,7 +2313,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // 描く：カメラが動いたとき・動きがあるときだけ（止まっている間は描かない。近くで見ている間は、いすを動かすため少しずつ）
   let running=false, last=0, lastR=0, chairT=0, prevBusy=false, slowN=0, slowT=0; const pc=new THREE.Vector3(), pt=new THREE.Vector3();
   function loop(now){ if(!running) return; if(curTab!=="map"){ running=false; return; } requestAnimationFrame(loop);
-    const dt=Math.min(.1,(now-last)/1000||0); last=now; const spOn=!!(follow&&anim&&anim.kind==="ski"); if(spBtn.hidden===spOn){ spBtn.hidden=camBtn.hidden=!spOn; } const povOn=!!follow; if(box.parentElement.classList.contains("pov3d")!==povOn) box.parentElement.classList.toggle("pov3d",povOn);
+    const dt=Math.min(.1,(now-last)/1000||0); last=now; const spOn=!!(follow&&anim&&anim.kind==="ski"); if(spBtn.hidden===spOn){ spBtn.hidden=camBtn.hidden=!spOn; } const gOn=spOn&&CAMS[camIdx][0]==="eye"; if(gearBtn.hidden===gOn) gearBtn.hidden=!gOn; const povOn=!!follow; if(box.parentElement.classList.contains("pov3d")!==povOn) box.parentElement.classList.toggle("pov3d",povOn);
     fovGoal=spOn?camFov(CAMS[camIdx][0]):FOV0;
     const offOn=follow&&Math.abs(lookYaw)+Math.abs(lookPitch)>.06; if(frontBtn.hidden===offOn) frontBtn.hidden=!offOn;
     const eyeOn=spOn&&CAMS[camIdx][0]==="eye"; if(eyeOn!==eyeWas){ eyeWas=eyeOn; if(!rideChair){ camera.near=eyeOn?1:5; camera.updateProjectionMatrix(); } if(anim&&anim.kind==="ski") skier.visible=!eyeOn; Object.values(courseObj).forEach(o=>{ o.band.visible=!eyeOn; }); }
@@ -2335,6 +2353,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   spBtn.onclick=()=>{ spIdx=(spIdx+1)%SPEEDS.length; store.set("skiSpeed",spIdx); spLabel(); };
   const camBtn=$("#camBtn"), camLabel=()=>{ camBtn.textContent=CAMS[camIdx][1]; }; camLabel();
   camBtn.onclick=()=>{ camIdx=(camIdx+1)%CAMS.length; store.set("povCam",camIdx); camLabel(); needDraw=true; };
+  const gearBtn=$("#gearBtn"), gearLabel=()=>{ gearBtn.textContent=gear?"🏂 スノボ":"🎿 スキー"; }; gearLabel();
+  gearBtn.onclick=()=>{ gear=1-gear; store.set("povGear",gear); gearLabel(); skisG.visible=!gear; boardG.visible=!!gear; meSh.material.map=meTex[gear]; meSh.material.needsUpdate=true; needDraw=true; };
   $("#homeBtn3d").onclick=()=>home();
   // ＋－・回す・傾き・方位のボタン
   const wrapA=a=>Math.atan2(Math.sin(a),Math.cos(a));
