@@ -2077,9 +2077,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       add(new THREE.TorusGeometry(.055,.011,6,14,Math.PI),mBk,[-.11,.05,0],[0,Math.PI/2,0]);                    // つま先の ストラップ
       return g; }
     // スノーボードの ブーツ（やわらかい。つま先が -x）
-    function boardBoot(){ const g=new THREE.Group(), mB=std(0x3a3f47,.78), mBk=std(0x16171a,.6), mL=std(0xd8d4c8,.7);
+    function boardBoot(toeOnly){ const g=new THREE.Group(), mB=std(0x3a3f47,.78), mBk=std(0x16171a,.6), mL=std(0xd8d4c8,.7);
       const add=(geo,m,p,r,s)=>{ const k=new THREE.Mesh(geo,m); k.position.set(...p); if(r) k.rotation.set(...r); if(s) k.scale.set(...s); k.frustumCulled=false; g.add(k); return k; };
-      add(BX,mBk,[-.02,.042,0],null,[.3,.024,.112]); add(new THREE.CapsuleGeometry(.054,.17,4,12),mB,[-.02,.085,0],[0,0,Math.PI/2],[1.1,1,1]);
+      add(BX,mBk,[-.02,.042,0],null,[.3,.024,.112]); add(new THREE.CapsuleGeometry(.054,.17,4,12),mB,[-.02,.085,0],[0,0,Math.PI/2],[1.1,1,1]); if(toeOnly) return g;
       add(new THREE.CylinderGeometry(.064,.07,.21,14),mB,[.045,.2,0],[0,0,.18]); add(BX,mL,[-.008,.2,0],[0,0,.18],[.012,.15,.05]);
       return g; }
     return {std,ski,board,skiBinding,skiBoot,boardBinding,boardBoot}; })();
@@ -2091,7 +2091,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const bt=GK.skiBoot(0xf1f0ec,true); bt.position.set(x,.03,.02); skisG.add(bt); });
   // スノーボード：板・ビンディング（前の足 +15°、後ろの足 −6°）・やわらかい ブーツ
   boardG.add(GK.board());
-  [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,.012,z); f.rotation.y=ang; f.add(GK.boardBinding()); const bt=GK.boardBoot(); bt.position.y=.012; f.add(bt);
+  [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,.012,z); f.rotation.y=ang; f.add(GK.boardBinding()); const bt=GK.boardBoot(true); bt.position.y=.012; f.add(bt);
     boardG.add(f); });
   // ストック（スキーの とき。ふだんは 画面の 外、ターンの 切りかえで 内がわを 前の 雪に つく）
   const eyePoles=[0,1].map(()=>{ const g=new THREE.Group(), pm=GK.std(0xb9c0c8,.3,.75), bm=GK.std(0x1a1b1f,.5);
