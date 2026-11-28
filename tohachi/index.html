@@ -212,18 +212,8 @@ input[type=range]{ width:100%; accent-color:var(--text); }
 /* ===== 技術アニメ ===== */
 .tabs{ display:inline-flex; }
 .tech{ text-align:center; }
-.tech svg{ width:100%; max-width:220px; height:150px; display:block; margin:0 auto 8px; }
+.tech img.ph{ width:100%; height:auto; aspect-ratio:3/2; object-fit:cover; display:block; margin:0 0 10px; border-radius:12px; background:var(--snow); box-shadow:inset 0 0 0 1px var(--line); }
 .tech p{ text-align:left; font-size:.9rem; color:var(--sub); }
-.ski-l{ transform-origin:110px 120px; animation:plowL 3s ease-in-out infinite; }
-.ski-r{ transform-origin:110px 120px; animation:plowR 3s ease-in-out infinite; }
-@keyframes plowL{ 0%,20%{ transform:translateX(-14px) rotate(0);} 50%,80%{ transform:translateX(-14px) rotate(16deg);} 100%{ transform:translateX(-14px) rotate(0);} }
-@keyframes plowR{ 0%,20%{ transform:translateX(14px) rotate(0);} 50%,80%{ transform:translateX(14px) rotate(-16deg);} 100%{ transform:translateX(14px) rotate(0);} }
-.chairmove{ animation:chairmv 4s ease-in-out infinite; }
-@keyframes chairmv{ 0%{ transform:translateX(-80px);} 45%,60%{ transform:translateX(0);} 100%{ transform:translate(120px,-40px);} }
-.rider{ animation:riderSit 4s ease-in-out infinite; }
-@keyframes riderSit{ 0%,40%{ transform:translate(0,0);} 50%,60%{ transform:translate(0,-6px);} 100%{ transform:translate(120px,-46px);} }
-.fallperson{ transform-origin:110px 128px; animation:fall 3.4s ease-in-out infinite; }
-@keyframes fall{ 0%,20%{ transform:rotate(0);} 45%,70%{ transform:rotate(-62deg) translate(-6px,6px);} 100%{ transform:rotate(0);} }
 .school{ display:grid; gap:12px; margin-bottom:14px; }
 @media (min-width:720px){ .school{ grid-template-columns:1fr 1fr; } }
 
@@ -384,6 +374,9 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 .reccard b{ font-size:1.08rem; line-height:1.35; }
 .reccard .rm{ font-size:.8rem; color:var(--sub); font-family:var(--f-num); }
 .reccard .rgo{ margin-top:auto; font-size:.78rem; font-weight:700; color:var(--acc); }
+.reccard.hasph{ padding-top:0; }
+.reccard.hasph::before{ display:none; }
+.reccard .rph{ width:calc(100% + 32px); max-width:none; margin:0 -16px 8px; height:auto; aspect-ratio:16/10; object-fit:cover; display:block; background:var(--snow); border-bottom:3px solid var(--c); }
 .stampcard{ border-radius:22px; }
 .stamphead{ display:flex; gap:16px; align-items:center; }
 .stamphead h3{ margin:0; }
@@ -396,6 +389,12 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 .stamp i{ font-style:normal; width:48px; height:48px; border-radius:50%; display:grid; place-items:center; border:2px dashed color-mix(in srgb, var(--c) 55%, transparent); color:#fff; font-weight:900; font-size:1.2rem; transition:transform .3s; }
 .stamp.on i{ border:2px solid var(--c); background:var(--c); transform:rotate(-8deg); box-shadow:0 4px 12px -4px var(--c); }
 .stamp span{ line-height:1.3; text-align:center; }
+.stamp i b{ position:relative; z-index:1; font-weight:900; text-shadow:0 1px 3px rgba(0,0,0,.55); }
+.stamp.hasph i{ position:relative; overflow:hidden; }
+.stamp.hasph i::before{ content:""; position:absolute; inset:3px; border-radius:50%; background:var(--ph) center/cover; filter:grayscale(1); opacity:.38; }
+.stamp.hasph.on i{ background:var(--c); }
+.stamp.hasph.on i::before{ inset:2px; filter:none; opacity:1; }
+.stamp.hasph.on i::after{ content:""; position:absolute; inset:0; border-radius:50%; background:radial-gradient(circle, rgba(0,0,0,.38), rgba(0,0,0,.05) 70%); }
 .badges{ display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
 .badge2{ display:inline-flex; align-items:center; gap:5px; font-size:.74rem; padding:4px 10px 4px 6px; border-radius:99px; background:var(--panel2); color:var(--faint); filter:grayscale(1); opacity:.7; }
 .badge2 i{ font-style:normal; }
@@ -404,7 +403,11 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 @media (min-width:720px){ .tiles{ grid-template-columns:repeat(3,1fr); } }
 .tile{ text-align:left; cursor:pointer; border:1px solid var(--line); background:var(--panel); border-radius:18px; padding:14px; display:flex; flex-direction:column; gap:2px; transition:transform .2s, border-color .2s; }
 .tile:active{ transform:scale(.97); } .tile:hover{ border-color:var(--text); }
-.tile .ti{ font-size:1.4rem; line-height:1.2; margin-bottom:4px; }
+.aboutcard{ padding-top:0; overflow:hidden; }
+.aboutcard .aph{ width:calc(100% + 2 * var(--cardpad, 20px)); max-width:none; margin:0 calc(-1 * var(--cardpad, 20px)) 12px; height:auto; aspect-ratio:16/10; object-fit:cover; display:block; background:var(--snow); }
+.tile{ padding:0; overflow:hidden; }
+.tile .tph{ width:100%; height:auto; aspect-ratio:16/10; object-fit:cover; display:block; background:var(--snow); margin-bottom:8px; }
+.tile b, .tile span:last-child{ padding:0 12px; } .tile span:last-child{ padding-bottom:12px; }
 .tile b{ font-size:.95rem; } .tile span:last-child{ font-size:.74rem; color:var(--sub); }
 .stampbtn.on{ background:var(--lv1); border-color:var(--lv1); color:#fff; }
 .toast{ position:fixed; z-index:70; left:50%; bottom:calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 14px); transform:translate(-50%,20px); opacity:0; pointer-events:none;
@@ -728,13 +731,13 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
 <section id="quick">
   <div class="sechead"><h2>あそびかたを探す</h2></div>
   <div class="tiles">
-    <button type="button" class="tile t3d" data-go3d="1"><span class="ti">🏔</span><b>3Dマップ</b><span>本物の地形で見る</span></button>
-    <button type="button" class="tile" data-go="slope"><span class="ti">📐</span><b>斜度を体感</b><span>43°ってどのくらい？</span></button>
-    <button type="button" class="tile" data-go="quiz"><span class="ti">🎯</span><b>30秒診断</b><span>合うコースがわかる</span></button>
-    <button type="button" class="tile" data-go="basic"><span class="ti">🔰</span><b>はじめての人へ</b><span>止まる・曲がる</span></button>
-    <button type="button" class="tile" data-go="plan"><span class="ti">🕘</span><b>1日のプラン</b><span>朝から夕方まで</span></button>
-    <button type="button" class="tile" data-go="cost"><span class="ti">🎫</span><b>料金を計算</b><span>リフト券・レンタル</span></button>
-    <button type="button" class="tile" data-go="access"><span class="ti">🚗</span><b>アクセス</b><span>ICからのルート</span></button>
+    <button type="button" class="tile t3d" data-go3d="1"><img class="tph" src="img/real/t-map.webp" width="480" height="300" loading="lazy" decoding="async" alt=""><b>3Dマップ</b><span>本物の地形で見る</span></button>
+    <button type="button" class="tile" data-go="slope"><img class="tph" src="img/real/t-slope.webp" width="480" height="300" loading="lazy" decoding="async" alt=""><b>斜度を体感</b><span>43°ってどのくらい？</span></button>
+    <button type="button" class="tile" data-go="quiz"><img class="tph" src="img/real/t-quiz.webp" width="480" height="300" loading="lazy" decoding="async" alt=""><b>30秒診断</b><span>合うコースがわかる</span></button>
+    <button type="button" class="tile" data-go="basic"><img class="tph" src="img/real/t-basic.webp" width="480" height="300" loading="lazy" decoding="async" alt=""><b>はじめての人へ</b><span>止まる・曲がる</span></button>
+    <button type="button" class="tile" data-go="plan"><img class="tph" src="img/real/t-plan.webp" width="480" height="300" loading="lazy" decoding="async" alt=""><b>1日のプラン</b><span>朝から夕方まで</span></button>
+    <button type="button" class="tile" data-go="cost"><img class="tph" src="img/real/t-cost.webp" width="480" height="300" loading="lazy" decoding="async" alt=""><b>料金を計算</b><span>リフト券・レンタル</span></button>
+    <button type="button" class="tile" data-go="access"><img class="tph" src="img/real/t-access.webp" width="480" height="300" loading="lazy" decoding="async" alt=""><b>アクセス</b><span>ICからのルート</span></button>
   </div>
 </section>
 <!-- ============ ABOUT ============ -->
@@ -743,9 +746,9 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
   <h2>どんなスキー場？</h2>
   <p class="lead">兵庫県北部、鉢伏山（はちぶせやま）の東側にあるスキー場です。読みは「<b>とうはち</b>」。となりの <b>スカイバレイ</b> とつながっていて、リフト券は共通で使えます。</p>
   <div class="grid g3">
-    <div class="card"><h3>山頂は超ワイド</h3><p>山頂は「一度味わうとやみつきになる」と評判の<b>超ワイドなオープンバーン</b>。中腹からは、さわやかな<b>林間コース</b>をクルージング。<span class="src">（公式の紹介より）</span></p></div>
-    <div class="card"><h3>共通券で、尾根の向こうも</h3><p>東鉢のリフト券（シーズン券も）で、尾根の向こうのスカイバレイ側のコースも滑れます。2つ合わせて「<b>西日本最大級のBIGゲレンデ</b>」。<b>営業時間はそれぞれちがう</b>ので、帰りのリフトの時間に注意。<span class="src">（公式マップより）</span></p></div>
-    <div class="card"><h3>独立したチビッコパーク</h3><p>駐車場のすぐ近くに 3,000㎡。<b>サンキッド（スノーエスカレーター）</b>つき。小学生未満はリフト無料。口コミでは「比較的すいていて滑りやすい」という声も。</p></div>
+    <div class="card aboutcard"><img class="aph" src="img/real/a-wide.webp" width="720" height="450" loading="lazy" decoding="async" alt="山頂の 近くに 広がる 雪の オープンバーンと、下の 林。まわりに 雪の 山なみ"><h3>山頂は超ワイド</h3><p>山頂は「一度味わうとやみつきになる」と評判の<b>超ワイドなオープンバーン</b>。中腹からは、さわやかな<b>林間コース</b>をクルージング。<span class="src">（公式の紹介より）</span></p></div>
+    <div class="card aboutcard"><img class="aph" src="img/real/a-sv.webp" width="720" height="450" loading="lazy" decoding="async" alt="尾根の 向こうがわの スカイバレイの ゲレンデと リフト"><h3>共通券で、尾根の向こうも</h3><p>東鉢のリフト券（シーズン券も）で、尾根の向こうのスカイバレイ側のコースも滑れます。2つ合わせて「<b>西日本最大級のBIGゲレンデ</b>」。<b>営業時間はそれぞれちがう</b>ので、帰りのリフトの時間に注意。<span class="src">（公式マップより）</span></p></div>
+    <div class="card aboutcard"><img class="aph" src="img/real/a-kids.webp" width="720" height="450" loading="lazy" decoding="async" alt="ふもとの 村の 建物と、近くの なだらかな 雪の 広場"><h3>独立したチビッコパーク</h3><p>駐車場のすぐ近くに 3,000㎡。<b>サンキッド（スノーエスカレーター）</b>つき。小学生未満はリフト無料。口コミでは「比較的すいていて滑りやすい」という声も。</p></div>
   </div>
 </section>
 </div>
@@ -864,7 +867,7 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
   <p class="lead">「最大43°」と言われてもピンとこないもの。スライダーやコース名を押して、坂の角度と滑る速さを体感してください。</p>
   <div class="slopebox">
     <div class="card">
-      <svg class="slopesvg" id="slopeSvg" viewBox="0 0 400 260" aria-label="斜度の図"></svg>
+      <canvas class="slopesvg" id="slopeCv" width="800" height="520" role="img" aria-label="斜度の図：雪の 坂を すべる 人と、坂の 角度"></canvas>
       <input type="range" id="angle" min="3" max="45" value="15" aria-label="角度">
       <div class="meter"><i id="meterI"></i></div>
       <div class="note" style="display:flex;justify-content:space-between"><span>ゆるい</span><span>ふつう</span><span>急</span><span>超急</span></div>
@@ -922,7 +925,7 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
     </div>
     <div class="card tech">
       <h3>リフトの乗り方</h3>
-      <svg viewBox="0 0 220 150" aria-hidden="true" id="liftAnim"></svg>
+      <img class="ph" id="liftAnim" src="img/real/lift.webp" width="900" height="600" loading="lazy" decoding="async" alt="2人乗りの リフトで 上がる 2人。足の 板は 前に そろえて いる。うしろに 雪の 山なみ">
       <ol class="liftsteps">
         <li><b>振り返る</b>：乗り場の線で待ち、うしろを見てイスを確認</li>
         <li><b>ゆっくり座る</b>：スノボは前足だけ装着。ストックは片手に</li>
@@ -2666,7 +2669,23 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const front=V().set(-.14-.12*toe+.04*heel,hipY+.24-.08*tk,.5+.06*tk).lerp(V().set(-.3,hipY+.42,.42),ai).lerp(V().set(-.12,hipY+.18,.42),sk);
       arm(B,0,hip.clone().addScaledVector(T.up,.45).addScaledVector(T.rx,.2),front,V().set(.2,-.5,.6));
       arm(B,1,hip.clone().addScaledVector(T.up,.45).addScaledVector(T.rx,-.2),rear,V().set(.3,-.5,-.5)); }
-    let pt=0; return { update(dt,P){ const bd=gear===1; S.visible=!bd; Bo.visible=bd; pt+=dt; P.t=pt; if(bd) poseBoard(P); else poseSki(P); } }; })();
+    // 雪の 上に すわる（転び方・起き方の 絵）。スキー：板を 斜面に 横に そろえ、山がわ（左）に お尻と 手を つく。スノボ：かかとがわに すわって ひざを 立てる
+    function sitSki(){ const B=SB, yaw=-1.2, f=V().set(Math.sin(yaw),0,Math.cos(yaw)), r=V().set(Math.cos(yaw),0,-Math.sin(yaw)), hip=V().set(.78,.13,-.1);
+      for(let k=0;k<2;k++){ const sd=k?-1:1, g=SK[k]; g.position.set(sd*.12+.08,0,.04*sd); g.rotation.set(0,0,0); g.updateMatrix(); }
+      for(let k=0;k<2;k++){ const sd=k?-1:1; legs(B,k,hip.clone().addScaledVector(r,sd*.1),V().set(0,.15,0).applyMatrix4(SK[k].matrix),V().set(f.x*.5,1,f.z*.5),.24); }
+      B.pelvis.position.copy(hip); B.pelvis.rotation.set(0,yaw,.1);
+      const T=trunk(B,hip,yaw,-.34,.2); headAt(B,T.neck,yaw*.8,.1);
+      const hands=[V().set(1.12,.03,-.38),B.knee[1].position.clone().add(V().set(0,.07,.02))], tips=[V().set(1.45,.03,-1.45),V().set(-.85,.02,.5)], poles=[V().set(.6,.3,-.6),V().set(-.2,-.6,-.5)];
+      for(let k=0;k<2;k++){ const sd=k?-1:1, sh=hip.clone().addScaledVector(T.up,.45).addScaledVector(T.rx,sd*.2), hand=arm(B,k,sh,hands[k],poles[k]), d=tips[k].sub(hand).normalize();
+        seg(B.pole[k],hand.clone().addScaledVector(d,-.04),hand.clone().addScaledVector(d,1.08)); along(B.grip[k],hand.clone().addScaledVector(d,-.05),hand.clone().addScaledVector(d,1),0);
+        B.bask[k].position.copy(hand).addScaledVector(d,.98); B.bask[k].quaternion.copy(B.pole[k].quaternion); } }
+    function sitBoard(){ const B=BB, yaw=-Math.PI/2+.08, hip=V().set(.5,.14,.02); BG.position.y=0; BG.rotation.x=0; rearBoot.visible=true; FB.visible=false;
+      legs(B,0,V().set(hip.x,hip.y,hip.z+.12),V().set(.01,.13,.26),V().set(-.5,1,.2),.2); legs(B,1,V().set(hip.x,hip.y,hip.z-.12),V().set(.01,.13,-.26),V().set(-.5,1,-.2),.2);
+      B.pelvis.position.copy(hip); B.pelvis.rotation.set(0,-Math.PI/2+.3,0);
+      const T=trunk(B,hip,yaw,.18,0); headAt(B,T.neck,yaw+.25,-.05);
+      arm(B,0,hip.clone().addScaledVector(T.up,.45).addScaledVector(T.rx,.2),B.knee[0].position.clone().add(V().set(-.04,.06,.02)),V().set(.3,-.5,.6));
+      arm(B,1,hip.clone().addScaledVector(T.up,.45).addScaledVector(T.rx,-.2),V().set(.86,.03,-.3),V().set(.6,.2,-.4)); }
+    let pt=0; return { update(dt,P){ const bd=gear===1; S.visible=!bd; Bo.visible=bd; pt+=dt; P.t=pt; if(P.sit){ if(bd) sitBoard(); else sitSki(); return; } if(bd) poseBoard(P); else poseSki(P); } }; })();
   // 毎フレーム：向きの 変わり方から ターンの 強さ・かたむき・上体の ひねり・ストック。フリーランでは 加速＝クラウチング、減速＝ハの字／横すべり、空中
   let rHd=null, rRate=0, rC=.3, rCr=0, rPrev=0, rTk=0, rBk=0, rAir=0, rSkid=0; const rE=new THREE.Euler(), rHide={t:0}, rPlant={side:0,t:9,k:0}, rTmp=new THREE.Vector3(), rP={};
   function riderPose(q,fwd,dt,fwdC){ const show=!(follow&&CAMS[camIdx][0]==="eye"); clearTimeout(rHide.t); if(riderM.visible!==show){ riderM.visible=show; needDraw=true; } skier.visible=!follow&&!window.__frz; if(!show) return;
@@ -3538,7 +3557,20 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     rt:id=>{ const o=courseObj[id]; return o&&{root:courseRoot.visible,grp:o.grp.visible,band:o.band.visible,flow:o.flow.visible,gates:o.gates.visible,half:o.L.ln.material.uniforms.uHalf.value}; },
     step:(dt,n)=>{ const z=window.__frz, out=[]; window.__frz=false; for(let i=0;i<n;i++){ update(performance.now(),dt); if(anim&&anim.kind==="ski") out.push([anim.k,anim.sM,anim.v,bnkR,bankAcc(),camera.position.x,camera.position.z]); else if(anim&&anim.fp) out.push([camera.position.x,camera.position.y,camera.position.z]); } window.__frz=z; return out; },
     rhythm:(id,mult)=>{ const W=runPlan([id],mult); if(!W) return null; const A=along(courseObj[id].sp,2.5), lenM=A.len*M, D=Math.min(100000,Math.max(14000,lenM/28*1000))/1000/mult, ts=[]; let ph=0, last=0;
-      for(let k=1;k<W.n;k++){ const p0=ph; ph+=2*Math.PI/W.lam[k]; if(Math.floor(ph/Math.PI)!==Math.floor(p0/Math.PI)){ const t=W.T[k]*D; ts.push(+(t-last).toFixed(2)); last=t; } } return {len:Math.round(lenM),dur:+D.toFixed(1),turns:ts}; },st:id=>{ const ab=G.lifts[id]; return ab&&[P3(...ab[0],0).toArray(),P3(...ab[1],0).toArray()]; },cam:(p,t)=>{ tw=null; endFollow(); camera.position.set(...p); if(!scene.children.some(o=>o.userData.v0!==undefined&&!o.visible)) camera.position.y=Math.max(camera.position.y,hAny(p[0],p[2])+1.2); controls.target.set(...t); camera.lookAt(controls.target); needDraw=true; }};
+      for(let k=1;k<W.n;k++){ const p0=ph; ph+=2*Math.PI/W.lam[k]; if(Math.floor(ph/Math.PI)!==Math.floor(p0/Math.PI)){ const t=W.T[k]*D; ts.push(+(t-last).toFixed(2)); last=t; } } return {len:Math.round(lenM),dur:+D.toFixed(1),turns:ts}; },st:id=>{ const ab=G.lifts[id]; return ab&&[P3(...ab[0],0).toArray(),P3(...ab[1],0).toArray()]; },cam:(p,t)=>{ tw=null; endFollow(); camera.position.set(...p); if(!scene.children.some(o=>o.userData.v0!==undefined&&!o.visible)) camera.position.y=Math.max(camera.position.y,hAny(p[0],p[2])+1.2); controls.target.set(...t); camera.lookAt(controls.target); needDraw=true; },
+    // 確かめ用：好きな 位置・大きさで 1枚 描いて 画像に する（clear：空を 消して すける 背景）
+    shot:o=>{ const pr0=renderer.getPixelRatio(), f0=camera.fov, n0=camera.near, u0=camera.up.clone(), sv=sky.visible, p0=camera.position.clone();
+      renderer.setPixelRatio(1); renderer.setSize(o.w,o.h,false); camera.aspect=o.w/o.h; camera.fov=o.fov||f0; camera.near=o.near||n0; camera.updateProjectionMatrix();
+      camera.position.set(...o.p); camera.up.set(0,1,0); camera.lookAt(...o.t); if(o.roll) camera.rotateZ(o.roll); sky.position.copy(camera.position); if(o.clear) sky.visible=false; const sh0=rSh.visible, bl0=rBlob.visible, sp0=spPts2.visible; if(o.noSh) rSh.visible=false; if(o.noBlob) rBlob.visible=false; if(o.noSpr) spPts2.visible=false;
+      LK.value=2*Math.tan(camera.fov*Math.PI/360)/o.h; RES.value.set(o.w,o.h); moveChairs(); renderer.render(scene,camera); const url=renderer.domElement.toDataURL("image/png");
+      sky.visible=sv; rSh.visible=sh0; rBlob.visible=bl0; spPts2.visible=sp0; camera.fov=f0; camera.near=n0; camera.up.copy(u0); camera.position.copy(p0); camera.lookAt(controls.target); renderer.setPixelRatio(pr0); resize(); moveChairs(); return url; },
+    gear:n=>{ if(n!==gear) gearBtn.onclick(); return gear; },
+    trk0:()=>frTrackReset(), spr:dt=>sprayTick(dt),
+    // 人の すがたを じかに 決める（P：かがみ・かたむき・ブレーキ など。sit：すわる）。normal：雪の 面に そろえる
+    pose:o=>{ const x=o.x, z=o.z, y=hAt(x,z)+(o.dy||0); riderM.visible=true; riderM.position.set(x,y,z);
+      if(o.normal){ const e=1.2, n=new THREE.Vector3((hAt(x-e,z)-hAt(x+e,z))/(2*e),1,(hAt(x,z-e)-hAt(x,z+e))/(2*e)).normalize(); riderM.quaternion.setFromUnitVectors(UPV,n).multiply(new THREE.Quaternion().setFromAxisAngle(UPV,o.h)); }
+      else { const fx=Math.sin(o.h), fz=Math.cos(o.h), pitch=o.flat?0:Math.atan2(-(hAt(x+fx,z+fz)-hAt(x-fx,z-fz))/2,1); riderM.quaternion.setFromEuler(new THREE.Euler(pitch,o.h+(o.skid||0),-(o.lean||0),"YXZ")); }
+      riderShadow(x,z,o.h); RIG.update(0,Object.assign({c:.3,cr:0,plant:{side:0,k:0},lean:0,s:0,ti:0,tk:0,bk:0,air:0,v:0,sk:0,ph:0,sit:0},o.P||{})); needDraw=true; return [x,y,z]; }, view:n=>{ camIdx=n; camLabel(); needDraw=true; }};
   // 目線のあいだの1本指（マウス）：地図は動かさず、見る向きだけ変える。2本目の指が来たら、目線をやめて ふつうの操作へ
   box.addEventListener("pointerdown",e=>{ if(!follow||ed.on||e.target!==renderer.domElement) return;
     if(lookDrag){ if(FR.on){ e.stopPropagation(); e.preventDefault(); return; } endFollow(); return; }
@@ -3847,12 +3879,15 @@ const BADGES=[
   {id:"expert", e:"🔥", n:"上級ぜんぶ", ok:()=>COURSES.filter(c=>c.lv==="上級").every(c=>stamps.includes(c.id))},
   {id:"all", e:"👑", n:"東鉢 制覇", ok:()=>STAMP_COURSES().every(c=>stamps.includes(c.id))},
 ];
+// スタンプの 丸に 入れる コースの 絵（3Dマップで そのコースを えらんだ ときの 見え方を 小さく まるく）
+const STPH=["centerA","centerB","centerC","centerD","beginner","champion","higashione","higashioneshita","kyogiB","chibikko"];
 function renderStamps(){
   const list=STAMP_COURSES(), n=list.filter(c=>stamps.includes(c.id)).length;
   $("#stampNum").textContent=n; $("#stampTot").textContent="/"+list.length;
   $("#stampRing").style.setProperty("--p",(n/list.length*100).toFixed(1));
   $("#stampGrid").innerHTML=list.map(c=>{ const on=stamps.includes(c.id);
-    return `<button type="button" class="stamp${on?" on":""}" data-id="${c.id}" style="--c:${LVC[c.lv]}" aria-label="${esc(c.name)}${on?"（スタンプ済み）":""}"><i>${on?"✓":""}</i><span>${esc(c.short)}</span></button>`; }).join("");
+    const ph=STPH.includes(c.id)?` style="--ph:url(img/real/s-${c.id}.webp)"`:"";
+    return `<button type="button" class="stamp${on?" on":""}${ph?" hasph":""}" data-id="${c.id}" style="--c:${LVC[c.lv]}" aria-label="${esc(c.name)}${on?"（スタンプ済み）":""}"><i${ph}><b>${on?"✓":""}</b></i><span>${esc(c.short)}</span></button>`; }).join("");
   $$("#stampGrid .stamp").forEach(b=>b.onclick=()=>revealMap(()=>select(b.dataset.id,false)));
   $("#badges").innerHTML=BADGES.map(b=>`<span class="badge2${b.ok()?" on":""}" title="${esc(b.n)}"><i>${b.e}</i>${esc(b.n)}</span>`).join("");
 }
@@ -3869,6 +3904,8 @@ function stampUI(box,c){
   draw();
 }
 /* ---------- ホーム：今日のおすすめ ---------- */
+// おすすめの カードに 出す コースの 絵（3Dマップで そのコースを えらんだ ときの 見え方）
+const RECPH=["beginner","centerA","centerB","centerC","centerD","champion","higashione","higashioneshita","openbahn","kids","skyvalley"];
 function renderHome(){
   const L=LEVELS.find(x=>x.id===level)||LEVELS[0];
   $("#recFor").textContent=`${L.n}向け`;
@@ -3877,7 +3914,8 @@ function renderHome(){
     const meta=f.kind==="course"?(it.route?tagOf(it):`${it.len.toLocaleString()}m・最大${it.max}°`):(it.lv||"");
     const kind=f.kind==="course"?it.lv:(f.kind==="lift"?"リフト":"エリア");
     const done=stamps.includes(id);
-    return `<button type="button" class="reccard" data-id="${id}" style="--c:${col}"><span class="rk">${esc(kind)}${done?" ✓":""}</span><b>${esc(it.name)}</b><span class="rm">${esc(meta)}</span><span class="rgo">マップで見る →</span></button>`; }).join("");
+    const ph=RECPH.includes(id)?`<img class="rph" src="img/real/c-${id}.webp" width="480" height="300" loading="lazy" decoding="async" alt="">`:"";
+    return `<button type="button" class="reccard${ph?" hasph":""}" data-id="${id}" style="--c:${col}">${ph}<span class="rk">${esc(kind)}${done?" ✓":""}</span><b>${esc(it.name)}</b><span class="rm">${esc(meta)}</span><span class="rgo">マップで見る →</span></button>`; }).join("");
   $$("#recCards .reccard").forEach(b=>b.onclick=()=>revealMap(()=>select(b.dataset.id,false)));
   renderStamps();
 }
@@ -3928,27 +3966,74 @@ function setLevel(id){
 }
 
 /* ---------- 斜度 ---------- */
-var C_JK="#e0453a", C_JK2="#b9352c", C_PT="#33465f", C_HM="#2e6fd1", C_GG="#f2b84b", C_PL="#8a96a6";
-const ss=$("#slopeSvg");
-ss.innerHTML=`<path id="slopeFill" style="fill:var(--snow);stroke:var(--line)"></path>
-<g id="slSkier"><g transform="scale(.9)">${figSki()}</g></g>
-<path id="arc" fill="none" style="stroke:var(--gold)" stroke-width="3"></path><text id="arcTxt" font-size="15" font-weight="800" style="fill:var(--text)"></text>
-<line x1="20" y1="230" x2="390" y2="230" style="stroke:var(--faint)" stroke-dasharray="4 4"></line>`;
-let ang=15, slT=0;
+// 雪の 坂を 横から 見た 絵（キャンバス）。背景は 3Dマップで 撮った 山なみ、人は 3Dの スキーヤー／スノーボーダーを 横から 撮った 切りぬき。
+// 坂の 上から 加速して すべり、ふもとの 平らな 所で ゆるめて、また 上から
+const slCv=$("#slopeCv"), slX=slCv.getContext("2d"), SLW=400, SLH=260, SLOX=318, SLOY=226; // 坂の 下の はし（ここから 右は 平ら）
+let slStatic=null, slDpr=0, slNoise=null;
+const slImg=src=>{ const im=new Image(); im.decoding="async"; im.onload=()=>{ slStatic=null; slDraw(); }; im.src=src; return im; };
+// ax,ay＝足の 間（雪に つく 所）の 位置、ppm＝1mが 何ピクセルか（切りぬきの 画像で）
+const SL_BG=slImg("img/real/slope-bg.webp"), SL_SPR={ski:{im:slImg("img/real/rider-ski.webp"),ax:164,ay:292.8,ppm:188},board:{im:slImg("img/real/rider-board.webp"),ax:149,ay:303.3,ppm:188}};
+let ang=15, slT=0, slPh=0, slPts=[], sport="ski"; // sport：スキー／スノボ（下の「覚えたい3つの基本」の 切りかえと 同じ）
 REFS.forEach(([a,n])=>{ const d=document.createElement("button"); d.className="ref"; d.dataset.a=a; d.innerHTML=`<span>${esc(n)}</span><b>${a}°</b>`; d.onclick=()=>setAngle(a); $("#refs").appendChild(d); });
-function slopeGeom(){ const ox=380, oy=230, len=360, r=ang*Math.PI/180; return {ox,oy,tx:ox-len*Math.cos(r),ty:oy-len*Math.sin(r),r}; }
-function drawSlope(){
-  const g=slopeGeom();
-  $("#slopeFill").setAttribute("d",`M${g.tx} ${g.ty} L${g.ox} ${g.oy} L${g.tx} ${g.oy} Z`);
-  const R=60, bx=g.ox-R*Math.cos(g.r), by=g.oy-R*Math.sin(g.r);
-  $("#arc").setAttribute("d",`M${g.ox-R} ${g.oy} A ${R} ${R} 0 0 1 ${bx} ${by}`);
-  const t=$("#arcTxt"); t.setAttribute("x",g.ox-R-44); t.setAttribute("y",g.oy-8); t.textContent=ang+"°";
+// 坂の 線：(SLOX,SLOY) から 左上へ。上の はしから 少し 下で 始める
+function slopeGeom(){ const r=ang*Math.PI/180, c=Math.cos(r), sn=Math.sin(r), L=Math.min(292,(SLOY-40)/Math.max(sn,1e-3)), rr=Math.min(40,10+ang*1.2); return {r,c,sn,L,rr,tx:SLOX-L*c,ty:SLOY-L*sn}; }
+const slYat=(x,g)=>x<SLOX?SLOY-(SLOX-x)*Math.tan(g.r):SLOY; // 角を まるめる 前の 雪の 面の 高さ
+// 坂から 平らな 所へ まるく つなぐ 角（2次の 曲線）の 上の 点と 向き
+function slCorner(g,u){ const ax=SLOX-g.rr*g.c, ay=SLOY-g.rr*g.sn, bx=SLOX+g.rr, by=SLOY, m=1-u;
+  return {x:m*m*ax+2*m*u*SLOX+u*u*bx, y:m*m*ay+2*m*u*SLOY+u*u*by, rot:Math.atan2(2*m*(SLOY-ay)+2*u*(by-SLOY),2*m*(SLOX-ax)+2*u*(bx-SLOX))}; }
+// うごかない 所（空・山・雪の 面・すじ・角度の しるし）を 1枚に まとめて おく
+function slBuild(){ const g=slopeGeom(), dpr=slDpr, cv=document.createElement("canvas"); cv.width=Math.round(SLW*dpr); cv.height=Math.round(SLH*dpr); const x=cv.getContext("2d"); x.scale(dpr,dpr);
+  if(SL_BG.complete&&SL_BG.naturalWidth){ const iw=SL_BG.naturalWidth, ih=SL_BG.naturalHeight, k=Math.max(SLW/iw,SLH/ih); x.drawImage(SL_BG,(SLW-iw*k)/2,SLH-ih*k,iw*k,ih*k); }
+  else { const gr=x.createLinearGradient(0,0,0,SLH); gr.addColorStop(0,"#5d9ad9"); gr.addColorStop(1,"#dfeaf5"); x.fillStyle=gr; x.fillRect(0,0,SLW,SLH); }
+  // 雪の 面（坂から ふもとの 平らな 所へ、角を まるく）
+  const y0=slYat(-2,g), ax=SLOX-g.rr*g.c, ay=SLOY-g.rr*g.sn, prof=new Path2D();
+  prof.moveTo(-2,y0); prof.lineTo(ax,ay); prof.quadraticCurveTo(SLOX,SLOY,SLOX+g.rr,SLOY); prof.lineTo(SLW+2,SLOY);
+  const body=new Path2D(prof); body.lineTo(SLW+2,SLH+2); body.lineTo(-2,SLH+2); body.closePath();
+  x.save(); x.clip(body);
+  const nx=-g.sn, ny=g.c, gr=x.createLinearGradient(SLOX,SLOY,SLOX+nx*170,SLOY+ny*170); // 坂に 直角な 向きで 明るさを 変える（日の 当たる 面 → 奥の かげ）
+  gr.addColorStop(0,"#fdfeff"); gr.addColorStop(.16,"#eef3f9"); gr.addColorStop(.55,"#dbe4ef"); gr.addColorStop(1,"#c9d4e2"); x.fillStyle=gr; x.fillRect(0,0,SLW,SLH);
+  // 圧雪の すじ（雪の 面に そった 細い 線。手前ほど 間が 広い）
+  for(let k=0,d=2.2;d<160;k++,d+=1.25+k*.15){ const dy=d/Math.max(.2,g.c); x.beginPath(); x.moveTo(-2,y0+dy); x.lineTo(ax,ay+dy); x.quadraticCurveTo(SLOX,SLOY+d,SLOX+g.rr,SLOY+d); x.lineTo(SLW+2,SLOY+d);
+    x.strokeStyle=k%2?"rgba(255,255,255,.5)":`rgba(110,132,165,${Math.max(.025,.075-.0006*k).toFixed(3)})`; x.lineWidth=k%2?.8:.6; x.stroke(); }
+  if(!slNoise){ slNoise=document.createElement("canvas"); slNoise.width=slNoise.height=96; const n=slNoise.getContext("2d");
+    for(let i=0;i<900;i++){ const v=Math.random(), sz=v<.92?1:1.6; n.fillStyle=v<.5?`rgba(90,110,140,${(.03+.05*Math.random()).toFixed(3)})`:`rgba(255,255,255,${(.25+.4*Math.random()).toFixed(3)})`; n.fillRect(Math.random()*96,Math.random()*96,sz,sz); } }
+  x.fillStyle=x.createPattern(slNoise,"repeat"); x.fillRect(0,0,SLW,SLH);
+  x.restore();
+  // 雪の ふち：日の 当たる 光と、すぐ 下の うすい かげ
+  x.save(); x.strokeStyle="rgba(120,145,180,.2)"; x.lineWidth=3; x.translate(0,2.2); x.stroke(prof); x.restore();
+  x.save(); x.strokeStyle="rgba(255,255,255,.95)"; x.lineWidth=1.4; x.stroke(prof); x.restore();
+  // 水平の 線と 角度の 弧
+  x.save(); x.setLineDash([4,4]); x.strokeStyle="rgba(40,60,90,.4)"; x.lineWidth=1.2; x.beginPath(); x.moveTo(14,SLOY); x.lineTo(SLW-6,SLOY); x.stroke(); x.restore();
+  const R=58; x.beginPath(); x.arc(SLOX,SLOY,R,Math.PI,Math.PI+g.r); x.strokeStyle="#e0a630"; x.lineWidth=3; x.lineCap="round"; x.stroke();
+  x.font="800 15px system-ui,-apple-system,'Hiragino Sans','Noto Sans JP',sans-serif"; x.textAlign="right"; const lx=SLOX-R-6, ly=SLOY-7;
+  x.lineJoin="round"; x.lineWidth=4; x.strokeStyle="rgba(255,255,255,.9)"; x.strokeText(ang+"°",lx,ly); x.fillStyle="#1d2733"; x.fillText(ang+"°",lx,ly);
+  slStatic=cv; }
+function slFit(){ const w=slCv.clientWidth||SLW, dpr=Math.round(Math.min(3,Math.max(1,devicePixelRatio||1))*w/SLW*100)/100;
+  if(dpr!==slDpr){ slDpr=dpr; slCv.width=Math.round(SLW*dpr); slCv.height=Math.round(SLH*dpr); slStatic=null; } }
+// すべる 人：坂の 上から 加速（すべった 長さ ∝ 時間²）して 角を まわり、平らな 所で ゆるめて 止まる
+function slState(){ const g=slopeGeom(), Ls=g.L-g.rr; // 坂の まっすぐな 所の 長さ
+  if(slT<1){ const s=slT*slT*(Ls+g.rr*.9); if(s<=Ls) return {x:g.tx+s*g.c,y:g.ty+s*g.sn,rot:g.r,v:slT};
+    const q=slCorner(g,Math.min(1,(s-Ls)/(g.rr*1.8))); return {x:q.x,y:q.y,rot:q.rot,v:slT}; }
+  const k=Math.min(1,slPh/.9), e=1-(1-k)*(1-k), q=slCorner(g,.5), x0=q.x; return {x:x0+(SLOX+g.rr+30+20*g.sn-x0)*e,y:SLOY+(q.y-SLOY)*(1-Math.min(1,e*3)),rot:q.rot*Math.max(0,1-e*3),v:1-k}; }
+function slDraw(){ if(!slCv.isConnected) return; slFit(); if(!slStatic) slBuild(); const d=slDpr, X=slX; X.setTransform(1,0,0,1,0,0); X.drawImage(slStatic,0,0); X.setTransform(d,0,0,d,0,0);
+  const g=slopeGeom(), st=slState(), S=SL_SPR[sport]||SL_SPR.ski, a=slT<1?Math.min(1,slT*14+.15):Math.max(0,1-Math.max(0,slPh-.85)/.35);
+  // シュプール（すべった あと）
+  if(st.x>g.tx+2){ X.save(); X.globalAlpha=.55*a; X.strokeStyle="rgba(116,138,172,.6)"; X.lineWidth=sport==="board"?2.4:1;
+    (sport==="board"?[1.3]:[.7,2.5]).forEach(o=>{ X.beginPath(); X.moveTo(g.tx,g.ty+o/g.c); const xe=Math.min(st.x,SLOX-g.rr*g.c); X.lineTo(xe,slYat(xe,g)+o/g.c); if(st.x>xe) X.lineTo(st.x,st.y+o); X.stroke(); }); X.restore(); }
+  // 足もとの かげ
+  X.save(); X.globalAlpha=.35*a; X.translate(st.x,st.y+.5); X.rotate(st.rot); X.scale(1,.15); const sg=X.createRadialGradient(-4,0,1,-4,0,28); sg.addColorStop(0,"rgba(28,42,66,.9)"); sg.addColorStop(1,"rgba(28,42,66,0)"); X.fillStyle=sg; X.beginPath(); X.arc(-4,0,28,0,Math.PI*2); X.fill(); X.restore();
+  // 雪けむり
+  for(let i=slPts.length-1;i>=0;i--){ const p=slPts[i]; p.t+=1/60; if(p.t>p.T){ slPts.splice(i,1); continue; } const k=p.t/p.T; X.globalAlpha=(1-k)*.85*a; X.fillStyle="#fff"; X.beginPath(); X.arc(p.x+p.vx*p.t,p.y+p.vy*p.t+18*p.t*p.t,p.r*(1+1.2*k),0,Math.PI*2); X.fill(); }
+  X.globalAlpha=1;
+  // 人（坂に そって かたむける）。1m＝38（身長 約1.75m で 約66）
+  if(S.im.complete&&S.im.naturalWidth){ const k=38/S.ppm; X.save(); X.globalAlpha=a; X.translate(st.x,st.y); X.rotate(st.rot); X.drawImage(S.im,-S.ax*k,-S.ay*k,S.im.naturalWidth*k,S.im.naturalHeight*k); X.restore(); }
+  if(!reduce&&slT<1&&st.v>.3&&slPts.length<70&&Math.random()<st.v*(.25+g.sn)*1.4){ const bx=st.x-Math.cos(st.rot)*17, by=st.y-Math.sin(st.rot)*17;
+    slPts.push({x:bx,y:by-1,vx:-6-14*Math.random()*st.v,vy:-6-14*Math.random()*st.v,r:.7+1.3*Math.random(),t:0,T:.4+.4*Math.random()}); }
+  if(slT>=1&&slPh<.5&&!reduce&&slPts.length<70&&Math.random()<.5){ slPts.push({x:st.x+10,y:st.y-1,vx:8+10*Math.random(),vy:-8-10*Math.random(),r:.8+1.2*Math.random(),t:0,T:.35+.3*Math.random()}); } // 止まる ときの 雪けむり
 }
-function slopeTick(dt){
-  const g=slopeGeom();
-  slT=(slT+dt*(0.00006+Math.sin(g.r)*0.00055))%1; // 急なほど速く（sin で目安）
-  $("#slSkier").setAttribute("transform",`translate(${g.tx+(g.ox-g.tx)*slT},${g.ty+(g.oy-g.ty)*slT}) rotate(${ang})`);
-}
+function slopeTick(dt){ const g=slopeGeom(), T=1/(0.00006+g.sn*0.00055)*1.2; // 坂を すべりきる 時間（ms）。急なほど 短い
+  if(slT<1) slT=Math.min(1,slT+dt/T); else { slPh+=dt/1000; if(slPh>1.3){ slT=0; slPh=0; slPts.length=0; } }
+  slDraw(); }
 function setAngle(a){
   ang=+a; $("#angle").value=ang; $("#angleNum").textContent=ang;
   const pct=Math.round(Math.tan(ang*Math.PI/180)*100);
@@ -3956,14 +4041,15 @@ function setAngle(a){
   $("#angleTxt").innerHTML=`勾配でいうと <b>約${pct}%</b>（100m進むと${pct}m下がる）<br>${feel}`;
   $("#meterI").style.left=`calc(${(ang-3)/(45-3)*100}% - 2px)`;
   $$("#refs .ref").forEach(r=>r.classList.toggle("on",+r.dataset.a===ang));
-  drawSlope(); slT=0; slopeTick(0);
+  slStatic=null; slT=reduce?.6:0; slPh=0; slPts.length=0; slDraw();
 }
 $("#angle").addEventListener("input",e=>setAngle(e.target.value));
 let lastT=performance.now(), slopeVisible=false;
-new IntersectionObserver(e=>{slopeVisible=e[0].isIntersecting;}).observe(ss);
-function loop2(t){ const dt=t-lastT; lastT=t; if(slopeVisible) slopeTick(dt); requestAnimationFrame(loop2); }
+new IntersectionObserver(e=>{ slopeVisible=e[0].isIntersecting; }).observe(slCv);
+new ResizeObserver(()=>slDraw()).observe(slCv);
+function loop2(t){ const dt=Math.min(50,t-lastT); lastT=t; if(slopeVisible) slopeTick(dt); requestAnimationFrame(loop2); }
 setAngle(15);
-if(!reduce) requestAnimationFrame(loop2); else { slT=.5; slopeTick(0); }
+if(!reduce) requestAnimationFrame(loop2);
 
 /* ---------- 診断 ---------- */
 const QS=[
@@ -4000,79 +4086,30 @@ function burst(at){
 renderQuiz();
 
 /* ---------- はじめて：技術 ---------- */
-// 人の形（塗りの立体的なシルエット）。足もと＝原点、右向き
-function figSki(skis=true){
-  return `${skis?`<path d="M-21 -1 L22 -1 Q27 -1 28 -4" style="stroke:var(--text)" stroke-width="2.4" fill="none" stroke-linecap="round"></path>`:""}
-  <path d="M9 -28 L3 -2" stroke="${C_PL}" stroke-width="1.3"></path>
-  <path d="M-3 -22 L5 -13 L1 -5" stroke="${C_PT}" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
-  <path d="M-4 -7 h8 l1.5 6 h-10.5z" fill="#1d2733"></path>
-  <path d="M-3 -23 L4 -38" stroke="${C_JK}" stroke-width="11" stroke-linecap="round"></path>
-  <path d="M-3 -24 L1 -31" stroke="${C_JK2}" stroke-width="3" stroke-linecap="round" opacity=".6"></path>
-  <path d="M4 -36 L10 -28 L14 -27" stroke="${C_JK2}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
-  <circle cx="14.5" cy="-27" r="2" fill="#1d2733"></circle>
-  <path d="M14 -28 L10 -1" stroke="${C_PL}" stroke-width="1.3"></path>
-  <circle cx="7" cy="-46" r="5.6" fill="${C_HM}"></circle>
-  <rect x="8.4" y="-47.6" width="5.2" height="3.2" rx="1.6" fill="${C_GG}"></rect>`;
-}
-function figBoard(board=true){
-  return `${board?`<rect x="-23" y="-3" width="46" height="3.4" rx="1.7" style="fill:var(--text)"></rect>`:""}
-  <path d="M-10 -3 L-6 -12 L-3 -22" stroke="${C_PT}" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
-  <path d="M10 -3 L9 -12 L3 -22" stroke="${C_PT}" stroke-width="6.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
-  <path d="M-14 -5 h8 v3 h-8z M6 -5 h8 v3 h-8z" fill="#1d2733"></path>
-  <path d="M0 -23 L1 -38" stroke="${C_JK}" stroke-width="11" stroke-linecap="round"></path>
-  <path d="M-1 -35 L-10 -30 L-15 -29 M3 -35 L12 -31 L17 -31" stroke="${C_JK2}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
-  <circle cx="2" cy="-46" r="5.6" fill="${C_HM}"></circle>
-  <rect x="3.6" y="-47.6" width="5.2" height="3.2" rx="1.6" fill="${C_GG}"></rect>`;
-}
-// 転び方：人だけ倒れて、板は雪の上に残る
-const FALL=(board)=>`<path d="M14 136 Q110 128 206 136 L206 150 L14 150 Z" style="fill:var(--snow);stroke:var(--line)"></path>
-  <g class="fallperson"><g transform="translate(110 132) scale(2)">${board?figBoard(false):figSki(false)}</g></g>
-  ${board?'<rect x="64" y="128" width="92" height="7" rx="3.5" style="fill:var(--text)"></rect>':'<path d="M66 132 L152 132 Q160 132 162 126" style="stroke:var(--text)" stroke-width="4.5" fill="none" stroke-linecap="round"></path>'}`;
-// リフト：いす と 人 を ひとつのかたまりで動かす（人がいすに座ったまま）
-const CHAIR=`<rect x="-4.5" y="-3.5" width="9" height="7" rx="2" fill="#4a5566"></rect>
-  <path d="M0 2 L0 8 Q0 12 -4 13 L-17 19 L-17 54 L10 54" stroke="#5b6778" stroke-width="2.6" fill="none" stroke-linejoin="round"></path>
-  <path d="M-17 54 L10 54" stroke="#3b4554" stroke-width="4" stroke-linecap="round"></path>
-  <path d="M-12 23 L-6 23" stroke="#3b4554" stroke-width="2" opacity=".5"></path>
-  <path d="M-10 50 L6 49" stroke="${C_PT}" stroke-width="7.5" stroke-linecap="round"></path>
-  <path d="M6 49 L9 63" stroke="${C_PT}" stroke-width="6.5" stroke-linecap="round"></path>
-  <path d="M6 61 h7 l1 5 h-9z" fill="#1d2733"></path>
-  <path d="M-12 70 L30 64 Q34 63 35 60" style="stroke:var(--text)" stroke-width="2.2" fill="none" stroke-linecap="round"></path>
-  <path d="M-10 49 L-11 33" stroke="${C_JK}" stroke-width="11" stroke-linecap="round"></path>
-  <path d="M-10 36 L-3 44 L3 45" stroke="${C_JK2}" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
-  <circle cx="-9" cy="24.5" r="5.6" fill="${C_HM}"></circle>
-  <rect x="-7.6" y="22.6" width="5.2" height="3.2" rx="1.6" fill="${C_GG}"></rect>
-  <path d="M-15 21 L16 28 L16 60 L16 72 L4 72" stroke="#5b6778" stroke-width="1.8" fill="none" stroke-linejoin="round"></path>`;
-const LIFTSVG=`<path d="M0 132 Q90 118 220 104 L220 150 L0 150 Z" style="fill:var(--snow);stroke:var(--line)"></path>
-  ${[[30,128],[58,124],[182,108],[204,106]].map(([x,y])=>`<path d="M${x} ${y} l6 -20 l6 20z" fill="#2f5a46" opacity=".8"></path>`).join("")}
-  <path d="M108 121 L110 34 L112 121z" fill="#6b7686"></path><path d="M98 34 h24" stroke="#6b7686" stroke-width="3" stroke-linecap="round"></path>
-  <circle cx="102" cy="36.5" r="2.4" fill="#4a5566"></circle><circle cx="118" cy="34.2" r="2.4" fill="#4a5566"></circle>
-  <path d="M-10 52 L230 18" stroke="#4a5566" stroke-width="1.6"></path>
-  ${[0,-4].map(b=>`<g><animateTransform attributeName="transform" type="translate" values="-50 57.7; 270 12.3" dur="8s" begin="${b}s" repeatCount="indefinite"></animateTransform>${CHAIR}</g>`).join("")}`;
-const FALLLINE=`<path d="M206 12 L206 140" style="stroke:var(--faint)" stroke-width="1.5" stroke-dasharray="3 4"></path><text x="200" y="146" text-anchor="end" font-size="10" style="fill:var(--sub)">↓ 下</text>`;
 const TECH={
   ski:[
-    {n:"①", t:"止まる", svg:`<g class="ski-l"><rect x="104" y="20" width="12" height="110" rx="6" fill="#0e5aa7"></rect></g><g class="ski-r"><rect x="104" y="20" width="12" height="110" rx="6" fill="#ff5a5f"></rect></g><text x="110" y="148" text-anchor="middle" font-size="12" style="fill:var(--sub)">上から見た板</text>`,
+    {n:"①", t:"止まる", img:"tech-ski-stop", alt:"ハの字（板の 先を 近づけ、うしろを 開く）で ゆっくり 止まる スキーヤーを 前から 見た ところ",
      p:"「<b>ハの字</b>」を大きく開いて、雪を押してブレーキ。かかとを外へ押し出すように。スキーの最初の技です。"},
-    {n:"②", t:"曲がる", svg:FALLLINE+`<path id="turnPath" d="M110 10 C 30 40, 190 70, 110 100 S 40 130, 110 150" style="stroke:var(--acc2)" stroke-width="3" stroke-dasharray="2 6" fill="none"></path><circle r="8" fill="#ff5a5f"><animateMotion dur="3s" repeatCount="indefinite" rotate="auto"><mpath href="#turnPath"></mpath></animateMotion></circle>`,
+    {n:"②", t:"曲がる", img:"tech-ski-turn", alt:"外がわの 足に 乗って 体を 内へ かたむけ、弧を 描く スキーヤー。雪に S字の シュプール",
      p:"曲がりたい方と<b>反対の足</b>に、体重をしっかり乗せる。右へは左足、左へは右足。センターBの広い斜面で、大きなS字をゆっくり。"},
-    {n:"③", t:"スピード調整", svg:FALLLINE+`<path id="widePath" d="M20 14 C 200 14, 200 52, 110 54 S 18 92, 110 96 S 200 138, 110 144" style="stroke:var(--acc2)" stroke-width="3" stroke-dasharray="2 6" fill="none"></path><circle r="8" fill="#ff5a5f"><animateMotion dur="6s" repeatCount="indefinite"><mpath href="#widePath"></mpath></animateMotion></circle>`,
+    {n:"③", t:"スピード調整", img:"tech-ski-speed", alt:"斜面を 大きく 横切る ターンで ゆっくり すべる スキーヤーと、横に 長い シュプール",
      p:"ターンを<b>大きく</b>。斜面を横切るほど ゆっくりになります。板が真下を向いている時間が長いほど速くなる。"},
-    {n:"＋", t:"転び方・起き方", svg:FALL(false), p:"こわいと思ったら、<b>横にお尻をつく</b>ように転ぶのが安全。起きるときは板を斜面に<b>横向き</b>にそろえて、山側に手をついて立ちます。"},
+    {n:"＋", t:"転び方・起き方", img:"tech-ski-fall", alt:"山がわに お尻を ついて すわり、板を 斜面に 横向きに そろえた スキーヤー",
+     p:"こわいと思ったら、<b>横にお尻をつく</b>ように転ぶのが安全。起きるときは板を斜面に<b>横向き</b>にそろえて、山側に手をついて立ちます。"},
   ],
   board:[
-    {n:"①", t:"止まる", svg:`<line x1="20" y1="20" x2="200" y2="140" style="stroke:var(--line)" stroke-width="3"></line><g><animateTransform attributeName="transform" type="translate" values="0 0; 60 40; 0 0" dur="4s" repeatCount="indefinite"></animateTransform><rect x="50" y="40" width="70" height="10" rx="5" fill="#0e5aa7" transform="rotate(34 85 45)"></rect></g>`,
+    {n:"①", t:"止まる", img:"tech-board-stop", alt:"かかとがわの エッジを 立て、板を 斜面に 横に 向けて 止まる スノーボーダー",
      p:"板を斜面に対して<b>横に向け</b>、エッジを立てる（横すべり）。かかと側から覚えるのがかんたん。"},
-    {n:"②", t:"曲がる", svg:FALLLINE+`<path id="turnPathB" d="M110 10 C 30 40, 190 70, 110 100 S 40 130, 110 150" style="stroke:var(--acc2)" stroke-width="3" stroke-dasharray="2 6" fill="none"></path><rect x="-20" y="-5" width="40" height="10" rx="5" fill="#ff5a5f"><animateMotion dur="3.4s" repeatCount="indefinite" rotate="auto"><mpath href="#turnPathB"></mpath></animateMotion></rect>`,
+    {n:"②", t:"曲がる", img:"tech-board-turn", alt:"体を 内へ かたむけて ターンする スノーボーダーと、雪に のこった 弧の シュプール",
      p:"行きたい方向へ<b>目線と上半身</b>を向け、<b>前足</b>に体重。板はあとからついてきます。"},
-    {n:"③", t:"スピード調整", svg:FALLLINE+`<path id="leafPath" d="M40 20 L180 50 L40 80 L180 110 L40 140" style="stroke:var(--acc2)" stroke-width="3" stroke-dasharray="2 6" fill="none"></path><rect x="-22" y="-5" width="44" height="10" rx="5" fill="#ff5a5f"><animateMotion dur="5s" repeatCount="indefinite"><mpath href="#leafPath"></mpath></animateMotion></rect>`,
+    {n:"③", t:"スピード調整", img:"tech-board-leaf", alt:"板を 横に 向けたまま 左右に ずれて おりる（木の葉すべり）スノーボーダーと シュプール",
      p:"「<b>木の葉すべり</b>」で左右に動けば、速くならない。センターBの広さなら練習しやすいです。"},
-    {n:"＋", t:"転び方・起き方", svg:FALL(true), p:"手をつくと手首をいためやすいので、<b>お尻から</b>または<b>ひざから</b>。うしろに転ぶときは、あごを引いて頭を打たないように。"},
+    {n:"＋", t:"転び方・起き方", img:"tech-board-fall", alt:"かかとがわに すわって ひざを 立て、板を 斜面に 横向きに した スノーボーダー",
+     p:"手をつくと手首をいためやすいので、<b>お尻から</b>または<b>ひざから</b>。うしろに転ぶときは、あごを引いて頭を打たないように。"},
   ]};
-let sport="ski";
 function renderTech(){
-  $("#techs").innerHTML=TECH[sport].map((x,i)=>`<div class="card tech fade" style="animation-delay:${i*.08}s"><svg viewBox="0 0 220 150" aria-hidden="true">${x.svg}</svg><h3>${x.n} ${esc(x.t)}</h3><p>${x.p}</p></div>`).join("");
+  $("#techs").innerHTML=TECH[sport].map((x,i)=>`<div class="card tech fade" style="animation-delay:${i*.08}s"><img class="ph" src="img/real/${x.img}.webp" width="900" height="600" loading="lazy" decoding="async" alt="${esc(x.alt)}"><h3>${x.n} ${esc(x.t)}</h3><p>${x.p}</p></div>`).join("");
 }
-$("#liftAnim").innerHTML=LIFTSVG;
 
 /* 初心者のおすすめルート：3Dマップへ移って、リフト → コースの順に動かす */
 const STEPS={
