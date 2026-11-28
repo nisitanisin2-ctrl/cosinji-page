@@ -2408,7 +2408,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const cf=new THREE.Mesh(new THREE.CylinderGeometry(.056,.06,.07,14),GK.std(0x15161a,.6)); cf.position.y=.085; g.add(cf);
     const sl=new THREE.Mesh(new THREE.CylinderGeometry(.068,.074,.2,14),GK.std(0xc81e2a,.66)); sl.position.y=.2; g.add(sl); // 赤い そで
     g.traverse(o=>{ o.frustumCulled=false; }); g.visible=false; scene.add(g); return g; });
-  boardG.rotation.y=-.42; boardG.position.set(.08,0,-.1); boardG.visible=gear===1; skisG.visible=gear===0;
+  boardG.rotation.y=-.42; boardG.position.set(.2,0,-.1); // 板の 先が 画面の まん中の 下に くる ように 少し 左へ boardG.visible=gear===1; skisG.visible=gear===0;
   const meTex=[0,1].map(bd=>{ const cv=document.createElement("canvas"); cv.width=64; cv.height=256; const x=cv.getContext("2d"); x.fillStyle=x.strokeStyle="#fff"; x.lineCap="round"; x.filter="blur(.8px)";
     x.beginPath(); x.ellipse(32,206,bd?15:11,44,0,0,6.2832); x.fill(); x.beginPath(); x.ellipse(32,122,bd?17:15,44,0,0,6.2832); x.fill(); x.beginPath(); x.arc(32,60,12,0,6.2832); x.fill();
     x.lineWidth=4; x.beginPath(); if(bd){ x.moveTo(20,100); x.lineTo(4,150); x.moveTo(44,100); x.lineTo(60,150); } else { x.moveTo(19,104); x.lineTo(7,244); x.moveTo(45,104); x.lineTo(57,244); } x.stroke(); // うで・ストック
@@ -2484,7 +2484,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     else { boardG.rotation.y=-.42+.3*sk; eyeRearBoot.visible=sk<.02; eyeFB.visible=!eyeRearBoot.visible;
       if(eyeFB.visible){ const push=q<.6?sst(0,.6,q):1-sst(.6,1,q), up=q<.6?0:.09*Math.sin(Math.PI*(q-.6)/.4); eyeFB.position.set(-.3*sk,.012+up*sk,-.26+(.36-.6*push)*sk); eyeFB.rotation.set(0,-.1+(Math.PI/2+.22)*sk,0); } }
     { const pit=Math.asin(Math.max(-1,Math.min(1,-eF.y))), edge=pit+camera.fov*Math.PI/360; // 画面の 下の はしの 角度（水平から 下へ）
-      const want=Math.max(0,Math.min(2.2,gear===1?EYE/Math.tan(Math.max(.2,edge-.12))-.61:(EYE-.47)/Math.tan(Math.min(1.5,edge+.05))+.03)); skFw=skFw==null?want:skFw+(want-skFw)*(1-Math.exp(-dt*5));
+      const want=Math.max(0,Math.min(2.2,gear===1?EYE/Math.tan(Math.max(.2,edge-.2))-.61:(EYE-.47)/Math.tan(Math.min(1.5,edge+.05))+.03)); skFw=skFw==null?want:skFw+(want-skFw)*(1-Math.exp(-dt*5));
       const fx0=cp.x+f.x*skFw, fz0=cp.z+f.z*skFw; skiG.position.set(fx0,Math.max(hAt(fx0,fz0)+.012,cp.y-EYE),fz0); } skiG.updateMatrixWorld(true);
     const rt=eR.set(-skH.z,0,skH.x); // 見ている向きの 右
     // ストック：ターンの 切りかえで、新しい ターンの 内がわを つく
