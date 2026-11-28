@@ -348,6 +348,28 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 /* ホームの写真 */
 #scr-home .hero{ height:clamp(440px, 64vh, 600px); border-radius:0 0 28px 28px; }
 @media (min-width:1000px){ #scr-home .hero{ margin:16px 16px 0; border-radius:28px; } }
+/* ゲレンデの 全景を かくさない：見出しは 写真の 上、説明と 数字は 写真の 下（広い 画面は 左に 文字・右に 写真） */
+#scr-home .hero{ height:auto; display:flex; flex-direction:column; background:linear-gradient(var(--sky1), var(--sky2)); }
+.hero-head{ padding-top:clamp(18px,4vh,40px); padding-bottom:12px; position:relative; z-index:1; }
+.hero-head h1{ font-size:clamp(2.1rem,9.6vw,4.4rem); }
+.hero-pic{ position:relative; margin:0; aspect-ratio:3/2; overflow:hidden; }
+.hero-pic img.scene{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:50% 100%; filter:contrast(1.07) saturate(1.1); }
+.hero-pic::before{ content:""; position:absolute; left:0; right:0; top:0; height:16%; z-index:1; pointer-events:none; background:linear-gradient(color-mix(in srgb, var(--sky1) 70%, var(--sky2)), transparent); }
+.hero-pic canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
+.hero-info{ padding-top:14px; padding-bottom:20px; position:relative; z-index:1; }
+.hero-info .tagline{ margin-top:0; }
+.hero-info .facts{ margin-top:14px; background:var(--panel); backdrop-filter:none; -webkit-backdrop-filter:none; border:1px solid var(--line); box-shadow:var(--shadow); }
+@media (min-width:900px){
+  #scr-home .hero{ display:grid; grid-template-columns:minmax(320px,.85fr) minmax(0,1.35fr); grid-template-rows:1fr auto; column-gap:8px; padding:20px 0; }
+  .hero-head, .hero-info{ max-width:none; margin:0; }
+  .hero-head h1{ font-size:clamp(2.2rem,3.3vw,3.4rem); word-break:keep-all; }
+  .hero-head{ grid-column:1; grid-row:1; align-self:end; padding-left:32px; padding-right:8px; }
+  .hero-info{ grid-column:1; grid-row:2; align-self:start; padding-left:32px; padding-right:8px; }
+  .hero-pic{ grid-column:2; grid-row:1 / span 2; aspect-ratio:4/3; margin:0 20px 0 0; border-radius:20px; box-shadow:var(--shadow); }
+  .hero-pic::before{ display:none; }
+  .hero-pic img.scene{ object-position:50% 50%; }
+  .hero-info .facts{ grid-template-columns:repeat(3,auto); }
+}
 #scr-home #level h2{ font-size:1.3rem; }
 #scr-home .levels{ display:flex; overflow-x:auto; scroll-snap-type:x mandatory; gap:10px; margin-inline:-16px; padding:2px 16px 6px; scrollbar-width:none; }
 #scr-home .levels::-webkit-scrollbar{ display:none; }
@@ -662,12 +684,15 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
 <div class="screen" data-tab="home" data-title="ホーム" id="scr-home">
 <!-- ============ HERO ============ -->
 <div class="hero" id="hero">
-  <img class="scene" src="img/hero.jpg" alt="ハイパーボウル東鉢の山頂から見下ろしたゲレンデ。リフトと、雪の山なみ" decoding="async" fetchpriority="high">
-  <div class="shade" aria-hidden="true"></div>
-  <canvas id="snow" aria-hidden="true"></canvas>
-  <div class="copy wrap">
+  <div class="hero-head wrap">
     <p class="eyebrow">Hyogo · Yabu — Ski area guide</p>
     <h1>ハイパーボウル<br>東鉢</h1>
+  </div>
+  <figure class="hero-pic">
+    <img class="scene" src="img/hero.jpg" alt="ハイパーボウル東鉢の山頂から見下ろしたゲレンデの全景。リフトと、ふもとの村、雪の山なみ" decoding="async" fetchpriority="high">
+    <canvas id="snow" aria-hidden="true"></canvas>
+  </figure>
+  <div class="hero-info wrap">
     <p class="tagline">はじめての1本から、43°の急斜面まで。<br>たのしみ方を、動く図で。</p>
     <dl class="facts">
       <div><dt>東尾根コース</dt><dd>1,800<small>m</small></dd></div>
