@@ -1422,6 +1422,7 @@ function build3D(THREE,img,litImg,forImg,treImg){
   const nor=tg.attributes.normal.array, ANISO=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   const tex=new THREE.TextureLoader().load("img/sat3d.jpg",()=>{ needDraw=true; }); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=ANISO;
   const snowU={value:store.get("snow3d",true)?1:0}; let edTrees=false; // エディターの 間は、地面が 写真でも 林の 木を 立てる
+  const show3d=()=>snowU.value>.5||edTrees; // 3D の 木（林・植えた 木）・建物・ジャンプ台を 出すか（ふつうの 写真モードは 写真そのまま）
   // 冬の色（すべての地形で同じ式）：写真の草地・平らな所（田んぼ・町）は雪に、森は高い所ほど白っぽく、海はそのまま。
   // ふち（外がわの地形との境め）は、外がわの写真へ なめらかに つなぐ
   function winterOBC(sh){ Object.assign(sh.uniforms,this.userData.U);
@@ -1495,7 +1496,7 @@ function build3D(THREE,img,litImg,forImg,treImg){
     camera.updateMatrixWorld(); mPVD.multiplyMatrices(camera.projectionMatrix,mInvD.copy(camera.matrixWorld).invert()); frusD.setFromProjectionMatrix(mPVD);
     for(const c of chunks){ c.d=c.box.distanceToPoint(camera.position); c.vis=frusD.intersectsBox(c.box); if(c.det&&c.d>DROP) dropDetail(c); }
     const cp=camera.position;
-    for(const c of AF.chunks){ const d=c.box.isEmpty()?1e9:c.box.distanceToPoint(cp), v=(snowU.value>.5||edTrees)&&d<2050&&frusD.intersectsBox(c.box);
+    for(const c of AF.chunks){ const d=c.box.isEmpty()?1e9:c.box.distanceToPoint(cp), v=show3d()&&d<2050&&frusD.intersectsBox(c.box);
       const dx=Math.max(Math.abs(cp.x-c.box.min.x),Math.abs(cp.x-c.box.max.x)), dy=Math.max(Math.abs(cp.y-c.box.min.y),Math.abs(cp.y-c.box.max.y)), dz=Math.max(Math.abs(cp.z-c.box.min.z),Math.abs(cp.z-c.box.max.z)), dM=Math.sqrt(dx*dx+dy*dy+dz*dz);
       const v2=v&&dM>SG.mid*.84; if(c.im.visible!==v2){ c.im.visible=v2; needDraw=true; }
       if(v){ const k=Math.max(1,Math.round(c.n*Math.max(.22,Math.min(1,1-(d-500)/1500*.78)))); if(c.im.count!==k){ c.im.count=k; needDraw=true; } } }
@@ -1887,7 +1888,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const snowy=((x*3.7+y*1.3)%1+1)%1<.55; for(const sd of [-1,1]){ const r=[sd*PITCH,0,0], ry=eave+rh/2+.15, z=sd*W/4;
         add(BX,[0,ry,z],[L+1.2,.3,sl],r,roof,F); if(snowy) add(BX,[0,ry+.22,z*.75],[L-1.6,.14,sl*.5],r,SNOW,F); } }); // 屋根（雪が 少し 残る 屋根も）
     if(bldMesh){ scene.remove(bldMesh); bldMesh.geometry.dispose(); bldMesh=null; }
-    if(list.length){ bldMesh=new THREE.Mesh(merge(list,true),bldMat); bldMesh.frustumCulled=false; scene.add(bldMesh); if(/[?&]dbg3d/.test(location.search)) window.__bld=bldMesh; }
+    if(list.length){ bldMesh=new THREE.Mesh(merge(list,true),bldMat); bldMesh.frustumCulled=false; scene.add(bldMesh); bldMesh.visible=show3d(); if(/[?&]dbg3d/.test(location.search)) window.__bld=bldMesh; }
     frBld=bldCur.map(([x,y,L,W,a])=>{ const c=P3(x,y,0); return [c.x,c.z,Math.cos(-a),Math.sin(-a),L/2+.45,W/2+.45]; }); objTreesLater(); bldVer++; needDraw=true; } // ぶつかる 所も
   bldBuild();
   // ===== ジャンプ台（キッカー）：雪を 盛った 台。h＝すべる 向き（台の はじまり → ふち）、大きさ 0 小・1 中・2 大。ふちに 青い 線と、両わきに 赤い 目じるし =====
@@ -1905,7 +1906,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     for(const sd of [-1,1]){ const px=lipX+lx*sd*(J.W/2+.4), pz=lipZ+lz*sd*(J.W/2+.4), p=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.4,8),jPole); p.position.set(px,hAt(px,pz)+.7,pz); grp.add(p); } // 赤い 目じるし
     return grp; }
   function jmpBuild(){ jumpG.children.slice().forEach(k=>{ jumpG.remove(k); k.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); });
-    const E=jmpEdit||ENV3D.jumps||{j:[]}; jmpCur=(E.j||[]).map(([x,y,h,z],i)=>{ const c=P3(x,y,0), J=JSZ[z]||JSZ[1]; jumpG.add(jumpMesh(c.x,c.z,h,J)); return {x:c.x,z:c.z,h,J,i,lip:Math.atan(1.6*J.H/J.L)}; }); objTreesLater(); bldVer++; needDraw=true; }
+    const E=jmpEdit||ENV3D.jumps||{j:[]}; jmpCur=(E.j||[]).map(([x,y,h,z],i)=>{ const c=P3(x,y,0), J=JSZ[z]||JSZ[1]; jumpG.add(jumpMesh(c.x,c.z,h,J)); return {x:c.x,z:c.z,h,J,i,lip:Math.atan(1.6*J.H/J.L)}; }); jumpG.visible=show3d(); objTreesLater(); bldVer++; needDraw=true; }
   jmpBuild();
   // ある 場所が ジャンプ台の 上なら、台の 高さと 坂（すべる 向きに）
   function rampAt(X,Z){ for(const r of jmpCur){ const dx=X-r.x, dz=Z-r.z, u=dx*Math.sin(r.h)+dz*Math.cos(r.h), v=dx*Math.cos(r.h)-dz*Math.sin(r.h);
@@ -2049,7 +2050,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function sgFar(n){ const a=new THREE.InstancedMesh(sgGeo[2],sgMat[2],n); a.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(n*3),3); a.frustumCulled=false; return a; }
   // ===== 植えた木（地図の座標で [x,y,大きさ]）=====
   let treeArr=[]; const _tm=new THREE.Matrix4(), _tc=new THREE.Color();
-  const plantIM=sgFar(MAXTREE); plantIM.userData.sg="plant"; plantIM.count=0; scene.add(plantIM);
+  const plantIM=sgFar(MAXTREE); plantIM.userData.sg="plant"; plantIM.count=0; plantIM.visible=show3d(); scene.add(plantIM);
+  // 冬／写真・エディターの 出入りで：3D の 木・建物・ジャンプ台を 出す／かくす（ふつうの 写真モードは 写真そのまま。木は 林の かたまりと 近くの くわしい 木も）
+  function vis3d(){ const on=show3d(); plantIM.visible=on; if(bldMesh) bldMesh.visible=on; jumpG.visible=on; if(!on) AF.chunks.forEach(c=>{ c.im.visible=false; }); nearDirty=true; detT=0; needDraw=true; }
   function treesUpd(){ const n=Math.min(MAXTREE,Math.floor(treeArr.length/3)), A=plantIM;
     for(let i=0;i<n;i++){ const x=treeArr[i*3], y=treeArr[i*3+1], k=treeArr[i*3+2]; sgMatrix(x,y,plantOff(x,y)?0:k,_tm); A.setMatrixAt(i,_tm); const lt=.55+.45*litAt(_tm.elements[12],_tm.elements[14]); A.setColorAt(i,_tc.setRGB(lt,lt,lt)); }
     A.count=n; A.instanceMatrix.needsUpdate=true; A.instanceColor.needsUpdate=true; nearDirty=true; shadowLater(); needDraw=true; }
@@ -2158,9 +2161,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const SGS=[sgSet(0,sgGeo[0],1600,SG.near*1.15+45,30),sgSet(1,[sgGeo[1]],6000,SG.mid*1.15+60,50)];
   function setRefresh(S){ const cp=camera.position, nv=S.ims.length, L=S.ims.map(()=>[]); S.pos.copy(cp);
     if(cp.y-hAt(cp.x,cp.z)<S.R+40){ const R2=S.R*S.R, cx=cp.x/M+W2, cy=cp.z/M+H2, rp=S.R/M;
-      if((snowU.value>.5||edTrees)&&AF.n) for(let gx=Math.floor((cx-rp)/16);gx<=Math.floor((cx+rp)/16);gx++) for(let gy=Math.floor((cy-rp)/16);gy<=Math.floor((cy+rp)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
+      if(show3d()&&AF.n) for(let gx=Math.floor((cx-rp)/16);gx<=Math.floor((cx+rp)/16);gx++) for(let gy=Math.floor((cy-rp)/16);gy<=Math.floor((cy+rp)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
         for(const i of a){ if(AF.gone[i]) continue; const dx=(AF.x[i]-cx)*M, dz=(AF.y[i]-cy)*M; if(dx*dx+dz*dz<R2) L[i%nv].push(i); } }
-      const np=Math.min(MAXTREE,Math.floor(treeArr.length/3)); for(let i=0;i<np;i++){ const dx=(treeArr[i*3]-cx)*M, dz=(treeArr[i*3+1]-cy)*M; if(dx*dx+dz*dz<R2&&!plantOff(treeArr[i*3],treeArr[i*3+1])) L[i%nv].push(-1-i); } }
+      const np=show3d()?Math.min(MAXTREE,Math.floor(treeArr.length/3)):0; for(let i=0;i<np;i++){ const dx=(treeArr[i*3]-cx)*M, dz=(treeArr[i*3+1]-cy)*M; if(dx*dx+dz*dz<R2&&!plantOff(treeArr[i*3],treeArr[i*3+1])) L[i%nv].push(-1-i); } }
     L.forEach((list,v)=>{ const im=S.ims[v], n=Math.min(S.cap,list.length);
       for(let k=0;k<n;k++){ const i=list[k]; let t;
         if(i>=0){ sgMatrix(AF.x[i],AF.y[i],AF.s[i],_tm); t=AF.c[i]; } else { const q=(-1-i)*3; sgMatrix(treeArr[q],treeArr[q+1],treeArr[q+2],_tm); t=.55+.45*litAt(_tm.elements[12],_tm.elements[14]); }
@@ -3096,7 +3099,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // エディターの 見た目：地面を 航空写真に（林の 木・植えた 木・建物・ジャンプ台は 出したまま。木は 雪なしの 緑）。
   //  下の「☀ 写真／❄ 冬」で 切りかえ（この端末に 覚える）。終わると 地図の 元の 見た目（「❄ 冬／☀ 写真」の ボタン）に もどる
   let edPhoto=store.get("edPhoto",true)!==false, snowKeep=1; const edSnowBtn=$("#edSnow");
-  function snowApply(v){ snowU.value=v; if(v<.5&&!edTrees) AF.chunks.forEach(c=>{ c.im.visible=false; }); nearDirty=true; detT=0; needDraw=true; }
+  function snowApply(v){ snowU.value=v; vis3d(); }
   function edSnowShow(){ edSnowBtn.textContent=edPhoto?"☀ 写真":"❄ 冬"; edSnowBtn.setAttribute("aria-pressed",String(!edPhoto)); edSnowBtn.title=edPhoto?"地面は 航空写真（押すと 冬の 見た目）":"冬の 見た目（押すと 地面を 航空写真に）"; }
   edSnowBtn.onclick=()=>{ edPhoto=!edPhoto; store.set("edPhoto",edPhoto); edSnowShow(); snowApply(edPhoto?0:1); edSnowBtn.blur(); };
   function edStart(id,tool){ if(FR.on) frStop(true);
@@ -3378,7 +3381,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       for(let i=0;i<AF.n;i++){ if(AF.gone[i]) continue; if(d2(AF.x[i],AF.y[i])<r2) n++; }
       for(let i=0;i+2<treeArr.length;i+=3) if(d2(treeArr[i],treeArr[i+1])<r2) np++;
       out[id]=[n,np]; } return out; },cs:id=>{ const o=courseObj[id]; return o&&[P3(...o.sp[0],0).toArray(),P3(...o.sp[Math.min(o.sp.length-1,12)],0).toArray()]; },end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; }, seek:k=>{ if(anim&&anim.kind==="ski") anim.k=k; }, ro:()=>anim&&{ro:anim.ro||0,air:!!anim.rAir,k:anim.k}, jumps:a=>{ jmpEdit={j:a}; jmpBuild(); },
-    ed:()=>({snow:snowU.value,edTrees,chunksVis:AF.chunks.filter(c=>c.im.visible).length,nearN:SGS.reduce((s,S)=>s+S.ims.reduce((t,im)=>t+im.count,0),0),edSnow:$("#edSnow").textContent,a:JSON.parse(JSON.stringify((bldEdit||ENV3D.blds||{a:[]}).a||[])),j:JSON.parse(JSON.stringify((jmpEdit||ENV3D.jumps||{j:[]}).j||[])),full:full3d,help:!$("#edHelp").classList.contains("fade"),afOb:AF.ob?AF.ob.reduce((s,v)=>s+v,0):0,gone:AF.gone?AF.gone.reduce((s,v)=>s+v,0):0,orig:!$("#edOrig").hidden&&$("#edOrig").textContent,on:ed.on,tool:ed.tool,blds:bldCur.length,added:(bldEdit||ENV3D.blds||{a:[]}).a.length,del:(bldEdit||ENV3D.blds||{d:[]}).d.length,jumps:jmpCur.length,jh:jmpCur.map(j=>+j.h.toFixed(2)),jL:jmpCur.map(j=>j.J.L),trees:treeArr.length/3,dirty:Object.keys(env.dirty).filter(k=>env.dirty[k]).join(","),sel:obj.sel,undo:!$("#edUndo").disabled,n:edObjN.textContent}),
+    ed:()=>({snow:snowU.value,edTrees,show3d:show3d(),plantVis:plantIM.visible,bldVis:!!(bldMesh&&bldMesh.visible),jumpVis:jumpG.visible,chunksVis:AF.chunks.filter(c=>c.im.visible).length,nearN:SGS.reduce((s,S)=>s+S.ims.reduce((t,im)=>t+im.count,0),0),edSnow:$("#edSnow").textContent,a:JSON.parse(JSON.stringify((bldEdit||ENV3D.blds||{a:[]}).a||[])),j:JSON.parse(JSON.stringify((jmpEdit||ENV3D.jumps||{j:[]}).j||[])),full:full3d,help:!$("#edHelp").classList.contains("fade"),afOb:AF.ob?AF.ob.reduce((s,v)=>s+v,0):0,gone:AF.gone?AF.gone.reduce((s,v)=>s+v,0):0,orig:!$("#edOrig").hidden&&$("#edOrig").textContent,on:ed.on,tool:ed.tool,blds:bldCur.length,added:(bldEdit||ENV3D.blds||{a:[]}).a.length,del:(bldEdit||ENV3D.blds||{d:[]}).d.length,jumps:jmpCur.length,jh:jmpCur.map(j=>+j.h.toFixed(2)),jL:jmpCur.map(j=>j.J.L),trees:treeArr.length/3,dirty:Object.keys(env.dirty).filter(k=>env.dirty[k]).join(","),sel:obj.sel,undo:!$("#edUndo").disabled,n:edObjN.textContent}),
     chairs:id=>{ const o=liftObj[id], out=[]; chairs.forEach(c=>{ if(c.o!==o) return; const s=sOf(c); if(s>3&&s<o.upLen-2&&c.riders.length){ const P=new THREE.Vector3(), T=new THREE.Vector3(); atS(o,s,P,T); out.push({p:P.toArray(),t:T.normalize().toArray(),kinds:c.riders.map(r=>r.kind)}); } }); return out; },
     rt:id=>{ const o=courseObj[id]; return o&&{root:courseRoot.visible,grp:o.grp.visible,band:o.band.visible,flow:o.flow.visible,gates:o.gates.visible,half:o.L.ln.material.uniforms.uHalf.value}; },
     step:(dt,n)=>{ const z=window.__frz, out=[]; window.__frz=false; for(let i=0;i<n;i++){ update(performance.now(),dt); if(anim&&anim.kind==="ski") out.push([anim.k,anim.sM,anim.v,bnkR,bankAcc(),camera.position.x,camera.position.z]); else if(anim&&anim.fp) out.push([camera.position.x,camera.position.y,camera.position.z]); } window.__frz=z; return out; },
@@ -3419,7 +3422,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   compass.onclick=()=>{ const s=new THREE.Spherical().setFromVector3(v3.copy(camera.position).sub(controls.target)); orbitTo(1,-wrapA(s.theta),null,650); };
   $("#m3dHint").firstElementChild.textContent=matchMedia("(pointer: coarse)").matches?"1本指：移動　2本指：拡大・回転・傾き":"ドラッグ：移動　右ドラッグ：回転・傾き　ホイール：拡大";
   const snowLabel=()=>{ const on=snowU.value>.5; $("#snowBtn").textContent=on?"❄ 冬":"☀ 写真"; $("#snowBtn").setAttribute("aria-pressed",String(on)); };
-  $("#snowBtn").onclick=()=>{ snowU.value=snowU.value>.5?0:1; store.set("snow3d",snowU.value>.5); snowLabel(); if(snowU.value<.5) AF.chunks.forEach(c=>{ c.im.visible=false; }); nearDirty=true; detT=0; needDraw=true; };
+  $("#snowBtn").onclick=()=>{ snowU.value=snowU.value>.5?0:1; store.set("snow3d",snowU.value>.5); snowLabel(); vis3d(); };
   snowLabel();
   $("#povBtn").onclick=()=>{ if(follow){ endFollow(); controls.repivot(); return; } seq=null;
     if(!lastMove){ toast("コースかリフトを選ぶと、その目線で見られます"); return; }
