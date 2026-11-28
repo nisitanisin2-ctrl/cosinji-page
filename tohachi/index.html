@@ -1566,7 +1566,8 @@ function build3D(THREE,img,litImg,forImg,treImg){
   // 雪をぬった所（地形の1マス＝約7.8mごと。透明度が雪の強さ）
   const maskCv=document.createElement("canvas"); maskCv.width=gw; maskCv.height=gh; const mctx=maskCv.getContext("2d",{willReadFrequently:true});
   const maskTex=new THREE.CanvasTexture(maskCv); maskTex.generateMipmaps=false; maskTex.minFilter=THREE.LinearFilter; let maskDirty=false;
-  const FORT=FOR?FOR.slice():null, landTex=FOR?new THREE.DataTexture(FORT,FW,FH,THREE.RedFormat):null; // 雪の色わけ用（ゲレンデで木を立てなかった所は 雪に） if(landTex){ landTex.minFilter=landTex.magFilter=THREE.LinearFilter; landTex.needsUpdate=true; }
+  const FORT=FOR?FOR.slice():null, landTex=FOR?new THREE.DataTexture(FORT,FW,FH,THREE.RedFormat):null; // 雪の色わけ用（ゲレンデで木を立てなかった所は 雪に）
+  if(landTex){ landTex.minFilter=landTex.magFilter=THREE.LinearFilter; landTex.needsUpdate=true; } // 林と 雪の さかいを なめらかに
   const innerU={uSnow:snowU,uEX:{value:EX},uHmin:{value:hmin},uOwn:{value:new THREE.Vector4(IX0,IZ0,IX1,IZ1)},uBlend:{value:170},uPar:{value:new THREE.Vector4(0,0,1,1)},uParTex:{value:blankTex},uParOn:{value:0},uMask:{value:maskTex},uMaskOn:{value:1},uMsz:{value:new THREE.Vector2(gw,gh)},uLand:{value:landTex||blankTex},uLandOn:{value:landTex?1:0},uLmap:{value:new THREE.Vector2(918/920,478/480)},uTSh:{value:blankTex},uTShOn:{value:0},uPiste:{value:blankTex},uPisteOn:{value:0}};
   const baseMat=winterMat(tex,innerU);
   // 64x64 マスずつに分ける（細かい写真は、この1つ分ずつ読みこむ）
@@ -2408,7 +2409,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const cf=new THREE.Mesh(new THREE.CylinderGeometry(.056,.06,.07,14),GK.std(0x15161a,.6)); cf.position.y=.085; g.add(cf);
     const sl=new THREE.Mesh(new THREE.CylinderGeometry(.068,.074,.2,14),GK.std(0xc81e2a,.66)); sl.position.y=.2; g.add(sl); // 赤い そで
     g.traverse(o=>{ o.frustumCulled=false; }); g.visible=false; scene.add(g); return g; });
-  boardG.rotation.y=-.42; boardG.position.set(.2,0,-.1); // 板の 先が 画面の まん中の 下に くる ように 少し 左へ boardG.visible=gear===1; skisG.visible=gear===0;
+  boardG.rotation.y=-.42; boardG.position.set(.2,0,-.1); boardG.visible=gear===1; skisG.visible=gear===0; // 板の 先が 画面の まん中の 下に くる ように 少し 左へ
   const meTex=[0,1].map(bd=>{ const cv=document.createElement("canvas"); cv.width=64; cv.height=256; const x=cv.getContext("2d"); x.fillStyle=x.strokeStyle="#fff"; x.lineCap="round"; x.filter="blur(.8px)";
     x.beginPath(); x.ellipse(32,206,bd?15:11,44,0,0,6.2832); x.fill(); x.beginPath(); x.ellipse(32,122,bd?17:15,44,0,0,6.2832); x.fill(); x.beginPath(); x.arc(32,60,12,0,6.2832); x.fill();
     x.lineWidth=4; x.beginPath(); if(bd){ x.moveTo(20,100); x.lineTo(4,150); x.moveTo(44,100); x.lineTo(60,150); } else { x.moveTo(19,104); x.lineTo(7,244); x.moveTo(45,104); x.lineTo(57,244); } x.stroke(); // うで・ストック
