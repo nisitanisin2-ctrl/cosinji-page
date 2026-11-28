@@ -451,10 +451,12 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 .ed-top select{ flex:1; min-width:0; height:34px; border-radius:10px; border:1px solid var(--line); background:var(--panel); padding:0 6px; font-weight:700; font-size:.84rem; }
 .ed-n{ font-family:var(--f-num); font-size:.76rem; color:var(--sub); white-space:nowrap; }
 .ed-top button, .ed-bar button, .ed-reset{ height:34px; padding:0 9px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-weight:700; font-size:.78rem; cursor:pointer; white-space:nowrap; }
-.ed-help{ position:absolute; left:8px; right:8px; top:108px; margin:0; padding:5px 9px; border-radius:10px; font-size:.72rem; line-height:1.5; color:var(--text); background:color-mix(in srgb, var(--panel) 84%, transparent); pointer-events:none !important; }
+.ed-help{ position:absolute; left:8px; right:8px; top:108px; margin:0; padding:5px 9px; border-radius:10px; font-size:.72rem; line-height:1.5; color:var(--text); background:color-mix(in srgb, var(--panel) 84%, transparent); pointer-events:none !important; transition:opacity .35s; }
+.ed-help.fade{ opacity:0; }
 .ed-bar{ position:absolute; left:8px; right:8px; bottom:8px; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:6px; }
 .ed-bar button{ height:40px; box-shadow:var(--shadow); }
 .ed-bar .pri{ background:#e5484d; border-color:#e5484d; color:#fff; }
+.ed-bar button.sure{ background:#1f2937; border-color:#1f2937; color:#fff; }
 .ed-bar button:disabled, .ed-top button:disabled{ opacity:.45; cursor:default; }
 .ed-reset{ position:absolute; right:8px; bottom:56px; height:30px; font-size:.72rem; box-shadow:var(--shadow); }
 .map3d.editing .m3d-ui, .map3d.editing .m3d-hint, .map3d.editing .m3d-compass{ display:none; }
@@ -509,6 +511,15 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 .ed-meta select{ height:34px; border-radius:10px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-weight:700; font-size:.84rem; padding:0 4px; }
 .ed-meta button{ height:34px; padding:0 10px; border-radius:10px; border:1px solid color-mix(in srgb, #e5484d 55%, var(--line)); background:var(--panel); color:#e5484d; font-weight:700; font-size:.78rem; cursor:pointer; white-space:nowrap; }
 .ed-meta button.sure{ background:#e5484d; border-color:#e5484d; color:#fff; }
+/* 建物・ジャンプ台の 道具：大きさ・回す・屋根の 色 */
+.ed-obj2 .ed-seg{ flex:none; display:flex; gap:2px; padding:2px; border-radius:10px; background:color-mix(in srgb, var(--text) 7%, transparent); }
+.ed-obj2 .ed-seg button{ height:30px; padding:0 11px; border:0; border-radius:8px; background:transparent; color:var(--sub); }
+.ed-obj2 .ed-seg button[aria-pressed="true"]{ background:var(--panel); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.18); }
+.ed-obj2 .ed-rot{ width:38px; padding:0; border-color:var(--line); color:var(--text); font-size:1rem; }
+.ed-cols{ display:flex; gap:5px; margin-left:auto; }
+.ed-cols[hidden]{ display:none; }
+.ed-obj2 .ed-cols button{ width:24px; height:24px; padding:0; border-radius:50%; border:2px solid var(--panel); background:var(--c); box-shadow:0 0 0 1px var(--line); }
+.ed-obj2 .ed-cols button[aria-pressed="true"]{ box-shadow:0 0 0 2px var(--text); }
 /* ===== 3D：フリーラン（右下の 円で すべる）===== */
 .map.free3d .m3d-ui, .map.free3d .m3d-nav, .map.free3d .m3d-compass, .map.free3d .m3d-hint, .map.free3d .fsbtn, .map.free3d .areasw, .map.free3d .nowbar, .map.free3d .fsbar{ display:none !important; }
 .map.full.free3d .povbar{ top:calc(10px + env(safe-area-inset-top, 0px)); }
@@ -657,7 +668,7 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
 <section id="map">
   <p class="eyebrow">Course map</p>
   <h2>3Dコースマップ</h2>
-  <p class="lead">本物の地形の上で、選んだコースが光り、滑る人が走ります。「🎿 目線」で滑る人やリフトの目線にも。「⛷ フリーラン」では、右下の円で自由に滑れます（リフトにも乗れます）。マップは画面に止まったままなので、下のボタンを押しながら見くらべられます。</p>
+  <p class="lead">本物の地形の上で、選んだコースが光り、滑る人が走ります。「🎿 目線」で滑る人やリフトの目線にも。「⛷ フリーラン」では、右下の円で自由に滑れます（リフトにも乗れます）。「🛠 エディター」では、コースの線・木・建物・ジャンプ台を変えられます。マップは画面に止まったままなので、下のボタンを押しながら見くらべられます。</p>
   <div class="stage">
   <div class="stage-map">
     <div class="map is3d">
@@ -665,7 +676,7 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
       <div class="areasw" id="areaSw" role="group" aria-label="エリアの切りかえ"><button type="button" data-a="tohachi" aria-pressed="true">東鉢</button><button type="button" data-a="sv" aria-pressed="false">スカイバレイ</button></div>
       <div class="map3d" id="map3d" role="img" aria-label="ハイパーボウル東鉢の3D地形図。国土地理院の標高と航空写真に、コースとリフトを重ねています">
         <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
-        <div class="m3d-ui"><button type="button" id="drawBtn" title="点を押して、コースの線を描きなおす">✏️ 描く</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="routeBtn" aria-pressed="true" title="えらんだ コースの ルート（色の 帯・線・矢印・ゲート）を 出す／かくす">🗺 ルート</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="frBtn" title="右下の 円で 自由に すべる（木に 注意・リフトにも 乗れる）">⛷ フリーラン</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
+        <div class="m3d-ui"><button type="button" id="drawBtn" title="コースの線・木・建物・ジャンプ台を 編集する">🛠 エディター</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="routeBtn" aria-pressed="true" title="えらんだ コースの ルート（色の 帯・線・矢印・ゲート）を 出す／かくす">🗺 ルート</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="frBtn" title="右下の 円で 自由に すべる（木に 注意・リフトにも 乗れる）">⛷ フリーラン</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
         <p class="m3d-hint" id="m3dHint"><span></span></p>
         <div class="povbar"><button type="button" class="speedbtn" id="frontBtn" hidden title="見る向きを正面にもどす">🧭 正面</button><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="gearBtn" hidden title="目線で使う道具：スキー・スノーボード（押すたびに かわります）">🎿 スキー</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
         <div class="fr-hud" id="frHud" hidden>
@@ -685,8 +696,11 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
         <div class="m3d-edit" id="m3dEdit" hidden>
           <div class="ed-tools" role="group" aria-label="編集するもの">
             <button type="button" data-tool="course" aria-pressed="true">✏️ コース</button>
+            <button type="button" data-tool="tree" aria-pressed="false">🌲 木</button>
+            <button type="button" data-tool="bld" aria-pressed="false">🏠 建物</button>
+            <button type="button" data-tool="jump" aria-pressed="false">⛷ ジャンプ</button>
             <button type="button" class="ed-x" id="edFull" aria-label="全画面で見る" title="全画面">⛶</button>
-            <button type="button" class="ed-x" id="edClose" aria-label="描くのを終わる" title="終わる">✕</button>
+            <button type="button" class="ed-x" id="edClose" aria-label="エディターを終わる" title="終わる">✕</button>
           </div>
           <div class="ed-top ed-course">
             <select id="edCourse" aria-label="描くコース"></select>
@@ -698,6 +712,7 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
             <label class="ed-size">太さ<input type="range" id="edSize" min="10" max="120" step="1" value="30"><b id="edSizeV">30m</b></label>
             <span class="ed-n" id="edTreeN" hidden></span>
           </div>
+          <div class="ed-top" id="edObj" hidden><div class="ed-seg" id="edOMode"><button type="button" data-m="add" aria-pressed="true">➕ 建てる</button><button type="button" data-m="move" aria-pressed="false">✋ 動かす</button><button type="button" data-m="del" aria-pressed="false">🗑 消す</button></div><span class="ed-n" id="edObjN"></span></div>
           <div class="ed-top" id="edLift" hidden><select id="edLiftSel" aria-label="リフト"></select><div class="ed-seg" id="edLMode"><button type="button" data-m="photo" aria-pressed="true">📷 写真の位置</button><button type="button" data-m="even" aria-pressed="false">📏 等間隔</button></div></div>
           <div class="ed-meta" id="edMeta" hidden>
             <input id="edName" type="text" maxlength="20" placeholder="コースの名前（例：林の中の近道）" aria-label="コースの名前" autocomplete="off" enterkeyhint="done">
@@ -708,11 +723,13 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
             <label>間隔<input type="range" id="edGap" min="30" max="200" step="1" aria-label="支柱の間隔（m）"><b id="edGapV"></b></label>
             <label>高さ<input type="range" id="edH" min="5" max="25" step="1" aria-label="支柱の高さ（m）"><b id="edHV"></b></label>
           </div>
+          <div class="ed-meta ed-obj2" id="edObj2" hidden><div class="ed-seg" id="edOSize" role="group" aria-label="大きさ"><button type="button" data-s="0" aria-pressed="false">小</button><button type="button" data-s="1" aria-pressed="true">中</button><button type="button" data-s="2" aria-pressed="false">大</button></div><button type="button" class="ed-rot" id="edRotL" aria-label="左に 回す" title="左に 回す">⟲</button><button type="button" class="ed-rot" id="edRotR" aria-label="右に 回す" title="右に 回す">⟳</button><div class="ed-cols" id="edRoof" role="group" aria-label="屋根の 色"></div></div>
           <p class="ed-help" id="edHelp"></p>
           <div class="ed-bar">
             <button type="button" id="edUndo">↶ 戻す</button>
             <button type="button" id="edDel">点を消す</button>
             <button type="button" id="edLiftReset" hidden>ふつうにもどす</button>
+            <button type="button" id="edOrig" hidden title="最初の 形に もどす（2回 押す）">リセット</button>
             <button type="button" id="edTop">真上から</button>
             <button type="button" id="edSave" class="pri">保存</button>
           </div>
@@ -1584,7 +1601,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   }
   // コースの線：半透明の細い帯（下の斜面が見える）＋ どの距離でも同じ太さに見える中心の線
   const courseRoot=new THREE.Group(); scene.add(courseRoot);
-  // コースの ルートの 表示：0＝帯・線・矢印・ゲート、1＝細い線だけ、2＝なし（この端末に 覚える。前の ON/OFF は 0/2 に）。すべっている間と ✏️ 描く は べつ
+  // コースの ルートの 表示：0＝帯・線・矢印・ゲート、1＝細い線だけ、2＝なし（この端末に 覚える。前の ON/OFF は 0/2 に）。すべっている間と 🛠 エディター は べつ
   const RMODES=[["🗺 ルート","ルート：帯・線・矢印・ゲート"],["〰 線だけ","ルート：細い線だけ"],["🗺 なし","ルート：なし"]];
   let routeMode=(()=>{ const m=store.get("routeMode",null); return m===0||m===1||m===2?m:(store.get("route3d",true)!==false?0:2); })(), routeFull=true, routeKey="";
   const courseObj={}, cW=c=>c.id==="centerB"?14:(c.route?5:7), CIDX={}; COURSES3D.forEach((c,i)=>{ CIDX[c.id]=i; });
@@ -1852,9 +1869,12 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const BLDS=[[730.62,390.0,29.2,26.8,0.436,"#766c68"],[707.0,405.25,24.3,19.5,0.524,"#78463c"],[708.25,400.0,32.1,14.6,0.524,"#d6d6d2"],[760.0,360.25,24.3,17.0,0.611,"#c8c8c3"],[759.18,385.57,24.2,16.8,2.231,"#bd857d"],[722.49,380.13,22.8,17.6,1.784,"#ca9585"],[694.0,355.0,30.2,12.7,-0.524,"#96b9aa"],[767.36,393.93,26.7,13.6,1.775,"#b48d7b"],[729.13,381.17,24.2,14.6,-3.002,"#bb988c"],[716.5,416.25,21.9,14.6,2.094,"#dcdcda"],[786.62,410.0,19.5,14.6,0.349,"#965a46"],[746.69,382.13,19.5,13.5,2.163,"#a8827b"],[778.75,403.75,20.4,12.2,-0.349,"#787a80"],[786.88,398.75,20.4,12.2,-0.349,"#6e7076"],[748.25,397.5,17.0,14.6,0.349,"#7d5546"],[775.0,400.0,19.5,12.2,1.745,"#78787d"],[755.11,391.2,19.7,10.9,2.317,"#759eb6"],[739.25,388.8,19.5,11.0,0.87,"#ba9489"],[736.88,416.88,17.0,12.2,0.0,"#e1e1e1"],[715.75,378.32,14.1,12.9,1.163,"#c88877"],[764.5,368.12,14.6,12.2,0.349,"#dededa"],[718.12,405.62,14.6,12.2,0.175,"#808082"],[767.0,401.88,14.6,12.2,1.745,"#505258"],[770.75,400.0,14.6,12.2,1.745,"#7d5546"],[736.25,377.5,12.7,12.7,0.262,"#6e7378"],[720.13,394.62,17.6,9.1,-2.802,"#a38177"],[772.5,390.25,21.9,7.3,2.793,"#e1e1e1"]];
   const TRI=(()=>{ const g=new THREE.BufferGeometry(), p=[]; for(const e of [-.5,.5]) p.push(e,0,-.5, e,0,.5, e,1,0);
     g.setAttribute("position",new THREE.Float32BufferAttribute(p,3)); g.setIndex([0,1,2, 3,5,4]); g.computeVertexNormals(); return g; })();
-  { const list=[], lc=h=>new THREE.Color().setHex(h,THREE.SRGBColorSpace).toArray(), WALLS=[0xe6dfd0,0xf0eee8,0x8a6448,0xc9ccd0,0xe2d3b4,0xa5835f].map(lc), DARK=lc(0x1d2733), FRAME=lc(0x5b4636), SNOW=lc(0xeef2f7), PITCH=.42;
+  // 編集できる 建物と ジャンプ台：いま 出している 一覧（🛠 エディターで 変えている 間は その 下書き）
+  let bldEdit=null, jmpEdit=null, bldCur=[], bldVer=0, frBld=[], bldMesh=null, afReady=false, objTT=0; const bldMat=new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide});
+  function bldList(){ const E=bldEdit||ENV3D.blds||{d:[],a:[]}, del=new Set(E.d||[]), out=[]; BLDS.forEach((b,i)=>{ if(!del.has(i)) out.push([b[0],b[1],b[2],b[3],b[4],b[5],i]); }); (E.a||[]).forEach((b,i)=>out.push([b[0],b[1],b[2],b[3],b[4],b[5],"a"+i])); return out; }
+  function bldBuild(){ const list=[], lc=h=>new THREE.Color().setHex(h,THREE.SRGBColorSpace).toArray(), WALLS=[0xe6dfd0,0xf0eee8,0x8a6448,0xc9ccd0,0xe2d3b4,0xa5835f].map(lc), DARK=lc(0x1d2733), FRAME=lc(0x5b4636), SNOW=lc(0xeef2f7), PITCH=.42;
     const add=(geo,p,sc,r,col,F)=>{ const g=part(geo,p,sc,r).applyMatrix4(F); g.userData={col}; list.push(g); }; // clone は userData を 共有するので 新しく
-    BLDS.forEach(([x,y,L,W,a,rc])=>{ const c=P3(x,y,0), F=frameAt(c.x,0,c.z,-a), ca=Math.cos(-a), sa=Math.sin(-a), hs=((x*7.13+y*3.31)%1+1)%1;
+    bldCur=bldList(); bldCur.forEach(([x,y,L,W,a,rc])=>{ const c=P3(x,y,0), F=frameAt(c.x,0,c.z,-a), ca=Math.cos(-a), sa=Math.sin(-a), hs=((x*7.13+y*3.31)%1+1)%1;
       let gmin=1e9, gmax=-1e9; for(const [u,v] of [[1,1],[1,-1],[-1,1],[-1,-1]]){ const lx=u*L/2, lz=v*W/2, wx=c.x+lx*ca+lz*sa, wz=c.z-lx*sa+lz*ca, h=hAt(wx,wz); gmin=Math.min(gmin,h); gmax=Math.max(gmax,h); }
       const area=L*W, H=area>300?7.4:(area>110?5.8:3.4), base=gmin-.6, eave=gmax+H, wc=WALLS[Math.floor(hs*WALLS.length)], rh=W/2*Math.tan(PITCH);
       add(BX,[0,(base+eave)/2,0],[L,eave-base,W],null,wc,F);
@@ -1864,7 +1884,30 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const sl=W/2/Math.cos(PITCH)+.7, roof=lc(parseInt(rc.slice(1),16)).map(v=>v*.55); // 写真の屋根は 明るく 写るので 少し 暗く
       const snowy=((x*3.7+y*1.3)%1+1)%1<.55; for(const sd of [-1,1]){ const r=[sd*PITCH,0,0], ry=eave+rh/2+.15, z=sd*W/4;
         add(BX,[0,ry,z],[L+1.2,.3,sl],r,roof,F); if(snowy) add(BX,[0,ry+.22,z*.75],[L-1.6,.14,sl*.5],r,SNOW,F); } }); // 屋根（雪が 少し 残る 屋根も）
-    if(list.length){ const m=new THREE.Mesh(merge(list,true),new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})); m.frustumCulled=false; scene.add(m); if(/[?&]dbg3d/.test(location.search)) window.__bld=m; } }
+    if(bldMesh){ scene.remove(bldMesh); bldMesh.geometry.dispose(); bldMesh=null; }
+    if(list.length){ bldMesh=new THREE.Mesh(merge(list,true),bldMat); bldMesh.frustumCulled=false; scene.add(bldMesh); if(/[?&]dbg3d/.test(location.search)) window.__bld=bldMesh; }
+    frBld=bldCur.map(([x,y,L,W,a])=>{ const c=P3(x,y,0); return [c.x,c.z,Math.cos(-a),Math.sin(-a),L/2+.45,W/2+.45]; }); objTreesLater(); bldVer++; needDraw=true; } // ぶつかる 所も
+  bldBuild();
+  // ===== ジャンプ台（キッカー）：雪を 盛った 台。h＝すべる 向き（台の はじまり → ふち）、大きさ 0 小・1 中・2 大。ふちに 青い 線と、両わきに 赤い 目じるし =====
+  const JSZ=[{L:4,H:.7,W:3},{L:6,H:1.3,W:4},{L:8,H:2,W:5}], jumpG=new THREE.Group(); scene.add(jumpG); let jmpCur=[];
+  const jSnow=new THREE.MeshLambertMaterial({color:0xf3f6fa,emissive:0x6a7588,side:THREE.DoubleSide}), jLip=new THREE.MeshStandardMaterial({color:0x2f6bff,roughness:.55}), jPole=new THREE.MeshStandardMaterial({color:0xe5484d,roughness:.6});
+  const jProf=(u,J)=>J.H*Math.pow(Math.max(0,Math.min(1,u/J.L)),1.6); // 台の 高さ（はじまりから u m）
+  function jumpMesh(X,Z,h,J){ const fx=Math.sin(h), fz=Math.cos(h), lx=Math.cos(h), lz=-Math.sin(h), nu=12, Pp=[], I=[];
+    const at=(u,v,top)=>{ const x=X+fx*u+lx*v, z=Z+fz*u+lz*v; Pp.push(x,hAt(x,z)+(top?jProf(u,J):-.3),z); return Pp.length/3-1; };
+    const T=[]; for(let i=0;i<=nu;i++){ const u=J.L*i/nu; T.push([at(u,-J.W/2,1),at(u,J.W/2,1)]); } for(let i=0;i<nu;i++){ const [p,q]=T[i], [r,t]=T[i+1]; I.push(p,r,q, q,r,t); } // 上の 面
+    for(const sd of [-1,1]){ const Bw=[]; for(let i=0;i<=nu;i++){ const u=J.L*i/nu; Bw.push([at(u,sd*J.W/2,1),at(u,sd*J.W/2,0)]); } for(let i=0;i<nu;i++){ const [p,q]=Bw[i], [r,t]=Bw[i+1]; I.push(p,q,r, r,q,t); } } // 横の かべ
+    { const p=at(J.L,-J.W/2,1), q=at(J.L,J.W/2,1), r=at(J.L,-J.W/2,0), t=at(J.L,J.W/2,0); I.push(p,q,r, q,t,r); } // うしろの かべ
+    const g=new THREE.BufferGeometry(); g.setAttribute("position",new THREE.Float32BufferAttribute(Pp,3)); g.setIndex(I); g.computeVertexNormals();
+    const grp=new THREE.Group(), m=new THREE.Mesh(g,jSnow); m.frustumCulled=false; grp.add(m);
+    const lipX=X+fx*J.L, lipZ=Z+fz*J.L, lip=new THREE.Mesh(new THREE.BoxGeometry(J.W,.07,.16),jLip); lip.position.set(lipX,hAt(lipX,lipZ)+J.H+.02,lipZ); lip.rotation.y=h; grp.add(lip); // ふちの 青い 線
+    for(const sd of [-1,1]){ const px=lipX+lx*sd*(J.W/2+.4), pz=lipZ+lz*sd*(J.W/2+.4), p=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.4,8),jPole); p.position.set(px,hAt(px,pz)+.7,pz); grp.add(p); } // 赤い 目じるし
+    return grp; }
+  function jmpBuild(){ jumpG.children.slice().forEach(k=>{ jumpG.remove(k); k.traverse(o=>{ if(o.geometry) o.geometry.dispose(); }); });
+    const E=jmpEdit||ENV3D.jumps||{j:[]}; jmpCur=(E.j||[]).map(([x,y,h,z],i)=>{ const c=P3(x,y,0), J=JSZ[z]||JSZ[1]; jumpG.add(jumpMesh(c.x,c.z,h,J)); return {x:c.x,z:c.z,h,J,i,lip:Math.atan(1.6*J.H/J.L)}; }); objTreesLater(); bldVer++; needDraw=true; }
+  jmpBuild();
+  // ある 場所が ジャンプ台の 上なら、台の 高さと 坂（すべる 向きに）
+  function rampAt(X,Z){ for(const r of jmpCur){ const dx=X-r.x, dz=Z-r.z, u=dx*Math.sin(r.h)+dz*Math.cos(r.h), v=dx*Math.cos(r.h)-dz*Math.sin(r.h);
+      if(u>=0&&u<=r.J.L&&Math.abs(v)<=r.J.W/2) return {r,u,y:jProf(u,r.J),k:1.6*r.J.H/r.J.L*Math.pow(Math.max(.02,u/r.J.L),.6)}; } return null; }
   // いす（2人乗り）と、乗っている人
   const shape=(parts,withColor)=>merge(parts.map(([geo,p,s,r,col])=>{ const g=part(geo,p,s,r); g.userData={col}; return g; }),withColor);
   const HOOK=new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[0,-.03,0],[.1,-.16,-.01],[.16,-.42,-.04],[.18,-.74,-.08],[.3,-1,-.13],[.48,-1.16,-.16],[.61,-1.31,-.16],[.56,-1.48,-.16]].map(p=>new THREE.Vector3(...p))),10,.045,5,false);
@@ -2006,11 +2049,24 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   let treeArr=[]; const _tm=new THREE.Matrix4(), _tc=new THREE.Color();
   const plantIM=sgFar(MAXTREE); plantIM.userData.sg="plant"; plantIM.count=0; scene.add(plantIM);
   function treesUpd(){ const n=Math.min(MAXTREE,Math.floor(treeArr.length/3)), A=plantIM;
-    for(let i=0;i<n;i++){ const x=treeArr[i*3], y=treeArr[i*3+1], k=treeArr[i*3+2]; sgMatrix(x,y,onPiste(x,y)?0:k,_tm); A.setMatrixAt(i,_tm); const lt=.55+.45*litAt(_tm.elements[12],_tm.elements[14]); A.setColorAt(i,_tc.setRGB(lt,lt,lt)); }
+    for(let i=0;i<n;i++){ const x=treeArr[i*3], y=treeArr[i*3+1], k=treeArr[i*3+2]; sgMatrix(x,y,plantOff(x,y)?0:k,_tm); A.setMatrixAt(i,_tm); const lt=.55+.45*litAt(_tm.elements[12],_tm.elements[14]); A.setColorAt(i,_tc.setRGB(lt,lt,lt)); }
     A.count=n; A.instanceMatrix.needsUpdate=true; A.instanceColor.needsUpdate=true; nearDirty=true; shadowLater(); needDraw=true; }
   // ===== 林の木：航空写真で林と分けた所に、自動で植える（近くだけ見せる。遠くは写真の林のまま）=====
   //  コース・リフトの近く、雪をぬった所、「木を消す」でなぞった所には生えない
-  const AF={n:0,x:null,y:null,s:null,gone:null,ch:null,li:null,grid:new Map(),chunks:[]};
+  const AF={n:0,x:null,y:null,s:null,gone:null,ch:null,li:null,ob:null,grid:new Map(),chunks:[]}; afReady=true;
+  // 建物・ジャンプ台の 上と まわり 2m には 木を 立てない（植えた 木も 林の 木も）
+  const inB=(b,X,Z)=>{ const dx=X-b[0], dz=Z-b[1], lx=dx*b[2]-dz*b[3], lz=dx*b[3]+dz*b[2]; return Math.abs(lx)<b[4]+2&&Math.abs(lz)<b[5]+2; },
+    inJ=(r,X,Z)=>{ const dx=X-r.x, dz=Z-r.z, u=dx*Math.sin(r.h)+dz*Math.cos(r.h), v=dx*Math.cos(r.h)-dz*Math.sin(r.h); return u>-2&&u<r.J.L+2&&Math.abs(v)<r.J.W/2+2; };
+  function inObj(x,y){ const X=(x-W2)*M, Z=(y-H2)*M;
+    for(const b of frBld){ const dx=X-b[0], dz=Z-b[1], R=b[4]+b[5]+3; if(dx*dx+dz*dz<R*R&&inB(b,X,Z)) return true; }
+    for(const r of jmpCur){ const dx=X-r.x, dz=Z-r.z, R=r.J.L+r.J.W+3; if(dx*dx+dz*dz<R*R&&inJ(r,X,Z)) return true; }
+    return false; }
+  const plantOff=(x,y)=>onPiste(x,y)||inObj(x,y);
+  function afObjMark(){ if(!AF.n||!AF.ob) return; AF.ob.fill(0); const mark=(X,Z,R,f)=>{ const cx=X/M+W2, cy=Z/M+H2, rp=R/M;
+      for(let gx=Math.floor((cx-rp)/16);gx<=Math.floor((cx+rp)/16);gx++) for(let gy=Math.floor((cy-rp)/16);gy<=Math.floor((cy+rp)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(a) for(const i of a) if(!AF.ob[i]&&f((AF.x[i]-W2)*M,(AF.y[i]-H2)*M)) AF.ob[i]=1; } };
+    for(const b of frBld) mark(b[0],b[1],b[4]+b[5]+3,(X,Z)=>inB(b,X,Z)); for(const r of jmpCur) mark(r.x+Math.sin(r.h)*r.J.L/2,r.z+Math.cos(r.h)*r.J.L/2,r.J.L+r.J.W+3,(X,Z)=>inJ(r,X,Z)); }
+  // 建てた・置いた・動かした・消した あと（ドラッグ中は 止まってから）：木と かげを 入れなおす
+  function objTreesLater(){ clearTimeout(objTT); objTT=setTimeout(()=>{ if(!afReady) return; if(AF.n){ afObjMark(); afAll(); } if(treeArr.length) treesUpd(); shadowLater(); },250); }
   // 木を消した所（絵。1マス＝地図の1px＝約3.9m）。保存は PNG。前の形（丸の一覧）も読める
   const eraseCv=document.createElement("canvas"); eraseCv.width=FW; eraseCv.height=FH; const ectx=eraseCv.getContext("2d",{willReadFrequently:true}); let eraseA=new Uint8Array(FW*FH);
   function eraseRead(x0,y0,w,h){ x0=Math.max(0,Math.floor(x0)); y0=Math.max(0,Math.floor(y0)); w=Math.min(FW-x0,Math.ceil(w)+1); h=Math.min(FH-y0,Math.ceil(h)+1); if(w<=0||h<=0) return;
@@ -2040,7 +2096,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function maskRect(X,Y,r){ if(!maskA){ maskSnap(); return; } const x0=Math.max(0,Math.floor((X-r)/G.step)), y0=Math.max(0,Math.floor((Y-r)/G.step)), x1=Math.min(gw,Math.ceil((X+r)/G.step)+1), y1=Math.min(gh,Math.ceil((Y+r)/G.step)+1); if(x1<=x0||y1<=y0) return;
     const w=x1-x0, d=mctx.getImageData(x0,y0,w,y1-y0).data; for(let j=y0;j<y1;j++) for(let i=x0;i<x1;i++) maskA[j*gw+i]=d[((j-y0)*w+(i-x0))*4+3]; }
   const maskAt=(x,y)=>{ if(!maskA) return 0; const i=Math.max(0,Math.min(gw-1,Math.floor(x/G.step))), j=Math.max(0,Math.min(gh-1,Math.floor(y/G.step))); return maskA[j*gw+i]; };
-  const afGone=i=>maskAt(AF.x[i],AF.y[i])>110||inErase(AF.x[i],AF.y[i]);
+  const afGone=i=>maskAt(AF.x[i],AF.y[i])>110||inErase(AF.x[i],AF.y[i])||(AF.ob!==null&&AF.ob[i]===1);
   const _fm=new THREE.Matrix4(), _fc=new THREE.Color();
   function afSet(i){ const ch=AF.chunks[AF.ch[i]], k=AF.li[i];
     if(AF.gone[i]) _fm.makeScale(0,0,0); else sgMatrix(AF.x[i],AF.y[i],AF.s[i],_fm);
@@ -2068,11 +2124,11 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     else { const SP=15/M, band=clearBand(true); // 予備：林の地図から（コース・リフトの上は のぞく）
       for(let gy=0;gy<FH;gy+=SP) for(let gx=0;gx<FW;gx+=SP){ const x=gx+R()*SP, y=gy+R()*SP, f=forestAt(x,y), r1=R(), r2=R(), r3=R();
         if(f<.5||r1>Math.min(1,(f-.42)*2.5)||x<2||y<2||x>FW-2||y>FH-2||band[Math.floor(y)*FW+Math.floor(x)]||onPiste(x,y)) continue; X.push(x); Y.push(y); S.push(.85+r2*.5); C.push(r3); } }
-    const n=X.length; AF.n=n; AF.x=Float32Array.from(X); AF.y=Float32Array.from(Y); AF.s=Float32Array.from(S); AF.gone=new Uint8Array(n); AF.ch=new Uint16Array(n); AF.li=new Uint32Array(n); AF.c=new Float32Array(n);
+    const n=X.length; AF.n=n; AF.x=Float32Array.from(X); AF.y=Float32Array.from(Y); AF.s=Float32Array.from(S); AF.gone=new Uint8Array(n); AF.ch=new Uint16Array(n); AF.li=new Uint32Array(n); AF.c=new Float32Array(n); AF.ob=new Uint8Array(n);
     const CS=128, ncx=Math.ceil(FW/CS), ncy=Math.ceil(FH/CS), lists=[]; for(let i=0;i<ncx*ncy;i++) lists.push([]);
     for(let i=0;i<n;i++){ const ci=Math.min(ncy-1,Math.floor(AF.y[i]/CS))*ncx+Math.min(ncx-1,Math.floor(AF.x[i]/CS)); AF.ch[i]=ci; AF.li[i]=lists[ci].length; lists[ci].push(i);
       const gk=Math.floor(AF.x[i]/16)+","+Math.floor(AF.y[i]/16); let a=AF.grid.get(gk); if(!a) AF.grid.set(gk,a=[]); a.push(i); }
-    maskSnap();
+    afObjMark(); maskSnap();
     lists.forEach(L=>{ for(let i=L.length-1;i>0;i--){ const j=Math.floor(R()*(i+1)); [L[i],L[j]]=[L[j],L[i]]; } L.forEach((i,k)=>{ AF.li[i]=k; });
       const im=sgFar(Math.max(1,L.length)); im.count=L.length; im.userData.sg="chunk"; const box=new THREE.Box3(), ch={im,box,dirty:false,n:L.length}; AF.chunks.push(ch);
       L.forEach((i,k)=>{ AF.gone[i]=afGone(i)?1:0; const v=P3(AF.x[i],AF.y[i],0); box.expandByPoint(v); const t=(.78+C[i]*.3)*(.55+.45*litAt(v.x,v.z)); AF.c[i]=t; im.setColorAt(k,_fc.setRGB(t,t,t)); afSet(i); });
@@ -2102,7 +2158,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(cp.y-hAt(cp.x,cp.z)<S.R+40){ const R2=S.R*S.R, cx=cp.x/M+W2, cy=cp.z/M+H2, rp=S.R/M;
       if(snowU.value>.5&&AF.n) for(let gx=Math.floor((cx-rp)/16);gx<=Math.floor((cx+rp)/16);gx++) for(let gy=Math.floor((cy-rp)/16);gy<=Math.floor((cy+rp)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
         for(const i of a){ if(AF.gone[i]) continue; const dx=(AF.x[i]-cx)*M, dz=(AF.y[i]-cy)*M; if(dx*dx+dz*dz<R2) L[i%nv].push(i); } }
-      const np=Math.min(MAXTREE,Math.floor(treeArr.length/3)); for(let i=0;i<np;i++){ const dx=(treeArr[i*3]-cx)*M, dz=(treeArr[i*3+1]-cy)*M; if(dx*dx+dz*dz<R2&&!onPiste(treeArr[i*3],treeArr[i*3+1])) L[i%nv].push(-1-i); } }
+      const np=Math.min(MAXTREE,Math.floor(treeArr.length/3)); for(let i=0;i<np;i++){ const dx=(treeArr[i*3]-cx)*M, dz=(treeArr[i*3+1]-cy)*M; if(dx*dx+dz*dz<R2&&!plantOff(treeArr[i*3],treeArr[i*3+1])) L[i%nv].push(-1-i); } }
     L.forEach((list,v)=>{ const im=S.ims[v], n=Math.min(S.cap,list.length);
       for(let k=0;k<n;k++){ const i=list[k]; let t;
         if(i>=0){ sgMatrix(AF.x[i],AF.y[i],AF.s[i],_tm); t=AF.c[i]; } else { const q=(-1-i)*3; sgMatrix(treeArr[q],treeArr[q+1],treeArr[q+2],_tm); t=.55+.45*litAt(_tm.elements[12],_tm.elements[14]); }
@@ -2114,6 +2170,15 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   if(FOR){ tsTex=new THREE.DataTexture(new Uint8Array(TSW*TSH),TSW,TSH,THREE.RedFormat); tsTex.generateMipmaps=true; tsTex.minFilter=THREE.LinearMipmapLinearFilter; tsTex.magFilter=THREE.LinearFilter; innerU.uTSh.value=tsTex; }
   function shadowLater(){ clearTimeout(shT); shT=setTimeout(drawShadows,450); }
   // 少しずつ（3,000本ずつ）描いて、とちゅうで画面が止まらないように。描きおわってから 地形に わたす
+  // 建てた 建物と ジャンプ台の かげ（元からの 建物は 写真に かげが 写っている）
+  function objShadows(x,k){ const poly=pts=>{ x.beginPath(); pts.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1])); x.closePath(); x.fill(); };
+    const sunOff=(wx,wz)=>{ const gx=(hAt(wx+2,wz)-hAt(wx-2,wz))/4, gz=(hAt(wx,wz+2)-hAt(wx,wz-2))/4, D=Math.max(.12,SUNV.y-(gx*SUNV.x+gz*SUNV.z)); return [-SUNV.x/D*k,-SUNV.z/D*k]; };
+    const T=(wx,wz,hh,o)=>[(wx/M+W2)*TSK+o[0]*hh,(wz/M+H2)*TSK+o[1]*hh];
+    for(const r of jmpCur){ const J=r.J, fx=Math.sin(r.h), fz=Math.cos(r.h), lx=Math.cos(r.h), lz=-Math.sin(r.h), o=sunOff(r.x+fx*J.L/2,r.z+fz*J.L/2), P=(u,v,hh)=>T(r.x+fx*u+lx*v,r.z+fz*u+lz*v,hh,o), pts=[P(0,-J.W/2,0)];
+      for(let i=1;i<=8;i++){ const u=J.L*i/8; pts.push(P(u,-J.W/2,jProf(u,J))); } for(let i=8;i>=1;i--){ const u=J.L*i/8; pts.push(P(u,J.W/2,jProf(u,J))); } pts.push(P(0,J.W/2,0)); poly(pts); }
+    bldCur.forEach(([bx,by,L,W,a,,ref])=>{ if(typeof ref!=="string") return; const c=P3(bx,by,0), ca=Math.cos(-a), sa=Math.sin(-a), area=L*W, hs=(area>300?7.4:(area>110?5.8:3.4))+.6*W/2*Math.tan(.42), o=sunOff(c.x,c.z);
+      const B=[[1,1],[1,-1],[-1,-1],[-1,1]].map(([u,v])=>{ const lx=u*L/2, lz=v*W/2; return [c.x+lx*ca+lz*sa,c.z-lx*sa+lz*ca]; }), lo=B.map(q=>T(q[0],q[1],0,o)), hi=B.map(q=>T(q[0],q[1],hs,o));
+      poly(lo); poly(hi); for(let i=0;i<4;i++){ const j=(i+1)%4; poly([lo[i],lo[j],hi[j],hi[i]]); } }); }
   function drawShadows(){ if(!tsTex) return; if(!tsCv){ tsCv=document.createElement("canvas"); tsCv.width=TSW; tsCv.height=TSH; }
     const gen=++shGen, x=tsCv.getContext("2d",{willReadFrequently:true}), k=TSK/M; x.clearRect(0,0,TSW,TSH); x.fillStyle=x.strokeStyle="#000"; x.lineCap="round"; x.lineWidth=Math.max(.7,.55*k);
     const one=(mx,my,sc)=>{ const sx=sc*(.85+.3*sgH2(mx,my)), sy=sc*(.85+.35*sgH1(mx,my)), wx=(mx-W2)*M, wz=(my-H2)*M, gx=(hAt(wx+2,wz)-hAt(wx-2,wz))/4, gz=(hAt(wx,wz+2)-hAt(wx,wz-2))/4;
@@ -2121,9 +2186,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const c1x=bx+ox*yw, c1z=bz+oz*yw, c2x=bx+ox*h, c2z=bz+oz*h, dx=c2x-c1x, dz=c2z-c1z, d=Math.hypot(dx,dz);
       x.beginPath(); x.moveTo(bx,bz); x.lineTo(bx+ox*cb,bz+oz*cb); x.stroke(); x.beginPath();
       if(d<=rr) x.arc(c1x,c1z,rr,0,6.2832); else { const ph=Math.atan2(dz,dx), al=Math.acos(rr/d); x.moveTo(c2x,c2z); x.arc(c1x,c1z,rr,ph+al,ph+6.2832-al); x.closePath(); } x.fill(); };
-    const L=[]; for(let i=0;i<AF.n;i++) if(!AF.gone[i]) L.push(AF.x[i],AF.y[i],AF.s[i]); for(let i=0;i+2<treeArr.length;i+=3) if(!onPiste(treeArr[i],treeArr[i+1])) L.push(treeArr[i],treeArr[i+1],treeArr[i+2]);
+    const L=[]; for(let i=0;i<AF.n;i++) if(!AF.gone[i]) L.push(AF.x[i],AF.y[i],AF.s[i]); for(let i=0;i+2<treeArr.length;i+=3) if(!plantOff(treeArr[i],treeArr[i+1])) L.push(treeArr[i],treeArr[i+1],treeArr[i+2]);
     let p=0; const step=()=>{ if(gen!==shGen) return; const e=Math.min(L.length,p+9000); for(;p<e;p+=3) one(L[p],L[p+1],L[p+2]); if(p<L.length){ setTimeout(step,0); return; }
-      const d=x.getImageData(0,0,TSW,TSH).data, o=tsTex.image.data; for(let i=0;i<o.length;i++) o[i]=d[i*4+3]; tsTex.needsUpdate=true; innerU.uTShOn.value=1; needDraw=true; };
+      objShadows(x,k); const d=x.getImageData(0,0,TSW,TSH).data, o=tsTex.image.data; for(let i=0;i<o.length;i++) o[i]=d[i*4+3]; tsTex.needsUpdate=true; innerU.uTShOn.value=1; needDraw=true; };
     step(); }
 
   // 文字（画面の上に重ねる）
@@ -2510,7 +2575,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const hz=Math.hypot(fwd.x,fwd.z); if(hz<1e-6) return; const hd=Math.atan2(fwd.x,fwd.z), pitch=Math.atan2(-fwd.y,hz);
     if(rHd!=null&&dt>0){ const dh=Math.atan2(Math.sin(hd-rHd),Math.cos(hd-rHd)); rRate+=(dh/dt-rRate)*(1-Math.exp(-dt*6)); } rHd=hd;
     const v=FR.on?FR.v:(anim&&anim.v||12), ln=Math.max(-.62,Math.min(.62,Math.atan(v*rRate/9.8))), ti=Math.min(1,Math.abs(rRate)/.8), s=rRate>.04?1:(rRate<-.04?-1:0);
-    const tkT=FR.on?(FR.air?0:Math.max(0,FR.sy)*(1-ti)*Math.max(0,Math.min(1,(v-5)/2.5))):(follow&&v>16&&v<40&&ti<.2?.5:0), bkT=FR.on&&!FR.air?Math.max(0,-FR.sy)*(v>.6?1:0):0, aiT=FR.on&&FR.air?1:0;
+    const tkT=FR.on?(FR.air?0:Math.max(0,FR.sy)*(1-ti)*Math.max(0,Math.min(1,(v-5)/2.5))):(follow&&v>16&&v<40&&ti<.2?.5:0), bkT=FR.on&&!FR.air?Math.max(0,-FR.sy)*(v>.6?1:0):0, aiT=FR.on?(FR.air?1:0):(anim&&anim.rAir?1:0);
     rTk+=(tkT-rTk)*(1-Math.exp(-dt*4)); rBk+=(bkT-rBk)*(1-Math.exp(-dt*6)); rAir+=(aiT-rAir)*(1-Math.exp(-dt*(aiT?10:16)));
     const skT=rBk*(gear===1?1.25:(v>6?1.1*(rPrev||1):0)); rSkid+=(skT-rSkid)*(1-Math.exp(-dt*7)); // 速いときの ブレーキは 横すべり（ホッケーストップ）
     const lean=ln*(1-.6*rBk); rE.set(pitch,hd+rSkid,-lean,"YXZ"); riderM.quaternion.setFromEuler(rE); riderShadow(riderM.position.x,riderM.position.z,hd+rSkid);
@@ -2558,16 +2623,15 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   //  円に 指を置いて 右＝右ターン、左＝左ターン、上（前）＝加速、下（後ろ）＝減速。指を はなすと 軽く ジャンプ（キーボード：← → ↑ ↓、スペース）。
   //  木・建物・リフトの 支柱に ぶつかると 転んで 止まる。リフトの 乗り場に 入ると いすに 乗り、降り場から また すべる。
   //  位置と 速さは 3Dの 座標（m）。坂の きつさは 本当の 標高から（たての 強調 EX を もどす）
-  const FR={on:false,x:0,z:0,h:0,v:0,w:0,y:0,vy:0,air:false,sx:0,sy:0,crash:null,lift:null,armed:false,wasFull:false,land:0,hist:[],tl:null,hold:false,edgeT:0,skPh:0};
+  const FR={on:false,x:0,z:0,h:0,v:0,w:0,y:0,vy:0,air:false,sx:0,sy:0,crash:null,lift:null,armed:false,wasFull:false,land:0,hist:[],tl:null,hold:false,edgeT:0,skPh:0,ramp:null};
   // スケーティング（加速の 操作で、ゆっくりの とき：時速 16km まで 全部、27km で クラウチングに 入れかわる）。frSkS＝なめらかにした 強さ（0〜1）
   const frSkW=()=>FR.air?0:Math.max(0,FR.sy)*Math.max(0,Math.min(1,(7.5-FR.v)/3)); let frSkS=0;
   const frBox=box.parentElement, frHud=$("#frHud"), frStick=$("#frStick"), frKnob=frStick.querySelector(".fr-knob"), frVel=$("#frV"), frWhere=$("#frWhere"), frSkip=$("#frSkip"), frHelp=$("#frHelp"), frFlash=$("#frFlash");
   const FRG=9.8, ZAX=new THREE.Vector3(0,0,1), frP=new THREE.Vector3(), frW=new THREE.Vector3(), frL=new THREE.Vector3(), frF=new THREE.Vector3(), frD=new THREE.Vector3(), frE=new THREE.Vector3(), frQ=new THREE.Quaternion();
   // ぶつかる物：建物（かべ）・リフトの 支柱・木（幹と いちばん下の 枝）
-  const frBld=BLDS.map(([x,y,L,W,a])=>{ const c=P3(x,y,0); return [c.x,c.z,Math.cos(-a),Math.sin(-a),L/2+.45,W/2+.45]; });
   let frPlant=null; // 植えた木の 早見（16マスごと）
   function frPlantGrid(){ frPlant=new Map(); const n=Math.min(MAXTREE,Math.floor(treeArr.length/3));
-    for(let i=0;i<n;i++){ const x=treeArr[i*3], y=treeArr[i*3+1]; if(onPiste(x,y)) continue; const k=Math.floor(x/16)+","+Math.floor(y/16); let a=frPlant.get(k); if(!a) frPlant.set(k,a=[]); a.push(i); } }
+    for(let i=0;i<n;i++){ const x=treeArr[i*3], y=treeArr[i*3+1]; if(plantOff(x,y)) continue; const k=Math.floor(x/16)+","+Math.floor(y/16); let a=frPlant.get(k); if(!a) frPlant.set(k,a=[]); a.push(i); } }
   const frTreeR=(x,y,s)=>.5+.75*s*(.85+.3*sgH2(x,y));
   function frHit(X,Z){ const px=X/M+W2, py=Z/M+H2, rr=2/M;
     for(let a=Math.floor((px-rr)/16);a<=Math.floor((px+rr)/16);a++) for(let b=Math.floor((py-rr)/16);b<=Math.floor((py+rr)/16);b++){ const key=a+","+b;
@@ -2621,7 +2685,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(FR.hold){ if(!sx&&!sy) return; FR.hold=false; }
     // 向き：左右で 曲がる（速いほど 大きな ターン）。空中は 少しだけ
     const wMax=Math.min(2.2,.9+9/(FR.v+5))*(FR.air?.35:1); FR.w+=(-sx*wMax-FR.w)*(1-Math.exp(-dt*9)); FR.h=wrapA(FR.h+FR.w*dt);
-    const fx=Math.sin(FR.h), fz=Math.cos(FR.h), sW=frSlope(FR.x,FR.z,fx,fz), s=sW/EX;
+    const fx=Math.sin(FR.h), fz=Math.cos(FR.h), sW=frSlope(FR.x,FR.z,fx,fz), rp0=FR.air?null:rampAt(FR.x,FR.z), s=sW/EX+(rp0?rp0.k*Math.cos(FR.h-rp0.r.h):0); // ジャンプ台の 上は 台の 坂も
     let a;
     if(FR.air) a=-.003*FR.v*FR.v;
     else { a=-FRG*s/Math.sqrt(1+s*s)-(FR.v>.05?FRG*.045:0)-.0075*(1-.35*Math.max(0,sy))*FR.v*FR.v-.05*Math.abs(FR.w)*FR.v; // 坂・雪・空気・横すべり
@@ -2632,23 +2696,28 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const vh=FR.v/Math.sqrt(1+s*s), nx=FR.x+fx*vh*dt, nz=FR.z+fz*vh*dt;
     if(Math.abs(nx)>XB-25||Math.abs(nz)>ZB-25){ FR.v=0; const now=performance.now(); if(now-FR.edgeT>4000){ FR.edgeT=now; toast("ここから先は 地図の外です"); } return; }
     const hit=frHit(nx,nz); if(hit){ frCrash(hit); return; }
-    FR.x=nx; FR.z=nz; const g=hAt(nx,nz);
+    FR.x=nx; FR.z=nz; const rp=rampAt(nx,nz), g=hAt(nx,nz)+(rp?rp.y:0); // 空中からも 台の 上に おりられる
     if(FR.air){ FR.vy-=FRG*dt; FR.y+=FR.vy*dt; if(FR.y<=g){ const imp=Math.max(0,sW*vh-FR.vy); FR.y=g; FR.air=false; FR.land=Math.min(1,.35+imp*.09); frBurst(6+Math.min(14,Math.round(imp*2)),.8); frTrackBreak(); } }
-    else FR.y=g;
+    else if(rp&&g-FR.y>.45){ const r=rp.r; frCrash(["jump",r.x+Math.sin(r.h)*r.J.L*.5,r.z+Math.cos(r.h)*r.J.L*.5,Math.hypot(r.J.L,r.J.W)*.55]); return; } // 台の うしろ・横の 高い かべ
+    else { const off=FR.ramp&&!rp?FR.ramp:null; FR.ramp=rp?{r:rp.r,u:rp.u,k:rp.k}:null;
+      if(off){ const r=off.r, u=(nx-r.x)*Math.sin(r.h)+(nz-r.z)*Math.cos(r.h), va=vh*Math.cos(FR.h-r.h);
+        if(u>=r.J.L&&off.u>r.J.L*.6&&va>1){ FR.air=true; FR.vy=sW*vh+Math.tan(r.lip)*va+.4; frBurst(6,.6); frTrackBreak(); }
+        else if(FR.y-g>.3){ FR.air=true; FR.vy=0; frTrackBreak(); } else FR.y=g; } // ふちから とび出す（横から 出たり、ゆっくり こえると 落ちる）
+      else FR.y=g; }
     if(!FR.air){ const L=FR.hist[FR.hist.length-1]; if(!L||Math.hypot(nx-L[0],nz-L[1])>.5){ FR.hist.push([nx,nz]); if(FR.hist.length>40) FR.hist.shift(); } } // 来た道（転んだら 少し もどる）
     { const o=frStation(nx,nz); if(!o) FR.armed=true; else if(FR.armed&&!FR.air) frBoard(o); } }
   function frJump(){ if(!FR.on||FR.lift||FR.crash||FR.air) return; FR.hold=false;
     const fx=Math.sin(FR.h), fz=Math.cos(FR.h), sW=frSlope(FR.x,FR.z,fx,fz), s=sW/EX;
-    FR.air=true; FR.y=hAt(FR.x,FR.z); FR.vy=3.3+sW*FR.v/Math.sqrt(1+s*s); frBurst(5,.5); frTrackBreak(); }
+    const rp=rampAt(FR.x,FR.z); FR.air=true; FR.y=hAt(FR.x,FR.z)+(rp?rp.y:0); FR.vy=3.3+sW*FR.v/Math.sqrt(1+s*s)+(rp?rp.k*Math.cos(FR.h-rp.r.h)*FR.v:0); FR.ramp=null; frBurst(5,.5); frTrackBreak(); }
   // 転ぶ：少し もどった所で 止まり、2秒で 起きる。起きたら ぶつかった物の 横を ぬける向き（下りに 近いほう）
   function frCrash(hit){ const [kind,ox,oz,r]=hit, imp=FR.v; let px=FR.x, pz=FR.z;
     for(let i=FR.hist.length-1;i>=0;i--){ px=FR.hist[i][0]; pz=FR.hist[i][1]; if(Math.hypot(px-ox,pz-oz)>r+.9) break; }
     if(Math.hypot(px-ox,pz-oz)<r+.3){ const d=Math.hypot(FR.x-ox,FR.z-oz)||1; px=ox+(FR.x-ox)/d*(r+.9); pz=oz+(FR.z-oz)/d*(r+.9); }
-    FR.x=px; FR.z=pz; FR.y=hAt(px,pz); FR.v=0; FR.w=0; FR.air=false; FR.vy=0; FR.hist.length=0;
+    FR.x=px; FR.z=pz; FR.y=hAt(px,pz); FR.v=0; FR.w=0; FR.air=false; FR.vy=0; FR.ramp=null; FR.hist.length=0;
     const ax=px-ox, az=pz-oz, al=Math.hypot(ax,az)||1, fl=frFall(px,pz,3), c1=[-az/al,ax/al], c2=[az/al,-ax/al], c=c1[0]*fl[0]+c1[1]*fl[1]>=c2[0]*fl[0]+c2[1]*fl[1]?c1:c2;
     const side=(-Math.cos(FR.h)*fl[0]+Math.sin(FR.h)*fl[1])>=0?1:-1; // 下がわへ たおれる
     FR.crash={t:0,T:2.1,side,h0:FR.h,h1:Math.atan2(c[0],c[1]),kind}; frBurst(16+Math.min(22,Math.round(imp*1.4)),1.3); frTrackBreak();
-    toast(kind==="tree"?"🌲 木に ぶつかって 転びました":(kind==="pole"?"💥 リフトの 支柱に ぶつかって 転びました":"💥 建物に ぶつかって 転びました"));
+    toast(kind==="tree"?"🌲 木に ぶつかって 転びました":(kind==="pole"?"💥 リフトの 支柱に ぶつかって 転びました":kind==="jump"?"💥 ジャンプ台に ぶつかって 転びました":"💥 建物に ぶつかって 転びました"));
     try{ if(navigator.vibrate) navigator.vibrate(70); }catch(_){}
     frFlash.classList.remove("on"); void frFlash.offsetWidth; frFlash.classList.add("on"); }
   const frK=C=>{ const t=C.t; if(t<.35) return 1-Math.pow(1-t/.35,3); if(t<1.45) return 1; const u=Math.min(1,(t-1.45)/.65); return 1-u*u*(3-2*u); }; // たおれ ぐあい（0〜1）
@@ -2658,7 +2727,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     else { let t=dt; while(t>1e-6&&FR.on&&!FR.lift&&!FR.crash){ const st=Math.min(t,1/90); frPhys(st); t-=st; } }
     if(!FR.on||FR.lift) return;
     if(FR.land>0) FR.land=Math.max(0,FR.land-dt*2.6);
-    if(!FR.air&&!FR.crash&&FR.v>.4){ const L=FR.tl; if(!L||Math.hypot(FR.x-L[0],FR.z-L[1])>.55){ frTrackAdd(FR.x,FR.z,FR.h); FR.tl=[FR.x,FR.z]; } }
+    if(FR.ramp&&FR.tl){ frTrackBreak(); FR.tl=null; } // 台の 上には シュプールを つけない
+    if(!FR.air&&!FR.crash&&!FR.ramp&&FR.v>.4){ const L=FR.tl; if(!L||Math.hypot(FR.x-L[0],FR.z-L[1])>.55){ frTrackAdd(FR.x,FR.z,FR.h); FR.tl=[FR.x,FR.z]; } }
     frSkS+=((FR.crash?0:frSkW())-frSkS)*(1-Math.exp(-dt*6));
     frCamera(dt); frRider(dt); frHudUpd(dt); frMiniTick(dt); }
   // カメラ：目線（目の高さ 3m・45m 先）／近く（8.5m 後ろ・3.3m 上）／遠く（36m 後ろ・15m 上）。ドラッグで まわりを 見る
@@ -2677,7 +2747,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const gc=hAny(camera.position.x,camera.position.z)+1.4; if(camera.position.y<gc) camera.position.y=gc; } }
   // 後ろから 見る 人：ターンで かたむき、上体は 下りを 向く。とぶ・おりる・転ぶ
   function frRider(dt){ const fx=Math.sin(FR.h), fz=Math.cos(FR.h), sW=frSlope(FR.x,FR.z,fx,fz), fl=frFall(FR.x,FR.z,4), k=FR.crash?frK(FR.crash):0;
-    frF.set(fx,FR.air?0:sW,fz); frD.set(fl[2]>.04?fl[0]:fx,0,fl[2]>.04?fl[1]:fz); skFwd.set(fx,0,fz);
+    frF.set(fx,FR.air?0:sW+(FR.ramp?FR.ramp.k*Math.cos(FR.h-FR.ramp.r.h):0),fz); // 台の 上は 台の 坂に そって frD.set(fl[2]>.04?fl[0]:fx,0,fl[2]>.04?fl[1]:fz); skFwd.set(fx,0,fz);
     if(FR.air) rC+=(.75-rC)*(1-Math.exp(-dt*8)); if(FR.land>0) rC=Math.max(rC,.45+.55*FR.land); if(k>0) rC=Math.max(rC,.9*k);
     riderPose([FR.x/M+W2,FR.z/M+H2],frF,FR.crash?0:dt,frD);
     if(riderM.visible){ riderM.position.y=FR.y-.06*k; if(k>0) riderM.quaternion.multiply(frQ.setFromAxisAngle(ZAX,FR.crash.side*k*1.32)); }
@@ -2688,7 +2758,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // ===== フリーランの 小さな 地図（右上）：雪と 林（明るさで 山の 形）・コース（細い 線。色は つけない）・リフト・ふもとの 建物・自分（赤い 矢印）=====
   //  向きは ふつうの 地図と 同じ（ふもと＝下、山頂＝上）。押すと 近く（約780m）／全体
   const frMini=$("#frMini"), miniCv=frMini.querySelector("canvas"), miniX=miniCv.getContext("2d"), MPHI=Math.PI/2-AZ, MC=Math.cos(MPHI), MS=Math.sin(MPHI);
-  let miniBgC=null, miniBgT=0, miniAll=null, miniWide=false, miniT=0;
+  let miniBgC=null, miniBgT=0, miniBgV=-1, miniAll=null, miniWide=false, miniT=0;
   function miniBg(){ const c=document.createElement("canvas"); c.width=FW; c.height=FH; const x=c.getContext("2d"), im=x.createImageData(FW,FH), D=im.data, E=new Float32Array(FW*FH);
     for(let j=0;j<FH;j++) for(let i=0;i<FW;i++) E[j*FW+i]=elev(i+.5,j+.5); // 高さは 1マス 1回だけ 読む
     const ll=Math.hypot(MC+MS,MS-MC)||1, Lx=-(MC+MS)/ll*.7071, Ly=(MS-MC)/ll*.7071, Lu=.7071; // 光は 小さな 地図の 左上から 45°
@@ -2696,13 +2766,14 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const sh=Math.max(0,(-gx*Lx+Lu-gy*Ly)/nl), f=FOR?FOR[k]/255:0, t=Math.max(0,Math.min(1,(f-.35)/.35)), m=.72+.36*sh;
       D[k*4]=Math.min(255,(244-184*t)*m); D[k*4+1]=Math.min(255,(247-159*t)*m); D[k*4+2]=Math.min(255,(250-174*t)*m); D[k*4+3]=255; }
     x.putImageData(im,0,0);
-    x.fillStyle="#7d6f66"; BLDS.forEach(([bx,by,L,Wd,a])=>{ x.save(); x.translate(bx,by); x.rotate(a); x.fillRect(-L/M/2,-Wd/M/2,L/M,Wd/M); x.restore(); });
+    x.fillStyle="#7d6f66"; bldCur.forEach(([bx,by,L,Wd,a])=>{ x.save(); x.translate(bx,by); x.rotate(a); x.fillRect(-L/M/2,-Wd/M/2,L/M,Wd/M); x.restore(); });
     return c; }
   function miniBounds(){ let u1=1e9,u2=-1e9,v1=1e9,v2=-1e9; const add=(x,y)=>{ const u=MC*x-MS*y, v=MS*x+MC*y; u1=Math.min(u1,u); u2=Math.max(u2,u); v1=Math.min(v1,v); v2=Math.max(v2,v); };
     for(const id in courseObj) (courseObj[id].sp||[]).forEach(p=>add(p[0],p[1])); lifts.forEach(o=>{ add(o.a[0],o.a[1]); add(o.b[0],o.b[1]); });
     return {u:(u1+u2)/2,v:(v1+v2)/2,s:Math.max(u2-u1,v2-v1)*1.1}; }
   function miniDraw(){ const dpr=Math.min(2,window.devicePixelRatio||1), W=Math.max(1,Math.round(frMini.clientWidth*dpr)); if(miniCv.width!==W) miniCv.width=miniCv.height=W;
-    if(!miniBgC&&!miniBgT) miniBgT=setTimeout(()=>{ miniBgC=miniBg(); miniT=0; },80); // 地形の 絵は 少し あとで 1回だけ 作る（それまでは 線と 矢印だけ）
+    if(miniBgV!==bldVer){ miniBgV=bldVer; miniBgC=null; clearTimeout(miniBgT); miniBgT=0; } // 建物が 変わったら 絵を 作りなおす
+    if(!miniBgC&&!miniBgT) miniBgT=setTimeout(()=>{ miniBgC=miniBg(); miniBgT=0; miniT=0; },80); // 地形の 絵は 少し あとで 1回だけ 作る（それまでは 線と 矢印だけ）
     const x=miniX, px=FR.x/M+W2, py=FR.z/M+H2; let cu, cv, span;
     if(miniWide){ if(!miniAll) miniAll=miniBounds(); cu=miniAll.u; cv=miniAll.v; span=miniAll.s; } else { cu=MC*px-MS*py; cv=MS*px+MC*py; span=780/M; }
     const k=W/span, e=W/2-k*cu, f=W/2-k*cv;
@@ -2712,6 +2783,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     for(const id in courseObj){ const sp=courseObj[id].sp; if(!sp||sp.length<2) continue; x.beginPath(); x.moveTo(sp[0][0],sp[0][1]); for(let i=2;i<sp.length;i+=2) x.lineTo(sp[i][0],sp[i][1]); x.lineTo(sp[sp.length-1][0],sp[sp.length-1][1]); x.stroke(); }
     x.strokeStyle=x.fillStyle="#262c33"; x.lineWidth=1.7*dpr/k; // リフトと 駅
     for(const o of lifts){ x.beginPath(); x.moveTo(o.a[0],o.a[1]); x.lineTo(o.b[0],o.b[1]); x.stroke(); for(const p of [o.a,o.b]){ x.beginPath(); x.arc(p[0],p[1],2.4*dpr/k,0,6.2832); x.fill(); } }
+    x.fillStyle="#f08c1a"; for(const r of jmpCur){ const jx=r.x/M+W2, jy=r.z/M+H2, fx2=Math.sin(r.h), fy2=Math.cos(r.h), q=3.2*dpr/k; x.beginPath(); x.moveTo(jx+fx2*q*1.3,jy+fy2*q*1.3); x.lineTo(jx-fx2*q+fy2*q*.8,jy-fy2*q-fx2*q*.8); x.lineTo(jx-fx2*q-fy2*q*.8,jy-fy2*q+fx2*q*.8); x.closePath(); x.fill(); } // ジャンプ台
     x.setTransform(1,0,0,1,0,0);
     // 北（左上の 小さな 矢印）
     const nr=6*dpr, nx=9*dpr+nr*.2, ny=10*dpr+nr; x.save(); x.translate(nx,ny); x.rotate(MPHI); x.fillStyle="rgba(20,28,40,.75)"; x.beginPath(); x.moveTo(0,-nr); x.lineTo(nr*.55,nr*.55); x.lineTo(0,nr*.2); x.lineTo(-nr*.55,nr*.55); x.closePath(); x.fill(); x.restore();
@@ -2741,7 +2813,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(reduce){ frLiftDone(o); return; }
     startRide(o.Lf.id); if(!anim||!anim.fp){ anim=null; stopRide(); frLiftDone(o); return; }
     frSkip.hidden=false; frVel.textContent="0"; frWhereS="🚡 "+o.Lf.name+"で 上へ"; frWhere.textContent=frWhereS; frWhere.hidden=false; toast("🚡 "+o.Lf.name+"に 乗ります"); }
-  function frLiftDone(o){ const st=frTopOf(o); Object.assign(FR,{x:st.x,z:st.z,h:st.h,v:0,w:0,vy:0,air:false,crash:null,lift:null,armed:false,land:0,hold:true}); FR.y=hAt(FR.x,FR.z); FR.hist.length=0;
+  function frLiftDone(o){ const st=frTopOf(o); Object.assign(FR,{x:st.x,z:st.z,h:st.h,v:0,w:0,vy:0,air:false,ramp:null,crash:null,lift:null,armed:false,land:0,hold:true}); FR.y=hAt(FR.x,FR.z); FR.hist.length=0;
     baseOK=false; lookYaw=lookPitch=0; lookHome=false; rHd=null; rRate=0; skHd=null; skTurn=0; camera.near=1; camera.updateProjectionMatrix(); lab.classList.add("hide");
     frSkip.hidden=true; frStick.hidden=false; frMini.hidden=false; frCtlBox.hidden=!frTiltOK; TL.p0=null; TL.sx=TL.sy=0; miniT=0; frTrackBreak(); frPlT=0; toast("降り場から スタート！"); needDraw=true; }
   frSkip.onclick=()=>{ const o=FR.lift; if(!o) return; anim=null; stopRide(); o.set(selected===o.Lf.id); frLiftDone(o); };
@@ -2750,7 +2822,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     anim=null; stopRide(); seq=null; replayFn=null; tw=null; controls.stop(); clearTimeout(rHide.t); spray.visible=false;
     let st=null; if(selected&&courseObj[selected]) st=frCourseStart(selected); else if(selected&&liftObj[selected]) st=frTopOf(liftObj[selected]); else { const o=liftObj.lift2||lifts[0]; if(o) st=frTopOf(o); }
     if(!st) return;
-    frPlantGrid(); Object.assign(FR,{x:st.x,z:st.z,h:st.h,v:0,w:0,vy:0,air:false,crash:null,lift:null,armed:false,land:0,sx:0,sy:0,hist:[],hold:true}); FR.y=hAt(FR.x,FR.z);
+    frPlantGrid(); Object.assign(FR,{x:st.x,z:st.z,h:st.h,v:0,w:0,vy:0,air:false,ramp:null,crash:null,lift:null,armed:false,land:0,sx:0,sy:0,hist:[],hold:true}); FR.y=hAt(FR.x,FR.z);
     FR.on=true; follow=true; controls.enabled=false; lookYaw=lookPitch=0; lookHome=false; lookDrag=null; rHd=null; rRate=0; skHd=null; skTurn=0;
     baseC.copy(camera.position); baseT.copy(controls.target); baseOK=true; // いまの 所から すっと 近づく
     $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; lab.classList.add("hide");
@@ -2825,8 +2897,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   addEventListener("keyup",e=>{ const m=FRK[(e.key||"").toLowerCase()]; if(m&&frKeys.delete(m)&&FR.on) frKeyAxis(); });
   addEventListener("blur",()=>{ frKeys.clear(); if(FR.on) frKeyAxis(); });
   if(/[?&]dbg3d/.test(location.search)) window.__fr={FR,sim:sec=>{ for(let t=0;t<sec;t+=1/60) frStep(1/60); return {x:FR.x,z:FR.z,v:FR.v,h:FR.h,crash:!!FR.crash,lift:FR.lift&&FR.lift.Lf.id}; },start:frStart,stop:frStop,jump:frJump,hit:frHit,board:id=>frBoard(liftObj[id]),top:id=>frTopOf(liftObj[id]),st:id=>{ const o=liftObj[id]; return o&&(o.frS||frStOf(o)); },
-    tp:(x,z,h)=>{ FR.x=x; FR.z=z; FR.y=hAt(x,z); if(h!=null) FR.h=h; FR.v=0; FR.w=0; FR.air=false; FR.crash=null; FR.hold=false; FR.armed=!frStation(x,z); baseOK=false; frTrackBreak(); FR.hist.length=0; },
-    cs:id=>frCourseStart(id), tw:id=>liftObj[id]&&liftObj[id].tw, lo:id=>liftObj[id], signs:()=>signG.visible, hat:(x,z)=>hAt(x,z), gb:id=>{ const o=liftObj[id]; if(!o) return null; const p=P3(o.b[0],o.b[1],0); return [p.x,p.y,p.z]; }, lifts:()=>lifts.map(o=>o.Lf.id), cam:()=>({up:camera.up.toArray().map(v=>+v.toFixed(4)),c:camera.position.toArray().map(v=>+v.toFixed(1)),t:controls.target.toArray().map(v=>+v.toFixed(1)),r:riderM.position.toArray().map(v=>+v.toFixed(1)),rv:riderM.visible,near:camera.near,fov:+camera.fov.toFixed(1),base:baseOK}),
+    tp:(x,z,h)=>{ FR.x=x; FR.z=z; FR.y=hAt(x,z); FR.ramp=null; if(h!=null) FR.h=h; FR.v=0; FR.w=0; FR.air=false; FR.crash=null; FR.hold=false; FR.armed=!frStation(x,z); baseOK=false; frTrackBreak(); FR.hist.length=0; },
+    cs:id=>frCourseStart(id), tw:id=>liftObj[id]&&liftObj[id].tw, lo:id=>liftObj[id], ramps:()=>jmpCur.map(r=>({x:r.x,z:r.z,h:r.h,L:r.J.L,H:r.J.H,W:r.J.W})), ramp:()=>FR.ramp&&{u:FR.ramp.u}, signs:()=>signG.visible, hat:(x,z)=>hAt(x,z), gb:id=>{ const o=liftObj[id]; if(!o) return null; const p=P3(o.b[0],o.b[1],0); return [p.x,p.y,p.z]; }, lifts:()=>lifts.map(o=>o.Lf.id), cam:()=>({up:camera.up.toArray().map(v=>+v.toFixed(4)),c:camera.position.toArray().map(v=>+v.toFixed(1)),t:controls.target.toArray().map(v=>+v.toFixed(1)),r:riderM.position.toArray().map(v=>+v.toFixed(1)),rv:riderM.visible,near:camera.near,fov:+camera.fov.toFixed(1),base:baseOK}),
     tree:(X,Z,R)=>{ const px=X/M+W2, py=Z/M+H2, r=R/M; let b=null, bd=1e18; for(let i=0;i<AF.n;i++){ if(AF.gone[i]) continue; const d=(AF.x[i]-px)**2+(AF.y[i]-py)**2; if(d<bd&&d<r*r){ bd=d; b=[(AF.x[i]-W2)*M,(AF.y[i]-H2)*M,frTreeR(AF.x[i],AF.y[i],AF.s[i])]; } } return b; }};
   function update(now,dt){ if(window.__frz) dt=0; // 確かめ用：止める
     if(!reduce) lifts.forEach(o=>{ o.off+=dt*LIFT_V*o.mul; if(o.off>=o.L) o.off-=o.L; });
@@ -2849,14 +2921,14 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       let pos3, fwd, fwdC=null;
       if(anim.kind==="ski"){ const W=anim.W;
         if(W){ const sM=wIdx(W,e), q=wAt(W,sM,W.x,W.y), q2=wAt(W,sM+2.5,W.x,W.y), c1=wAt(W,sM,W.cx,W.cy), c2=wAt(W,sM+15,W.cx,W.cy); anim.sM=sM;
-          pos3=P3(q[0],q[1],anim.A.up); fwd=P3(q2[0],q2[1],anim.A.up).sub(pos3); fwdC=P3(c2[0],c2[1],0).sub(P3(c1[0],c1[1],0));
-          const D=anim.dur/1000/(follow?SPEEDS[spIdx][0]*CAMS[camIdx][2]:1); anim.v=W.v[Math.min(W.n-1,Math.round(sM))]*W.tot/Math.max(.1,D); trackS.value=sM; riderPose(q,fwd,dt,fwdC); }
-        else { const q=at(anim.A,e); pos3=P3(q.x,q.y,anim.A.up); const q2=at(anim.A,Math.min(1,e+.03)); fwd=P3(q2.x,q2.y,anim.A.up).sub(pos3); }
+          pos3=P3(q[0],q[1],anim.A.up); fwd=P3(q2[0],q2[1],anim.A.up).sub(pos3); fwdC=P3(c2[0],c2[1],0).sub(P3(c1[0],c1[1],0)); const ro=rampRide(anim,pos3.x,pos3.z,dt,fwd); pos3.y+=ro;
+          const D=anim.dur/1000/(follow?SPEEDS[spIdx][0]*CAMS[camIdx][2]:1); anim.v=W.v[Math.min(W.n-1,Math.round(sM))]*W.tot/Math.max(.1,D); trackS.value=sM; riderPose(q,fwd,dt,fwdC); riderM.position.y+=ro; }
+        else { const q=at(anim.A,e); pos3=P3(q.x,q.y,anim.A.up); const q2=at(anim.A,Math.min(1,e+.03)); fwd=P3(q2.x,q2.y,anim.A.up).sub(pos3); pos3.y+=rampRide(anim,pos3.x,pos3.z,dt,fwd); }
         skier.position.copy(pos3); if(fwd.lengthSq()>1e-6) skFwd.copy(fwd); }
       else { const p=anim.o.curve.getPoint(e); pos3=p.clone().add(new THREE.Vector3(anim.o.side.x,-3,anim.o.side.z)); rider.position.copy(pos3).add(new THREE.Vector3(0,-1,0)); fwd=anim.o.curve.getTangent(e); }
       const vm=anim.kind==="ski"?CAMS[camIdx][0]:"far";
       if(follow&&vm==="eye"){ // 滑る人の目の高さから、約45m先を見る
-        const W=anim.W, qa=W?wAt(W,anim.sM,W.x,W.y):(t=>[t.x,t.y])(at(anim.A,e)), la=ahead(anim.A,W?anim.sM/(anim.A.len*M):e,45/M), eye=P3(qa[0],qa[1],3), look=P3(la[0],la[1],2.5), g=hAny(eye.x,eye.z)+2.2; if(eye.y<g) eye.y=g;
+        const W=anim.W, qa=W?wAt(W,anim.sM,W.x,W.y):(t=>[t.x,t.y])(at(anim.A,e)), la=ahead(anim.A,W?anim.sM/(anim.A.len*M):e,45/M), eye=P3(qa[0],qa[1],3), look=P3(la[0],la[1],2.5), g=hAny(eye.x,eye.z)+2.2; if(eye.y<g) eye.y=g; eye.y+=anim.ro||0; look.y+=(anim.ro||0)*.5; // ジャンプ台の 上・空中
         if(anim.snap||!baseOK){ baseC.copy(eye); baseT.copy(look); baseOK=true; } else { baseC.lerp(eye,1-Math.exp(-dt*10)); baseT.lerp(look,1-Math.exp(-dt*5)); } anim.snap=false; headTurn(baseC,baseT); bank(baseC,baseT,dt); }
       else if(follow&&fwd&&fwd.lengthSq()>0){ if(fwdC&&fwdC.lengthSq()>1e-6) fwd=fwdC; fwd.y=0; fwd.normalize(); const ski=anim.kind==="ski", nr=vm==="near"; // カメラは コースの向き（ターンで ゆれない）
         const want=pos3.clone().addScaledVector(fwd,ski?(nr?-20:-150):-70); want.y=pos3.y+(ski?(nr?8:70):30);
@@ -2871,6 +2943,15 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
         endRun(wasEye); }
     }
   }
+  // 自動で すべる 人：ジャンプ台の 上は 台に そって のぼり（体も 台の 坂に）、ふちから 放物線で とぶ。雪からの 高さを かえす
+  //  上から 見る 再生は 早送りなので、秒速 16m（時速 約58km）より 速い ときは、その 速さで すべった ときと 同じ 形に とぶよう 重力も 早送りの 2乗に
+  function rampRide(A,X,Z,dt,fwd){ if(!jmpCur.length){ A.ro=0; A.rAir=false; return 0; }
+    const g=hAt(X,Z), rp=rampAt(X,Z), jump=A.rX==null||Math.hypot(X-A.rX,Z-A.rZ)>Math.max(6,80*dt), gE=FRG*Math.max(1,Math.pow((A.v||0)/16,2)); let Y=g; // 早送り・はじめから
+    if(jump){ A.rAir=false; A.rOn=!!rp; A.rVy=0; if(rp) Y=g+rp.y; }
+    else if(A.rAir){ A.rVy-=gE*dt; Y=A.rY+A.rVy*dt; const top=g+(rp?rp.y:0); if(Y<=top){ Y=top; A.rAir=false; A.rOn=!!rp; } }
+    else if(rp){ Y=g+rp.y; if(dt>0) A.rVy=(Y-A.rY)/dt; A.rOn=true; if(fwd){ const hz=Math.hypot(fwd.x,fwd.z); fwd.y+=rp.k*Math.cos(Math.atan2(fwd.x,fwd.z)-rp.r.h)*hz; } }
+    else if(A.rOn){ A.rOn=false; if(A.rY-g>.3&&dt>0){ A.rAir=true; A.rVy-=gE*dt; Y=A.rY+A.rVy*dt; if(Y<=g){ Y=g; A.rAir=false; } } } // ふちを こえた
+    A.rX=X; A.rZ=Z; A.rY=Y; A.ro=Math.max(0,Y-g); return A.ro; }
   function endRun(wasEye){ const A=anim.A; anim=null; endFollow(); if(seq) setTimeout(nextSeq,250); spray.visible=false; camera.up.set(0,1,0); clearTimeout(rHide.t); rHide.t=setTimeout(()=>{ if(!anim||anim.kind!=="ski"){ riderM.visible=false; needDraw=true; } },8000);
     if(wasEye){ /* 下に着いたら、少し上から ふりかえる */ const n=A.sp.length, p=A.sp[n-1], o=A.sp[Math.max(0,n-4)]; flyTo(P3(p[0],p[1],0),380,Math.atan2(-(p[1]-o[1]),-(p[0]-o[0])),1,1600); }
     else controls.repivot(); }
@@ -2959,7 +3040,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function edOptions(){ [...edSel.options].forEach(o=>{ if(o.value==="__new") return;
     if(isMy(o.value)){ const saved=MY3D.some(c=>c.id===o.value); o.textContent=myName(o.value)+(saved?"":"（まだ保存していません）")+(saved&&(ed.drafts[o.value]||ed.metas[o.value])?" ✎":""); return; }
     const c=COURSES3D.find(x=>x.id===o.value), d=ed.nameDraft[c.id]; o.textContent=(d!=null&&d.trim()?d.trim():c.name)+(ovr3d[c.id]||NAME3D[c.id]?" ✓":"")+(ed.drafts[c.id]||d!=null?" ✎":""); }); }
-  function edMetaShow(){ const on=ed.on&&ed.tool==="course"&&!!ed.id&&ed.id!=="__new", mine=on&&isMy(ed.id); edMeta.hidden=!on; box.classList.toggle("edrow2",on); delSure(false);
+  function edMetaShow(){ const on=ed.on&&ed.tool==="course"&&!!ed.id&&ed.id!=="__new", mine=on&&isMy(ed.id); edMeta.hidden=!on; box.classList.toggle("edrow2",on||(ed.on&&(ed.tool==="bld"||ed.tool==="jump"))); delSure(false);
     edLv.hidden=delBtn.hidden=!mine; edName.placeholder=mine?"コースの名前（例：林の中の近道）":"コースの名前（変えると 地図のボタンも かわります）";
     if(mine){ const m=ed.metas[ed.id], c=MY3D.find(x=>x.id===ed.id); edName.value=m?m.name:(c?c.name:""); edLv.value=myLv(ed.id); }
     else if(on){ const d=ed.nameDraft[ed.id], c=COURSES3D.find(x=>x.id===ed.id); edName.value=d!=null?d:(c?c.name:""); } }
@@ -3012,18 +3093,18 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   }
   function edStart(id,tool){ if(FR.on) frStop(true);
     if(!COURSE_IDS.has(id)&&!isMy(id)) id=COURSES[0].id; edBuild();
-    ed.on=true; box.classList.add("editing"); $(".stage-map .map").classList.add("editing3d"); edBox.hidden=false; controls.tapZoom=false;
+    ed.on=true; if(!full3d&&innerWidth<760){ setFull3d(true); ed.autoFull=true; } box.classList.add("editing"); $(".stage-map .map").classList.add("editing3d"); edBox.hidden=false; controls.tapZoom=false;
     anim=null; stopRide(); follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null; seq=null;
     Object.values(liftObj).forEach(o=>o.set(false));
     Object.values(courseObj).forEach(o=>{ o.grp.visible=true; o.set(.35); }); edGroup.visible=true; edOpen(id); edTool("course"); // 雪・木・リフトの道具は やめた（保存した 雪・木・リフトは そのまま 出る）
   }
   function edEnd(){
-    if(!ed.on) return; edKeep(); ed.on=false; box.classList.remove("editing","edrow2"); $(".stage-map .map").classList.remove("editing3d"); edBox.hidden=true; edMeta.hidden=true; delSure(false);
-    controls.paint=false; pst=null; pIds.clear(); showRing(null); Object.values(liftObj).forEach(o=>o.set(false));
+    if(!ed.on) return; edKeep(); ed.on=false; box.classList.remove("editing","edrow2"); $(".stage-map .map").classList.remove("editing3d"); edBox.hidden=true; edMeta.hidden=true; delSure(false); if(ed.autoFull){ ed.autoFull=false; if(full3d) setFull3d(false); }
+    controls.paint=false; pst=null; pIds.clear(); showRing(null); oTap=null; obj.drag=null; obj.sel=null; selRing.visible=false; Object.values(liftObj).forEach(o=>o.set(false));
     edGroup.visible=false; ed.pts=[]; ed.sel=-1; edDraw(); controls.enabled=true; controls.tapZoom=true;
     Object.values(courseObj).forEach(o=>{ o.set(1); o.grp.visible=false; });
-    if(Object.keys(ed.drafts).length||Object.keys(ed.metas).some(k=>!MY3D.some(c=>c.id===k))) toast("保存していない線は、下書きとして残してあります（「✏️ 描く」でつづけられます）");
-    if(env.dirty.snow||env.dirty.trees||env.dirty.lifts) toast("保存していない 雪・木・リフトの変更があります（「✏️ 描く」→「保存」）");
+    if(Object.keys(ed.drafts).length||Object.keys(ed.metas).some(k=>!MY3D.some(c=>c.id===k))) toast("保存していない線は、下書きとして残してあります（「🛠 エディター」でつづけられます）");
+    if(env.dirty.snow||env.dirty.trees||env.dirty.lifts||env.dirty.blds||env.dirty.jumps) toast("保存していない 木・建物・ジャンプ台の 変更が あります（「🛠 エディター」→「保存」）");
     const id=ed.id; ed.id=null; if(id){ if(id!==selected&&findItem(id)) pickCourse(id); else select(id,curShow,true); }
   }
   // 押した所の地面
@@ -3115,18 +3196,21 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const pEnd=e=>{ if(!pIds.has(e.pointerId)&&!(pst&&pst.id===e.pointerId)) return; pIds.delete(e.pointerId); if(!pIds.size) pst=null; };
   box.addEventListener("pointerup",pEnd,true); box.addEventListener("pointercancel",pEnd,true);
   renderer.domElement.addEventListener("pointerleave",()=>{ if(!pst) showRing(null); });
-  function envUndo(){ const k=tk(), h=env.hist[k]; if(ed.tool==="lift"||!h.length) return; envRestore(k,h.pop()); env.dirty[k]=true; edBar(); }
+  function envUndo(){ if(isObj()){ const k=okey(), h=env.hist[k]; if(!h.length) return; const v=JSON.parse(h.pop()); if(k==="blds") bldEdit=v; else jmpEdit=v; obj.sel=null; objRebuild(k); return; }
+    const k=tk(), h=env.hist[k]; if(ed.tool==="lift"||!h.length) return; envRestore(k,h.pop()); env.dirty[k]=true; edBar(); }
   async function envSave(){ const jobs=[];
     if(env.dirty.snow) jobs.push(["snow",{png:maskEmpty()?"":maskCv.toDataURL("image/png")}]);
     if(env.dirty.trees) jobs.push(["trees",{t:treeArr.slice(),em:eraseEmpty()?"":eraseCv.toDataURL("image/png")}]);
     if(env.dirty.lifts) jobs.push(["lifts",{L:JSON.parse(JSON.stringify(LSET))}]);
+    if(env.dirty.blds) jobs.push(["blds",{d:objWork("blds").d.slice(),a:objWork("blds").a.map(b=>b.slice())}]);
+    if(env.dirty.jumps) jobs.push(["jumps",{j:objWork("jumps").j.map(b=>b.slice())}]);
     if(!jobs.length){ toast("変えた所は ありません"); return; }
     const b=$("#edSave"); b.disabled=true; b.textContent="保存中…"; let where="db";
     try{ for(const [k,v] of jobs){ where=await saveEnv(k,v); env.dirty[k]=false; } toast(where==="db"?"保存しました。このアプリの3Dの地図に出ます":"この端末に保存しました"); }
     catch(err){ toast(err&&err.code==="quota_exceeded"?"保存できる量をこえました":"保存できませんでした。少し待ってからもう一度押してください"); }
     b.disabled=false; b.textContent="保存"; edBar(); }
-  function edBar(){ toolBtns.forEach(b=>{ const t=b.dataset.tool; b.classList.toggle("dirty",t==="snow"?env.dirty.snow:t==="tree"?env.dirty.trees:t==="lift"?env.dirty.lifts:false); });
-    if(ed.tool==="course") $("#edUndo").disabled=!ed.hist.length; else if(ed.tool!=="lift") $("#edUndo").disabled=!env.hist[tk()].length; }
+  function edBar(){ toolBtns.forEach(b=>{ const t=b.dataset.tool; b.classList.toggle("dirty",t==="snow"?env.dirty.snow:t==="tree"?env.dirty.trees:t==="lift"?env.dirty.lifts:t==="bld"?env.dirty.blds:t==="jump"?env.dirty.jumps:false); });
+    if(ed.tool==="course") $("#edUndo").disabled=!ed.hist.length; else if(ed.tool==="bld"||ed.tool==="jump") $("#edUndo").disabled=!env.hist[okey()].length; else if(ed.tool!=="lift") $("#edUndo").disabled=!env.hist[tk()].length; }
   // リフト：支柱の間隔・高さ
   LIFTS3D.forEach(Lf=>{ const o=document.createElement("option"); o.value=Lf.id; o.textContent=Lf.name||Lf.chip||Lf.id; edLiftSel.appendChild(o); });
   function liftUI(){ const id=edLiftSel.value, e=liftSet(id); $("#edGap").value=e.gap; $("#edGapV").textContent=e.gap+"m"; $("#edH").value=e.h; $("#edHV").textContent=e.h+"m";
@@ -3142,28 +3226,109 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     clearTimeout(liftT); liftT=setTimeout(()=>{ rebuildLifts(); liftUI(); },120); }
   $("#edGap").oninput=liftInput; $("#edH").oninput=liftInput;
   $$("#edLMode [data-m]").forEach(b=>b.onclick=()=>{ $$("#edLMode [data-m]").forEach(x=>x.setAttribute("aria-pressed",String(x===b))); $("#edGap").closest("label").hidden=b.dataset.m!=="even"; liftInput(); });
+  // リセット：木・建物・ジャンプ台を 最初の 形に（2回 押す。「↶ 戻す」で 取り消せる。「保存」で 決まる）
+  const edOrig=$("#edOrig"); let origT=0;
+  function origSure(on){ edOrig.classList.toggle("sure",on); edOrig.textContent=on?"もう一度":"リセット"; clearTimeout(origT); if(on) origT=setTimeout(()=>origSure(false),3000); }
+  edOrig.onclick=()=>{ if(!edOrig.classList.contains("sure")){ origSure(true); return; } origSure(false);
+    if(isObj()){ const k=okey(); objSnap(k); if(k==="blds") bldEdit={d:[],a:[]}; else jmpEdit={j:[]}; obj.sel=null; objRebuild(k); }
+    else if(ed.tool==="tree"){ envSnap(); envRestore("trees",{t:[],e:new Uint8Array(eraseA.length)}); env.dirty.trees=true; edBar(); }
+    else return;
+    toast(ed.tool==="bld"?"建物を 最初の 形に もどしました（「保存」で 決まります）":ed.tool==="jump"?"ジャンプ台を ぜんぶ 消しました（「保存」で 決まります）":"木を 最初の 形に もどしました（「保存」で 決まります）"); };
   $("#edLiftReset").onclick=()=>{ delete LSET[edLiftSel.value]; env.dirty.lifts=true; rebuildLifts(); liftUI(); edBar(); toast("支柱を写真の位置・ふつうの高さにもどしました（「保存」で決まります）"); };
   $$("#edPMode [data-m]").forEach(b=>b.onclick=()=>{ env.mode[tk()]=b.dataset.m; edTool(ed.tool); });
   edSize.oninput=()=>{ const k=tk(); env.size[k]=+edSize.value; edSizeV.textContent=edSize.value+"m"; if(ring.visible){ const r=env.size[k]; ring.scale.set(r,r,r); needDraw=true; } };
-  toolBtns.forEach(b=>b.onclick=()=>{ if(b.dataset.tool!==ed.tool){ if(ed.tool==="course") edKeep(); edTool(b.dataset.tool); } });
+  toolBtns.forEach(b=>b.onclick=()=>{ if(b.dataset.tool!==ed.tool){ if(ed.tool==="course") edKeep(); edTool(b.dataset.tool); } else helpShow(true); });
   const HELP={snow:"なぞった所を、雪の白で ぬれます（「消す」で もとにもどる）。地図は2本指（パソコンは右ドラッグ・ホイール）で動かせます",
-    tree:"なぞった所に 木が生えます（「消す」で 木をとる）。地図は2本指（パソコンは右ドラッグ・ホイール）で動かせます",
+    tree:"🌲 植える：なぞった所に 木が 生えます（太さを 小さく すると 1本ずつ）。🪓 消す：なぞった所の 木を とります（林の 木も）。地図は 2本指（パソコンは 右ドラッグ・ホイール）で 動かせます",
+    bld:"➕ 建てる：押した所に 建物を 建てます（小・中・大と 屋根の 色を えらべます）。✋ 動かす：建物を ドラッグで 動かし、押して えらんだ 建物を ⟲⟳ で 回せます。🗑 消す：押した 建物を 消します（元から ある 建物も）",
+    jump:"➕ 置く：押した所に 下りの 向きで ジャンプ台を 置きます（小・中・大）。✋ 動かす：ドラッグで 動かし、⟲⟳ で 向きを 変えます。🗑 消す：押した 台を 消します。⛷ フリーランで 台を すべると、ふちから とびます",
     lift:"支柱は、航空写真で見える位置に立てています（「📏 等間隔」で間隔を自分で決められます）。高さも変えられます。ワイヤーが地面に近い所の支柱は、自動で少し高くなります"};
+  // ===== 🏠 建物・⛷ ジャンプ台：➕ 建てる（置く）・✋ 動かす（ドラッグ。⟲⟳ で 回す、小・中・大）・🗑 消す。元から ある 建物も 消したり 動かしたり できる =====
+  const OSZ=[[8,6],[14,10],[24,14]], ROOFS=["#8a3b2c","#5d6470","#2f5f8f","#3f6b4a","#b08a3c"], edObjN=$("#edObjN"), edObj=$("#edObj"), edObj2=$("#edObj2"), edRoof=$("#edRoof");
+  const obj={mode:{bld:"add",jump:"add"},size:{bld:1,jump:1},roof:ROOFS[0],sel:null,drag:null};
+  Object.assign(env.dirty,{blds:false,jumps:false}); Object.assign(env.hist,{blds:[],jumps:[]});
+  const isObj=()=>ed.on&&(ed.tool==="bld"||ed.tool==="jump"), okey=()=>ed.tool==="bld"?"blds":"jumps";
+  ROOFS.forEach(c=>{ const b=document.createElement("button"); b.type="button"; b.dataset.c=c; b.style.setProperty("--c",c); b.setAttribute("aria-label","屋根の 色"); b.setAttribute("aria-pressed",String(c===obj.roof)); edRoof.appendChild(b); });
+  const selRing=new THREE.Mesh(new THREE.RingGeometry(.92,1,56),new THREE.MeshBasicMaterial({color:0xffd23a,transparent:true,opacity:.95,depthTest:false,side:THREE.DoubleSide})); selRing.rotation.x=-Math.PI/2; selRing.renderOrder=21; selRing.visible=false; scene.add(selRing);
+  function objWork(k){ // 下書き（はじめて さわる とき、いまの データから 写す）
+    if(k==="blds"){ if(!bldEdit){ const E=ENV3D.blds||{}; bldEdit={d:(E.d||[]).slice(),a:(E.a||[]).map(b=>b.slice())}; } return bldEdit; }
+    if(!jmpEdit){ const E=ENV3D.jumps||{}; jmpEdit={j:(E.j||[]).map(b=>b.slice())}; } return jmpEdit; }
+  function objSnap(k){ const h=env.hist[k]; h.push(JSON.stringify(objWork(k))); if(h.length>30) h.shift(); }
+  function objRebuild(k,quiet){ if(k==="blds") bldBuild(); else jmpBuild(); if(!quiet){ env.dirty[k]=true; edBar(); } objCount(); selShow(); }
+  const objCount=()=>{ if(!isObj()) return; if(ed.tool==="bld"){ const w=bldEdit||ENV3D.blds||{d:[],a:[]}; edObjN.textContent=`${bldCur.length}棟`+((w.d||[]).length||(w.a||[]).length?`（消した ${(w.d||[]).length}・建てた ${(w.a||[]).length}）`:""); } else edObjN.textContent=`${jmpCur.length}台`; };
+  // 押した 所の 建物（bldCur の 1つ）／ジャンプ台（番号）
+  function bldHitAt(X,Y,pad){ let best=null, bd=1e9; bldCur.forEach(b=>{ const [x,y,L,W,a]=b, dx=(X-x)*M, dy=(Y-y)*M, lu=dx*Math.cos(a)+dy*Math.sin(a), lv=-dx*Math.sin(a)+dy*Math.cos(a);
+      if(Math.abs(lu)<L/2+pad&&Math.abs(lv)<W/2+pad){ const d=Math.hypot(dx,dy); if(d<bd){ bd=d; best=b; } } }); return best; }
+  function jmpHitAt(X,Y,pad){ const E=objWork("jumps"); let best=-1, bd=1e9; E.j.forEach(([x,y,h,z],i)=>{ const J=JSZ[z]||JSZ[1], dx=(X-x)*M, dy=(Y-y)*M, u=dx*Math.sin(h)+dy*Math.cos(h), v=dx*Math.cos(h)-dy*Math.sin(h);
+      if(u>-pad&&u<J.L+pad&&Math.abs(v)<J.W/2+pad){ const d=Math.hypot(dx-Math.sin(h)*J.L/2,dy-Math.cos(h)*J.L/2); if(d<bd){ bd=d; best=i; } } }); return best; }
+  // 元から ある 建物を 動かす・回す・大きさを 変える ときは、「消して、同じ 物を 建てる」に する
+  function bldOwn(src){ const w=objWork("blds"); if(typeof src==="string") return +src.slice(1); const b=BLDS[src]; if(!w.d.includes(src)) w.d.push(src); w.a.push([b[0],b[1],b[2],b[3],b[4],b[5]]); return w.a.length-1; }
+  function selShow(){ const s=obj.sel; let c=null, r=0;
+    if(s&&isObj()&&((s.k==="blds")===(ed.tool==="bld"))){ if(s.k==="blds"){ const b=bldCur.find(b=>b[6]===s.ref); if(b){ c=P3(b[0],b[1],2.5); r=Math.hypot(b[2],b[3])/2+1.5; } }
+      else { const j=jmpCur[s.ref]; if(j){ c=new THREE.Vector3(j.x+Math.sin(j.h)*j.J.L/2,0,j.z+Math.cos(j.h)*j.J.L/2); c.y=hAt(c.x,c.z)+2.5; r=Math.hypot(j.J.L,j.J.W)/2+1.2; } } }
+    if(c){ selRing.position.copy(c); selRing.scale.set(r,r,r); selRing.visible=true; } else selRing.visible=false; needDraw=true; }
+  function camAngles(){ const f=new THREE.Vector3(); camera.getWorldDirection(f); return {fwd:Math.atan2(f.x,f.z),side:Math.atan2(f.x,-f.z)}; } // 見ている 向き／画面の 横
+  function objAdd(g){ const k=okey(); objSnap(k);
+    if(k==="blds"){ const w=objWork(k), [L,W]=OSZ[obj.size.bld]; w.a.push([Math.round(g[0]*100)/100,Math.round(g[1]*100)/100,L,W,Math.round(camAngles().side*1000)/1000,obj.roof]); obj.sel={k,ref:"a"+(w.a.length-1)}; }
+    else { const w=objWork(k), z=obj.size.jump, J=JSZ[z], c=P3(g[0],g[1],0), fl=frFall(c.x,c.z,6), h=fl[2]>.02?Math.atan2(fl[0],fl[1]):camAngles().fwd; // 下りの 向き
+      w.j.push([Math.round((g[0]-Math.sin(h)*J.L/2/M)*100)/100,Math.round((g[1]-Math.cos(h)*J.L/2/M)*100)/100,Math.round(h*1000)/1000,z]); obj.sel={k,ref:w.j.length-1}; }
+    objRebuild(k); }
+  function objDel(g){ const k=okey();
+    if(k==="blds"){ const b=bldHitAt(g[0],g[1],1); if(!b){ toast("建物を 押してください"); return; } objSnap(k); const w=objWork(k);
+      if(typeof b[6]==="string") w.a.splice(+b[6].slice(1),1); else if(!w.d.includes(b[6])) w.d.push(b[6]); }
+    else { const i=jmpHitAt(g[0],g[1],1); if(i<0){ toast("ジャンプ台を 押してください"); return; } objSnap(k); objWork(k).j.splice(i,1); }
+    obj.sel=null; objRebuild(k); }
+  function objSelect(g){ const k=okey(); if(k==="blds"){ const b=bldHitAt(g[0],g[1],1); obj.sel=b?{k,ref:b[6]}:null; } else { const i=jmpHitAt(g[0],g[1],1); obj.sel=i>=0?{k,ref:i}:null; } selShow(); }
+  // えらんだ 物を 変える（f が 中身を 書きかえる）。元から ある 建物は 自分の 物に してから
+  function objEditSel(f){ const s=obj.sel; if(!s||(s.k==="blds")!==(ed.tool==="bld")) { toast(ed.tool==="bld"?"✋ 動かす で 建物を えらんでください":"✋ 動かす で ジャンプ台を えらんでください"); return; }
+    objSnap(s.k); if(s.k==="blds"){ const i=bldOwn(s.ref); s.ref="a"+i; f(objWork("blds").a[i]); } else f(objWork("jumps").j[s.ref]); objRebuild(s.k); }
+  function objRot(d){ objEditSel(b=>{ if(ed.tool==="bld") b[4]=Math.round((b[4]-d)*1000)/1000; else { const J=JSZ[b[3]]||JSZ[1], cx=b[0]+Math.sin(b[2])*J.L/2/M, cy=b[1]+Math.cos(b[2])*J.L/2/M; b[2]=Math.round((b[2]+d)*1000)/1000; b[0]=cx-Math.sin(b[2])*J.L/2/M; b[1]=cy-Math.cos(b[2])*J.L/2/M; } }); } // 台は まん中を 中心に 回す
+  $("#edRotL").onclick=()=>objRot(Math.PI/12); $("#edRotR").onclick=()=>objRot(-Math.PI/12); // ⟲＝上から 見て 反時計まわり（建物の 角度は 増えると 時計まわり、台の 向きは 増えると 反時計まわり）
+  $$("#edOMode [data-m]").forEach(b=>b.onclick=()=>{ obj.mode[ed.tool]=b.dataset.m; edTool(ed.tool); });
+  $$("#edOSize [data-s]").forEach(b=>b.onclick=()=>{ const z=+b.dataset.s; obj.size[ed.tool]=z; $$("#edOSize [data-s]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+    const s=obj.sel; if(s&&(s.k==="blds")===(ed.tool==="bld")) objEditSel(v=>{ if(ed.tool==="bld"){ v[2]=OSZ[z][0]; v[3]=OSZ[z][1]; } else { const J0=JSZ[v[3]]||JSZ[1], J=JSZ[z], cx=v[0]+Math.sin(v[2])*J0.L/2/M, cy=v[1]+Math.cos(v[2])*J0.L/2/M; v[3]=z; v[0]=cx-Math.sin(v[2])*J.L/2/M; v[1]=cy-Math.cos(v[2])*J.L/2/M; } }); });
+  edRoof.querySelectorAll("button").forEach(b=>b.onclick=()=>{ obj.roof=b.dataset.c; edRoof.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+    const s=obj.sel; if(s&&s.k==="blds") objEditSel(v=>{ v[5]=obj.roof; }); });
+  // 押す・ドラッグ（1本指・マウスの 左）。2本目の 指が 来たら 地図の 操作
+  let oTap=null;
+  box.addEventListener("pointerdown",e=>{ if(!isObj()||e.target!==renderer.domElement) return; if(e.pointerType==="mouse"&&e.button!==0) return;
+    if(oTap){ oTap.multi=true; if(obj.drag){ const d=obj.drag; obj.drag=null; if(d.on){ const h=env.hist[d.k]; if(h.length){ const v=JSON.parse(h.pop()); if(d.k==="blds") bldEdit=v; else jmpEdit=v; objRebuild(d.k,true); } } } return; }
+    const g=pickGround(e.clientX,e.clientY); oTap={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now(),g,multi:false};
+    if(obj.mode[ed.tool]==="move"&&g){ const k=okey(); // 押しただけなら えらぶ だけ（元の 建物も そのまま）。動かしはじめて から 自分の 物に
+      if(k==="blds"){ const b=bldHitAt(g[0],g[1],1.5); if(b){ obj.sel={k,ref:b[6]}; obj.drag={k,ref:b[6],ox:b[0]-g[0],oy:b[1]-g[1],t:0,on:false}; } }
+      else { const i=jmpHitAt(g[0],g[1],1.5); if(i>=0){ const v=objWork(k).j[i]; obj.sel={k,ref:i}; obj.drag={k,i,ox:v[0]-g[0],oy:v[1]-g[1],t:0,on:false}; } }
+      if(obj.drag){ e.stopPropagation(); e.preventDefault(); selShow(); } } },true);
+  box.addEventListener("pointermove",e=>{ if(!obj.drag||!oTap||e.pointerId!==oTap.id||oTap.multi) return; e.stopPropagation(); const d=obj.drag;
+    if(!d.on){ if(Math.hypot(e.clientX-oTap.x,e.clientY-oTap.y)<6) return; objSnap(d.k); if(d.k==="blds"){ d.i=bldOwn(d.ref); obj.sel={k:d.k,ref:"a"+d.i}; } d.on=true; }
+    const g=pickGround(e.clientX,e.clientY); if(!g) return; const v=d.k==="blds"?objWork("blds").a[d.i]:objWork("jumps").j[d.i]; v[0]=Math.round(Math.max(1,Math.min(G.w-1,g[0]+d.ox))*100)/100; v[1]=Math.round(Math.max(1,Math.min(G.h-1,g[1]+d.oy))*100)/100;
+    const now=performance.now(); if(now-d.t>70){ d.t=now; objRebuild(d.k,true); } },true);
+  const oEnd=e=>{ if(!oTap||e.pointerId!==oTap.id) return; const T=oTap; oTap=null;
+    if(obj.drag){ const d=obj.drag; obj.drag=null; if(d.on) objRebuild(d.k); else selShow(); return; }
+    if(T.multi||!T.g||Math.hypot(e.clientX-T.x,e.clientY-T.y)>10||performance.now()-T.t>700) return; // ずらした ときは 地図の 操作
+    const m=obj.mode[ed.tool]; if(m==="add") objAdd(T.g); else if(m==="del") objDel(T.g); else objSelect(T.g); };
+  box.addEventListener("pointerup",oEnd,true); box.addEventListener("pointercancel",e=>{ if(oTap&&e.pointerId===oTap.id){ oTap=null; if(obj.drag){ const d=obj.drag; obj.drag=null; if(d.on) objRebuild(d.k); } } },true);
   function edTool(t){ ed.tool=t; ed.lastTool=t; toolBtns.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tool===t)));
-    const course=t==="course", paint=t==="snow"||t==="tree", lift=t==="lift";
-    $("#m3dEdit .ed-course").hidden=!course; edPaint.hidden=!paint; edLiftRow.hidden=!lift; edLiftSet.hidden=!lift;
-    edGroup.visible=course; controls.paint=paint; pst=null; pIds.clear(); if(!paint) showRing(null); edMetaShow();
-    $("#edDel").hidden=!course; $("#edReset").hidden=!course||!ovr3d[ed.id]; $("#edUndo").hidden=lift; $("#edLiftReset").hidden=!lift;
+    const course=t==="course", paint=t==="snow"||t==="tree", lift=t==="lift", ob=t==="bld"||t==="jump";
+    $("#m3dEdit .ed-course").hidden=!course; edPaint.hidden=!paint; edLiftRow.hidden=!lift; edLiftSet.hidden=!lift; edObj.hidden=!ob; edObj2.hidden=!ob; edRoof.hidden=t!=="bld";
+    edGroup.visible=course; controls.paint=paint||(ob&&obj.mode[t]==="move"); pst=null; pIds.clear(); oTap=null; obj.drag=null; if(!paint) showRing(null); edMetaShow();
+    if(ob){ $$("#edOMode [data-m]").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.m===obj.mode[t])); if(b.dataset.m==="add") b.textContent=t==="bld"?"➕ 建てる":"➕ 置く"; });
+      $$("#edOSize [data-s]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.s===obj.size[t]))); objCount(); }
+    selShow();
+    $("#edDel").hidden=!course; $("#edReset").hidden=!course||!ovr3d[ed.id]; $("#edUndo").hidden=lift; $("#edLiftReset").hidden=!lift; edOrig.hidden=!(ob||t==="tree"); origSure(false);
     if(paint){ const k=tk(); edSize.min=k==="snow"?10:6; edSize.max=k==="snow"?120:80; edSize.value=env.size[k]; edSizeV.textContent=env.size[k]+"m"; edTreeN.hidden=k!=="trees"; treeCount();
       $$("#edPMode [data-m]").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.m===env.mode[k])); b.textContent=b.dataset.m==="add"?(k==="snow"?"❄ ぬる":"🌲 植える"):(k==="snow"?"🧽 消す":"🪓 消す"); }); }
     if(lift){ if(!edLiftSel.value&&LIFTS3D.length) edLiftSel.value=LIFTS3D[0].id; liftUI(); const o=liftObj[edLiftSel.value]; if(o) liftView(o); }
     else Object.values(liftObj).forEach(o=>o.set(false));
-    if(course) edDraw(); else $("#edHelp").textContent=HELP[t]; edBar(); needDraw=true; }
+    if(course) edDraw(); else $("#edHelp").textContent=HELP[t]; helpShow(true); edBar(); needDraw=true; }
+  // 説明：道具を えらんだ ときに 出し、地図を さわったら うすく 消す（今の 道具を もう一度 押すと また 出る）。コースの 説明は 出したまま
+  let helpTxt=""; function helpShow(force){ const h=$("#edHelp"); if(force||h.textContent!==helpTxt){ helpTxt=h.textContent; h.classList.remove("fade"); } }
+  box.addEventListener("pointerup",()=>{ if(!ed.on||ed.tool==="course") return; const t=$("#edHelp").textContent; setTimeout(()=>{ const h=$("#edHelp"); if(ed.on&&ed.tool!=="course"&&h.textContent===t) h.classList.add("fade"); },900); });
   // 共有のデータが変わったら（編集中の変更は消さない）
   function envChanged(k){ const v=ENV3D[k]; if(ed.on&&env.dirty[k]) return;
     if(k==="snow") loadMask(v&&v.png);
     else if(k==="trees"){ treeArr=v?v.t.slice():[]; treesUpd(); treeCount(); eraseLoad(v,afAll); afAll(); }
-    else if(k==="lifts"){ Object.keys(LSET).forEach(id=>{ delete LSET[id]; }); if(v) Object.assign(LSET,JSON.parse(JSON.stringify(v.L))); rebuildLifts(); if(ed.on&&ed.tool==="lift") liftUI(); } }
+    else if(k==="lifts"){ Object.keys(LSET).forEach(id=>{ delete LSET[id]; }); if(v) Object.assign(LSET,JSON.parse(JSON.stringify(v.L))); rebuildLifts(); if(ed.on&&ed.tool==="lift") liftUI(); }
+    else if(k==="blds"||k==="jumps"){ if(k==="blds") bldEdit=null; else jmpEdit=null; env.dirty[k]=false; env.hist[k]=[]; if(obj.sel&&obj.sel.k===k) obj.sel=null; objRebuild(k,true); } }
   $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&(COURSE_IDS.has(selected)||isMy(selected))?selected:"centerB"); };
   function refreshCourse(id){ const c=course3d(id); if(!c) return; buildCourse(c); if(COURSE_IDS.has(id)) buildSigns(); needDraw=true; afLater();
     if(ed.on){ if(courseObj[id]){ courseObj[id].grp.visible=ed.id!==id; courseObj[id].set(.35); } if(ed.id===id&&!ed.dirty) edOpen(id,true); edOptions(); } }
@@ -3203,7 +3368,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       const d2=(x,y)=>{ let b=1e18; for(let k=0;k<sp.length-1;k++){ const ax=sp[k][0], ay=sp[k][1], dx=sp[k+1][0]-ax, dy=sp[k+1][1]-ay, l2=dx*dx+dy*dy||1e-9, t=Math.max(0,Math.min(1,((x-ax)*dx+(y-ay)*dy)/l2)), ex=x-ax-t*dx, ey=y-ay-t*dy; b=Math.min(b,ex*ex+ey*ey); } return b; };
       for(let i=0;i<AF.n;i++){ if(AF.gone[i]) continue; if(d2(AF.x[i],AF.y[i])<r2) n++; }
       for(let i=0;i+2<treeArr.length;i+=3) if(d2(treeArr[i],treeArr[i+1])<r2) np++;
-      out[id]=[n,np]; } return out; },cs:id=>{ const o=courseObj[id]; return o&&[P3(...o.sp[0],0).toArray(),P3(...o.sp[Math.min(o.sp.length-1,12)],0).toArray()]; },end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; },
+      out[id]=[n,np]; } return out; },cs:id=>{ const o=courseObj[id]; return o&&[P3(...o.sp[0],0).toArray(),P3(...o.sp[Math.min(o.sp.length-1,12)],0).toArray()]; },end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; }, seek:k=>{ if(anim&&anim.kind==="ski") anim.k=k; }, ro:()=>anim&&{ro:anim.ro||0,air:!!anim.rAir,k:anim.k}, jumps:a=>{ jmpEdit={j:a}; jmpBuild(); },
+    ed:()=>({a:JSON.parse(JSON.stringify((bldEdit||ENV3D.blds||{a:[]}).a||[])),j:JSON.parse(JSON.stringify((jmpEdit||ENV3D.jumps||{j:[]}).j||[])),full:full3d,help:!$("#edHelp").classList.contains("fade"),afOb:AF.ob?AF.ob.reduce((s,v)=>s+v,0):0,gone:AF.gone?AF.gone.reduce((s,v)=>s+v,0):0,orig:!$("#edOrig").hidden&&$("#edOrig").textContent,on:ed.on,tool:ed.tool,blds:bldCur.length,added:(bldEdit||ENV3D.blds||{a:[]}).a.length,del:(bldEdit||ENV3D.blds||{d:[]}).d.length,jumps:jmpCur.length,jh:jmpCur.map(j=>+j.h.toFixed(2)),jL:jmpCur.map(j=>j.J.L),trees:treeArr.length/3,dirty:Object.keys(env.dirty).filter(k=>env.dirty[k]).join(","),sel:obj.sel,undo:!$("#edUndo").disabled,n:edObjN.textContent}),
     chairs:id=>{ const o=liftObj[id], out=[]; chairs.forEach(c=>{ if(c.o!==o) return; const s=sOf(c); if(s>3&&s<o.upLen-2&&c.riders.length){ const P=new THREE.Vector3(), T=new THREE.Vector3(); atS(o,s,P,T); out.push({p:P.toArray(),t:T.normalize().toArray(),kinds:c.riders.map(r=>r.kind)}); } }); return out; },
     rt:id=>{ const o=courseObj[id]; return o&&{root:courseRoot.visible,grp:o.grp.visible,band:o.band.visible,flow:o.flow.visible,gates:o.gates.visible,half:o.L.ln.material.uniforms.uHalf.value}; },
     step:(dt,n)=>{ const z=window.__frz, out=[]; window.__frz=false; for(let i=0;i<n;i++){ update(performance.now(),dt); if(anim&&anim.kind==="ski") out.push([anim.k,anim.sM,anim.v,bnkR,bankAcc(),camera.position.x,camera.position.z]); else if(anim&&anim.fp) out.push([camera.position.x,camera.position.y,camera.position.z]); } window.__frz=z; return out; },
@@ -3267,7 +3433,7 @@ const LVS=["初級","中級","上級","道"], isMy=id=>typeof id==="string"&&/^m
 function myItem(id,v){ if(!isMy(id)||!v||v.custom!==true) return null; const pts=okPts(v.pts); if(!pts) return null;
   const name=String(v.name==null?"":v.name).replace(/\s+/g," ").trim().slice(0,20)||"じぶんのコース", lv=LVS.includes(v.lv)?v.lv:"中級", num=(x,a,b)=>Math.max(a,Math.min(b,Math.round(Number(x)||0)));
   return {id,name,short:name,lv,len:num(v.len,0,9999),avg:num(v.avg,0,60),max:num(v.max,0,70),map:v.map==="sv"?"sv":"tohachi",custom:true,at:String(v.at||""),pts,
-    txt:"自分で描いたコースです。長さと斜度は、描いた線と国土地理院の標高から計算した おおよその値です。",src:"じぶんで作成",tip:"線・名前・レベルは「✏️ 描く」で直せます。"}; }
+    txt:"自分で描いたコースです。長さと斜度は、描いた線と国土地理院の標高から計算した おおよその値です。",src:"じぶんで作成",tip:"線・名前・レベルは「🛠 エディター」で直せます。"}; }
 function localMy(){ const o=store.get("my3d",{})||{}, out=[]; Object.entries(o).forEach(([id,v])=>{ const c=myItem(id,v); if(c) out.push(c); }); return out.sort((a,b)=>a.id<b.id?-1:1); }
 // いちばん近い公式のコースで、東鉢側かスカイバレイ側かを決める
 function sideOf(pts){ const m=pts[Math.floor(pts.length/2)]; let best=null, bd=1e18;
@@ -3299,7 +3465,7 @@ const flat3d=pts=>[].concat(...pts.map(p=>[Math.round(p[0]*10)/10,Math.round(p[1
 function showEdData(){ const o=store.get("courses3d",{})||{}, m=store.get("my3d",{})||{}, keys=Object.keys(o), mk=Object.keys(m); $("#edDataBox").hidden=!(keys.length||mk.length)||!!db3d;
   $("#edJson").value=keys.length||mk.length?JSON.stringify(mk.length?{courses3d:o,my3d:m}:{courses3d:o}):""; }
 /* ---------- 雪をぬった所・植えた木・リフトの支柱（共有のデータ courses3d の env_ 文書。なければ この端末） ---------- */
-const MAXTREE=4000, ENV_IDS={snow:"env_snow",trees:"env_trees",lifts:"env_lifts"};
+const MAXTREE=4000, MAXBLD=200, MAXJUMP=60, ENV_IDS={snow:"env_snow",trees:"env_trees",lifts:"env_lifts",blds:"env_blds",jumps:"env_jumps"};
 var ENV3D={snow:null,trees:null,lifts:null};
 function envClean(k,v){ try{ if(!v||typeof v!=="object") return null; const at=String(v.at||"");
     if(k==="snow"){ const p=v.png; return typeof p==="string"&&(p===""||(p.startsWith("data:image/png;base64,")&&p.length<600000))?{png:p,at}:null; }
@@ -3311,6 +3477,14 @@ function envClean(k,v){ try{ if(!v||typeof v!=="object") return null; const at=S
     if(k==="lifts"){ const L=v.L; if(!L||typeof L!=="object") return null; const out={};
       Object.entries(L).forEach(([id,o])=>{ if(!GEO3D.lifts[id]||!o||typeof o!=="object") return; const gap=+o.gap, h=+o.h, e={};
         if(isFinite(gap)&&gap>0) e.gap=Math.round(Math.max(30,Math.min(200,gap))); if(isFinite(h)&&h>0) e.h=Math.round(Math.max(5,Math.min(25,h))); if(o.even===true) e.even=true; out[id]=e; }); return {L:out,at}; }
+    // 建物：d＝消した 元の 建物の 番号、a＝建てた 建物 [x, y（地図）, 長さm, はばm, 向き, 屋根の色]
+    if(k==="blds"){ const inMap=(x,y)=>x>=0&&y>=0&&x<=GEO3D.w&&y<=GEO3D.h, d=[...new Set((Array.isArray(v.d)?v.d:[]).map(n=>+n).filter(n=>Number.isInteger(n)&&n>=0&&n<1000))], a=[];
+      (Array.isArray(v.a)?v.a:[]).slice(0,MAXBLD).forEach(b=>{ if(!Array.isArray(b)) return; const x=+b[0], y=+b[1], L=+b[2], W=+b[3], r=+b[4], c=String(b[5]||"");
+        if([x,y,L,W,r].every(isFinite)&&inMap(x,y)) a.push([Math.round(x*100)/100,Math.round(y*100)/100,Math.max(4,Math.min(60,L)),Math.max(3,Math.min(40,W)),Math.round(r*1000)/1000,/^#[0-9a-f]{6}$/i.test(c)?c:"#8a5a48"]); });
+      return {d,a,at}; }
+    // ジャンプ台：[x, y（地図）, すべる 向き, 大きさ 0 小・1 中・2 大]
+    if(k==="jumps"){ const j=[]; (Array.isArray(v.j)?v.j:[]).slice(0,MAXJUMP).forEach(b=>{ if(!Array.isArray(b)) return; const x=+b[0], y=+b[1], h=+b[2], z=+b[3];
+        if([x,y,h].every(isFinite)&&x>=0&&y>=0&&x<=GEO3D.w&&y<=GEO3D.h) j.push([Math.round(x*100)/100,Math.round(y*100)/100,Math.round(h*1000)/1000,z===0||z===2?z:1]); }); return {j,at}; }
   }catch(e){} return null; }
 function applyEnv(k,v){ ENV3D[k]=v; if(T3D) T3D.envChanged(k); }
 async function saveEnv(k,val){ const doc=Object.assign({},val,{at:new Date().toISOString()});
