@@ -455,6 +455,7 @@ body.fs3d header.top, body.fs3d .tabbar{ visibility:hidden; }
 .ed-help.fade{ opacity:0; }
 .ed-bar{ position:absolute; left:8px; right:8px; bottom:8px; display:grid; grid-auto-flow:column; grid-auto-columns:1fr; gap:6px; }
 .ed-bar button{ height:40px; box-shadow:var(--shadow); }
+@media (max-width:430px){ .ed-bar{ gap:5px; } .ed-bar button{ padding:0 4px; font-size:.74rem; } }
 .ed-bar .pri{ background:#e5484d; border-color:#e5484d; color:#fff; }
 .ed-bar button.sure{ background:#1f2937; border-color:#1f2937; color:#fff; }
 .ed-bar button:disabled, .ed-top button:disabled{ opacity:.45; cursor:default; }
@@ -731,6 +732,7 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
             <button type="button" id="edLiftReset" hidden>ふつうにもどす</button>
             <button type="button" id="edOrig" hidden title="最初の 形に もどす（2回 押す）">リセット</button>
             <button type="button" id="edTop">真上から</button>
+            <button type="button" id="edSnow" aria-pressed="false" title="地面は 航空写真（押すと 冬の 見た目）">☀ 写真</button>
             <button type="button" id="edSave" class="pri">保存</button>
           </div>
           <button type="button" class="ed-reset" id="edReset" hidden>元の線にもどす</button>
@@ -1419,7 +1421,7 @@ function build3D(THREE,img,litImg,forImg,treImg){
   const tg=new THREE.BufferGeometry(); tg.setAttribute("position",new THREE.BufferAttribute(pos,3)); tg.setAttribute("uv",new THREE.BufferAttribute(uv,2)); tg.setIndex(new THREE.BufferAttribute(idx,1)); tg.computeVertexNormals();
   const nor=tg.attributes.normal.array, ANISO=Math.min(8,renderer.capabilities.getMaxAnisotropy());
   const tex=new THREE.TextureLoader().load("img/sat3d.jpg",()=>{ needDraw=true; }); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=ANISO;
-  const snowU={value:store.get("snow3d",true)?1:0};
+  const snowU={value:store.get("snow3d",true)?1:0}; let edTrees=false; // エディターの 間は、地面が 写真でも 林の 木を 立てる
   // 冬の色（すべての地形で同じ式）：写真の草地・平らな所（田んぼ・町）は雪に、森は高い所ほど白っぽく、海はそのまま。
   // ふち（外がわの地形との境め）は、外がわの写真へ なめらかに つなぐ
   function winterOBC(sh){ Object.assign(sh.uniforms,this.userData.U);
@@ -1493,7 +1495,7 @@ function build3D(THREE,img,litImg,forImg,treImg){
     camera.updateMatrixWorld(); mPVD.multiplyMatrices(camera.projectionMatrix,mInvD.copy(camera.matrixWorld).invert()); frusD.setFromProjectionMatrix(mPVD);
     for(const c of chunks){ c.d=c.box.distanceToPoint(camera.position); c.vis=frusD.intersectsBox(c.box); if(c.det&&c.d>DROP) dropDetail(c); }
     const cp=camera.position;
-    for(const c of AF.chunks){ const d=c.box.isEmpty()?1e9:c.box.distanceToPoint(cp), v=snowU.value>.5&&d<2050&&frusD.intersectsBox(c.box);
+    for(const c of AF.chunks){ const d=c.box.isEmpty()?1e9:c.box.distanceToPoint(cp), v=(snowU.value>.5||edTrees)&&d<2050&&frusD.intersectsBox(c.box);
       const dx=Math.max(Math.abs(cp.x-c.box.min.x),Math.abs(cp.x-c.box.max.x)), dy=Math.max(Math.abs(cp.y-c.box.min.y),Math.abs(cp.y-c.box.max.y)), dz=Math.max(Math.abs(cp.z-c.box.min.z),Math.abs(cp.z-c.box.max.z)), dM=Math.sqrt(dx*dx+dy*dy+dz*dz);
       const v2=v&&dM>SG.mid*.84; if(c.im.visible!==v2){ c.im.visible=v2; needDraw=true; }
       if(v){ const k=Math.max(1,Math.round(c.n*Math.max(.22,Math.min(1,1-(d-500)/1500*.78)))); if(c.im.count!==k){ c.im.count=k; needDraw=true; } } }
@@ -2156,7 +2158,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const SGS=[sgSet(0,sgGeo[0],1600,SG.near*1.15+45,30),sgSet(1,[sgGeo[1]],6000,SG.mid*1.15+60,50)];
   function setRefresh(S){ const cp=camera.position, nv=S.ims.length, L=S.ims.map(()=>[]); S.pos.copy(cp);
     if(cp.y-hAt(cp.x,cp.z)<S.R+40){ const R2=S.R*S.R, cx=cp.x/M+W2, cy=cp.z/M+H2, rp=S.R/M;
-      if(snowU.value>.5&&AF.n) for(let gx=Math.floor((cx-rp)/16);gx<=Math.floor((cx+rp)/16);gx++) for(let gy=Math.floor((cy-rp)/16);gy<=Math.floor((cy+rp)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
+      if((snowU.value>.5||edTrees)&&AF.n) for(let gx=Math.floor((cx-rp)/16);gx<=Math.floor((cx+rp)/16);gx++) for(let gy=Math.floor((cy-rp)/16);gy<=Math.floor((cy+rp)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
         for(const i of a){ if(AF.gone[i]) continue; const dx=(AF.x[i]-cx)*M, dz=(AF.y[i]-cy)*M; if(dx*dx+dz*dz<R2) L[i%nv].push(i); } }
       const np=Math.min(MAXTREE,Math.floor(treeArr.length/3)); for(let i=0;i<np;i++){ const dx=(treeArr[i*3]-cx)*M, dz=(treeArr[i*3+1]-cy)*M; if(dx*dx+dz*dz<R2&&!plantOff(treeArr[i*3],treeArr[i*3+1])) L[i%nv].push(-1-i); } }
     L.forEach((list,v)=>{ const im=S.ims[v], n=Math.min(S.cap,list.length);
@@ -3091,15 +3093,21 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(courseObj[id]) courseObj[id].grp.visible=false;
     edOptions(); edMetaShow(); edDraw(); if(!keepCam&&ed.pts.length) frameXY(ed.pts,900);
   }
+  // エディターの 見た目：地面を 航空写真に（林の 木・植えた 木・建物・ジャンプ台は 出したまま。木は 雪なしの 緑）。
+  //  下の「☀ 写真／❄ 冬」で 切りかえ（この端末に 覚える）。終わると 地図の 元の 見た目（「❄ 冬／☀ 写真」の ボタン）に もどる
+  let edPhoto=store.get("edPhoto",true)!==false, snowKeep=1; const edSnowBtn=$("#edSnow");
+  function snowApply(v){ snowU.value=v; if(v<.5&&!edTrees) AF.chunks.forEach(c=>{ c.im.visible=false; }); nearDirty=true; detT=0; needDraw=true; }
+  function edSnowShow(){ edSnowBtn.textContent=edPhoto?"☀ 写真":"❄ 冬"; edSnowBtn.setAttribute("aria-pressed",String(!edPhoto)); edSnowBtn.title=edPhoto?"地面は 航空写真（押すと 冬の 見た目）":"冬の 見た目（押すと 地面を 航空写真に）"; }
+  edSnowBtn.onclick=()=>{ edPhoto=!edPhoto; store.set("edPhoto",edPhoto); edSnowShow(); snowApply(edPhoto?0:1); edSnowBtn.blur(); };
   function edStart(id,tool){ if(FR.on) frStop(true);
     if(!COURSE_IDS.has(id)&&!isMy(id)) id=COURSES[0].id; edBuild();
-    ed.on=true; if(!full3d&&innerWidth<760){ setFull3d(true); ed.autoFull=true; } box.classList.add("editing"); $(".stage-map .map").classList.add("editing3d"); edBox.hidden=false; controls.tapZoom=false;
+    ed.on=true; if(!full3d&&innerWidth<760){ setFull3d(true); ed.autoFull=true; } snowKeep=snowU.value; edTrees=true; edSnowShow(); snowApply(edPhoto?0:1); if(edPhoto&&!store.get("edPhotoTip",false)){ store.set("edPhotoTip",true); toast("地面を 航空写真に しました（下の「☀ 写真」で 冬にも）"); } box.classList.add("editing"); $(".stage-map .map").classList.add("editing3d"); edBox.hidden=false; controls.tapZoom=false;
     anim=null; stopRide(); follow=false; $("#povBtn").classList.toggle("on",false); skier.visible=rider.visible=false; selP=null; seq=null;
     Object.values(liftObj).forEach(o=>o.set(false));
     Object.values(courseObj).forEach(o=>{ o.grp.visible=true; o.set(.35); }); edGroup.visible=true; edOpen(id); edTool("course"); // 雪・木・リフトの道具は やめた（保存した 雪・木・リフトは そのまま 出る）
   }
   function edEnd(){
-    if(!ed.on) return; edKeep(); ed.on=false; box.classList.remove("editing","edrow2"); $(".stage-map .map").classList.remove("editing3d"); edBox.hidden=true; edMeta.hidden=true; delSure(false); if(ed.autoFull){ ed.autoFull=false; if(full3d) setFull3d(false); }
+    if(!ed.on) return; edKeep(); ed.on=false; box.classList.remove("editing","edrow2"); $(".stage-map .map").classList.remove("editing3d"); edBox.hidden=true; edMeta.hidden=true; delSure(false); if(ed.autoFull){ ed.autoFull=false; if(full3d) setFull3d(false); } edTrees=false; snowApply(snowKeep);
     controls.paint=false; pst=null; pIds.clear(); showRing(null); oTap=null; obj.drag=null; obj.sel=null; selRing.visible=false; Object.values(liftObj).forEach(o=>o.set(false));
     edGroup.visible=false; ed.pts=[]; ed.sel=-1; edDraw(); controls.enabled=true; controls.tapZoom=true;
     Object.values(courseObj).forEach(o=>{ o.set(1); o.grp.visible=false; });
@@ -3369,7 +3377,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       for(let i=0;i<AF.n;i++){ if(AF.gone[i]) continue; if(d2(AF.x[i],AF.y[i])<r2) n++; }
       for(let i=0;i+2<treeArr.length;i+=3) if(d2(treeArr[i],treeArr[i+1])<r2) np++;
       out[id]=[n,np]; } return out; },cs:id=>{ const o=courseObj[id]; return o&&[P3(...o.sp[0],0).toArray(),P3(...o.sp[Math.min(o.sp.length-1,12)],0).toArray()]; },end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; }, seek:k=>{ if(anim&&anim.kind==="ski") anim.k=k; }, ro:()=>anim&&{ro:anim.ro||0,air:!!anim.rAir,k:anim.k}, jumps:a=>{ jmpEdit={j:a}; jmpBuild(); },
-    ed:()=>({a:JSON.parse(JSON.stringify((bldEdit||ENV3D.blds||{a:[]}).a||[])),j:JSON.parse(JSON.stringify((jmpEdit||ENV3D.jumps||{j:[]}).j||[])),full:full3d,help:!$("#edHelp").classList.contains("fade"),afOb:AF.ob?AF.ob.reduce((s,v)=>s+v,0):0,gone:AF.gone?AF.gone.reduce((s,v)=>s+v,0):0,orig:!$("#edOrig").hidden&&$("#edOrig").textContent,on:ed.on,tool:ed.tool,blds:bldCur.length,added:(bldEdit||ENV3D.blds||{a:[]}).a.length,del:(bldEdit||ENV3D.blds||{d:[]}).d.length,jumps:jmpCur.length,jh:jmpCur.map(j=>+j.h.toFixed(2)),jL:jmpCur.map(j=>j.J.L),trees:treeArr.length/3,dirty:Object.keys(env.dirty).filter(k=>env.dirty[k]).join(","),sel:obj.sel,undo:!$("#edUndo").disabled,n:edObjN.textContent}),
+    ed:()=>({snow:snowU.value,edTrees,chunksVis:AF.chunks.filter(c=>c.im.visible).length,nearN:SGS.reduce((s,S)=>s+S.ims.reduce((t,im)=>t+im.count,0),0),edSnow:$("#edSnow").textContent,a:JSON.parse(JSON.stringify((bldEdit||ENV3D.blds||{a:[]}).a||[])),j:JSON.parse(JSON.stringify((jmpEdit||ENV3D.jumps||{j:[]}).j||[])),full:full3d,help:!$("#edHelp").classList.contains("fade"),afOb:AF.ob?AF.ob.reduce((s,v)=>s+v,0):0,gone:AF.gone?AF.gone.reduce((s,v)=>s+v,0):0,orig:!$("#edOrig").hidden&&$("#edOrig").textContent,on:ed.on,tool:ed.tool,blds:bldCur.length,added:(bldEdit||ENV3D.blds||{a:[]}).a.length,del:(bldEdit||ENV3D.blds||{d:[]}).d.length,jumps:jmpCur.length,jh:jmpCur.map(j=>+j.h.toFixed(2)),jL:jmpCur.map(j=>j.J.L),trees:treeArr.length/3,dirty:Object.keys(env.dirty).filter(k=>env.dirty[k]).join(","),sel:obj.sel,undo:!$("#edUndo").disabled,n:edObjN.textContent}),
     chairs:id=>{ const o=liftObj[id], out=[]; chairs.forEach(c=>{ if(c.o!==o) return; const s=sOf(c); if(s>3&&s<o.upLen-2&&c.riders.length){ const P=new THREE.Vector3(), T=new THREE.Vector3(); atS(o,s,P,T); out.push({p:P.toArray(),t:T.normalize().toArray(),kinds:c.riders.map(r=>r.kind)}); } }); return out; },
     rt:id=>{ const o=courseObj[id]; return o&&{root:courseRoot.visible,grp:o.grp.visible,band:o.band.visible,flow:o.flow.visible,gates:o.gates.visible,half:o.L.ln.material.uniforms.uHalf.value}; },
     step:(dt,n)=>{ const z=window.__frz, out=[]; window.__frz=false; for(let i=0;i<n;i++){ update(performance.now(),dt); if(anim&&anim.kind==="ski") out.push([anim.k,anim.sM,anim.v,bnkR,bankAcc(),camera.position.x,camera.position.z]); else if(anim&&anim.fp) out.push([camera.position.x,camera.position.y,camera.position.z]); } window.__frz=z; return out; },
