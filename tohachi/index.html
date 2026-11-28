@@ -2386,24 +2386,16 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // ===== 目線で滑るとき：足もとのスキー板（画面の下）と、雪の上の自分の影 =====
   const skiG=new THREE.Group(), skisG=new THREE.Group(), boardG=new THREE.Group(), skFwd=new THREE.Vector3(0,0,1); skiG.visible=false; skiG.add(skisG,boardG); scene.add(skiG);
   let gear=store.get("povGear",0)===1?1:0; // 0＝スキー、1＝スノーボード
-  const EYE=1.6; // 目線の 目の 高さ（ひざを 曲げた 構えで 雪から 約1.6m）
+  const EYE=1.6, EYE_P=.19; // 目線の 目の 高さ（ひざを 曲げた 構えで 雪から 約1.6m）と、坂に そった 向きより 下を 見る 角度（tan 約11°）
   // スキー：形の ある 板（先が そる・絵・金属の エッジ）・ビンディング・ブーツ
-  // 足（ブーツの 上の すね・ひざ・ももの 下の ほう）。下を 見ると 見える
-  function eyeLeg(par,ank,knee,hip,pc,kc){ const mP=GK.std(pc,.82), mK=GK.std(kc,.85), seg=(a,b,r)=>{ const d=new THREE.Vector3().subVectors(b,a), L=d.length(), m=new THREE.Mesh(new THREE.CapsuleGeometry(r,L,6,14),mP);
-      m.position.copy(a).add(b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(UPV,d.normalize()); m.frustumCulled=false; par.add(m); return m; };
-    seg(ank,knee,.062); seg(knee,hip,.078); const k=new THREE.Mesh(new THREE.SphereGeometry(.072,14,10),mK); k.position.copy(knee); k.frustumCulled=false; par.add(k); }
   const V3=(x,y,z)=>new THREE.Vector3(x,y,z);
   const eyeSki=[.13,-.13].map(x=>{ const g=new THREE.Group(); g.position.x=x; const s=GK.ski(1.78); g.add(s); const b=GK.skiBinding(); b.position.set(0,.018,.02); g.add(b);
-    const bt=GK.skiBoot(0xf1f0ec); bt.position.set(0,.03,.02); g.add(bt); // ブーツ（つま先が 前、足首から 上は 前へ かたむく）
-    const cf=new THREE.Mesh(new THREE.CylinderGeometry(.082,.09,.11,16),GK.std(0x1c1e23,.82)); cf.position.set(0,.41,-.03); cf.rotation.x=.45; cf.frustumCulled=false; g.add(cf); // ブーツに かぶさる すそ
-    eyeLeg(g,V3(0,.36,-.04),V3(0,.52,.14),V3(0,.86,-.18),0x1c1e23,0x2b2e35); skisG.add(g); return g; }); // 左（＋x）・右
+    const bt=GK.skiBoot(0xf1f0ec); bt.position.set(0,.03,.02); g.add(bt); skisG.add(g); return g; }); // 左（＋x）・右。ブーツは ふだん 画面の 下の 外
   // スノーボード：板・ビンディング（前の足 +15°、後ろの足 −6°）・やわらかい ブーツ
   boardG.add(GK.board());
-  let eyeRearBoot=null; const eyeFB=GK.boardBoot(); eyeFB.visible=false; boardG.add(eyeFB); // スケーティングで はずした 後ろの 足
-  [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,.012,z); f.rotation.y=ang; f.add(GK.boardBinding()); const bt=GK.boardBoot(); bt.position.y=.012; f.add(bt);
+  let eyeRearBoot=null; const eyeFB=GK.boardBoot(true); eyeFB.visible=false; boardG.add(eyeFB); // スケーティングで はずした 後ろの 足
+  [[.26,.26],[-.26,-.1]].forEach(([z,ang])=>{ const f=new THREE.Group(); f.position.set(0,.012,z); f.rotation.y=ang; f.add(GK.boardBinding()); const bt=GK.boardBoot(true); bt.position.y=.012; f.add(bt);
     boardG.add(f); if(z<0) eyeRearBoot=bt; });
-  // スノボの 足：ひざは つま先がわ（−x）へ 曲げ、少し 内がわへ
-  [[.26,-1],[-.26,1]].forEach(([z,sd])=>eyeLeg(boardG,V3(.03,.3,z),V3(-.2,.56,z+sd*.07),V3(.06,.88,z+sd*.1),0x2f3b4a,0x27313e));
   // ストック（スキーの とき。ふだんは 画面の 外、ターンの 切りかえで 内がわを 前の 雪に つく）
   const eyePoles=[0,1].map(()=>{ const g=new THREE.Group(), pm=GK.std(0xb9c0c8,.3,.75), bm=GK.std(0x1a1b1f,.5);
     const sh=new THREE.Mesh(new THREE.CylinderGeometry(.009,.007,1.15,8),pm); sh.position.y=-.575; g.add(sh);
@@ -2416,15 +2408,15 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     const cf=new THREE.Mesh(new THREE.CylinderGeometry(.056,.06,.07,14),GK.std(0x15161a,.6)); cf.position.y=.085; g.add(cf);
     const sl=new THREE.Mesh(new THREE.CylinderGeometry(.068,.074,.2,14),GK.std(0xc81e2a,.66)); sl.position.y=.2; g.add(sl); // 赤い そで
     g.traverse(o=>{ o.frustumCulled=false; }); g.visible=false; scene.add(g); return g; });
-  boardG.rotation.y=-.42; boardG.position.set(.08,0,.25); boardG.visible=gear===1; skisG.visible=gear===0;
-  const meTex=[0,1].map(bd=>{ const cv=document.createElement("canvas"); cv.width=64; cv.height=256; const x=cv.getContext("2d"); x.fillStyle=x.strokeStyle="#fff"; x.lineCap="round"; x.filter="blur(2px)";
+  boardG.rotation.y=-.42; boardG.position.set(.08,0,-.1); boardG.visible=gear===1; skisG.visible=gear===0;
+  const meTex=[0,1].map(bd=>{ const cv=document.createElement("canvas"); cv.width=64; cv.height=256; const x=cv.getContext("2d"); x.fillStyle=x.strokeStyle="#fff"; x.lineCap="round"; x.filter="blur(.8px)";
     x.beginPath(); x.ellipse(32,206,bd?15:11,44,0,0,6.2832); x.fill(); x.beginPath(); x.ellipse(32,122,bd?17:15,44,0,0,6.2832); x.fill(); x.beginPath(); x.arc(32,60,12,0,6.2832); x.fill();
     x.lineWidth=4; x.beginPath(); if(bd){ x.moveTo(20,100); x.lineTo(4,150); x.moveTo(44,100); x.lineTo(60,150); } else { x.moveTo(19,104); x.lineTo(7,244); x.moveTo(45,104); x.lineTo(57,244); } x.stroke(); // うで・ストック
     return new THREE.CanvasTexture(cv); });
   const meSh=(()=>{
     const g=new THREE.BufferGeometry(), uv=[], idx=[]; g.setAttribute("position",new THREE.Float32BufferAttribute(new Float32Array(14*3),3));
     for(let j=0;j<7;j++){ uv.push(0,j/6,1,j/6); if(j<6){ const a=j*2; idx.push(a,a+1,a+2, a+1,a+3,a+2); } } g.setAttribute("uv",new THREE.Float32BufferAttribute(uv,2)); g.setIndex(idx);
-    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:meTex[gear],color:0x0e1822,transparent:true,opacity:.3,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
+    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:meTex[gear],color:0x0e1822,transparent:true,opacity:.26,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));
     m.frustumCulled=false; m.visible=false; m.renderOrder=1; scene.add(m); return m; })();
   // 後ろから 見る 人の 影：日と 反対へ のびる 人の 形の 影と、足もとの うすい 影（雪の 形に そう。とんでいる 間も 雪の 上）
   const rSh=(()=>{ const g=new THREE.BufferGeometry(), uv=[], idx=[]; g.setAttribute("position",new THREE.Float32BufferAttribute(new Float32Array(14*3),3));
@@ -2477,7 +2469,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     spG2.attributes.position.needsUpdate=spG2.attributes.life.needsUpdate=spG2.attributes.psize.needsUpdate=true; spMat2.uniforms.uScale.value=renderer.domElement.height/(2*Math.tan(camera.fov*Math.PI/360)); spAny=any; needDraw=true; }
   // ===== 目線の 足もと：板の 向き・かたむき、すね、ストック、雪けむり、自分の 影 =====
   const eF=new THREE.Vector3(), eU=new THREE.Vector3(), eA=new THREE.Vector3(), eB=new THREE.Vector3(), eC=new THREE.Vector3(), eR=new THREE.Vector3(), eK=new THREE.Vector3(), DOWNV=new THREE.Vector3(0,-1,0), epl={side:0,t:9,k:0}; let skPrev=0;
-  function skiView(on,dt){ if(skiG.visible!==on){ skiG.visible=meSh.visible=on; needDraw=true; } eyePoles.forEach((g,i)=>{ const v=on&&gear!==1; if(g.visible!==v) g.visible=eyeGloves[i].visible=v; }); if(!on){ skHd=null; skTurn=0; bnkR=bnkV=0; return; }
+  let skFw=null; const eD=new THREE.Vector3(); // 足もとの 前後の 位置（体の 下から 何m 前か）
+  function skiView(on,dt){ if(skiG.visible!==on){ skiG.visible=meSh.visible=on; needDraw=true; skFw=null; } eyePoles.forEach((g,i)=>{ const v=on&&gear!==1; if(g.visible!==v) g.visible=eyeGloves[i].visible=v; }); if(!on){ skHd=null; skTurn=0; bnkR=bnkV=0; return; }
     const f=skF.copy(skFwd); if(f.lengthSq()<1e-8) return; f.normalize(); // 進む向き（坂にそって）
     const hd=Math.atan2(f.x,f.z); if(skHd!=null){ const dh=Math.atan2(Math.sin(hd-skHd),Math.cos(hd-skHd)); skTurn+=(Math.max(-1.2,Math.min(1.2,dh/Math.max(dt,.001)))-skTurn)*(1-Math.exp(-dt*4)); } skHd=hd;
     const cp=camera.position, gx=(hAt(cp.x+1,cp.z)-hAt(cp.x-1,cp.z))/2, gz=(hAt(cp.x,cp.z+1)-hAt(cp.x,cp.z-1))/2; skN.set(-gx,1,-gz).normalize();
@@ -2490,7 +2483,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(gear!==1){ const hx=xcHipX(ph)*sk; eyeSki.forEach((g,i)=>{ const sd=i?-1:1; if(sk>0){ const f=xcFoot(ph-(i?1:0)); g.position.set(sd*.13*(1-sk)+sd*f[0]*sk,f[2]*sk,f[1]*sk); g.rotation.set(0,sd*f[3]*sk,sd*f[4]*sk); } else { g.position.set(sd*.13,0,0); g.rotation.set(0,0,0); } }); }
     else { boardG.rotation.y=-.42+.3*sk; eyeRearBoot.visible=sk<.02; eyeFB.visible=!eyeRearBoot.visible;
       if(eyeFB.visible){ const push=q<.6?sst(0,.6,q):1-sst(.6,1,q), up=q<.6?0:.09*Math.sin(Math.PI*(q-.6)/.4); eyeFB.position.set(-.3*sk,.012+up*sk,-.26+(.36-.6*push)*sk); eyeFB.rotation.set(0,-.1+(Math.PI/2+.22)*sk,0); } }
-    { const fx0=cp.x+f.x*.45, fz0=cp.z+f.z*.45; skiG.position.set(fx0,Math.max(hAt(fx0,fz0)+.012,cp.y-EYE),fz0); } skiG.updateMatrixWorld(true);
+    { const pit=Math.asin(Math.max(-1,Math.min(1,-eF.y))), edge=pit+camera.fov*Math.PI/360; // 画面の 下の はしの 角度（水平から 下へ）
+      const want=Math.max(0,Math.min(2.2,gear===1?EYE/Math.tan(Math.max(.2,edge-.12))-.61:(EYE-.47)/Math.tan(Math.min(1.5,edge+.05))+.03)); skFw=skFw==null?want:skFw+(want-skFw)*(1-Math.exp(-dt*5));
+      const fx0=cp.x+f.x*skFw, fz0=cp.z+f.z*skFw; skiG.position.set(fx0,Math.max(hAt(fx0,fz0)+.012,cp.y-EYE),fz0); } skiG.updateMatrixWorld(true);
     const rt=eR.set(-skH.z,0,skH.x); // 見ている向きの 右
     // ストック：ターンの 切りかえで、新しい ターンの 内がわを つく
     if(gear!==1){ const sg=skTurn>.06?1:(skTurn<-.06?-1:0); if(sg&&skPrev&&sg!==skPrev){ epl.side=sg; epl.t=0; } if(sg) skPrev=sg; epl.t+=dt; epl.k=epl.t<.42?Math.sin(Math.PI*epl.t/.42):0;
@@ -2890,7 +2885,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // カメラ：目線（目の高さ 3m・45m 先）／近く（8.5m 後ろ・3.3m 上）／遠く（36m 後ろ・15m 上）。ドラッグで まわりを 見る
   function frCamera(dt){ const m=CAMS[camIdx][0], fx=Math.sin(FR.h), fz=Math.cos(FR.h), k=FR.crash?frK(FR.crash):0, g=hAt(FR.x,FR.z);
     if(m==="eye"){ const hx=xcHipX(FR.skPh)*frSkS*(gear===1?.5:1), bob=.035*xcBump(FR.skPh%1,.8,.4)*frSkS; frW.set(FR.x+hx*Math.cos(FR.h),Math.max(FR.y,g)+EYE-1.05*k-.22*FR.land-bob,FR.z-hx*Math.sin(FR.h)); const ga=hAny(frW.x,frW.z)+.5; if(frW.y<ga) frW.y=ga;
-      frL.set(FR.x+fx*40,0,FR.z+fz*40); frL.y=hAny(frL.x,frL.z)+1.1-6*k; eyeShake(frL,FR.air?0:FR.v);
+      frL.set(FR.x+fx*40,0,FR.z+fz*40); frL.y=Math.max(hAny(frL.x,frL.z)+EYE-40*EYE_P,frW.y-23)-6*k; eyeShake(frL,FR.air?0:FR.v);
       if(!baseOK){ baseC.copy(frW); baseT.copy(frL); baseOK=true; } else { baseC.lerp(frW,1-Math.exp(-dt*16)); baseT.lerp(frL,1-Math.exp(-dt*7)); }
       if(k>0&&FR.crash.t<.5){ const j=.14*k*(1-FR.crash.t/.5); baseC.x+=(Math.random()-.5)*j; baseC.y+=(Math.random()-.5)*j; baseC.z+=(Math.random()-.5)*j; } // ドスン
       headTurn(baseC,baseT); bank(baseC,baseT,dt); if(k>0){ frD.copy(controls.target).sub(camera.position).normalize(); camera.up.applyAxisAngle(frD,FR.crash.side*k*.8); } }
@@ -3085,7 +3080,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       else { const p=anim.o.curve.getPoint(e); pos3=p.clone().add(new THREE.Vector3(anim.o.side.x,-3,anim.o.side.z)); rider.position.copy(pos3).add(new THREE.Vector3(0,-1,0)); fwd=anim.o.curve.getTangent(e); }
       const vm=anim.kind==="ski"?CAMS[camIdx][0]:"far";
       if(follow&&vm==="eye"){ // 滑る人の目の高さから、約45m先を見る
-        const W=anim.W, qa=W?wAt(W,anim.sM,W.x,W.y):(t=>[t.x,t.y])(at(anim.A,e)), la=ahead(anim.A,W?anim.sM/(anim.A.len*M):e,45/M), eye=P3(qa[0],qa[1],EYE), look=P3(la[0],la[1],1.1), g=hAny(eye.x,eye.z)+1.2; if(eye.y<g) eye.y=g; eyeShake(look,anim.rAir?0:anim.v||0); eye.y+=anim.ro||0; look.y+=(anim.ro||0)*.5; // ジャンプ台の 上・空中
+        const W=anim.W, qa=W?wAt(W,anim.sM,W.x,W.y):(t=>[t.x,t.y])(at(anim.A,e)), la=ahead(anim.A,W?anim.sM/(anim.A.len*M):e,45/M), eye=P3(qa[0],qa[1],EYE), look=P3(la[0],la[1],EYE-45*EYE_P), g=hAny(eye.x,eye.z)+1.2; if(eye.y<g) eye.y=g; look.y=Math.max(look.y,eye.y-26); eyeShake(look,anim.rAir?0:anim.v||0); eye.y+=anim.ro||0; look.y+=(anim.ro||0)*.5; // ジャンプ台の 上・空中
         if(anim.snap||!baseOK){ baseC.copy(eye); baseT.copy(look); baseOK=true; } else { baseC.lerp(eye,1-Math.exp(-dt*10)); baseT.lerp(look,1-Math.exp(-dt*5)); } anim.snap=false; headTurn(baseC,baseT); bank(baseC,baseT,dt); }
       else if(follow&&fwd&&fwd.lengthSq()>0){ if(fwdC&&fwdC.lengthSq()>1e-6) fwd=fwdC; fwd.y=0; fwd.normalize(); const ski=anim.kind==="ski", nr=vm==="near"; // カメラは コースの向き（ターンで ゆれない）
         const want=pos3.clone().addScaledVector(fwd,ski?(nr?-20:-42):-70); want.y=pos3.y+(ski?(nr?8:16):30);
@@ -3116,7 +3111,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const stP=new THREE.Vector3(), stL=new THREE.Vector3(), stD=new THREE.Vector3();
   function stopStep(dt){ const S=anim.stop; S.t+=dt; const u=Math.min(1,S.t/.5), eo=1-Math.pow(1-u,3), yaw=S.side*1.3*eo;
     stP.copy(S.p).addScaledVector(S.f,3.2*eo); stP.y=hAny(stP.x,stP.z)+EYE-.35*Math.sin(Math.min(1,S.t/.35)*Math.PI*.5)+.25*Math.max(0,(S.t-.7)/.6>1?1:Math.max(0,(S.t-.7)/.6));
-    stD.copy(S.f).applyAxisAngle(UPV,yaw); stL.copy(stP).addScaledVector(stD,40); stL.y=hAny(stL.x,stL.z)+1.1;
+    stD.copy(S.f).applyAxisAngle(UPV,yaw); stL.copy(stP).addScaledVector(stD,40); stL.y=hAny(stL.x,stL.z)+EYE-40*EYE_P;
     skFwd.copy(stD); headTurn(stP,stL); sprayStep(dt);
     if(S.t>1.6) endRun(true); }
   // 雪けむり（止まるとき）
