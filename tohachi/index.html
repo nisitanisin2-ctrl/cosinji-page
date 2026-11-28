@@ -584,6 +584,61 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
 .map.free3d .povbar{ left:56px; transform:none; }
 .map.full.free3d .povbar{ left:calc(56px + env(safe-area-inset-left, 0px)); }
 @media (min-width:700px){ .fr-mini{ width:150px; height:150px; } }
+/* ===== 地図を 広く 見せる：図の上の ボタンは 絵だけで 小さく（名前は 指を のせると 出る title と 読み上げ）===== */
+.map3d{ height:min(56vh,560px); height:min(56svh,560px); }
+@media (min-width:900px){ .map3d{ height:min(680px, calc(100vh - var(--head) - 60px)); } }
+.m3d-ui button .tx, .speedbtn .tx, .fr-ctl button .tx{ display:none; }
+.speedbtn[hidden], .m3d-ui button[hidden], .fr-ctl button[hidden]{ display:none; } /* 絵だけの ボタンも、かくした ときは 出さない */
+.m3d-ui button .ic, .speedbtn .ic, .fr-ctl button .ic{ font-style:normal; line-height:1; }
+.m3d-ui{ left:8px; right:auto; bottom:8px; gap:5px; flex-wrap:nowrap; }
+.m3d-ui button{ width:34px; height:34px; padding:0; display:grid; place-items:center; border-radius:10px; font-size:1.02rem; }
+.m3d-hint{ left:8px; right:48px; bottom:48px; font-size:.66rem; }
+.m3d-compass{ left:8px; top:8px; width:30px; height:30px; }
+.m3d-compass::before{ top:2px; margin-left:-3px; border-width:0 3px 6px; }
+.m3d-compass i{ font-size:.6rem; margin-top:4px; }
+.nowbar{ min-height:40px; padding:4px 6px; }
+.nowbar .pill{ gap:6px; padding:2px 2px 2px 10px; font-size:.78rem; }
+.nowbar .pill button{ height:24px; padding:0 10px; font-size:.72rem; }
+.map.full .nowbar{ padding-top:max(4px, env(safe-area-inset-top, 0px)); }
+.areasw{ top:48px; padding:2px; }
+.map.is3d .areasw{ left:46px; }
+.areasw button{ height:24px; padding:0 9px; font-size:.7rem; }
+.map.full .areasw{ top:calc(44px + max(4px, env(safe-area-inset-top, 0px))); }
+@media (min-width:700px){ .map.is3d .areasw{ left:50%; } } /* 広い 画面は まん中 */
+.fsbtn{ top:8px; right:8px; width:30px; height:30px; border-radius:9px; font-size:.9rem; }
+.map.full .fsbtn{ right:8px; }
+.m3d-nav{ right:8px; top:44px; border-radius:10px; }
+.m3d-nav button{ width:30px; height:30px; }
+.m3d-nav svg{ width:14px; height:14px; }
+.povbar{ top:8px; gap:5px; }
+.speedbtn{ width:32px; height:32px; padding:0; display:grid; place-items:center; font-size:1rem; }
+.fr-x{ left:8px; top:8px; width:32px; height:32px; font-size:.9rem; }
+.map.full .fr-x{ top:calc(8px + env(safe-area-inset-top, 0px)); }
+.map.free3d .povbar{ left:46px; top:8px; }
+.map.full.free3d .povbar{ left:calc(46px + env(safe-area-inset-left, 0px)); top:calc(8px + env(safe-area-inset-top, 0px)); }
+.fr-mini{ right:8px; top:8px; width:92px; height:92px; border-radius:12px; }
+.map.full .fr-mini{ top:calc(8px + env(safe-area-inset-top, 0px)); right:calc(8px + env(safe-area-inset-right, 0px)); }
+@media (min-width:700px){ .fr-mini{ width:120px; height:120px; } }
+.fr-help{ top:108px; padding:6px 10px; font-size:.72rem; }
+.map.full .fr-help{ top:calc(108px + env(safe-area-inset-top, 0px)); }
+@media (min-width:700px){ .fr-help{ top:136px; } .map.full .fr-help{ top:calc(136px + env(safe-area-inset-top, 0px)); } }
+.fr-gauge{ left:10px; bottom:12px; gap:5px; max-width:calc(100% - 172px); }
+.map.full .fr-gauge{ bottom:calc(12px + env(safe-area-inset-bottom, 0px)); left:calc(10px + env(safe-area-inset-left, 0px)); }
+.fr-spd{ padding:4px 10px; }
+.fr-spd b{ font-size:1.55rem; }
+.fr-where{ font-size:.7rem; padding:3px 9px; }
+.fr-stick{ right:12px; bottom:12px; width:128px; height:128px; }
+.map.full .fr-stick{ bottom:calc(12px + env(safe-area-inset-bottom, 0px)); right:calc(12px + env(safe-area-inset-right, 0px)); }
+.fr-knob{ width:54px; height:54px; margin:-27px 0 0 -27px; }
+.fr-ctl{ right:12px; bottom:168px; gap:4px; }
+.map.full .fr-ctl{ bottom:calc(168px + env(safe-area-inset-bottom, 0px)); right:calc(12px + env(safe-area-inset-right, 0px)); }
+.fr-ctl button{ width:32px; height:28px; padding:0; display:grid; place-items:center; font-size:.92rem; }
+.fr-ctl .fr-cal{ width:auto; padding:0 8px; }
+.fr-ctl .fr-cal .tx{ display:inline; font-size:.68rem; margin-left:3px; }
+/* 説明は 地図の 下（コースの ボタンの あと） */
+.map-about{ margin-top:18px; }
+.map-about h2{ font-size:1.15rem; margin:4px 0 6px; }
+.map-about .lead{ font-size:.86rem; line-height:1.75; }
 @media (max-width:699px){ body.fr3d .toast{ top:calc(env(safe-area-inset-top, 0px) + 136px); } .fr-help, .map.full .fr-help{ top:calc(136px + env(safe-area-inset-top, 0px)); } }
 @media (min-width:700px) and (max-width:899px){ .fr-help, .map.full .fr-help{ top:calc(172px + env(safe-area-inset-top, 0px)); } }
 
@@ -674,9 +729,6 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
 <div class="wrap">
 <!-- ============ MAP ============ -->
 <section id="map">
-  <p class="eyebrow">Course map</p>
-  <h2>3Dコースマップ</h2>
-  <p class="lead">本物の地形の上で、選んだコースが光り、滑る人が走ります。「🎿 目線」で滑る人やリフトの目線にも。「⛷ フリーラン」では、右下の円で自由に滑れます（リフトにも乗れます）。「🛠 エディター」では、コースの線・木・建物・ジャンプ台を変えられます。マップは画面に止まったままなので、下のボタンを押しながら見くらべられます。</p>
   <div class="stage">
   <div class="stage-map">
     <div class="map is3d">
@@ -684,16 +736,16 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
       <div class="areasw" id="areaSw" role="group" aria-label="エリアの切りかえ"><button type="button" data-a="tohachi" aria-pressed="true">東鉢</button><button type="button" data-a="sv" aria-pressed="false">スカイバレイ</button></div>
       <div class="map3d" id="map3d" role="img" aria-label="ハイパーボウル東鉢の3D地形図。国土地理院の標高と航空写真に、コースとリフトを重ねています">
         <div class="m3d-labels" id="m3dLabels" aria-hidden="true"></div>
-        <div class="m3d-ui"><button type="button" id="drawBtn" title="コースの線・木・建物・ジャンプ台を 編集する">🛠 エディター</button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる">❄ 冬</button><button type="button" id="routeBtn" aria-pressed="true" title="えらんだ コースの ルート（色の 帯・線・矢印・ゲート）を 出す／かくす">🗺 ルート</button><button type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る">🎿 目線</button><button type="button" id="frBtn" title="右下の 円で 自由に すべる（木に 注意・リフトにも 乗れる）">⛷ フリーラン</button><button type="button" id="homeBtn3d" title="全体を見る">⟲ 全体</button></div>
+        <div class="m3d-ui"><button aria-label="エディター" type="button" id="drawBtn" title="コースの線・木・建物・ジャンプ台を 編集する"><i class="ic" aria-hidden="true">🛠</i><span class="tx">エディター</span></button><button type="button" id="snowBtn" aria-pressed="true" title="冬（雪）の見た目と、写真そのままを切りかえる" aria-label="冬"><i class="ic" aria-hidden="true">❄</i><span class="tx">冬</span></button><button type="button" id="routeBtn" aria-pressed="true" title="えらんだ コースの ルート（色の 帯・線・矢印・ゲート）を 出す／かくす" aria-label="ルート"><i class="ic" aria-hidden="true">🗺</i><span class="tx">ルート</span></button><button aria-label="目線" type="button" id="povBtn" title="滑る人・リフトに乗る人の目線で見る"><i class="ic" aria-hidden="true">🎿</i><span class="tx">目線</span></button><button aria-label="フリーラン" type="button" id="frBtn" title="右下の 円で 自由に すべる（木に 注意・リフトにも 乗れる）"><i class="ic" aria-hidden="true">⛷</i><span class="tx">フリーラン</span></button><button aria-label="全体" type="button" id="homeBtn3d" title="全体を見る"><i class="ic" aria-hidden="true">⟲</i><span class="tx">全体</span></button></div>
         <p class="m3d-hint" id="m3dHint"><span></span></p>
-        <div class="povbar"><button type="button" class="speedbtn" id="frontBtn" hidden title="見る向きを正面にもどす">🧭 正面</button><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="gearBtn" hidden title="目線で使う道具：スキー・スノーボード（押すたびに かわります）">🎿 スキー</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
+        <div class="povbar"><button type="button" class="speedbtn" id="frontBtn" hidden title="見る向きを正面にもどす" aria-label="正面"><i class="ic" aria-hidden="true">🧭</i><span class="tx">正面</span></button><button type="button" class="speedbtn" id="camBtn" hidden title="見る位置：目線・近く・遠く（押すたびに かわります）">👀 目線</button><button type="button" class="speedbtn" id="gearBtn" hidden title="目線で使う道具：スキー・スノーボード（押すたびに かわります）">🎿 スキー</button><button type="button" class="speedbtn" id="speedBtn" hidden title="目線で滑る速さ（押すたびに かわります）">⛷ ふつう</button></div>
         <div class="fr-hud" id="frHud" hidden>
           <div class="fr-flash" id="frFlash"></div>
           <button type="button" class="fr-x" id="frExit" aria-label="フリーランを 終わる" title="フリーランを 終わる（Esc）">✕</button>
           <p class="fr-help gone" id="frHelp"></p>
           <div class="fr-gauge"><div class="fr-spd" aria-label="速さ"><b id="frV">0</b><small>km/h</small></div><p class="fr-where" id="frWhere" hidden></p></div>
           <button type="button" class="fr-skip" id="frSkip" hidden>⏩ 上まで とばす</button>
-          <div class="fr-ctl" id="frCtl" hidden role="group" aria-label="操作の しかた"><button type="button" data-c="stick" aria-pressed="true">🕹 円</button><button type="button" data-c="tilt" aria-pressed="false">📱 傾き</button><button type="button" class="fr-cal" id="frCal" hidden title="いまの 持ち方を まっすぐに する">⟲ まっすぐ</button></div>
+          <div class="fr-ctl" id="frCtl" hidden role="group" aria-label="操作の しかた"><button type="button" data-c="stick" aria-pressed="true" aria-label="円で 操作" title="円で 操作"><i class="ic" aria-hidden="true">🕹</i><span class="tx">円</span></button><button type="button" data-c="tilt" aria-pressed="false" aria-label="傾けて 操作" title="傾けて 操作"><i class="ic" aria-hidden="true">📱</i><span class="tx">傾き</span></button><button type="button" class="fr-cal" id="frCal" hidden title="いまの 持ち方を まっすぐに する" aria-label="まっすぐ"><i class="ic" aria-hidden="true">⟲</i><span class="tx">まっすぐ</span></button></div>
           <button type="button" class="fr-mini" id="frMini" aria-pressed="false" aria-label="小さな 地図（押すと 近く／全体）" title="いる所（赤い 矢印）。押すと 近く／全体"><canvas></canvas></button>
         </div>
         <div class="fr-stick" id="frStick" hidden aria-label="すべる 操作：左右で ターン、上で 加速、下で ブレーキ、はなすと ジャンプ"><span class="fr-j">はなす＝ジャンプ</span><span class="fr-u">▲ 加速</span><span class="fr-d">▼ 減速</span><span class="fr-l">◀</span><span class="fr-r">▶</span><i class="fr-knob"></i></div>
@@ -765,6 +817,11 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
         <span><i style="background:var(--lv3)"></i>上級</span>
         <span><i style="background:var(--lv0)"></i>初心者コース・道</span>
         <span><i class="box" style="background:#0f1d2e"></i>数字＝リフト</span>
+      </div>
+      <div class="map-about">
+        <p class="eyebrow">Course map</p>
+        <h2>3Dコースマップ</h2>
+        <p class="lead">本物の地形の上で、選んだコースが光り、滑る人が走ります。地図の 左下の ボタン：<b>🛠</b> エディター（コースの線・木・建物・ジャンプ台を変える）、<b>❄</b> 冬／<b>☀</b> 写真、<b>🗺</b> ルートの 出し方（<b>〰</b> 細い線・<b>🚫</b> なし）、<b>🎿</b> 目線（滑る人やリフトの目線。上の <b>👀</b> 見る位置・<b>🎿</b> 道具・<b>⛷</b> 速さ・<b>🧭</b> 正面）、<b>⛷</b> フリーラン（右下の円で自由に滑る。リフトにも乗れる）、<b>⟲</b> 全体。マップは画面に止まったままなので、下のボタンを押しながら見くらべられます。</p>
       </div>
   <p class="note" id="note3d">※ 3Dの地形：標高は国土地理院の数値標高モデル（5mメッシュ）、写真は国土地理院の航空写真（全国最新写真）。高さは見やすいように1.35倍にしています。近づくと、もっと細かい写真（約0.5m）に入れかわります。まわりの山（氷ノ山・日本海まで）も、同じ国土地理院のデータです。山の影と谷の暗さは、冬の午後（南南西の低い太陽）として標高から計算しています。「❄ 冬」は、航空写真から林と開けた所を分けて、開けた所（ゲレンデ・田畑など）を雪の白に、航空写真で見える木の こずえの場所に、雪をかぶった木を立てた見た目です（遠くの林は写真のまま。「☀ 写真」で元の写真）。リフトの線は地理院地図の索道の位置です（東鉢・スカイバレイとも。斜面の長さは公式の数字の93〜98%）。コースの線は、航空写真のゲレンデの形と公式の説明から合わせた<b>おおよその位置</b>です。「🎿 目線」で滑るときは、上のボタンで見る位置（👀 目線・🎥 近く・🚁 遠く）と速さを変えられます。目線のあいだは、1本指（マウス）のドラッグで、動きながら まわりを見回せます（🧭 正面 で もどる）。「🎿 目線」をもう一度押すと終わります。コースの長さ・斜度・リフトの時間は公式サイトの数字です（最新のゲレンデマップは<a href="https://tohachi.jp/area" target="_blank" rel="noopener">公式サイト</a>で）。「✏️ 描く」で、点を押してコースの線を描きなおせます。描く画面の「＋ 新しいコースを作る」で、自分のコースをふやして、名前とレベル（線の色）を付けられます（長さ・斜度は標高から計算したおおよその値）。描く画面の上の「❄ 雪」で雪の白をぬる、「🌲 木」で木を植える、「🚡 リフト」で支柱の間隔と高さを変える こともできます（保存すると、このアプリの3Dの地図に出ます）。</p>
   </div>
@@ -1027,6 +1084,10 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
 (()=>{
 "use strict";
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+// 図の上の 小さな ボタン：「絵 名前」→ 絵だけ 見せて、名前は 読み上げ（aria-label）に
+function icoLab(el,txt){ const m=String(txt).match(/^(\S+)\s+(.*)$/), ic=m?m[1]:String(txt), tx=m?m[2]:""; el.textContent="";
+  const i=document.createElement("i"); i.className="ic"; i.setAttribute("aria-hidden","true"); i.textContent=ic; el.appendChild(i);
+  if(tx){ const sp=document.createElement("span"); sp.className="tx"; sp.textContent=tx; el.appendChild(sp); } el.setAttribute("aria-label",tx||ic); }
 const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
 const store={get(k,d){try{const v=localStorage.getItem("tohachi_"+k);return v==null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem("tohachi_"+k,JSON.stringify(v));}catch(e){}}};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -1613,7 +1674,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // コースの線：半透明の細い帯（下の斜面が見える）＋ どの距離でも同じ太さに見える中心の線
   const courseRoot=new THREE.Group(); scene.add(courseRoot);
   // コースの ルートの 表示：0＝帯・線・矢印・ゲート、1＝細い線だけ、2＝なし（この端末に 覚える。前の ON/OFF は 0/2 に）。すべっている間と 🛠 エディター は べつ
-  const RMODES=[["🗺 ルート","ルート：帯・線・矢印・ゲート"],["〰 線だけ","ルート：細い線だけ"],["🗺 なし","ルート：なし"]];
+  const RMODES=[["🗺 ルート","ルート：帯・線・矢印・ゲート"],["〰 線だけ","ルート：細い線だけ"],["🚫 なし","ルート：なし"]];
   let routeMode=(()=>{ const m=store.get("routeMode",null); return m===0||m===1||m===2?m:(store.get("route3d",true)!==false?0:2); })(), routeFull=true, routeKey="";
   const courseObj={}, cW=c=>c.id==="centerB"?14:(c.route?5:7), CIDX={}; COURSES3D.forEach((c,i)=>{ CIDX[c.id]=i; });
   const dispose=g=>g.traverse(o=>{ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); });
@@ -1703,7 +1764,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   buildSigns();
   // ルートの ボタン：押すたびに 帯・線・矢印 → 細い線だけ → なし
   const routeBtn=$("#routeBtn");
-  function routeBtnShow(){ const R=RMODES[routeMode]; routeBtn.textContent=R[0]; routeBtn.setAttribute("aria-pressed",String(routeMode!==2)); routeBtn.dataset.mode=routeMode; routeBtn.title=R[1]+"（押すたびに 帯・線・矢印 → 細い線だけ → なし）"; }
+  function routeBtnShow(){ const R=RMODES[routeMode]; icoLab(routeBtn,R[0]); routeBtn.setAttribute("aria-pressed",String(routeMode!==2)); routeBtn.dataset.mode=routeMode; routeBtn.title=R[1]+"（押すたびに 帯・線・矢印 → 細い線だけ → なし）"; }
   routeBtnShow();
   routeBtn.onclick=()=>{ routeMode=(routeMode+1)%3; store.set("routeMode",routeMode); routeBtnShow(); toast(RMODES[routeMode][1]); needDraw=true; };
   // 表示の しかたが 変わったら、帯・矢印・ゲートを 出す／かくし、線の 太さを 切りかえる（毎フレーム よぶ。変わった ときだけ）
@@ -3472,11 +3533,11 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   const eyeFov=()=>camera.aspect>=1?54:wideFov(27,76), camFov=m=>m==="eye"?eyeFov():(m==="near"?wideFov(20,60):FOV0);
   function projUpd(){ camera.updateProjectionMatrix(); LK.value=2*Math.tan(camera.fov*Math.PI/360)/(vh||1); [skier,rider,...ed.markers].forEach(sp=>pxSize(sp,sp.userData.px||16)); }
   const SPEEDS=[[.5,"🐢 ゆっくり"],[1,"⛷ ふつう"],[2,"🐇 はやい"]]; let spIdx=Math.max(0,Math.min(2,store.get("skiSpeed",1)|0));
-  const spBtn=$("#speedBtn"), spLabel=()=>{ spBtn.textContent=SPEEDS[spIdx][1]; }; spLabel();
+  const spBtn=$("#speedBtn"), spLabel=()=>{ icoLab(spBtn,SPEEDS[spIdx][1]); }; spLabel();
   spBtn.onclick=()=>{ spIdx=(spIdx+1)%SPEEDS.length; store.set("skiSpeed",spIdx); spLabel(); };
-  const camBtn=$("#camBtn"), camLabel=()=>{ camBtn.textContent=CAMS[camIdx][1]; }; camLabel();
+  const camBtn=$("#camBtn"), camLabel=()=>{ icoLab(camBtn,CAMS[camIdx][1]); }; camLabel();
   camBtn.onclick=()=>{ camIdx=(camIdx+1)%CAMS.length; store.set("povCam",camIdx); camLabel(); needDraw=true; };
-  const gearBtn=$("#gearBtn"), gearLabel=()=>{ gearBtn.textContent=gear?"🏂 スノボ":"🎿 スキー"; }; gearLabel();
+  const gearBtn=$("#gearBtn"), gearLabel=()=>{ icoLab(gearBtn,gear?"🏂 スノボ":"🎿 スキー"); }; gearLabel();
   gearBtn.onclick=()=>{ gear=1-gear; store.set("povGear",gear); gearLabel(); skisG.visible=!gear; boardG.visible=!!gear; meSh.material.map=rSh.material.map=meTex[gear]; meSh.material.needsUpdate=rSh.material.needsUpdate=true; needDraw=true; };
   $("#homeBtn3d").onclick=()=>home();
   // ＋－・回す・傾き・方位のボタン
@@ -3487,7 +3548,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     else if(k==="tilt") orbitTo(1,0,s.phi>.45?.06:.98,650); });
   compass.onclick=()=>{ const s=new THREE.Spherical().setFromVector3(v3.copy(camera.position).sub(controls.target)); orbitTo(1,-wrapA(s.theta),null,650); };
   $("#m3dHint").firstElementChild.textContent=matchMedia("(pointer: coarse)").matches?"1本指：移動　2本指：拡大・回転・傾き":"ドラッグ：移動　右ドラッグ：回転・傾き　ホイール：拡大";
-  const snowLabel=()=>{ const on=snowU.value>.5; $("#snowBtn").textContent=on?"❄ 冬":"☀ 写真"; $("#snowBtn").setAttribute("aria-pressed",String(on)); };
+  const snowLabel=()=>{ const on=snowU.value>.5; icoLab($("#snowBtn"),on?"❄ 冬":"☀ 写真"); $("#snowBtn").setAttribute("aria-pressed",String(on)); };
   $("#snowBtn").onclick=()=>{ snowU.value=snowU.value>.5?0:1; store.set("snow3d",snowU.value>.5); snowLabel(); vis3d(); };
   snowLabel();
   $("#povBtn").onclick=()=>{ if(follow){ endFollow(); controls.repivot(); return; } seq=null;
