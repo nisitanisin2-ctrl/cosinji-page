@@ -521,6 +521,13 @@ body.fs3d .toast{ z-index:95; bottom:calc(env(safe-area-inset-bottom, 0px) + 124
 .ed-cols[hidden]{ display:none; }
 .ed-obj2 .ed-cols button{ width:24px; height:24px; padding:0; border-radius:50%; border:2px solid var(--panel); background:var(--c); box-shadow:0 0 0 1px var(--line); }
 .ed-obj2 .ed-cols button[aria-pressed="true"]{ box-shadow:0 0 0 2px var(--text); }
+/* 少しずつ 直す（えらんだ 建物・ジャンプ台・木を 1°・1m ずつ） */
+.ed-fine{ top:156px; gap:4px; padding:5px; }
+.ed-fine button{ flex:1 1 0; min-width:0; height:32px; padding:0 2px; border-color:var(--line); color:var(--text); font-size:.78rem; }
+.ed-fine button.fdel{ flex:1.7 1 0; border-color:color-mix(in srgb, #e5484d 55%, var(--line)); color:#e5484d; }
+.ed-fine button[hidden], .ed-size[hidden]{ display:none; }
+.map3d.edrow3 .ed-help{ top:210px; }
+.map3d.editing.edrow3 .m3d-nav{ top:266px; }
 /* ===== 3D：フリーラン（右下の 円で すべる）===== */
 .map.free3d .m3d-ui, .map.free3d .m3d-nav, .map.free3d .m3d-compass, .map.free3d .m3d-hint, .map.free3d .fsbtn, .map.free3d .areasw, .map.free3d .nowbar, .map.free3d .fsbar{ display:none !important; }
 .map.full.free3d .povbar{ top:calc(10px + env(safe-area-inset-top, 0px)); }
@@ -709,7 +716,7 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
             <button type="button" id="edClear" title="点をぜんぶ消す">全消し</button>
           </div>
           <div class="ed-top" id="edPaint" hidden>
-            <div class="ed-seg" id="edPMode"><button type="button" data-m="add" aria-pressed="true">❄ ぬる</button><button type="button" data-m="del" aria-pressed="false">🧽 消す</button></div>
+            <div class="ed-seg" id="edPMode"><button type="button" data-m="add" aria-pressed="true">❄ ぬる</button><button type="button" data-m="del" aria-pressed="false">🧽 消す</button><button type="button" data-m="move" aria-pressed="false" hidden>✋ 動かす</button></div>
             <label class="ed-size">太さ<input type="range" id="edSize" min="10" max="120" step="1" value="30"><b id="edSizeV">30m</b></label>
             <span class="ed-n" id="edTreeN" hidden></span>
           </div>
@@ -725,6 +732,7 @@ body.fr3d .toast.on{ transform:translate(-50%,0); }
             <label>高さ<input type="range" id="edH" min="5" max="25" step="1" aria-label="支柱の高さ（m）"><b id="edHV"></b></label>
           </div>
           <div class="ed-meta ed-obj2" id="edObj2" hidden><div class="ed-seg" id="edOSize" role="group" aria-label="大きさ"><button type="button" data-s="0" aria-pressed="false">小</button><button type="button" data-s="1" aria-pressed="true">中</button><button type="button" data-s="2" aria-pressed="false">大</button></div><button type="button" class="ed-rot" id="edRotL" aria-label="左に 回す" title="左に 回す">⟲</button><button type="button" class="ed-rot" id="edRotR" aria-label="右に 回す" title="右に 回す">⟳</button><div class="ed-cols" id="edRoof" role="group" aria-label="屋根の 色"></div></div>
+          <div class="ed-meta ed-fine" id="edFine" role="group" aria-label="少しずつ 直す" hidden><button type="button" data-f="rl" title="左に 1° 回す（上から 見て）">↺1°</button><button type="button" data-f="rr" title="右に 1° 回す（上から 見て）">↻1°</button><button type="button" data-f="l-" title="長さを 1m みじかく">長−</button><button type="button" data-f="l+" title="長さを 1m 長く">長＋</button><button type="button" data-f="w-" title="はばを 1m せまく">幅−</button><button type="button" data-f="w+" title="はばを 1m 広く">幅＋</button><button type="button" data-f="mL" title="左へ 1m">←</button><button type="button" data-f="mU" title="奥へ 1m">↑</button><button type="button" data-f="mD" title="手前へ 1m">↓</button><button type="button" data-f="mR" title="右へ 1m">→</button><button type="button" data-f="del" class="fdel" title="えらんだ 木を 消す">🗑 消す</button></div>
           <p class="ed-help" id="edHelp"></p>
           <div class="ed-bar">
             <button type="button" id="edUndo">↶ 戻す</button>
@@ -3032,6 +3040,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // じぶんのコース：保存前の名前・レベル（新しいコースは、保存するまで ここだけ）
   ed.metas={}; try{ const m=store.get("draftMeta3d",{}); Object.entries(m||{}).forEach(([k,v])=>{ if(isMy(k)&&v&&typeof v==="object") ed.metas[k]={name:String(v.name==null?"":v.name).slice(0,20),lv:LVS.includes(v.lv)?v.lv:"中級"}; }); }catch(e){}
   const saveMetas=()=>store.set("draftMeta3d",ed.metas);
+  const edFine=$("#edFine"); let tSel=null, tTap=null, fineT=0, fineKey=""; // 少しずつ 直す 行・えらんだ 木
   const edBox=$("#m3dEdit"), edSel=$("#edCourse"), edMeta=$("#edMeta"), edName=$("#edName"), edLv=$("#edLv"), edGroup=new THREE.Group(); scene.add(edGroup); let edRibbon=null;
   const myIds=()=>MY3D.map(c=>c.id).concat(Object.keys(ed.metas).filter(k=>!MY3D.some(c=>c.id===k)).sort());
   const myName=id=>{ const m=ed.metas[id], c=MY3D.find(x=>x.id===id); return (m&&m.name.trim())||(c&&c.name)||"新しいコース"; };
@@ -3045,7 +3054,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function edOptions(){ [...edSel.options].forEach(o=>{ if(o.value==="__new") return;
     if(isMy(o.value)){ const saved=MY3D.some(c=>c.id===o.value); o.textContent=myName(o.value)+(saved?"":"（まだ保存していません）")+(saved&&(ed.drafts[o.value]||ed.metas[o.value])?" ✎":""); return; }
     const c=COURSES3D.find(x=>x.id===o.value), d=ed.nameDraft[c.id]; o.textContent=(d!=null&&d.trim()?d.trim():c.name)+(ovr3d[c.id]||NAME3D[c.id]?" ✓":"")+(ed.drafts[c.id]||d!=null?" ✎":""); }); }
-  function edMetaShow(){ const on=ed.on&&ed.tool==="course"&&!!ed.id&&ed.id!=="__new", mine=on&&isMy(ed.id); edMeta.hidden=!on; box.classList.toggle("edrow2",on||(ed.on&&(ed.tool==="bld"||ed.tool==="jump"))); delSure(false);
+  function edMetaShow(){ const on=ed.on&&ed.tool==="course"&&!!ed.id&&ed.id!=="__new", mine=on&&isMy(ed.id); edMeta.hidden=!on; box.classList.toggle("edrow2",on||(ed.on&&(ed.tool==="bld"||ed.tool==="jump"))||(ed.on&&ed.tool==="tree"&&!edFine.hidden)); delSure(false);
     edLv.hidden=delBtn.hidden=!mine; edName.placeholder=mine?"コースの名前（例：林の中の近道）":"コースの名前（変えると 地図のボタンも かわります）";
     if(mine){ const m=ed.metas[ed.id], c=MY3D.find(x=>x.id===ed.id); edName.value=m?m.name:(c?c.name:""); edLv.value=myLv(ed.id); }
     else if(on){ const d=ed.nameDraft[ed.id], c=COURSES3D.find(x=>x.id===ed.id); edName.value=d!=null?d:(c?c.name:""); } }
@@ -3111,7 +3120,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   }
   function edEnd(){
     if(!ed.on) return; edKeep(); ed.on=false; box.classList.remove("editing","edrow2"); $(".stage-map .map").classList.remove("editing3d"); edBox.hidden=true; edMeta.hidden=true; delSure(false); if(ed.autoFull){ ed.autoFull=false; if(full3d) setFull3d(false); } edTrees=false; snowApply(snowKeep);
-    controls.paint=false; pst=null; pIds.clear(); showRing(null); oTap=null; obj.drag=null; obj.sel=null; selRing.visible=false; Object.values(liftObj).forEach(o=>o.set(false));
+    controls.paint=false; pst=null; pIds.clear(); showRing(null); oTap=null; obj.drag=null; obj.sel=null; selRing.visible=false; tSel=null; tTap=null; edFine.hidden=true; box.classList.remove("edrow3"); Object.values(liftObj).forEach(o=>o.set(false));
     edGroup.visible=false; ed.pts=[]; ed.sel=-1; edDraw(); controls.enabled=true; controls.tapZoom=true;
     Object.values(courseObj).forEach(o=>{ o.set(1); o.grp.visible=false; });
     if(Object.keys(ed.drafts).length||Object.keys(ed.metas).some(k=>!MY3D.some(c=>c.id===k))) toast("保存していない線は、下書きとして残してあります（「🛠 エディター」でつづけられます）");
@@ -3168,7 +3177,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // ===== 編集の道具：雪をぬる・木を植える・リフトの支柱 =====
   const toolBtns=$$("#m3dEdit [data-tool]"), edPaint=$("#edPaint"), edLiftRow=$("#edLift"), edLiftSet=$("#edLiftSet"), edLiftSel=$("#edLiftSel"), edSize=$("#edSize"), edSizeV=$("#edSizeV"), edTreeN=$("#edTreeN");
   const env={dirty:{snow:false,trees:false,lifts:false},hist:{snow:[],trees:[]},size:{snow:30,trees:20},mode:{snow:"add",trees:"add"}};
-  const isPaint=()=>ed.on&&(ed.tool==="snow"||ed.tool==="tree"), tk=()=>ed.tool==="tree"?"trees":"snow";
+  const isPaint=()=>ed.on&&(ed.tool==="snow"||(ed.tool==="tree"&&env.mode.trees!=="move")), tk=()=>ed.tool==="tree"?"trees":"snow";
   // 筆の大きさの輪（地面の上）
   const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1,48),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.95,depthTest:false,side:THREE.DoubleSide})); ring.rotation.x=-Math.PI/2; ring.renderOrder=20; ring.visible=false; scene.add(ring);
   function showRing(g){ if(!g||!isPaint()){ if(ring.visible){ ring.visible=false; needDraw=true; } return; } const k=tk(), r=env.size[k]; ring.position.copy(P3(g[0],g[1],3)); ring.scale.set(r,r,r);
@@ -3187,7 +3196,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(out.length!==treeArr.length){ treeArr=out; treesUpd(); treeCount(); }
     // 林の木も：消した丸をおぼえる（近い丸とは まとめる）
     eraseDot(X,Y,rp); afArea(X,Y,rp+1.5); } // 絵の ふち（なめらかにした所）の木も たしかめる
-  const treeCount=()=>{ edTreeN.textContent=`${(treeArr.length/3).toLocaleString()}本`; };
+  const treeCount=()=>{ edTreeN.textContent=tSel&&ed.on&&ed.tool==="tree"&&env.mode.trees==="move"?(tSel.k==="af"?"林の 木":"植えた 木"):`${(treeArr.length/3).toLocaleString()}本`; };
   // なぞる（1本指・マウスの左）。2本目の指が来たら、いまの1回は取り消して 地図の操作へ
   let pst=null; const pIds=new Set();
   function envSnap(){ const k=tk(), h=env.hist[k]; h.push(k==="snow"?mctx.getImageData(0,0,gw,gh):{t:treeArr.slice(),e:eraseA.slice()}); if(h.length>20) h.shift(); }
@@ -3208,7 +3217,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   box.addEventListener("pointerup",pEnd,true); box.addEventListener("pointercancel",pEnd,true);
   renderer.domElement.addEventListener("pointerleave",()=>{ if(!pst) showRing(null); });
   function envUndo(){ if(isObj()){ const k=okey(), h=env.hist[k]; if(!h.length) return; const v=JSON.parse(h.pop()); if(k==="blds") bldEdit=v; else jmpEdit=v; obj.sel=null; objRebuild(k); return; }
-    const k=tk(), h=env.hist[k]; if(ed.tool==="lift"||!h.length) return; envRestore(k,h.pop()); env.dirty[k]=true; edBar(); }
+    const k=tk(), h=env.hist[k]; if(ed.tool==="lift"||!h.length) return; envRestore(k,h.pop()); env.dirty[k]=true; tSel=null; fineKey=""; selShow(); edBar(); }
   async function envSave(){ const jobs=[];
     if(env.dirty.snow) jobs.push(["snow",{png:maskEmpty()?"":maskCv.toDataURL("image/png")}]);
     if(env.dirty.trees) jobs.push(["trees",{t:treeArr.slice(),em:eraseEmpty()?"":eraseCv.toDataURL("image/png")}]);
@@ -3243,7 +3252,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   edOrig.onclick=()=>{ if(!edOrig.classList.contains("sure")){ origSure(true); return; } origSure(false);
     const D=k=>envClean(k,(SEED3D.env3d||{})[k]); // 最初の 形＝アプリの はじめの データ（アーティファクトで 作った 形を 入れてある。なければ 航空写真の まま）
     if(isObj()){ const k=okey(), d=D(k); objSnap(k); if(k==="blds") bldEdit=d?{d:d.d.slice(),a:d.a.map(b=>b.slice())}:{d:[],a:[]}; else jmpEdit=d?{j:d.j.map(b=>b.slice())}:{j:[]}; obj.sel=null; objRebuild(k); }
-    else if(ed.tool==="tree"){ const d=D("trees"); envSnap(); treeArr=d?d.t.slice():[]; treesUpd(); treeCount(); eraseLoad(d,afAll); afAll(); env.dirty.trees=true; edBar(); }
+    else if(ed.tool==="tree"){ const d=D("trees"); envSnap(); tSel=null; treeArr=d?d.t.slice():[]; treesUpd(); treeCount(); eraseLoad(d,afAll); afAll(); env.dirty.trees=true; edBar(); }
     else return;
     toast(ed.tool==="bld"?"建物を 最初の 形に もどしました（「保存」で 決まります）":ed.tool==="jump"?"ジャンプ台を 最初の 形に もどしました（「保存」で 決まります）":"木を 最初の 形に もどしました（「保存」で 決まります）"); };
   $("#edLiftReset").onclick=()=>{ delete LSET[edLiftSel.value]; env.dirty.lifts=true; rebuildLifts(); liftUI(); edBar(); toast("支柱を写真の位置・ふつうの高さにもどしました（「保存」で決まります）"); };
@@ -3251,9 +3260,9 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   edSize.oninput=()=>{ const k=tk(); env.size[k]=+edSize.value; edSizeV.textContent=edSize.value+"m"; if(ring.visible){ const r=env.size[k]; ring.scale.set(r,r,r); needDraw=true; } };
   toolBtns.forEach(b=>b.onclick=()=>{ if(b.dataset.tool!==ed.tool){ if(ed.tool==="course") edKeep(); edTool(b.dataset.tool); } else helpShow(true); });
   const HELP={snow:"なぞった所を、雪の白で ぬれます（「消す」で もとにもどる）。地図は2本指（パソコンは右ドラッグ・ホイール）で動かせます",
-    tree:"🌲 植える：なぞった所に 木が 生えます（太さを 小さく すると 1本ずつ）。🪓 消す：なぞった所の 木を とります（林の 木も）。地図は 2本指（パソコンは 右ドラッグ・ホイール）で 動かせます",
-    bld:"➕ 建てる：押した所に 建物を 建てます（小・中・大と 屋根の 色を えらべます）。✋ 動かす：建物を ドラッグで 動かし、押して えらんだ 建物を ⟲⟳ で 回せます。🗑 消す：押した 建物を 消します（元から ある 建物も）",
-    jump:"➕ 置く：押した所に 下りの 向きで ジャンプ台を 置きます（小・中・大）。✋ 動かす：ドラッグで 動かし、⟲⟳ で 向きを 変えます。🗑 消す：押した 台を 消します。⛷ フリーランで 台を すべると、ふちから とびます",
+    tree:"🌲 植える：なぞった所に 木が 生えます（細く すると 1本ずつ）。🪓 消す：なぞった所の 木を とります（林の 木も）。✋ 動かす：1本 押して えらび、ドラッグか ← ↑ ↓ → で 1mずつ・🗑 で その 木だけ 消す。地図は 2本指で 動かせます",
+    bld:"➕ 建てる：押した所に 建てます（小・中・大と 屋根の 色）。✋ 動かす：ドラッグで 動かし、えらぶと ⟲⟳ 15°・↺↻ 1°・長さ／はば 1m・← ↑ ↓ → 1m ずつ（右上に 大きさと 向き）。🗑 消す：押した 建物を 消します（元からの 建物も）",
+    jump:"➕ 置く：押した所に 下りの 向きで 置きます（小・中・大）。✋ 動かす：ドラッグで 動かし、えらぶと ⟲⟳ 15°・↺↻ 1°・← ↑ ↓ → 1m ずつ。🗑 消す：押した 台を 消します。⛷ フリーランで 台を すべると、ふちから とびます",
     lift:"支柱は、航空写真で見える位置に立てています（「📏 等間隔」で間隔を自分で決められます）。高さも変えられます。ワイヤーが地面に近い所の支柱は、自動で少し高くなります"};
   // ===== 🏠 建物・⛷ ジャンプ台：➕ 建てる（置く）・✋ 動かす（ドラッグ。⟲⟳ で 回す、小・中・大）・🗑 消す。元から ある 建物も 消したり 動かしたり できる =====
   const OSZ=[[8,6],[14,10],[24,14]], ROOFS=["#8a3b2c","#5d6470","#2f5f8f","#3f6b4a","#b08a3c"], edObjN=$("#edObjN"), edObj=$("#edObj"), edObj2=$("#edObj2"), edRoof=$("#edRoof");
@@ -3267,7 +3276,10 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(!jmpEdit){ const E=ENV3D.jumps||{}; jmpEdit={j:(E.j||[]).map(b=>b.slice())}; } return jmpEdit; }
   function objSnap(k){ const h=env.hist[k]; h.push(JSON.stringify(objWork(k))); if(h.length>30) h.shift(); }
   function objRebuild(k,quiet){ if(k==="blds") bldBuild(); else jmpBuild(); if(!quiet){ env.dirty[k]=true; edBar(); } objCount(); selShow(); }
-  const objCount=()=>{ if(!isObj()) return; if(ed.tool==="bld"){ const w=bldEdit||ENV3D.blds||{d:[],a:[]}; edObjN.textContent=`${bldCur.length}棟`+((w.d||[]).length||(w.a||[]).length?`（消した ${(w.d||[]).length}・建てた ${(w.a||[]).length}）`:""); } else edObjN.textContent=`${jmpCur.length}台`; };
+  const objCount=()=>{ if(!isObj()) return; const s=obj.sel, dg=v=>((Math.round(v*180/Math.PI)%360)+360)%360; // えらんだ 物は 大きさと 向き（上から 見て 時計まわりに 増える）
+    if(s&&(s.k==="blds")===(ed.tool==="bld")){ if(s.k==="blds"){ const b=bldCur.find(b=>b[6]===s.ref); if(b){ edObjN.textContent=`${+b[2].toFixed(1)}×${+b[3].toFixed(1)}m・${dg(b[4])}°`; return; } }
+      else { const j=jmpCur[s.ref]; if(j){ edObjN.textContent=`${["小","中","大"][JSZ.indexOf(j.J)]}・${dg(-j.h)}°`; return; } } }
+    if(ed.tool==="bld"){ const w=bldEdit||ENV3D.blds||{d:[],a:[]}; edObjN.textContent=`${bldCur.length}棟`+((w.d||[]).length||(w.a||[]).length?`（消した ${(w.d||[]).length}・建てた ${(w.a||[]).length}）`:""); } else edObjN.textContent=`${jmpCur.length}台`; };
   // 押した 所の 建物（bldCur の 1つ）／ジャンプ台（番号）
   function bldHitAt(X,Y,pad){ let best=null, bd=1e9; bldCur.forEach(b=>{ const [x,y,L,W,a]=b, dx=(X-x)*M, dy=(Y-y)*M, lu=dx*Math.cos(a)+dy*Math.sin(a), lv=-dx*Math.sin(a)+dy*Math.cos(a);
       if(Math.abs(lu)<L/2+pad&&Math.abs(lv)<W/2+pad){ const d=Math.hypot(dx,dy); if(d<bd){ bd=d; best=b; } } }); return best; }
@@ -3278,7 +3290,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   function selShow(){ const s=obj.sel; let c=null, r=0;
     if(s&&isObj()&&((s.k==="blds")===(ed.tool==="bld"))){ if(s.k==="blds"){ const b=bldCur.find(b=>b[6]===s.ref); if(b){ c=P3(b[0],b[1],2.5); r=Math.hypot(b[2],b[3])/2+1.5; } }
       else { const j=jmpCur[s.ref]; if(j){ c=new THREE.Vector3(j.x+Math.sin(j.h)*j.J.L/2,0,j.z+Math.cos(j.h)*j.J.L/2); c.y=hAt(c.x,c.z)+2.5; r=Math.hypot(j.J.L,j.J.W)/2+1.2; } } }
-    if(c){ selRing.position.copy(c); selRing.scale.set(r,r,r); selRing.visible=true; } else selRing.visible=false; needDraw=true; }
+    else if(ed.on&&ed.tool==="tree"&&env.mode.trees==="move"&&tSel){ const p=tPos(tSel); c=P3(p[0],p[1],1.2); r=2.6*Math.max(.7,p[2]); }
+    if(c){ selRing.position.copy(c); selRing.scale.set(r,r,r); selRing.visible=true; } else selRing.visible=false; needDraw=true; fineShow(); }
   function camAngles(){ const f=new THREE.Vector3(); camera.getWorldDirection(f); return {fwd:Math.atan2(f.x,f.z),side:Math.atan2(f.x,-f.z)}; } // 見ている 向き／画面の 横
   function objAdd(g){ const k=okey(); objSnap(k);
     if(k==="blds"){ const w=objWork(k), [L,W]=OSZ[obj.size.bld]; w.a.push([Math.round(g[0]*100)/100,Math.round(g[1]*100)/100,L,W,Math.round(camAngles().side*1000)/1000,obj.roof]); obj.sel={k,ref:"a"+(w.a.length-1)}; }
@@ -3292,8 +3305,8 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     obj.sel=null; objRebuild(k); }
   function objSelect(g){ const k=okey(); if(k==="blds"){ const b=bldHitAt(g[0],g[1],1); obj.sel=b?{k,ref:b[6]}:null; } else { const i=jmpHitAt(g[0],g[1],1); obj.sel=i>=0?{k,ref:i}:null; } selShow(); }
   // えらんだ 物を 変える（f が 中身を 書きかえる）。元から ある 建物は 自分の 物に してから
-  function objEditSel(f){ const s=obj.sel; if(!s||(s.k==="blds")!==(ed.tool==="bld")) { toast(ed.tool==="bld"?"✋ 動かす で 建物を えらんでください":"✋ 動かす で ジャンプ台を えらんでください"); return; }
-    objSnap(s.k); if(s.k==="blds"){ const i=bldOwn(s.ref); s.ref="a"+i; f(objWork("blds").a[i]); } else f(objWork("jumps").j[s.ref]); objRebuild(s.k); }
+  function objEditSel(f,noSnap){ const s=obj.sel; if(!s||(s.k==="blds")!==(ed.tool==="bld")) { toast(ed.tool==="bld"?"✋ 動かす で 建物を えらんでください":"✋ 動かす で ジャンプ台を えらんでください"); return; }
+    if(!noSnap) objSnap(s.k); if(s.k==="blds"){ const i=bldOwn(s.ref); s.ref="a"+i; f(objWork("blds").a[i]); } else f(objWork("jumps").j[s.ref]); objRebuild(s.k); }
   function objRot(d){ objEditSel(b=>{ if(ed.tool==="bld") b[4]=Math.round((b[4]-d)*1000)/1000; else { const J=JSZ[b[3]]||JSZ[1], cx=b[0]+Math.sin(b[2])*J.L/2/M, cy=b[1]+Math.cos(b[2])*J.L/2/M; b[2]=Math.round((b[2]+d)*1000)/1000; b[0]=cx-Math.sin(b[2])*J.L/2/M; b[1]=cy-Math.cos(b[2])*J.L/2/M; } }); } // 台は まん中を 中心に 回す
   $("#edRotL").onclick=()=>objRot(Math.PI/12); $("#edRotR").onclick=()=>objRot(-Math.PI/12); // ⟲＝上から 見て 反時計まわり（建物の 角度は 増えると 時計まわり、台の 向きは 増えると 反時計まわり）
   $$("#edOMode [data-m]").forEach(b=>b.onclick=()=>{ obj.mode[ed.tool]=b.dataset.m; edTool(ed.tool); });
@@ -3319,16 +3332,68 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
     if(T.multi||!T.g||Math.hypot(e.clientX-T.x,e.clientY-T.y)>10||performance.now()-T.t>700) return; // ずらした ときは 地図の 操作
     const m=obj.mode[ed.tool]; if(m==="add") objAdd(T.g); else if(m==="del") objDel(T.g); else objSelect(T.g); };
   box.addEventListener("pointerup",oEnd,true); box.addEventListener("pointercancel",e=>{ if(oTap&&e.pointerId===oTap.id){ oTap=null; if(obj.drag){ const d=obj.drag; obj.drag=null; if(d.on) objRebuild(d.k); } } },true);
+  // ===== 少しずつ 直す：えらんだ 建物（↺↻ 1°・長さ／はば 1m・← ↑ ↓ → 1m）・ジャンプ台（↺↻ 1°・1m）・木（✋ 動かす で 1本 えらんで ドラッグ／1m・🗑 その木だけ）=====
+  //  矢印は 画面の 向き（↑＝奥）。1.5秒 以内に 続けて 押した 分は「↶ 戻す」1回で もどる
+  function tPos(s){ return s.k==="af"?[AF.x[s.i],AF.y[s.i],AF.s[s.i]]:[treeArr[s.j*3],treeArr[s.j*3+1],treeArr[s.j*3+2]]; }
+  const isTreeMove=()=>ed.on&&ed.tool==="tree"&&env.mode.trees==="move", _tv=new THREE.Vector3(), D1=Math.PI/180;
+  const clampXY=(x,y)=>[Math.round(Math.max(1,Math.min(G.w-1,x))*100)/100,Math.round(Math.max(1,Math.min(G.h-1,y))*100)/100];
+  // 押した 木：まわり 25m の 木の 幹の 中ほどを 画面に うつして、指に いちばん 近い 1本（34px 以内）
+  function treePick(cx,cy,g){ const rc=renderer.domElement.getBoundingClientRect(), R=25/M; let best=null, bd=34*34;
+    const test=(x,y,sc,o)=>{ _tv.copy(P3(x,y,5*sc)).project(camera); if(_tv.z>1) return; const sx=rc.left+(_tv.x+1)/2*rc.width, sy=rc.top+(1-_tv.y)/2*rc.height, d=(sx-cx)**2+(sy-cy)**2; if(d<bd){ bd=d; best=o; } };
+    if(AF.n) for(let gx=Math.floor((g[0]-R)/16);gx<=Math.floor((g[0]+R)/16);gx++) for(let gy=Math.floor((g[1]-R)/16);gy<=Math.floor((g[1]+R)/16);gy++){ const a=AF.grid.get(gx+","+gy); if(!a) continue;
+      for(const i of a){ if(AF.gone[i]||(AF.x[i]-g[0])**2+(AF.y[i]-g[1])**2>R*R) continue; test(AF.x[i],AF.y[i],AF.s[i],{k:"af",i}); } }
+    for(let j=0;j*3<treeArr.length;j++){ const x=treeArr[j*3], y=treeArr[j*3+1]; if((x-g[0])**2+(y-g[1])**2>R*R||plantOff(x,y)) continue; test(x,y,treeArr[j*3+2],{k:"pl",j}); }
+    return best; }
+  // 林の 木を 1本だけ 消す（林の 木は 地図の 1マス（約3.9m）に 1本なので、その マスだけ）
+  function eraseOne(i){ const x=Math.floor(AF.x[i]), y=Math.floor(AF.y[i]); ectx.fillStyle="#000"; ectx.fillRect(x,y,1,1); eraseA[y*FW+x]=255; afArea(AF.x[i],AF.y[i],1.2); }
+  // 林の 木を 動かす ときは、元の 所を 消して 植えた 木に する
+  function treeOwn(){ if(!tSel||tSel.k==="pl") return; const i=tSel.i; eraseOne(i); treeArr.push(Math.round(AF.x[i]*100)/100,Math.round(AF.y[i]*100)/100,Math.round(AF.s[i]*100)/100); tSel={k:"pl",j:treeArr.length/3-1}; }
+  function treeMoved(){ treesUpd(); treeCount(); env.dirty.trees=true; edBar(); selShow(); const p=tPos(tSel); if(plantOff(p[0],p[1])) toast("コースや 建物の 上には 木を 立てられません（そこでは 見えません）"); }
+  box.addEventListener("pointerdown",e=>{ if(!isTreeMove()||e.target!==renderer.domElement) return; if(e.pointerType==="mouse"&&e.button!==0) return;
+    if(tTap){ tTap.multi=true; if(tTap.on){ const h=env.hist.trees; if(h.length) envRestore("trees",h.pop()); tSel=null; selShow(); edBar(); } return; }
+    const g=pickGround(e.clientX,e.clientY), s=g?treePick(e.clientX,e.clientY,g):null; tTap={id:e.pointerId,x:e.clientX,y:e.clientY,multi:false,on:false,t:0,hit:!!s};
+    if(s){ const p=tPos(s); tTap.ox=p[0]-g[0]; tTap.oy=p[1]-g[1]; e.stopPropagation(); e.preventDefault(); }
+    tSel=s; fineKey=""; selShow(); treeCount(); },true);
+  box.addEventListener("pointermove",e=>{ if(!tTap||e.pointerId!==tTap.id||tTap.multi||!tTap.hit||!tSel||!isTreeMove()) return; e.stopPropagation();
+    if(!tTap.on){ if(Math.hypot(e.clientX-tTap.x,e.clientY-tTap.y)<6) return; envSnap(); treeOwn(); tTap.on=true; }
+    const g=pickGround(e.clientX,e.clientY); if(!g) return; const j=tSel.j, q=clampXY(g[0]+tTap.ox,g[1]+tTap.oy); treeArr[j*3]=q[0]; treeArr[j*3+1]=q[1];
+    const now=performance.now(); if(now-tTap.t>60){ tTap.t=now; treesUpd(); selShow(); } },true);
+  const tEnd=e=>{ if(!tTap||e.pointerId!==tTap.id) return; const T=tTap; tTap=null; if(T.on) treeMoved(); };
+  box.addEventListener("pointerup",tEnd,true); box.addEventListener("pointercancel",tEnd,true);
+  // 画面の 向きで 1m（地図の px）
+  function nudgeVec(f){ const m={mU:[0,1],mD:[0,-1],mR:[1,0],mL:[-1,0]}[f]; if(!m) return null;
+    const u=new THREE.Vector3(0,1,0).applyQuaternion(camera.quaternion), r=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion); u.y=0; r.y=0;
+    if(u.lengthSq()<1e-8) u.set(0,0,-1); if(r.lengthSq()<1e-8) r.set(1,0,0); u.normalize(); r.normalize();
+    return [(r.x*m[0]+u.x*m[1])/M,(r.z*m[0]+u.z*m[1])/M]; }
+  function fineDo(f){ const now=performance.now(), t=ed.tool;
+    if(t==="tree"){ if(!tSel) return;
+      if(f==="del"){ envSnap(); if(tSel.k==="af") eraseOne(tSel.i); else treeArr.splice(tSel.j*3,3); tSel=null; fineKey=""; treesUpd(); env.dirty.trees=true; edBar(); selShow(); treeCount(); return; }
+      const d=nudgeVec(f); if(!d) return; if(!(fineKey==="tree"&&now-fineT<1500)) envSnap(); treeOwn(); const j=tSel.j, q=clampXY(treeArr[j*3]+d[0],treeArr[j*3+1]+d[1]); treeArr[j*3]=q[0]; treeArr[j*3+1]=q[1]; fineKey="tree"; fineT=now; treeMoved(); return; }
+    const s=obj.sel; if(!s) return; const merge=fineKey===s.k+":"+s.ref&&now-fineT<1500, d=nudgeVec(f);
+    objEditSel(v=>{ if(s.k==="blds"){ if(f==="rl") v[4]-=D1; else if(f==="rr") v[4]+=D1; else if(f==="l-") v[2]=Math.max(4,v[2]-1); else if(f==="l+") v[2]=Math.min(60,v[2]+1); else if(f==="w-") v[3]=Math.max(3,v[3]-1); else if(f==="w+") v[3]=Math.min(40,v[3]+1);
+        v[4]=Math.round(v[4]*10000)/10000; v[2]=Math.round(v[2]*100)/100; v[3]=Math.round(v[3]*100)/100; }
+      else if(f==="rl"||f==="rr"){ const J=JSZ[v[3]]||JSZ[1], cx=v[0]+Math.sin(v[2])*J.L/2/M, cy=v[1]+Math.cos(v[2])*J.L/2/M; v[2]=Math.round((v[2]+(f==="rl"?D1:-D1))*10000)/10000; v[0]=Math.round((cx-Math.sin(v[2])*J.L/2/M)*100)/100; v[1]=Math.round((cy-Math.cos(v[2])*J.L/2/M)*100)/100; }
+      if(d){ const q=clampXY(v[0]+d[0],v[1]+d[1]); v[0]=q[0]; v[1]=q[1]; } },merge);
+    if(obj.sel){ fineKey=obj.sel.k+":"+obj.sel.ref; fineT=now; } }
+  edFine.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{ fineDo(b.dataset.f); b.blur(); });
+  // 微調整の 行：えらんだ 物が ある ときだけ（建物・台は 3行目、木は 2行目）
+  function fineShow(){ const t=ed.tool, ob=t==="bld"||t==="jump", s=obj.sel;
+    const on=ed.on&&((ob&&!!s&&((s.k==="blds")===(t==="bld")))||(t==="tree"&&env.mode.trees==="move"&&!!tSel));
+    edFine.hidden=!on; edFine.style.top=(t==="tree"?108:156)+"px";
+    edFine.querySelectorAll("[data-f]").forEach(b=>{ const f=b.dataset.f; b.hidden=!(f==="del"?t==="tree":(f==="rl"||f==="rr")?ob:(f==="l-"||f==="l+"||f==="w-"||f==="w+")?t==="bld":true); });
+    box.classList.toggle("edrow3",on&&ob); if(t==="tree") box.classList.toggle("edrow2",on);
+    if(ob) objCount(); else if(t==="tree") treeCount(); }
   function edTool(t){ ed.tool=t; ed.lastTool=t; toolBtns.forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.tool===t)));
     const course=t==="course", paint=t==="snow"||t==="tree", lift=t==="lift", ob=t==="bld"||t==="jump";
     $("#m3dEdit .ed-course").hidden=!course; edPaint.hidden=!paint; edLiftRow.hidden=!lift; edLiftSet.hidden=!lift; edObj.hidden=!ob; edObj2.hidden=!ob; edRoof.hidden=t!=="bld";
-    edGroup.visible=course; controls.paint=paint||(ob&&obj.mode[t]==="move"); pst=null; pIds.clear(); oTap=null; obj.drag=null; if(!paint) showRing(null); edMetaShow();
+    edGroup.visible=course; controls.paint=paint||(ob&&obj.mode[t]==="move"); pst=null; pIds.clear(); oTap=null; obj.drag=null; tSel=null; tTap=null; fineKey=""; if(!paint) showRing(null); edMetaShow();
     if(ob){ $$("#edOMode [data-m]").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.m===obj.mode[t])); if(b.dataset.m==="add") b.textContent=t==="bld"?"➕ 建てる":"➕ 置く"; });
       $$("#edOSize [data-s]").forEach(b=>b.setAttribute("aria-pressed",String(+b.dataset.s===obj.size[t]))); objCount(); }
     selShow();
     $("#edDel").hidden=!course; $("#edReset").hidden=!course||!ovr3d[ed.id]; $("#edUndo").hidden=lift; $("#edLiftReset").hidden=!lift; edOrig.hidden=!(ob||t==="tree"); origSure(false);
     if(paint){ const k=tk(); edSize.min=k==="snow"?10:6; edSize.max=k==="snow"?120:80; edSize.value=env.size[k]; edSizeV.textContent=env.size[k]+"m"; edTreeN.hidden=k!=="trees"; treeCount();
-      $$("#edPMode [data-m]").forEach(b=>{ b.setAttribute("aria-pressed",String(b.dataset.m===env.mode[k])); b.textContent=b.dataset.m==="add"?(k==="snow"?"❄ ぬる":"🌲 植える"):(k==="snow"?"🧽 消す":"🪓 消す"); }); }
+      $$("#edPMode [data-m]").forEach(b=>{ const m=b.dataset.m; b.setAttribute("aria-pressed",String(m===env.mode[k])); b.textContent=m==="add"?(k==="snow"?"❄ ぬる":"🌲 植える"):m==="del"?(k==="snow"?"🧽 消す":"🪓 消す"):"✋ 動かす"; b.hidden=m==="move"&&k!=="trees"; });
+      edSize.closest(".ed-size").hidden=env.mode[k]==="move"; }
     if(lift){ if(!edLiftSel.value&&LIFTS3D.length) edLiftSel.value=LIFTS3D[0].id; liftUI(); const o=liftObj[edLiftSel.value]; if(o) liftView(o); }
     else Object.values(liftObj).forEach(o=>o.set(false));
     if(course) edDraw(); else $("#edHelp").textContent=HELP[t]; helpShow(true); edBar(); needDraw=true; }
@@ -3338,7 +3403,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
   // 共有のデータが変わったら（編集中の変更は消さない）
   function envChanged(k){ const v=ENV3D[k]; if(ed.on&&env.dirty[k]) return;
     if(k==="snow") loadMask(v&&v.png);
-    else if(k==="trees"){ treeArr=v?v.t.slice():[]; treesUpd(); treeCount(); eraseLoad(v,afAll); afAll(); }
+    else if(k==="trees"){ tSel=null; treeArr=v?v.t.slice():[]; treesUpd(); treeCount(); eraseLoad(v,afAll); afAll(); selShow(); }
     else if(k==="lifts"){ Object.keys(LSET).forEach(id=>{ delete LSET[id]; }); if(v) Object.assign(LSET,JSON.parse(JSON.stringify(v.L))); rebuildLifts(); if(ed.on&&ed.tool==="lift") liftUI(); }
     else if(k==="blds"||k==="jumps"){ if(k==="blds") bldEdit=null; else jmpEdit=null; env.dirty[k]=false; env.hist[k]=[]; if(obj.sel&&obj.sel.k===k) obj.sel=null; objRebuild(k,true); } }
   $("#drawBtn").onclick=()=>{ const f=selected&&findItem(selected); edStart(f&&f.kind==="course"&&(COURSE_IDS.has(selected)||isMy(selected))?selected:"centerB"); };
@@ -3381,6 +3446,7 @@ void main(){ vec3 d=normalize(vD); float h=d.y;
       for(let i=0;i<AF.n;i++){ if(AF.gone[i]) continue; if(d2(AF.x[i],AF.y[i])<r2) n++; }
       for(let i=0;i+2<treeArr.length;i+=3) if(d2(treeArr[i],treeArr[i+1])<r2) np++;
       out[id]=[n,np]; } return out; },cs:id=>{ const o=courseObj[id]; return o&&[P3(...o.sp[0],0).toArray(),P3(...o.sp[Math.min(o.sp.length-1,12)],0).toArray()]; },end:()=>{ if(anim&&anim.kind==="ski") anim.k=.985; }, seek:k=>{ if(anim&&anim.kind==="ski") anim.k=k; }, ro:()=>anim&&{ro:anim.ro||0,air:!!anim.rAir,k:anim.k}, jumps:a=>{ jmpEdit={j:a}; jmpBuild(); },
+    scr:(x,y,up)=>{ const rc=renderer.domElement.getBoundingClientRect(), v=P3(x,y,up||0).project(camera); return [rc.left+(v.x+1)/2*rc.width,rc.top+(1-v.y)/2*rc.height]; }, tsel:()=>tSel&&Object.assign({},tSel,{pos:tPos(tSel)}), fine:()=>edFine.hidden?[]:[...edFine.querySelectorAll("[data-f]")].filter(b=>!b.hidden).map(b=>b.dataset.f), afNear:(x,y)=>{ let b=-1, bd=1e9; for(let i=0;i<AF.n;i++){ if(AF.gone[i]) continue; const d=(AF.x[i]-x)**2+(AF.y[i]-y)**2; if(d<bd){ bd=d; b=i; } } return b<0?null:{i:b,x:AF.x[b],y:AF.y[b],s:AF.s[b]}; }, afGone:i=>AF.gone[i],
     ed:()=>({snow:snowU.value,edTrees,show3d:show3d(),plantVis:plantIM.visible,bldVis:!!(bldMesh&&bldMesh.visible),jumpVis:jumpG.visible,chunksVis:AF.chunks.filter(c=>c.im.visible).length,nearN:SGS.reduce((s,S)=>s+S.ims.reduce((t,im)=>t+im.count,0),0),edSnow:$("#edSnow").textContent,a:JSON.parse(JSON.stringify((bldEdit||ENV3D.blds||{a:[]}).a||[])),j:JSON.parse(JSON.stringify((jmpEdit||ENV3D.jumps||{j:[]}).j||[])),full:full3d,help:!$("#edHelp").classList.contains("fade"),afOb:AF.ob?AF.ob.reduce((s,v)=>s+v,0):0,gone:AF.gone?AF.gone.reduce((s,v)=>s+v,0):0,orig:!$("#edOrig").hidden&&$("#edOrig").textContent,on:ed.on,tool:ed.tool,blds:bldCur.length,added:(bldEdit||ENV3D.blds||{a:[]}).a.length,del:(bldEdit||ENV3D.blds||{d:[]}).d.length,jumps:jmpCur.length,jh:jmpCur.map(j=>+j.h.toFixed(2)),jL:jmpCur.map(j=>j.J.L),trees:treeArr.length/3,dirty:Object.keys(env.dirty).filter(k=>env.dirty[k]).join(","),sel:obj.sel,undo:!$("#edUndo").disabled,n:edObjN.textContent}),
     chairs:id=>{ const o=liftObj[id], out=[]; chairs.forEach(c=>{ if(c.o!==o) return; const s=sOf(c); if(s>3&&s<o.upLen-2&&c.riders.length){ const P=new THREE.Vector3(), T=new THREE.Vector3(); atS(o,s,P,T); out.push({p:P.toArray(),t:T.normalize().toArray(),kinds:c.riders.map(r=>r.kind)}); } }); return out; },
     rt:id=>{ const o=courseObj[id]; return o&&{root:courseRoot.visible,grp:o.grp.visible,band:o.band.visible,flow:o.flow.visible,gates:o.gates.visible,half:o.L.ln.material.uniforms.uHalf.value}; },
